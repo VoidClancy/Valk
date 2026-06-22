@@ -1,0 +1,118 @@
+enum messageType {
+    TEXT
+}
+
+model User {
+    id        String    @id @default(cuid()) @db.Uuid
+    email     String    @unique @db.VarChar(255)
+    name      String?   @db.VarChar(128)
+    password  String    @db.Text
+    role      String    @default("USER")
+    createdAt DateTime  @default(now()) @db.Timestamp(6)
+    updatedAt DateTime  @db.Timestamp(6)
+    deletedAt DateTime? @db.Timestamp(6)
+
+    profile       Profile?
+    memberships   Membership[]
+    comments      Comment[]
+    createdTasks  Task[]       @relation("TaskCreator")
+    assignedTasks Task[]       @relation("TaskAssignee")
+
+    @@index([email], where: deletedAt == null)
+
+    @@map("users")
+}
+
+model Profile {
+    id        String                                @id @default(uuid()) @db.Uuid
+    userId    String                                @unique @db.Uuid
+    avatarUrl String?                               @db.Text
+    bio       String?                               @db.VarChar(500)
+    location  Unsupported("geometry(Point, 4326)")?
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("profiles")
+}
+
+model Team {
+    id        String   @id @default(cuid()) @db.Uuid
+    name      String   @db.VarChar(100)
+    createdAt DateTime @default(now())
+
+    memberships Membership[]
+    projects    Project[]
+
+    @@unique([name])
+    @@map("teams")
+}
+
+model Membership {
+    teamId   String   @db.Uuid
+    userId   String   @db.Uuid
+    role     String   @default("MEMBER")
+    joinedAt DateTime @default(now())
+
+    team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@id([teamId, userId])
+    @@index([userId])
+    @@map("memberships")
+}
+
+model Project {
+    id        String    @id @default(cuid()) @db.Uuid
+    teamId    String    @db.Uuid
+    name      String    @db.VarChar(100)
+    slug      String    @db.VarChar(120)
+    createdAt DateTime  @default(now())
+    deletedAt DateTime?
+
+    team  Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    tasks Task[]
+    @@index([deletedAt], where: deletedAt != null)
+
+    @@unique([teamId, slug])
+    @@index([teamId])
+    @@map("projects")
+}
+
+model Task {
+    id          String    @id @default(uuid()) @db.Uuid
+    projectId   String    @db.Uuid
+    creatorId   String    @db.Uuid
+    assigneeId  String?   @db.Uuid
+    title       String    @db.VarChar(200)
+    description String?   @db.Text
+    status      String    @default("TODO")
+    priority    Int       @default(3)
+    dueDate     DateTime?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime
+    deletedAt   DateTime?
+
+    project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    creator  User      @relation("TaskCreator", fields: [creatorId], references: [id])
+    assignee User?     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+    comments Comment[]
+
+    @@index([projectId, status, priority], where: deletedAt == null)
+    @@index([assigneeId], where: assigneeId != null && status != MessageType.TEXT)
+
+    @@map("tasks")
+}
+
+model Comment {
+    id        String   @id @default(cuid()) @db.Uuid
+    taskId    String   @db.Uuid
+    authorId  String   @db.Uuid
+    body      String   @db.Text
+    createdAt DateTime @default(now())
+
+    task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+    author User @relation(fields: [authorId], references: [id])
+
+    @@index([taskId, createdAt])
+    @@map("comments")
+}
