@@ -1,0 +1,4 @@
+Lexer produces tokens
+Tokens are passed to parser which produces an AST
+AST is passed to resolver which produces a schema (or the IR)
+IR will be passed to do codegen and construct migrations

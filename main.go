@@ -4,21 +4,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"valkyrie/parser"
+	"valkyrie/schema"
 )
 
 func main() {
 
-	file, err := os.ReadFile("schema.prisma")
-	if err != nil {
-		panic(err)
+	fileBytes, _ := os.ReadFile("schema.prisma")
+	rawString := string(fileBytes)
+
+	// tokens := schema.ExtractTokens(rawString)
+	// for i, token := range tokens {
+	// 	fmt.Printf("%d: %+v\n", i, token)
+	// }
+
+	schema, errs := schema.ParseSchema(rawString)
+	if len(errs) > 0 {
+		for _, err := range errs {
+			fmt.Println(err)
+		}
+
 	}
-	tokens := parser.ExtractTokens(string(file))
-	parser.LogTokens(tokens)
-	parser := parser.Parser{
-		Tokens: tokens,
-		Pos:    0,
-	}
-	b, _ := json.MarshalIndent(parser.Parse(), "", "  ")
+
+	b, _ := json.MarshalIndent(schema, "", "  ")
+
+	os.WriteFile("result.json", b, 0644)
 	fmt.Println(string(b))
 }

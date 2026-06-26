@@ -1,51 +1,4 @@
-package parser
-
-import (
-	"fmt"
-)
-
-type TokenType int
-
-const (
-	EOF TokenType = iota
-
-	IDENT   // e.g. User, String, id, unique, now, db
-	STRING  // e.g. "users", "DATABASE_URL"
-	NUMBER  // e.g. 123, -45.67
-	BOOLEAN // e.g. true, false
-
-	// Punctuations
-	LBRACE   // {
-	RBRACE   // }
-	LPAREN   // (
-	RPAREN   // )
-	LBRACKET // [
-	RBRACKET // ]
-	COMMA    // ,
-	COLON    // :
-	DOT      // .
-	QUESTION // ?
-	AT       // @
-	ATAT     // @@
-	ASSIGN   // =
-
-	EQUAL     // ==
-	NOT_EQUAL // !=
-	LT        // <
-	GT        // >
-	LTE       // <=
-	GTE       // >=
-	AND       // &&
-	OR        // ||
-	BANG      // !
-)
-
-type Token struct {
-	Type  TokenType
-	Value string
-	Line  int
-	Col   int
-}
+package schema
 
 type Lexer struct {
 	input  string
@@ -104,11 +57,11 @@ func (l *Lexer) NextToken() Token {
 	line := l.line
 	col := l.col
 
-	// Identifiers and Keywords
 	if isLetter(ch) {
 		val := l.readIdentifier()
-		// Check for keywords
+
 		t := IDENT
+
 		switch val {
 		case "true", "false":
 			t = BOOLEAN
@@ -122,13 +75,14 @@ func (l *Lexer) NextToken() Token {
 		return Token{Type: NUMBER, Value: val, Line: line, Col: col}
 	}
 
-	// Strings
 	if ch == '"' {
-		val := l.readString()
+		val, ok := l.readString()
+		if !ok {
+			return Token{Type: ILLEGAL, Value: "unterminated string literal", Line: line, Col: col}
+		}
 		return Token{Type: STRING, Value: val, Line: line, Col: col}
 	}
 
-	// Multi-character and single-character symbols
 	l.advance()
 	switch ch {
 	case '{':
@@ -180,13 +134,13 @@ func (l *Lexer) NextToken() Token {
 			l.advance()
 			return Token{Type: AND, Value: "&&", Line: line, Col: col}
 		}
-		panic(fmt.Sprintf("unknown character %q at line %d, col %d", ch, line, col))
+		return Token{Type: ILLEGAL, Value: string(ch), Line: line, Col: col}
 	case '|':
 		if l.peek() == '|' {
 			l.advance()
 			return Token{Type: OR, Value: "||", Line: line, Col: col}
 		}
-		panic(fmt.Sprintf("unknown character %q at line %d, col %d", ch, line, col))
+		return Token{Type: ILLEGAL, Value: string(ch), Line: line, Col: col}
 	case '@':
 		if l.peek() == '@' {
 			l.advance()
@@ -194,19 +148,9 @@ func (l *Lexer) NextToken() Token {
 		}
 		return Token{Type: AT, Value: "@", Line: line, Col: col}
 	default:
-		// Unknown character
-		panic(fmt.Sprintf("unknown character %q at line %d, col %d", ch, line, col))
+		return Token{Type: ILLEGAL, Value: string(ch), Line: line, Col: col}
 	}
 }
-
-func isLetter(ch byte) bool {
-	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_' || ch == '$'
-}
-
-func isDigit(ch byte) bool {
-	return ch >= '0' && ch <= '9'
-}
-
 func (l *Lexer) skipWhitespaceAndComments() {
 	for l.pos < l.length {
 		ch := l.peek()
@@ -214,9 +158,9 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			l.advance()
 			continue
 		}
-		// Comment starting with //
+
 		if ch == '/' && l.peekNext() == '/' {
-			// Skip comment until end of line
+
 			l.advance() // first /
 			l.advance() // second /
 			for l.pos < l.length && l.peek() != '\n' {
@@ -259,17 +203,20 @@ func (l *Lexer) readNumber() string {
 	return l.input[start:l.pos]
 }
 
-func (l *Lexer) readString() string {
-	l.advance() // consume open quote
+func (l *Lexer) readString() (string, bool) {
+	l.advance() //  open quote
 	var result []byte
 	for l.pos < l.length {
 		ch := l.peek()
 		if ch == '"' {
-			l.advance() // consume close quote
-			return string(result)
+			l.advance() //  close quote
+			return string(result), true
+		}
+		if ch == '\n' || ch == '\r' {
+			return string(result), false
 		}
 		if ch == '\\' {
-			l.advance() // consume backslash
+			l.advance() //  backslash escape
 			if l.pos < l.length {
 				escaped := l.advance()
 				switch escaped {
@@ -291,11 +238,18 @@ func (l *Lexer) readString() string {
 		}
 		result = append(result, l.advance())
 	}
-	panic(fmt.Sprintf("unterminated string literal at line %d", l.line))
+	return string(result), false
+}
+func isLetter(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_'
 }
 
-func ExtractTokens(schema string) []Token {
-	lex := NewLexer(schema)
+func isDigit(ch byte) bool {
+	return ch >= '0' && ch <= '9'
+}
+
+func ExtractTokens(file string) []Token {
+	lex := NewLexer(file)
 	var tokens []Token
 	for {
 		tok := lex.NextToken()
@@ -305,71 +259,4 @@ func ExtractTokens(schema string) []Token {
 		}
 	}
 	return tokens
-}
-
-func LogTokens(tokens []Token) {
-	for i, tok := range tokens {
-		fmt.Printf("%03d %-12v %q (line: %d, col: %d)\n", i, tok.Type, tok.Value, tok.Line, tok.Col)
-	}
-}
-
-func (t TokenType) String() string {
-	switch t {
-	case EOF:
-		return "EOF"
-	case IDENT:
-		return "IDENT"
-	case STRING:
-		return "STRING"
-	case NUMBER:
-		return "NUMBER"
-	case BOOLEAN:
-		return "BOOLEAN"
-	case LBRACE:
-		return "LBRACE"
-	case RBRACE:
-		return "RBRACE"
-	case LPAREN:
-		return "LPAREN"
-	case RPAREN:
-		return "RPAREN"
-	case LBRACKET:
-		return "LBRACKET"
-	case RBRACKET:
-		return "RBRACKET"
-	case COMMA:
-		return "COMMA"
-	case COLON:
-		return "COLON"
-	case DOT:
-		return "DOT"
-	case QUESTION:
-		return "QUESTION"
-	case AT:
-		return "AT"
-	case ATAT:
-		return "ATAT"
-	case ASSIGN:
-		return "ASSIGN"
-	case EQUAL:
-		return "EQUAL"
-	case NOT_EQUAL:
-		return "NOT_EQUAL"
-	case LT:
-		return "LT"
-	case GT:
-		return "GT"
-	case LTE:
-		return "LTE"
-	case GTE:
-		return "GTE"
-	case AND:
-		return "AND"
-	case OR:
-		return "OR"
-	case BANG:
-		return "BANG"
-	default:
-		return "UNKNOWN"
-	}
 }

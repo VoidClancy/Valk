@@ -1,4 +1,4 @@
-package parser
+package schema
 
 import (
 	"testing"
@@ -39,9 +39,7 @@ func TestParseBasicModel(t *testing.T) {
 	}
 	`
 
-	tokens := ExtractTokens(input)
-	parser := Parser{Tokens: tokens}
-	schema := parser.Parse()
+	schema, _ := ParseSchema(input)
 
 	if len(schema.Models) != 2 {
 		t.Fatalf("expected 2 models, got %d", len(schema.Models))
@@ -52,28 +50,28 @@ func TestParseBasicModel(t *testing.T) {
 	if user.Name != "User" {
 		t.Errorf("expected model name User, got %s", user.Name)
 	}
-	if len(user.Fields) != 4 {
-		t.Errorf("expected 4 fields in User, got %d", len(user.Fields))
+	if len(user.ScalarFields) != 4 {
+		t.Errorf("expected 4 scalar fields in User, got %d", len(user.ScalarFields))
 	}
 	if len(user.Attributes) != 2 {
 		t.Errorf("expected 2 block attributes in User, got %d", len(user.Attributes))
 	}
 
 	// Verify User fields
-	idField := user.Fields[0]
-	if idField.Name != "id" || idField.Type != "Int" || idField.IsArray || idField.IsOptional {
+	idField := user.ScalarFields[0]
+	if idField.Name != "id" || idField.Type != "Int" || idField.IsArray || idField.Optional {
 		t.Errorf("id field parsed incorrectly: %+v", idField)
 	}
 	if len(idField.Attributes) != 2 {
 		t.Errorf("expected 2 attributes on id, got %d", len(idField.Attributes))
 	}
 
-	nameField := user.Fields[2]
-	if nameField.Name != "name" || nameField.Type != "String" || !nameField.IsOptional {
+	nameField := user.ScalarFields[2]
+	if nameField.Name != "name" || nameField.Type != "String" || !nameField.Optional {
 		t.Errorf("name field parsed incorrectly: %+v", nameField)
 	}
 
-	roleField := user.Fields[3]
+	roleField := user.ScalarFields[3]
 	if roleField.Name != "role" || roleField.Type != "Role" || len(roleField.Attributes) != 1 {
 		t.Errorf("role field parsed incorrectly: %+v", roleField)
 	}
@@ -109,12 +107,15 @@ func TestParseBasicModel(t *testing.T) {
 	if post.Name != "Post" {
 		t.Errorf("expected model name Post, got %s", post.Name)
 	}
-	if len(post.Fields) != 6 {
-		t.Errorf("expected 6 fields in Post, got %d", len(post.Fields))
+	if len(post.ScalarFields) != 5 {
+		t.Errorf("expected 5 scalar fields in Post, got %d", len(post.ScalarFields))
+	}
+	if len(post.RelationFields) != 1 {
+		t.Errorf("expected 1 relation field in Post, got %d", len(post.RelationFields))
 	}
 
-	tagsField := post.Fields[5]
-	if tagsField.Name != "tags" || tagsField.Type != "String" || !tagsField.IsArray || tagsField.IsOptional {
+	tagsField := post.ScalarFields[4]
+	if tagsField.Name != "tags" || tagsField.Type != "String" || !tagsField.IsArray || tagsField.Optional {
 		t.Errorf("tags field parsed incorrectly: %+v", tagsField)
 	}
 }
@@ -126,20 +127,18 @@ func TestUnsupportedType(t *testing.T) {
 		location Unsupported("geometry(Point)")?
 	}
 	`
-	tokens := ExtractTokens(input)
-	parser := Parser{Tokens: tokens}
-	schema := parser.Parse()
+	schema, _ := ParseSchema(input)
 
 	if len(schema.Models) != 1 {
 		t.Fatalf("expected 1 model, got %d", len(schema.Models))
 	}
 
 	spatial := schema.Models[0]
-	if len(spatial.Fields) != 2 {
-		t.Fatalf("expected 2 fields, got %d", len(spatial.Fields))
+	if len(spatial.ScalarFields) != 2 {
+		t.Fatalf("expected 2 fields, got %d", len(spatial.ScalarFields))
 	}
 
-	locField := spatial.Fields[1]
+	locField := spatial.ScalarFields[1]
 	if locField.Name != "location" {
 		t.Errorf("expected location, got %s", locField.Name)
 	}
@@ -147,7 +146,7 @@ func TestUnsupportedType(t *testing.T) {
 	if locField.Type != expectedType {
 		t.Errorf("expected type %s, got %s", expectedType, locField.Type)
 	}
-	if !locField.IsOptional {
+	if !locField.Optional {
 		t.Errorf("expected location to be optional")
 	}
 }
@@ -159,16 +158,14 @@ func TestNativeTypes(t *testing.T) {
 		desc String @db.VarChar(255)
 	}
 	`
-	tokens := ExtractTokens(input)
-	parser := Parser{Tokens: tokens}
-	schema := parser.Parse()
+	schema, _ := ParseSchema(input)
 
 	if len(schema.Models) != 1 {
 		t.Fatalf("expected 1 model, got %d", len(schema.Models))
 	}
 
 	model := schema.Models[0]
-	descField := model.Fields[1]
+	descField := model.ScalarFields[1]
 	if len(descField.Attributes) != 1 {
 		t.Fatalf("expected 1 attribute, got %d", len(descField.Attributes))
 	}
@@ -198,9 +195,7 @@ func TestConditionalIndexes(t *testing.T) {
 		@@index([userId, createdAt], where: deletedAt == null)
 	}
 	`
-	tokens := ExtractTokens(input)
-	parser := Parser{Tokens: tokens}
-	schema := parser.Parse()
+	schema, _ := ParseSchema(input)
 
 	if len(schema.Models) != 1 {
 		t.Fatalf("expected 1 model, got %d", len(schema.Models))
@@ -242,4 +237,154 @@ func TestConditionalIndexes(t *testing.T) {
 	if whereArg2.Value.Right.Type != ValLiteral || whereArg2.Value.Right.Scalar != "active" {
 		t.Errorf("expected Right to be active, got %+v", whereArg2.Value.Right)
 	}
+}
+
+func TestParserErrorHandlingAndRecovery(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedModel string
+		expectErrors  int
+		errorSubstr   string
+	}{
+		{
+			name: "unrecognized lexer character outside comment/string",
+			input: `
+			model User {
+				id Int @id
+			}
+			# invalid character here
+			model Post {
+				id String @id
+			}
+			`,
+			expectedModel: "User",
+			expectErrors:  4,
+		},
+		{
+			name: "unterminated string literal",
+			input: `
+			model User {
+				id Int @id @default("unterminated)
+			}
+			model Post {
+				id String @id
+			}
+			`,
+			expectedModel: "Post",
+			expectErrors:  1,
+			errorSubstr:   "unterminated string literal",
+		},
+		{
+			name: "parser syntax error in model block",
+			input: `
+			model BadModel {
+				id Int @id @invalidAttribute(
+			}
+			model GoodModel {
+				id String @id
+			}
+			`,
+			expectedModel: "GoodModel",
+			expectErrors:  1,
+			errorSubstr:   "unterminated \"(\"",
+		},
+		{
+			name: "schema valkyrie test",
+			input: `model Clancy {
+    id String @id
+    email String @unique
+    
+}`,
+			expectedModel: "Clancy",
+			expectErrors:  0,
+		},
+		{
+			name: "unterminated brackets",
+			input: `
+			model BadModel {
+				id Int @id
+				roles String[
+			}
+			model GoodModel {
+				id String @id
+			}
+			`,
+			expectedModel: "GoodModel",
+			expectErrors:  1,
+			errorSubstr:   "unterminated \"[\"",
+		},
+		{
+			name: "missing attribute name",
+			input: `
+			model BadModel {
+				id Int @id @
+			}
+			model GoodModel {
+				id String @id
+			}
+			`,
+			expectedModel: "GoodModel",
+			expectErrors:  1,
+			errorSubstr:   "missing attribute name after \"@\"",
+		},
+		{
+			name: "unterminated model brace",
+			input: `
+			model BadModel {
+				id Int @id
+			
+			model GoodModel {
+				id String @id
+			}
+			`,
+			expectedModel: "GoodModel",
+			expectErrors:  1,
+			errorSubstr:   "unterminated \"{\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			schema, _ := ParseSchema(tt.input)
+
+			if len(schema.Errors) != tt.expectErrors {
+				t.Errorf("expected %d errors, got %d. Errors: %v", tt.expectErrors, len(schema.Errors), schema.Errors)
+			}
+
+			if tt.errorSubstr != "" && len(schema.Errors) > 0 {
+				foundSubstr := false
+				for _, err := range schema.Errors {
+					if contains(err.Message, tt.errorSubstr) {
+						foundSubstr = true
+						break
+					}
+				}
+				if !foundSubstr {
+					t.Errorf("expected error message to contain %q, but got errors: %v", tt.errorSubstr, schema.Errors)
+				}
+			}
+
+			// Verify we could still parse the valid model in recovery
+			found := false
+			for _, m := range schema.Models {
+				if m.Name == tt.expectedModel {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("failed to recover and parse expected model %q. parsed: %+v", tt.expectedModel, schema.Models)
+			}
+		})
+	}
+}
+
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
