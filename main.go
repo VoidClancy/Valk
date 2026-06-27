@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
+	"valkyrie/migration"
 	"valkyrie/schema"
 )
 
@@ -22,11 +24,20 @@ func main() {
 		for _, err := range errs {
 			fmt.Println(err)
 		}
+		os.Exit(1)
 
 	}
-
+	mig, err := migration.GenerateMigration(schema)
+	if err != nil {
+		panic(err)
+	}
 	b, _ := json.MarshalIndent(schema, "", "  ")
 
 	os.WriteFile("result.json", b, 0644)
+	if strings.Contains(rawString, `provider = "sqlite"`) {
+		os.WriteFile("migrate_Sqlite.sql", []byte(mig), 0644)
+	} else {
+		os.WriteFile("migrate_Postgres.sql", []byte(mig), 0644)
+	}
 	fmt.Println(string(b))
 }

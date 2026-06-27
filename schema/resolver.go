@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	providers "valkyrie/dbProviders"
 )
 
 type PSLTypeMapping struct {
@@ -95,7 +96,7 @@ func (r *Resolver) resolveDatasource(schema *Schema) {
 		switch kv.Key {
 		case "provider":
 			if kv.Value.Type == ValLiteral {
-				prov, err := ParseDbProvider(kv.Value.Scalar)
+				prov, err := providers.ParseDbProvider(kv.Value.Scalar)
 				if err != nil {
 					r.errorf(kv.Line, kv.Col, "%s", err.Error())
 				} else {
@@ -372,8 +373,30 @@ func (r *Resolver) buildRelationField(fd astFieldDecl, owner, target *Model) *Re
 	if rf.RelationName == "" {
 		rf.RelationName = synthesizeRelationName(owner.Name, target.Name)
 	}
-
+	r.validateRelation(rf, owner.Name, fd.Line, fd.Col)
 	return rf
+}
+
+func (r *Resolver) validateRelation(rf *RelationField, ownerName string, line, col int) {
+	if len(rf.FKFields) != len(rf.RefFields) {
+		r.errorf(line, col,
+			"relation %q on model %q has a mismatched number of fields (%d) and references (%d)",
+			rf.RelationName, ownerName, len(rf.FKFields), len(rf.RefFields),
+		)
+		return
+	}
+
+	for i, fk := range rf.FKFields {
+		ref := rf.RefFields[i]
+		if fk.Type != ref.Type {
+			r.errorf(line, col,
+				"type mismatch in relation %q on model %q: field %q (%s) references %q.%q (%s)",
+				rf.RelationName, ownerName,
+				fk.Name, fk.Type,
+				rf.TargetModelName, ref.Name, ref.Type,
+			)
+		}
+	}
 }
 
 func identOrLiteral(v Value) string {

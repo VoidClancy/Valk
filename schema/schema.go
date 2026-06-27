@@ -3,6 +3,7 @@ package schema
 import (
 	"encoding/json"
 	"fmt"
+	providers "valkyrie/dbProviders"
 )
 
 type Severity int
@@ -62,7 +63,7 @@ type Schema struct {
 
 type Datasource struct {
 	Name     string
-	Provider DbProvider
+	Provider providers.DbProvider
 }
 
 type Enum struct {
