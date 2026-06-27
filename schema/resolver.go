@@ -4,20 +4,33 @@ import (
 	"fmt"
 )
 
-type TypeMap struct {
-	GoType, SQLType string
+type PSLTypeMapping struct {
+	GoType  string
+	SQLType string
 }
 
-var scalarTypeInfo = map[string]TypeMap{
-	"String":   {"string", "TEXT"},
-	"Int":      {"int32", "INTEGER"},
-	"BigInt":   {"int64", "BIGINT"},
-	"Float":    {"float64", "DOUBLE PRECISION"},
-	"Decimal":  {"string", "NUMERIC"},
-	"Boolean":  {"bool", "BOOLEAN"},
-	"DateTime": {"time.Time", "TIMESTAMP"},
-	"Json":     {"json.RawMessage", "JSONB"},
-	"Bytes":    {"[]byte", "BYTEA"},
+const (
+	TypeString   = "String"
+	TypeInt      = "Int"
+	TypeBigInt   = "BigInt"
+	TypeFloat    = "Float"
+	TypeDecimal  = "Decimal"
+	TypeBoolean  = "Boolean"
+	TypeDateTime = "DateTime"
+	TypeJson     = "Json"
+	TypeBytes    = "Bytes"
+)
+
+var scalarTypeInfo = map[string]PSLTypeMapping{
+	TypeString:   {"string", "TEXT"},
+	TypeInt:      {"int32", "INTEGER"},
+	TypeBigInt:   {"int64", "BIGINT"},
+	TypeFloat:    {"float64", "DOUBLE PRECISION"},
+	TypeDecimal:  {"string", "NUMERIC"},
+	TypeBoolean:  {"bool", "BOOLEAN"},
+	TypeDateTime: {"time.Time", "TIMESTAMP"},
+	TypeJson:     {"json.RawMessage", "JSONB"},
+	TypeBytes:    {"[]byte", "BYTEA"},
 }
 
 type Resolver struct {
@@ -82,7 +95,12 @@ func (r *Resolver) resolveDatasource(schema *Schema) {
 		switch kv.Key {
 		case "provider":
 			if kv.Value.Type == ValLiteral {
-				out.Provider = kv.Value.Scalar
+				prov, err := ParseDbProvider(kv.Value.Scalar)
+				if err != nil {
+					r.errorf(kv.Line, kv.Col, "%s", err.Error())
+				} else {
+					out.Provider = prov
+				}
 			}
 
 		}

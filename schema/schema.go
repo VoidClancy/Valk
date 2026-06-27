@@ -62,7 +62,7 @@ type Schema struct {
 
 type Datasource struct {
 	Name     string
-	Provider string
+	Provider DbProvider
 }
 
 type Enum struct {

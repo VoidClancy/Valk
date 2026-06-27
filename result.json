@@ -1,0 +1,1432 @@
+{
+  "Datasource": {
+    "Name": "db",
+    "Provider": ""
+  },
+  "Models": [
+    {
+      "Name": "User",
+      "TableName": "User",
+      "ScalarFields": [
+        {
+          "Name": "id",
+          "Type": "String",
+          "ColName": "twistedID",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": true,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": {
+            "Value": "cuid()",
+            "Type": "Func",
+            "Kind": 1,
+            "Literal": "",
+            "FuncName": "cuid",
+            "DBExpression": "",
+            "EnumValue": ""
+          },
+          "NativeType": null,
+          "Attributes": [
+            {
+              "Name": "id",
+              "Args": null,
+              "Line": 14,
+              "Col": 24
+            },
+            {
+              "Name": "default",
+              "Args": [
+                {
+                  "Name": "",
+                  "Value": {
+                    "Type": "Func",
+                    "Scalar": "cuid"
+                  }
+                }
+              ],
+              "Line": 14,
+              "Col": 28
+            },
+            {
+              "Name": "map",
+              "Args": [
+                {
+                  "Name": "",
+                  "Value": {
+                    "Type": "Literal",
+                    "Scalar": "twistedID"
+                  }
+                }
+              ],
+              "Line": 14,
+              "Col": 45
+            }
+          ]
+        },
+        {
+          "Name": "email",
+          "Type": "String",
+          "ColName": "email",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": true,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": [
+            {
+              "Name": "unique",
+              "Args": null,
+              "Line": 15,
+              "Col": 24
+            }
+          ]
+        },
+        {
+          "Name": "phoneNum",
+          "Type": "String",
+          "ColName": "phoneNum",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": null
+        },
+        {
+          "Name": "role",
+          "Type": "UserRole",
+          "ColName": "role",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": {
+            "Value": "STUDENT",
+            "Type": "EnumValue",
+            "Kind": 3,
+            "Literal": "",
+            "FuncName": "",
+            "DBExpression": "",
+            "EnumValue": "STUDENT"
+          },
+          "NativeType": null,
+          "Attributes": [
+            {
+              "Name": "default",
+              "Args": [
+                {
+                  "Name": "",
+                  "Value": {
+                    "Type": "Ident",
+                    "Scalar": "STUDENT"
+                  }
+                }
+              ],
+              "Line": 17,
+              "Col": 24
+            }
+          ],
+          "EnumRef": "UserRole"
+        },
+        {
+          "Name": "referredById",
+          "Type": "String",
+          "ColName": "referredById",
+          "GoType": "*string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": true,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": null
+        }
+      ],
+      "RelationFields": [
+        {
+          "Name": "profile",
+          "Type": "Profile",
+          "Kind": 0,
+          "TargetModelName": "Profile",
+          "FKFields": null,
+          "RefFields": null,
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": true,
+          "IsArray": false,
+          "RelationName": "ProfileToUser",
+          "JoinTableName": "",
+          "TargetModel": "Profile",
+          "Inverse": "user"
+        },
+        {
+          "Name": "posts",
+          "Type": "Post",
+          "Kind": 1,
+          "TargetModelName": "Post",
+          "FKFields": null,
+          "RefFields": null,
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": true,
+          "RelationName": "PostToUser",
+          "JoinTableName": "",
+          "TargetModel": "Post",
+          "Inverse": "author"
+        },
+        {
+          "Name": "comments",
+          "Type": "Comment",
+          "Kind": 1,
+          "TargetModelName": "Comment",
+          "FKFields": null,
+          "RefFields": null,
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": true,
+          "RelationName": "CommentToUser",
+          "JoinTableName": "",
+          "TargetModel": "Comment",
+          "Inverse": "author"
+        },
+        {
+          "Name": "referredBy",
+          "Type": "User",
+          "Kind": 2,
+          "TargetModelName": "User",
+          "FKFields": [
+            {
+              "Name": "referredById",
+              "Type": "String",
+              "ColName": "referredById",
+              "GoType": "*string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": true,
+              "IsID": false,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": null,
+              "NativeType": null,
+              "Attributes": null
+            }
+          ],
+          "RefFields": [
+            {
+              "Name": "id",
+              "Type": "String",
+              "ColName": "twistedID",
+              "GoType": "string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": true,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": {
+                "Value": "cuid()",
+                "Type": "Func",
+                "Kind": 1,
+                "Literal": "",
+                "FuncName": "cuid",
+                "DBExpression": "",
+                "EnumValue": ""
+              },
+              "NativeType": null,
+              "Attributes": [
+                {
+                  "Name": "id",
+                  "Args": null,
+                  "Line": 14,
+                  "Col": 24
+                },
+                {
+                  "Name": "default",
+                  "Args": [
+                    {
+                      "Name": "",
+                      "Value": {
+                        "Type": "Func",
+                        "Scalar": "cuid"
+                      }
+                    }
+                  ],
+                  "Line": 14,
+                  "Col": 28
+                },
+                {
+                  "Name": "map",
+                  "Args": [
+                    {
+                      "Name": "",
+                      "Value": {
+                        "Type": "Literal",
+                        "Scalar": "twistedID"
+                      }
+                    }
+                  ],
+                  "Line": 14,
+                  "Col": 45
+                }
+              ]
+            }
+          ],
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": true,
+          "IsArray": false,
+          "RelationName": "UserReferrals",
+          "JoinTableName": "",
+          "TargetModel": "User",
+          "Inverse": "referrals"
+        },
+        {
+          "Name": "referrals",
+          "Type": "User",
+          "Kind": 1,
+          "TargetModelName": "User",
+          "FKFields": null,
+          "RefFields": null,
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": true,
+          "RelationName": "UserReferrals",
+          "JoinTableName": "",
+          "TargetModel": "User",
+          "Inverse": "referredBy"
+        }
+      ],
+      "Attributes": [
+        {
+          "Name": "unique",
+          "Args": [
+            {
+              "Name": "",
+              "Value": {
+                "Type": "Array",
+                "Array": [
+                  {
+                    "Type": "Ident",
+                    "Scalar": "email"
+                  },
+                  {
+                    "Type": "Ident",
+                    "Scalar": "phoneNum"
+                  }
+                ]
+              }
+            }
+          ],
+          "Line": 26,
+          "Col": 5
+        }
+      ],
+      "CompositePK": null,
+      "CompositeUnique": [
+        {
+          "Fields": [
+            "email",
+            "phoneNum"
+          ],
+          "Name": ""
+        }
+      ],
+      "Indexes": null
+    },
+    {
+      "Name": "Profile",
+      "TableName": "Profile",
+      "ScalarFields": [
+        {
+          "Name": "id",
+          "Type": "String",
+          "ColName": "id",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": true,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": {
+            "Value": "cuid()",
+            "Type": "Func",
+            "Kind": 1,
+            "Literal": "",
+            "FuncName": "cuid",
+            "DBExpression": "",
+            "EnumValue": ""
+          },
+          "NativeType": null,
+          "Attributes": [
+            {
+              "Name": "id",
+              "Args": null,
+              "Line": 30,
+              "Col": 20
+            },
+            {
+              "Name": "default",
+              "Args": [
+                {
+                  "Name": "",
+                  "Value": {
+                    "Type": "Func",
+                    "Scalar": "cuid"
+                  }
+                }
+              ],
+              "Line": 30,
+              "Col": 24
+            }
+          ]
+        },
+        {
+          "Name": "bio",
+          "Type": "String",
+          "ColName": "bio",
+          "GoType": "*string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": true,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": null
+        },
+        {
+          "Name": "userId",
+          "Type": "String",
+          "ColName": "userId",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": true,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": [
+            {
+              "Name": "unique",
+              "Args": null,
+              "Line": 32,
+              "Col": 20
+            }
+          ]
+        }
+      ],
+      "RelationFields": [
+        {
+          "Name": "user",
+          "Type": "User",
+          "Kind": 0,
+          "TargetModelName": "User",
+          "FKFields": [
+            {
+              "Name": "userId",
+              "Type": "String",
+              "ColName": "userId",
+              "GoType": "string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": false,
+              "IsUnique": true,
+              "IsUpdatedAt": false,
+              "Default": null,
+              "NativeType": null,
+              "Attributes": [
+                {
+                  "Name": "unique",
+                  "Args": null,
+                  "Line": 32,
+                  "Col": 20
+                }
+              ]
+            }
+          ],
+          "RefFields": [
+            {
+              "Name": "id",
+              "Type": "String",
+              "ColName": "twistedID",
+              "GoType": "string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": true,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": {
+                "Value": "cuid()",
+                "Type": "Func",
+                "Kind": 1,
+                "Literal": "",
+                "FuncName": "cuid",
+                "DBExpression": "",
+                "EnumValue": ""
+              },
+              "NativeType": null,
+              "Attributes": [
+                {
+                  "Name": "id",
+                  "Args": null,
+                  "Line": 14,
+                  "Col": 24
+                },
+                {
+                  "Name": "default",
+                  "Args": [
+                    {
+                      "Name": "",
+                      "Value": {
+                        "Type": "Func",
+                        "Scalar": "cuid"
+                      }
+                    }
+                  ],
+                  "Line": 14,
+                  "Col": 28
+                },
+                {
+                  "Name": "map",
+                  "Args": [
+                    {
+                      "Name": "",
+                      "Value": {
+                        "Type": "Literal",
+                        "Scalar": "twistedID"
+                      }
+                    }
+                  ],
+                  "Line": 14,
+                  "Col": 45
+                }
+              ]
+            }
+          ],
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": false,
+          "RelationName": "ProfileToUser",
+          "JoinTableName": "",
+          "TargetModel": "User",
+          "Inverse": "profile"
+        }
+      ],
+      "Attributes": null,
+      "CompositePK": null,
+      "CompositeUnique": null,
+      "Indexes": null
+    },
+    {
+      "Name": "Post",
+      "TableName": "Post",
+      "ScalarFields": [
+        {
+          "Name": "id",
+          "Type": "String",
+          "ColName": "id",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": true,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": {
+            "Value": "cuid()",
+            "Type": "Func",
+            "Kind": 1,
+            "Literal": "",
+            "FuncName": "cuid",
+            "DBExpression": "",
+            "EnumValue": ""
+          },
+          "NativeType": null,
+          "Attributes": [
+            {
+              "Name": "id",
+              "Args": null,
+              "Line": 37,
+              "Col": 33
+            },
+            {
+              "Name": "default",
+              "Args": [
+                {
+                  "Name": "",
+                  "Value": {
+                    "Type": "Func",
+                    "Scalar": "cuid"
+                  }
+                }
+              ],
+              "Line": 37,
+              "Col": 37
+            }
+          ]
+        },
+        {
+          "Name": "title",
+          "Type": "String",
+          "ColName": "title",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": null
+        },
+        {
+          "Name": "content",
+          "Type": "String",
+          "ColName": "content",
+          "GoType": "*string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": true,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": null
+        },
+        {
+          "Name": "published",
+          "Type": "Boolean",
+          "ColName": "published",
+          "GoType": "bool",
+          "SQLType": "BOOLEAN",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": {
+            "Value": "false",
+            "Type": "Literal",
+            "Kind": 0,
+            "Literal": "false",
+            "FuncName": "",
+            "DBExpression": "",
+            "EnumValue": ""
+          },
+          "NativeType": null,
+          "Attributes": [
+            {
+              "Name": "default",
+              "Args": [
+                {
+                  "Name": "",
+                  "Value": {
+                    "Type": "Literal",
+                    "Scalar": "false"
+                  }
+                }
+              ],
+              "Line": 40,
+              "Col": 33
+            }
+          ]
+        },
+        {
+          "Name": "authorId",
+          "Type": "String",
+          "ColName": "authorId",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": null
+        }
+      ],
+      "RelationFields": [
+        {
+          "Name": "author",
+          "Type": "User",
+          "Kind": 2,
+          "TargetModelName": "User",
+          "FKFields": [
+            {
+              "Name": "authorId",
+              "Type": "String",
+              "ColName": "authorId",
+              "GoType": "string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": false,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": null,
+              "NativeType": null,
+              "Attributes": null
+            }
+          ],
+          "RefFields": [
+            {
+              "Name": "id",
+              "Type": "String",
+              "ColName": "twistedID",
+              "GoType": "string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": true,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": {
+                "Value": "cuid()",
+                "Type": "Func",
+                "Kind": 1,
+                "Literal": "",
+                "FuncName": "cuid",
+                "DBExpression": "",
+                "EnumValue": ""
+              },
+              "NativeType": null,
+              "Attributes": [
+                {
+                  "Name": "id",
+                  "Args": null,
+                  "Line": 14,
+                  "Col": 24
+                },
+                {
+                  "Name": "default",
+                  "Args": [
+                    {
+                      "Name": "",
+                      "Value": {
+                        "Type": "Func",
+                        "Scalar": "cuid"
+                      }
+                    }
+                  ],
+                  "Line": 14,
+                  "Col": 28
+                },
+                {
+                  "Name": "map",
+                  "Args": [
+                    {
+                      "Name": "",
+                      "Value": {
+                        "Type": "Literal",
+                        "Scalar": "twistedID"
+                      }
+                    }
+                  ],
+                  "Line": 14,
+                  "Col": 45
+                }
+              ]
+            }
+          ],
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": false,
+          "RelationName": "PostToUser",
+          "JoinTableName": "",
+          "TargetModel": "User",
+          "Inverse": "posts"
+        },
+        {
+          "Name": "comments",
+          "Type": "Comment",
+          "Kind": 1,
+          "TargetModelName": "Comment",
+          "FKFields": null,
+          "RefFields": null,
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": true,
+          "RelationName": "CommentToPost",
+          "JoinTableName": "",
+          "TargetModel": "Comment",
+          "Inverse": "post"
+        },
+        {
+          "Name": "categories",
+          "Type": "CategoryToPost",
+          "Kind": 1,
+          "TargetModelName": "CategoryToPost",
+          "FKFields": null,
+          "RefFields": null,
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": true,
+          "RelationName": "CategoryToPostToPost",
+          "JoinTableName": "",
+          "TargetModel": "CategoryToPost",
+          "Inverse": "post"
+        }
+      ],
+      "Attributes": null,
+      "CompositePK": null,
+      "CompositeUnique": null,
+      "Indexes": null
+    },
+    {
+      "Name": "Comment",
+      "TableName": "Comment",
+      "ScalarFields": [
+        {
+          "Name": "id",
+          "Type": "String",
+          "ColName": "id",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": true,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": {
+            "Value": "cuid()",
+            "Type": "Func",
+            "Kind": 1,
+            "Literal": "",
+            "FuncName": "cuid",
+            "DBExpression": "",
+            "EnumValue": ""
+          },
+          "NativeType": null,
+          "Attributes": [
+            {
+              "Name": "id",
+              "Args": null,
+              "Line": 48,
+              "Col": 21
+            },
+            {
+              "Name": "default",
+              "Args": [
+                {
+                  "Name": "",
+                  "Value": {
+                    "Type": "Func",
+                    "Scalar": "cuid"
+                  }
+                }
+              ],
+              "Line": 48,
+              "Col": 25
+            }
+          ]
+        },
+        {
+          "Name": "text",
+          "Type": "String",
+          "ColName": "text",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": null
+        },
+        {
+          "Name": "postId",
+          "Type": "String",
+          "ColName": "postId",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": null
+        },
+        {
+          "Name": "authorId",
+          "Type": "String",
+          "ColName": "authorId",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": null
+        }
+      ],
+      "RelationFields": [
+        {
+          "Name": "post",
+          "Type": "Post",
+          "Kind": 2,
+          "TargetModelName": "Post",
+          "FKFields": [
+            {
+              "Name": "postId",
+              "Type": "String",
+              "ColName": "postId",
+              "GoType": "string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": false,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": null,
+              "NativeType": null,
+              "Attributes": null
+            }
+          ],
+          "RefFields": [
+            {
+              "Name": "id",
+              "Type": "String",
+              "ColName": "id",
+              "GoType": "string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": true,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": {
+                "Value": "cuid()",
+                "Type": "Func",
+                "Kind": 1,
+                "Literal": "",
+                "FuncName": "cuid",
+                "DBExpression": "",
+                "EnumValue": ""
+              },
+              "NativeType": null,
+              "Attributes": [
+                {
+                  "Name": "id",
+                  "Args": null,
+                  "Line": 37,
+                  "Col": 33
+                },
+                {
+                  "Name": "default",
+                  "Args": [
+                    {
+                      "Name": "",
+                      "Value": {
+                        "Type": "Func",
+                        "Scalar": "cuid"
+                      }
+                    }
+                  ],
+                  "Line": 37,
+                  "Col": 37
+                }
+              ]
+            }
+          ],
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": false,
+          "RelationName": "CommentToPost",
+          "JoinTableName": "",
+          "TargetModel": "Post",
+          "Inverse": "comments"
+        },
+        {
+          "Name": "author",
+          "Type": "User",
+          "Kind": 2,
+          "TargetModelName": "User",
+          "FKFields": [
+            {
+              "Name": "authorId",
+              "Type": "String",
+              "ColName": "authorId",
+              "GoType": "string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": false,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": null,
+              "NativeType": null,
+              "Attributes": null
+            }
+          ],
+          "RefFields": [
+            {
+              "Name": "id",
+              "Type": "String",
+              "ColName": "twistedID",
+              "GoType": "string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": true,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": {
+                "Value": "cuid()",
+                "Type": "Func",
+                "Kind": 1,
+                "Literal": "",
+                "FuncName": "cuid",
+                "DBExpression": "",
+                "EnumValue": ""
+              },
+              "NativeType": null,
+              "Attributes": [
+                {
+                  "Name": "id",
+                  "Args": null,
+                  "Line": 14,
+                  "Col": 24
+                },
+                {
+                  "Name": "default",
+                  "Args": [
+                    {
+                      "Name": "",
+                      "Value": {
+                        "Type": "Func",
+                        "Scalar": "cuid"
+                      }
+                    }
+                  ],
+                  "Line": 14,
+                  "Col": 28
+                },
+                {
+                  "Name": "map",
+                  "Args": [
+                    {
+                      "Name": "",
+                      "Value": {
+                        "Type": "Literal",
+                        "Scalar": "twistedID"
+                      }
+                    }
+                  ],
+                  "Line": 14,
+                  "Col": 45
+                }
+              ]
+            }
+          ],
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": false,
+          "RelationName": "CommentToUser",
+          "JoinTableName": "",
+          "TargetModel": "User",
+          "Inverse": "comments"
+        }
+      ],
+      "Attributes": null,
+      "CompositePK": null,
+      "CompositeUnique": null,
+      "Indexes": null
+    },
+    {
+      "Name": "Category",
+      "TableName": "Category",
+      "ScalarFields": [
+        {
+          "Name": "id",
+          "Type": "Int",
+          "ColName": "id",
+          "GoType": "int32",
+          "SQLType": "INTEGER",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": true,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": {
+            "Value": "autoincrement()",
+            "Type": "Func",
+            "Kind": 1,
+            "Literal": "",
+            "FuncName": "autoincrement",
+            "DBExpression": "",
+            "EnumValue": ""
+          },
+          "NativeType": null,
+          "Attributes": [
+            {
+              "Name": "id",
+              "Args": null,
+              "Line": 57,
+              "Col": 28
+            },
+            {
+              "Name": "default",
+              "Args": [
+                {
+                  "Name": "",
+                  "Value": {
+                    "Type": "Func",
+                    "Scalar": "autoincrement"
+                  }
+                }
+              ],
+              "Line": 57,
+              "Col": 32
+            }
+          ]
+        },
+        {
+          "Name": "name",
+          "Type": "String",
+          "ColName": "name",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": true,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": [
+            {
+              "Name": "unique",
+              "Args": null,
+              "Line": 58,
+              "Col": 28
+            }
+          ]
+        }
+      ],
+      "RelationFields": [
+        {
+          "Name": "posts",
+          "Type": "CategoryToPost",
+          "Kind": 1,
+          "TargetModelName": "CategoryToPost",
+          "FKFields": null,
+          "RefFields": null,
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": true,
+          "RelationName": "CategoryToCategoryToPost",
+          "JoinTableName": "",
+          "TargetModel": "CategoryToPost",
+          "Inverse": "category"
+        }
+      ],
+      "Attributes": null,
+      "CompositePK": null,
+      "CompositeUnique": null,
+      "Indexes": null
+    },
+    {
+      "Name": "CategoryToPost",
+      "TableName": "CategoryToPost",
+      "ScalarFields": [
+        {
+          "Name": "postId",
+          "Type": "String",
+          "ColName": "postId",
+          "GoType": "string",
+          "SQLType": "TEXT",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": null
+        },
+        {
+          "Name": "categoryId",
+          "Type": "Int",
+          "ColName": "categoryId",
+          "GoType": "int32",
+          "SQLType": "INTEGER",
+          "IsArray": false,
+          "Optional": false,
+          "IsID": false,
+          "IsUnique": false,
+          "IsUpdatedAt": false,
+          "Default": null,
+          "NativeType": null,
+          "Attributes": null
+        }
+      ],
+      "RelationFields": [
+        {
+          "Name": "post",
+          "Type": "Post",
+          "Kind": 2,
+          "TargetModelName": "Post",
+          "FKFields": [
+            {
+              "Name": "postId",
+              "Type": "String",
+              "ColName": "postId",
+              "GoType": "string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": false,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": null,
+              "NativeType": null,
+              "Attributes": null
+            }
+          ],
+          "RefFields": [
+            {
+              "Name": "id",
+              "Type": "String",
+              "ColName": "id",
+              "GoType": "string",
+              "SQLType": "TEXT",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": true,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": {
+                "Value": "cuid()",
+                "Type": "Func",
+                "Kind": 1,
+                "Literal": "",
+                "FuncName": "cuid",
+                "DBExpression": "",
+                "EnumValue": ""
+              },
+              "NativeType": null,
+              "Attributes": [
+                {
+                  "Name": "id",
+                  "Args": null,
+                  "Line": 37,
+                  "Col": 33
+                },
+                {
+                  "Name": "default",
+                  "Args": [
+                    {
+                      "Name": "",
+                      "Value": {
+                        "Type": "Func",
+                        "Scalar": "cuid"
+                      }
+                    }
+                  ],
+                  "Line": 37,
+                  "Col": 37
+                }
+              ]
+            }
+          ],
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": false,
+          "RelationName": "CategoryToPostToPost",
+          "JoinTableName": "",
+          "TargetModel": "Post",
+          "Inverse": "categories"
+        },
+        {
+          "Name": "category",
+          "Type": "Category",
+          "Kind": 2,
+          "TargetModelName": "Category",
+          "FKFields": [
+            {
+              "Name": "categoryId",
+              "Type": "Int",
+              "ColName": "categoryId",
+              "GoType": "int32",
+              "SQLType": "INTEGER",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": false,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": null,
+              "NativeType": null,
+              "Attributes": null
+            }
+          ],
+          "RefFields": [
+            {
+              "Name": "id",
+              "Type": "Int",
+              "ColName": "id",
+              "GoType": "int32",
+              "SQLType": "INTEGER",
+              "IsArray": false,
+              "Optional": false,
+              "IsID": true,
+              "IsUnique": false,
+              "IsUpdatedAt": false,
+              "Default": {
+                "Value": "autoincrement()",
+                "Type": "Func",
+                "Kind": 1,
+                "Literal": "",
+                "FuncName": "autoincrement",
+                "DBExpression": "",
+                "EnumValue": ""
+              },
+              "NativeType": null,
+              "Attributes": [
+                {
+                  "Name": "id",
+                  "Args": null,
+                  "Line": 57,
+                  "Col": 28
+                },
+                {
+                  "Name": "default",
+                  "Args": [
+                    {
+                      "Name": "",
+                      "Value": {
+                        "Type": "Func",
+                        "Scalar": "autoincrement"
+                      }
+                    }
+                  ],
+                  "Line": 57,
+                  "Col": 32
+                }
+              ]
+            }
+          ],
+          "OnDelete": "",
+          "OnUpdate": "",
+          "Optional": false,
+          "IsArray": false,
+          "RelationName": "CategoryToCategoryToPost",
+          "JoinTableName": "",
+          "TargetModel": "Category",
+          "Inverse": "posts"
+        }
+      ],
+      "Attributes": [
+        {
+          "Name": "id",
+          "Args": [
+            {
+              "Name": "",
+              "Value": {
+                "Type": "Array",
+                "Array": [
+                  {
+                    "Type": "Ident",
+                    "Scalar": "postId"
+                  },
+                  {
+                    "Type": "Ident",
+                    "Scalar": "categoryId"
+                  }
+                ]
+              }
+            }
+          ],
+          "Line": 68,
+          "Col": 5
+        }
+      ],
+      "CompositePK": [
+        "postId",
+        "categoryId"
+      ],
+      "CompositeUnique": null,
+      "Indexes": null
+    }
+  ],
+  "Enums": [
+    {
+      "Name": "UserRole",
+      "Values": [
+        "ADMIN",
+        "STUDENT",
+        "TEACHER"
+      ],
+      "ValueMap": [
+        {
+          "Name": "ADMIN",
+          "DBName": "ADMIN"
+        },
+        {
+          "Name": "STUDENT",
+          "DBName": "student"
+        },
+        {
+          "Name": "TEACHER",
+          "DBName": "TEACHER"
+        }
+      ],
+      "TableMapName": "user_roles"
+    }
+  ],
+  "Errors": [
+    {
+      "Severity": 0,
+      "Message": "Mysql is not supported yet",
+      "Pos": {
+        "Line": 2,
+        "Col": 5,
+        "Offset": 0
+      },
+      "Source": "resolver"
+    }
+  ]
+}
