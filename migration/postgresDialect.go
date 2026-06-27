@@ -54,3 +54,30 @@ func (d PostgresDialect) GetSQLDefault(dv *schema.DefaultValue, pslType string) 
 
 	return ""
 }
+
+func (d PostgresDialect) GenerateEnum(enum *schema.Enum) string {
+	name := enum.Name
+	if enum.TableMapName != "" {
+		name = enum.TableMapName
+	}
+	var quotedValues []string
+	for _, val := range enum.ValueMap {
+		quotedValues = append(quotedValues, fmt.Sprintf("  '%s'", val.DBName))
+	}
+	return fmt.Sprintf("CREATE TYPE %s AS ENUM (\n%s\n);\n\n",
+		d.QuoteIdent(name), strings.Join(quotedValues, ",\n"))
+}
+
+func (PostgresDialect) FormatAutoIncrement(sqlType string) (string, string) {
+	if sqlType == "BIGINT" {
+		return "BIGSERIAL", ""
+	}
+	return "SERIAL", ""
+}
+
+func (d PostgresDialect) FormatSinglePK(tableName, colName string, isAutoInc bool) (string, string) {
+	pkName := tableName + "_pkey"
+	return "", fmt.Sprintf("  CONSTRAINT %s PRIMARY KEY (%s)", d.QuoteIdent(pkName), d.QuoteIdent(colName))
+}
+
+func (d PostgresDialect) FormatEnumConstraint(colName string, enum *schema.Enum) string { return "" }

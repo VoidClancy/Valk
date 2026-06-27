@@ -58,3 +58,27 @@ func (SqliteDialect) GetSQLDefault(dv *schema.DefaultValue, pslType string) stri
 
 	return ""
 }
+
+func (SqliteDialect) GenerateEnum(enum *schema.Enum) string {
+	return "" //will be inlined using CHECK
+}
+
+func (SqliteDialect) FormatAutoIncrement(sqlType string) (string, string) {
+	return "INTEGER", "" // SQLite autoincrement requires INTEGER type
+}
+
+func (d SqliteDialect) FormatSinglePK(tableName, colName string, isAutoInc bool) (string, string) {
+	if isAutoInc {
+		return "PRIMARY KEY AUTOINCREMENT", ""
+	}
+	pkName := tableName + "_pkey"
+	return "", fmt.Sprintf("  CONSTRAINT %s PRIMARY KEY (%s)", d.QuoteIdent(pkName), d.QuoteIdent(colName))
+}
+
+func (d SqliteDialect) FormatEnumConstraint(colName string, enum *schema.Enum) string {
+	var enumVals []string
+	for _, ev := range enum.ValueMap {
+		enumVals = append(enumVals, fmt.Sprintf("'%s'", ev.DBName))
+	}
+	return fmt.Sprintf("CHECK (%s IN (%s))", d.QuoteIdent(colName), strings.Join(enumVals, ", "))
+}

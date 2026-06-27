@@ -1,5 +1,5 @@
 datasource db {
-    provider = "mysql"
+    provider = "postgres"
 }
 
 enum UserRole {
@@ -8,6 +8,11 @@ enum UserRole {
     TEACHER
 
     @@map("user_roles")
+}
+
+enum Clancy {
+    VOICES
+    BLEH
 }
 
 model User {
