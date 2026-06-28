@@ -1,10 +1,10 @@
 .PHONY:  build run test
 
 build: 
-	go build -o valkyrie 
+	go build -o bin/valkyrie 
 
 run:
-	go build -o valkyrie && ./valkyrie
+	go build -o bin/valkyrie && ./bin/valkyrie
 
 test:
 	go test -v ./...

@@ -1,0 +1,15 @@
+
+{
+  "database": {
+    "url_env": "DATABASE_URL",
+    "direct_url_env": "DATABASE_DIRECT_URL"
+  },
+
+  "schema": "./schema.prisma",
+
+  "output": {
+    "client": "./valkyrie",
+    "migrations": "./valkyrie/migrations"
+  }
+}
+	
