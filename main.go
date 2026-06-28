@@ -1,43 +1,32 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
-	"valkyrie/migration"
-	"valkyrie/schema"
+	"slices"
+
+	"valkyrie/cli"
 )
 
 func main() {
 
-	fileBytes, _ := os.ReadFile("schema.prisma")
-	rawString := string(fileBytes)
+	commands := cli.Commands
 
-	// tokens := schema.ExtractTokens(rawString)
-	// for i, token := range tokens {
-	// 	fmt.Printf("%d: %+v\n", i, token)
-	// }
+	if len(os.Args) < 2 {
+		cli.PrintHelp()
+		return
+	}
 
-	schema, errs := schema.ParseSchema(rawString)
-	if len(errs) > 0 {
-		for _, err := range errs {
-			fmt.Println(err)
+	subcommand := os.Args[1]
+
+	for _, cmd := range commands {
+		if cmd.Name == subcommand || slices.Contains(cmd.Aliases, subcommand) {
+
+			cmd.Callback(os.Args[2:])
+			return
 		}
-		os.Exit(1)
+	}
 
-	}
-	mig, err := migration.GenerateMigration(schema)
-	if err != nil {
-		panic(err)
-	}
-	b, _ := json.MarshalIndent(schema, "", "  ")
-
-	os.WriteFile("result.json", b, 0644)
-	if strings.Contains(rawString, `provider = "sqlite"`) {
-		os.WriteFile("migrate_Sqlite.sql", []byte(mig), 0644)
-	} else {
-		os.WriteFile("migrate_Postgres.sql", []byte(mig), 0644)
-	}
-	fmt.Println(string(b))
+	fmt.Printf("Unknown command/flag: %s\n\n", subcommand)
+	cli.PrintHelp()
 }

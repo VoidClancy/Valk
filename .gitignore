@@ -1,13 +1,7 @@
-# Ignore all files in the root directory
-/*
 
-# Do not ignore directories in the root directory
-!/*/
 
-# Do not ignore files with extensions in the root directory
-!/*.*
 
-!/Makefile
 .env
 *.md
-
+/sandbox
+bin
