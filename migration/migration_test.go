@@ -144,16 +144,16 @@ func TestGenerateGooseMigrations(t *testing.T) {
 		t.Fatalf("failed to generate Goose DDL: %v", err)
 	}
 
-	if !strings.Contains(sql, "-- +goose Up") {
+	if !strings.Contains(string(sql), "-- +goose Up") {
 		t.Errorf("expected -- +goose Up directive, got:\n%s", sql)
 	}
-	if !strings.Contains(sql, "-- +goose Down") {
+	if !strings.Contains(string(sql), "-- +goose Down") {
 		t.Errorf("expected -- +goose Down directive, got:\n%s", sql)
 	}
-	if !strings.Contains(sql, "DROP TABLE IF EXISTS \"users\";") {
+	if !strings.Contains(string(sql), "DROP TABLE IF EXISTS \"users\";") {
 		t.Errorf("expected table drop, got:\n%s", sql)
 	}
-	if !strings.Contains(sql, "DROP TYPE IF EXISTS \"Role\";") {
+	if !strings.Contains(string(sql), "DROP TYPE IF EXISTS \"Role\";") {
 		t.Errorf("expected enum drop, got:\n%s", sql)
 	}
 }
@@ -262,10 +262,10 @@ func TestViciousMigrationEdgeCases(t *testing.T) {
 			t.Fatalf("failed to generate Goose migrations: %v", err)
 		}
 
-		if !strings.Contains(gooseSQL, "DROP TABLE IF EXISTS \"user_categories\";") {
+		if !strings.Contains(string(gooseSQL), "DROP TABLE IF EXISTS \"user_categories\";") {
 			t.Errorf("expected dropping dependent table user_categories, got:\n%s", gooseSQL)
 		}
-		if !strings.Contains(gooseSQL, "DROP TYPE IF EXISTS \"custom_roles_enum\";") {
+		if !strings.Contains(string(gooseSQL), "DROP TYPE IF EXISTS \"custom_roles_enum\";") {
 			t.Errorf("expected dropping custom roles enum type in down block, got:\n%s", gooseSQL)
 		}
 	})
@@ -313,7 +313,7 @@ func TestViciousMigrationEdgeCases(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to generate Goose Down SQL: %v", err)
 		}
-		if !strings.Contains(gooseSQL, "PRAGMA foreign_keys = ON;") {
+		if !strings.Contains(string(gooseSQL), "PRAGMA foreign_keys = ON;") {
 			t.Errorf("expected PRAGMA foreign_keys = ON; in Down migration, got:\n%s", gooseSQL)
 		}
 	})

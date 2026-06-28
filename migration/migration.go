@@ -49,16 +49,16 @@ func GenerateDownMigrations(schemaDef *schema.Schema) (string, error) {
 	return downBuilder.String(), nil
 }
 
-func GenerateMigration(schemaDef *schema.Schema) (string, error) {
+func GenerateMigration(schemaDef *schema.Schema) ([]byte, error) {
 
 	upSQL, err := GenerateUpMigrations(schemaDef)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	downSQL, err := GenerateDownMigrations(schemaDef)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var sb strings.Builder
@@ -66,5 +66,5 @@ func GenerateMigration(schemaDef *schema.Schema) (string, error) {
 	sb.WriteString(upSQL)
 	sb.WriteString("\n-- +goose Down\n")
 	sb.WriteString(downSQL)
-	return sb.String(), nil
+	return []byte(sb.String()), nil
 }

@@ -1,4 +1,3 @@
-
 {
   "database": {
     "url_env": "DATABASE_URL",
@@ -12,4 +11,3 @@
     "migrations": "./valkyrie/migrations"
   }
 }
-	
