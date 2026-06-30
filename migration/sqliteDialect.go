@@ -1,9 +1,13 @@
 package migration
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 	"valkyrie/schema"
+
+	"ariga.io/atlas/sql/migrate"
+	"ariga.io/atlas/sql/sqlite"
 )
 
 type SqliteDialect struct{}
@@ -80,5 +84,11 @@ func (d SqliteDialect) FormatEnumConstraint(colName string, enum *schema.Enum) s
 	for _, ev := range enum.ValueMap {
 		enumVals = append(enumVals, fmt.Sprintf("'%s'", ev.DBName))
 	}
-	return fmt.Sprintf("CHECK (%s IN (%s))", d.QuoteIdent(colName), strings.Join(enumVals, ", "))
+	return fmt.Sprintf("%s IN (%s)", d.QuoteIdent(colName), strings.Join(enumVals, ", "))
+}
+
+func (SqliteDialect) SupportsNativeEnums() bool { return false }
+
+func (SqliteDialect) OpenConn(db *sql.DB) (migrate.Driver, error) {
+	return sqlite.Open(db)
 }

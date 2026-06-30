@@ -1,11 +1,6 @@
 package main
 
-import (
-	"github.com/joho/godotenv"
-)
-
 func main() {
-	godotenv.Load("./.env")
 	// fileBytes, _ := os.ReadFile("./schema.prisma")
 
 	// rawString := string(fileBytes)
@@ -36,6 +31,5 @@ func main() {
 	// 	os.WriteFile("migrate_Postgres.sql", []byte(mig), 0644)
 	// }
 	// fmt.Println(string(b))
-	// fmt.Println(os.Getenv("DATABASE_DIRECT_URL"))
 
 }

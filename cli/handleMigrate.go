@@ -1,23 +1,28 @@
 package cli
 
 import (
+	"bufio"
 	"database/sql"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"valkyrie/migration"
 	"valkyrie/schema"
 
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
+	"golang.org/x/term"
+	_ "modernc.org/sqlite"
 )
 
 type MigrationOptions struct {
-	Verbose bool
-	DBUrl   string
+	Verbose       bool
+	DBUrl         string
+	MigrationName string
 }
 
 func handleMigrate(args []string) {
@@ -59,15 +64,89 @@ func handleMigrate(args []string) {
 	}
 	defer db.Close()
 
-	if isReset {
-		err = handleResetMigration(cfg, schemaDef, db, opts.Verbose)
-	} else {
-		err = handleUpMigration(cfg, schemaDef, db, opts.Verbose)
+	goose.SetDialect(string(schemaDef.Datasource.Provider))
+	if !opts.Verbose {
+		goose.SetLogger(goose.NopLogger())
 	}
 
-	if err != nil {
+	if isReset {
+		if isTTY() {
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Print("[WARNING]: Resetting migrations will wipe ALL data in the database. Are you sure you want to proceed? [y/N]: ")
+			response, err := reader.ReadString('\n')
+			if err != nil {
+				fmt.Println("Error reading response, aborting reset.")
+				os.Exit(1)
+			}
+			response = strings.TrimSpace(strings.ToLower(response))
+			if response != "y" && response != "yes" {
+				fmt.Println("Reset aborted.")
+				os.Exit(0)
+			}
+		} else {
+			fmt.Println("[WARNING]: Resetting migrations in non-interactive mode. ALL data in the database will be wiped.")
+		}
+
+		fmt.Println("Resetting database migrations...")
+		err = goose.Reset(db, cfg.Output.Migrations)
+		if err != nil && err != goose.ErrNoMigrationFiles {
+			fmt.Printf("Error resetting migrations: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	fmt.Println("Running pending migrations...")
+	versionBefore, _ := goose.GetDBVersion(db)
+	err = goose.Up(db, cfg.Output.Migrations)
+	if err != nil && err != goose.ErrNoMigrationFiles {
 		fmt.Printf("Migration failed: %v\n", err)
 		os.Exit(1)
+	}
+	versionAfter, _ := goose.GetDBVersion(db)
+	if versionAfter > versionBefore {
+		fmt.Printf("Successfully applied pending migration(s) (database version is now %d).\n", versionAfter)
+	}
+
+	// diff current db schema against target schema.prisma
+	upSql, downSql, err := migration.DiffAndPlan(db, schemaDef.Datasource.Provider, schemaDef, isTTY())
+	if err != nil {
+		fmt.Printf("Error generating migration plan: %v\n", err)
+		os.Exit(1)
+	}
+
+	// if there is a diff, write a new migration file and apply it
+	if len(strings.TrimSpace(upSql)) > 0 {
+		migrationName := opts.MigrationName
+		if migrationName == "" {
+			if isTTY() {
+				reader := bufio.NewReader(os.Stdin)
+				fmt.Print("Enter migration name: ")
+				nameInput, err := reader.ReadString('\n')
+				if err == nil {
+					migrationName = strings.TrimSpace(nameInput)
+				}
+			}
+			if migrationName == "" {
+				migrationName = "migration_" + time.Now().Format("2006-01-02_150405")
+			}
+		}
+		migrationName = strings.ReplaceAll(migrationName, " ", "_")
+
+		err = writeMigrationFile(cfg, migrationName, upSql, downSql)
+		if err != nil {
+			fmt.Printf("Failed to write migration file: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Applying new migration...")
+		err = goose.Up(db, cfg.Output.Migrations)
+		if err != nil {
+			fmt.Printf("Applying new migration failed: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("Database migrated successfully.")
+	} else {
+		fmt.Println("No schema changes detected. Database is up-to-date.")
 	}
 }
 
@@ -88,9 +167,16 @@ func parseMigrationFlags(args []string) (*MigrationOptions, error) {
 		return nil, err
 	}
 
+	migrationName := ""
+	posArgs := fs.Args()
+	if len(posArgs) > 0 {
+		migrationName = posArgs[0]
+	}
+
 	return &MigrationOptions{
-		Verbose: *verbose,
-		DBUrl:   *dbUrl,
+		Verbose:       *verbose,
+		DBUrl:         *dbUrl,
+		MigrationName: migrationName,
 	}, nil
 }
 
@@ -132,52 +218,76 @@ func parseSchemaFile(schemaPath string) (*schema.Schema, error) {
 	return parsedSchema, nil
 }
 
-func handleUpMigration(cfg *Config, schemaDef *schema.Schema, db *sql.DB, verbose bool) error {
-	err := writeMigrationFile(cfg, schemaDef)
-	if err != nil {
-		return fmt.Errorf("failed to write migration file: %w", err)
-	}
-
-	goose.SetDialect(string(schemaDef.Datasource.Provider))
-
-	if !verbose {
-		goose.SetLogger(goose.NopLogger())
-	}
-
-	return goose.Up(db, cfg.Output.Migrations)
-}
-
-func handleResetMigration(cfg *Config, schemaDef *schema.Schema, db *sql.DB, verbose bool) error {
-	goose.SetDialect(string(schemaDef.Datasource.Provider))
-
-	if !verbose {
-		goose.SetLogger(goose.NopLogger())
-	}
-
-	err := goose.Reset(db, cfg.Output.Migrations)
-	if err != nil {
-		return fmt.Errorf("failed to reset migrations: %w", err)
-	}
-
-	return goose.Up(db, cfg.Output.Migrations)
-}
-
-func writeMigrationFile(cfg *Config, schemaDef *schema.Schema) error {
-	mig, err := migration.GenerateMigration(schemaDef)
-	if err != nil {
-		return err
-	}
-
-	err = os.MkdirAll(cfg.Output.Migrations, 0755)
+func writeMigrationFile(cfg *Config, migrationName, upSql, downSql string) error {
+	err := os.MkdirAll(cfg.Output.Migrations, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create migrations directory '%s': %w", cfg.Output.Migrations, err)
 	}
 
-	filePath := filepath.Join(cfg.Output.Migrations, "001_migration.sql")
-	err = os.WriteFile(filePath, mig, 0666)
+	filename := getNextMigrationFilename(cfg.Output.Migrations, migrationName)
+	filePath := filepath.Join(cfg.Output.Migrations, filename)
+
+	var sb strings.Builder
+	sb.WriteString("-- +goose Up\n")
+	sb.WriteString(upSql)
+	sb.WriteString("\n\n-- +goose Down\n")
+	sb.WriteString(downSql)
+	sb.WriteString("\n")
+
+	err = os.WriteFile(filePath, []byte(sb.String()), 0666)
 	if err != nil {
 		return fmt.Errorf("failed to write file '%s': %w", filePath, err)
 	}
 
+	fmt.Printf("Goose migration created successfully at: %s\n", filePath)
 	return nil
+}
+
+func getNextMigrationFilename(migrationDir, migrationName string) string {
+	files, err := os.ReadDir(migrationDir)
+	if err != nil || len(files) == 0 {
+		return fmt.Sprintf("00001_%s.sql", migrationName)
+	}
+
+	maxVersion := 0
+	seqDigitLen := 5 //goose padding
+
+	for _, entry := range files {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasSuffix(strings.ToLower(name), ".sql") {
+			continue
+		}
+
+		before, _, ok := strings.Cut(name, "_")
+		if !ok {
+			continue
+		}
+
+		prefix := before
+		var val int
+		_, err := fmt.Sscanf(prefix, "%d", &val)
+		if err != nil {
+			continue
+		}
+
+		if len(prefix) < 9 { // just a guard if i switch to timestamps
+			if val > maxVersion {
+				maxVersion = val
+			}
+			if len(prefix) > seqDigitLen {
+				seqDigitLen = len(prefix)
+			}
+		}
+	}
+
+	nextVersion := maxVersion + 1
+	formatStr := fmt.Sprintf("%%0%dd_%%s.sql", seqDigitLen)
+	return fmt.Sprintf(formatStr, nextVersion, migrationName)
+}
+
+func isTTY() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
 }

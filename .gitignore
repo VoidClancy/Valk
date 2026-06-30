@@ -2,3 +2,4 @@
 *.md
 bin
 *.yml
+*.db

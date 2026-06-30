@@ -1,9 +1,12 @@
 package migration
 
 import (
+	"database/sql"
 	"strings"
 	providers "valkyrie/dbProviders"
 	"valkyrie/schema"
+
+	"ariga.io/atlas/sql/migrate"
 )
 
 type Dialect interface {
@@ -15,6 +18,8 @@ type Dialect interface {
 	FormatAutoIncrement(sqlType string) (typeOverride string, extraKeyword string)
 	FormatSinglePK(tableName, colName string, isAutoInc bool) (inlineSQL string, tableConstraint string)
 	FormatEnumConstraint(colName string, enum *schema.Enum) string
+	SupportsNativeEnums() bool
+	OpenConn(db *sql.DB) (migrate.Driver, error)
 }
 
 func GetDialect(provider providers.DbProvider) Dialect {
