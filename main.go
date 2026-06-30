@@ -6,9 +6,12 @@ import (
 	"slices"
 
 	"valkyrie/cli"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	_ = godotenv.Load()
 
 	commands := cli.Commands
 

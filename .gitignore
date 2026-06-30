@@ -1,7 +1,5 @@
-
-
-
 .env
 *.md
-/sandbox
 bin
+*.yml
+*.db
