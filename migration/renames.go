@@ -9,6 +9,43 @@ import (
 	"ariga.io/atlas/sql/schema"
 )
 
+func typeCategory(t schema.Type) string {
+	switch t.(type) {
+	case *schema.IntegerType:
+		return "integer"
+	case *schema.StringType:
+		return "string"
+	case *schema.UUIDType:
+		return "uuid"
+	case *schema.BoolType:
+		return "bool"
+	case *schema.TimeType:
+		return "time"
+	case *schema.FloatType, *schema.DecimalType:
+		return "float"
+	case *schema.BinaryType:
+		return "binary"
+	case *schema.JSONType:
+		return "json"
+	case *schema.EnumType:
+		return "enum"
+	case *schema.SpatialType:
+		return "spatial"
+	default:
+		return "other"
+	}
+}
+
+func typesCompatible(c1, c2 *schema.Column) bool {
+	if c1.Type == nil || c2.Type == nil {
+		return false
+	}
+	if c1.Type.Type != nil && c2.Type.Type != nil {
+		return typeCategory(c1.Type.Type) == typeCategory(c2.Type.Type)
+	}
+	return c1.Type.Raw == c2.Type.Raw
+}
+
 // renameMatchFn determines whether a dropped column should be paired with an added column as a rename.
 // Returns the matched AddColumn, or nil if no match.
 type renameMatchFn func(tableName string, drop *schema.DropColumn, adds []*schema.AddColumn, matchedAdds map[*schema.AddColumn]bool) *schema.AddColumn
@@ -73,6 +110,9 @@ func (p *diffPlanner) detectUpRenames(changes []schema.Change) {
 				if matchedAdds[add] {
 					continue
 				}
+				if !typesCompatible(drop.C, add.C) {
+					continue
+				}
 				fmt.Printf("[WARNING]: Destructive change: dropping column %q and adding column %q in table %q.\n",
 					drop.C.Name, add.C.Name, tableName)
 				fmt.Printf("   Are you renaming column %q to %q? [y/N]: ", drop.C.Name, add.C.Name)
@@ -87,6 +127,9 @@ func (p *diffPlanner) detectUpRenames(changes []schema.Change) {
 			}
 		} else {
 			for _, add := range adds {
+				if !typesCompatible(drop.C, add.C) {
+					continue
+				}
 				fmt.Printf("[WARNING]: Destructive change: dropping column %q and adding column %q in table %q (skipped rename detection in non-interactive mode).\n",
 					drop.C.Name, add.C.Name, tableName)
 			}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sandbox/valkyrie"
+	"integration/valkyrie"
 
 	_ "modernc.org/sqlite"
 )
