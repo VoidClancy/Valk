@@ -1,4 +1,4 @@
-module sandbox
+module integration
 
 go 1.26.4
 

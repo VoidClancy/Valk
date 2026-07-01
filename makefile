@@ -1,4 +1,4 @@
-.PHONY:  build run test install db-up db-down db-clean bi fmt fmt-check vet sandbox-gen sandbox-test
+.PHONY:  build run test install db-up db-down db-clean bi fmt fmt-check vet integration-gen integration-test
 
 bi: build install
 	
@@ -28,13 +28,13 @@ fmt-check:
 
 vet:
 	go vet ./...
-	cd sandbox && go vet ./...
+	cd integration && go vet ./...
 
-sandbox-gen: build
-	cd sandbox && ../bin/valkyrie generate
+integration-gen: build
+	cd integration && ../bin/valkyrie generate
 
-sandbox-test: sandbox-gen
-	cd sandbox && go test -v ./...
+integration-test: integration-gen
+	cd integration && go test -v ./...
 
 db-up:
 	docker compose up -d
