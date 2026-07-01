@@ -1,0 +1,5 @@
+{{- range $model := .Schema.Models }}
+type {{ $model.Name }}Delegate struct {
+	client *DB
+}
+{{- end }}

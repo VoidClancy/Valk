@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"valkyrie/generator"
+	"valkyrie/schema"
 )
 
 func handleGenerate() {
@@ -15,23 +17,41 @@ func handleGenerate() {
 		return
 	}
 
+	// Parse schema
+	schemaBytes, err := os.ReadFile(config.Schema)
+	if err != nil {
+		fmt.Printf("failed to read schema file: %v\n", err)
+		return
+	}
+
+	schemaDef, errs := schema.ParseSchema(string(schemaBytes))
+	if len(errs) > 0 {
+		fmt.Println("Schema parsing errors:")
+		for _, e := range errs {
+			fmt.Println(e)
+		}
+		return
+	}
+
 	relDir, err := filepath.Rel(config.Output.Client, config.Output.Migrations)
-	if err != nil || strings.HasPrefix(relDir, "..") || filepath.IsAbs(relDir) {
-		fmt.Printf("[WARNING]: Migrations directory %q is not a subdirectory of client output directory %q. Go's //go:embed does not support parent directory paths ('..').\n",
+	var embedRelDir string
+	if err == nil && !strings.HasPrefix(relDir, "..") && !filepath.IsAbs(relDir) {
+		embedRelDir = filepath.ToSlash(filepath.Join(relDir, "*.sql"))
+	} else {
+		fmt.Printf("[WARNING]: Migrations directory %q is not a subdirectory of client output directory %q. Go's //go:embed does not support parent directory paths ('..'). Embedded migrations will be disabled.\n",
 			config.Output.Migrations, config.Output.Client)
 	}
 
-	var content string
+	pkgName := filepath.Base(config.Output.Client)
+	if pkgName == "." || pkgName == "" {
+		pkgName = "valkyrie"
+	}
 
-	content += fmt.Sprintf(`
-	package valkyrie
-
-	import "embed"
-
-	//go:embed %s/*.sql
-	var migrationsFS embed.FS
-	
-`, filepath.ToSlash(relDir))
+	content, err := generator.GenerateClient(*schemaDef, pkgName, embedRelDir, config.Output.Migrations)
+	if err != nil {
+		fmt.Printf("failed to generate client: %v\n", err)
+		return
+	}
 
 	if err := os.WriteFile(filepath.Join(config.Output.Client, "client.go"), []byte(content), 0644); err != nil {
 		fmt.Println(err)
