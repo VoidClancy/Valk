@@ -46,9 +46,9 @@ model Post {
 
 model Comment {
     id       String @id @default(cuid())
-    textify  String
-    dummy3   Int
-    dummy1   String
+    textify  Int
+    dummy3   String
+    dummy1   Int
     dummy2   String
     postId   String
     post     Post   @relation(fields: [postId], references: [id])
