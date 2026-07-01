@@ -1,4 +1,4 @@
-name: Integration Tests
+name: Integration
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
   integration-tests:
     name: Run Integration Tests
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -19,33 +19,35 @@ jobs:
           POSTGRES_PASSWORD: testpassword
           POSTGRES_DB: valkyrie_test
         ports:
-          - 5432:5432
+        - 5432:5432
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-          cache: true
-          cache-dependency-path: '**/go.sum'
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
+        cache: true
+        cache-dependency-path: '**/go.sum'
 
-      - name: Build CLI
-        run: go build -o bin/valkyrie main.go
+    - name: Vet packages
+      run: make vet
 
-      - name: Run Integration Tests
-        env:
-          PG_DATABASE_URL: ${{ secrets.PG_DATABASE_URL }}
-          SQLITE_DATABASE_URL: ${{ secrets.SQLITE_DATABASE_URL }}
-        run: |
-          cd sandbox
-          ../bin/valkyrie generate
-          # Run tests with real databases
-          go test -v ./...
+    - name: Run compiler unit tests
+      run: make test
+
+    - name: Build CLI
+      run: go build -o bin/valkyrie main.go
+
+    - name: Run Integration Tests
+      env:
+        PG_DATABASE_URL: ${{ secrets.PG_DATABASE_URL }}
+        SQLITE_DATABASE_URL: ${{ secrets.SQLITE_DATABASE_URL }}
+      run: |
+        cd sandbox
+        ../bin/valkyrie generate
+        go test -v ./...
