@@ -1,6 +1,6 @@
 .env
 *.md
 bin
-*.yml
 *.db
 .vscode
+docker-compose.yml
