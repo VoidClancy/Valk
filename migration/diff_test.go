@@ -60,7 +60,7 @@ func openTestPostgres(t *testing.T, schemaName string) *sql.DB {
 	// Register cleanup to drop the schema
 	t.Cleanup(func() {
 		schemaDB.Close()
-		
+
 		// Reconnect to default to drop the schema
 		db, err := sql.Open("postgres", defaultDSN)
 		if err == nil {
@@ -162,7 +162,7 @@ func TestInitialMigration(t *testing.T) {
 		`
 		sc := parseOrFail(t, schemaText)
 		up, _ := diffOrFail(t, db, providers.Sqlite, sc, false)
-		
+
 		assertContains(t, up, "CREATE TABLE")
 		assertContains(t, up, "users")
 		assertContains(t, up, "biography")
@@ -175,7 +175,7 @@ func TestInitialMigration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to insert user: %v", err)
 		}
-		
+
 		// Verify default values
 		var active bool
 		var name string
@@ -221,7 +221,7 @@ func TestInitialMigration(t *testing.T) {
 		`
 		sc := parseOrFail(t, schemaText)
 		up, _ := diffOrFail(t, db, providers.Postgres, sc, false)
-		
+
 		assertContains(t, up, "CREATE TABLE")
 		assertContains(t, up, `"users"`)
 		assertContains(t, up, `"biography"`)
@@ -235,7 +235,7 @@ func TestInitialMigration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to insert user: %v", err)
 		}
-		
+
 		// Verify default values
 		var active bool
 		var name string
@@ -513,7 +513,7 @@ func TestIncrementalMigration(t *testing.T) {
 	up2, down2 := diffOrFail(t, db, providers.Sqlite, sc2, false)
 	assertContains(t, up2, "ADD COLUMN")
 	assertContains(t, up2, "age")
-	
+
 	// Down from V2 to V1 drops the column. In SQLite, this is a table recreation.
 	assertContains(t, down2, "new_User")
 	assertNotContains(t, down2, "age")
@@ -541,7 +541,7 @@ func TestIncrementalMigration(t *testing.T) {
 	up3, down3 := diffOrFail(t, db, providers.Sqlite, sc3, false)
 	assertContains(t, up3, "CREATE TABLE")
 	assertContains(t, up3, "Post")
-	
+
 	assertContains(t, down3, "DROP TABLE")
 	assertContains(t, down3, "Post")
 	execOrFail(t, db, up3)

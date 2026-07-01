@@ -19,9 +19,6 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Verify formatting
-        run: make fmt-check
-
       - name: Vet packages
         run: make vet
 

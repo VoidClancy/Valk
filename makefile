@@ -17,8 +17,7 @@ test:
 	go test -v ./...
 
 fmt:
-	go fmt ./...
-	cd sandbox && go fmt ./...
+	gofmt -w .
 
 fmt-check:
 	@if [ -n "$$(gofmt -l .)" ]; then \
