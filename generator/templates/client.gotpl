@@ -1,0 +1,55 @@
+type DB struct {
+	DB       *sql.DB
+	provider string
+	{{- range $model := .Schema.Models }}
+	{{ $model.Name }} *{{ $model.Name }}Delegate
+	{{- end }}
+	{{- range $enum := .Schema.Enums }}
+	{{ $enum.Name }} {{ lowercase $enum.Name }}Namespace
+	{{- end }}
+}
+
+// Open opens a database connection and returns a client.
+func Open(provider, dataSourceName string) (*DB, error) {
+	sqlDB, err := sql.Open(provider, dataSourceName)
+	if err != nil {
+		return nil, err
+	}
+	db := &DB{
+		DB:       sqlDB,
+		provider: provider,
+		{{- range $enum := .Schema.Enums }}
+		{{ $enum.Name }}: {{ $enum.Name }},
+		{{- end }}
+	}
+	{{- range $model := .Schema.Models }}
+	db.{{ $model.Name }} = &{{ $model.Name }}Delegate{client: db}
+	{{- end }}
+	return db, nil
+}
+
+// Close closes the database connection.
+func (db *DB) Close() error {
+	return db.DB.Close()
+}
+
+{{- if .EmbedPath }}
+// RunMigrations runs all pending migrations from the embedded folder.
+func (db *DB) RunMigrations(ctx context.Context) error {
+	if err := goose.SetDialect(db.provider); err != nil {
+		return err
+	}
+	goose.SetLogger(goose.NopLogger())
+	goose.SetBaseFS(migrationsFS)
+	return goose.UpContext(ctx, db.DB, "{{ .EmbedDir }}")
+}
+{{- else }}
+// RunMigrations runs all pending migrations from the disk folder.
+func (db *DB) RunMigrations(ctx context.Context) error {
+	if err := goose.SetDialect(db.provider); err != nil {
+		return err
+	}
+	goose.SetLogger(goose.NopLogger())
+	return goose.UpContext(ctx, db.DB, "{{ .DefaultDiskPath }}")
+}
+{{- end }}

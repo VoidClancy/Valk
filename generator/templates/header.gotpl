@@ -1,0 +1,15 @@
+package {{ .PackageName }}
+
+import (
+	"context"
+	"database/sql"
+	{{- if .EmbedPath }}
+	"embed"
+	{{- end }}
+	"github.com/pressly/goose/v3"
+)
+
+{{- if .EmbedPath }}
+//go:embed {{ .EmbedPath }}
+var migrationsFS embed.FS
+{{- end }}

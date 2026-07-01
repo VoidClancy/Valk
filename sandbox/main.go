@@ -1,35 +1,33 @@
 package main
 
+import (
+	"context"
+	"fmt"
+	"log"
+	"sandbox/valkyrie"
+
+	_ "modernc.org/sqlite"
+)
+
 func main() {
-	// fileBytes, _ := os.ReadFile("./schema.prisma")
+	db, err := valkyrie.Open("sqlite", "file::memory:?_pragma=foreign_keys(1)")
+	if err != nil {
+		log.Fatalf("failed to open db: %v", err)
+	}
+	defer db.Close()
+	ctx := context.Background()
 
-	// rawString := string(fileBytes)
+	if err := db.RunMigrations(ctx); err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
+	}
+	fmt.Println("Valkyrie database client successfully opened!")
+	fmt.Println("Delegates registered:")
+	fmt.Printf("  UserDelegate:           %+v\n", *db.User)
+	fmt.Printf("  ProfileDelegate:        %+v\n", *db.Profile)
+	fmt.Printf("  PostDelegate:           %+v\n", *db.Post)
+	fmt.Printf("  CommentDelegate:        %+v\n", *db.Comment)
+	fmt.Printf("  CategoryDelegate:       %+v\n", *db.Category)
+	fmt.Printf("  CategoryToPostDelegate: %+v\n", *db.CategoryToPost)
 
-	// tokens := schema.ExtractTokens(rawString)
-	// for i, token := range tokens {
-	// 	fmt.Printf("%d: %+v\n", i, token)
-	// }
-
-	// schema, errs := schema.ParseSchema(rawString)
-	// if len(errs) > 0 {
-	// 	for _, err := range errs {
-	// 		fmt.Println(err)
-	// 	}
-	// 	os.Exit(1)
-
-	// }
-	// mig, err := migration.GenerateMigration(schema)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// b, _ := json.MarshalIndent(schema, "", "  ")
-
-	// os.WriteFile("result.json", b, 0644)
-	// if strings.Contains(rawString, `provider = "sqlite"`) {
-	// 	os.WriteFile("migrate_Sqlite.sql", []byte(mig), 0644)
-	// } else {
-	// 	os.WriteFile("migrate_Postgres.sql", []byte(mig), 0644)
-	// }
-	// fmt.Println(string(b))
-
+	fmt.Printf("  UserRole.Admin:         %v\n", db.UserRole.Admin)
 }
