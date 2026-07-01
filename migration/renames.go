@@ -4,18 +4,44 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"reflect"
 	"strings"
 
 	"ariga.io/atlas/sql/schema"
 )
+
+func typeCategory(t schema.Type) string {
+	switch t.(type) {
+	case *schema.IntegerType:
+		return "integer"
+	case *schema.StringType:
+		return "string"
+	case *schema.UUIDType:
+		return "uuid"
+	case *schema.BoolType:
+		return "bool"
+	case *schema.TimeType:
+		return "time"
+	case *schema.FloatType, *schema.DecimalType:
+		return "float"
+	case *schema.BinaryType:
+		return "binary"
+	case *schema.JSONType:
+		return "json"
+	case *schema.EnumType:
+		return "enum"
+	case *schema.SpatialType:
+		return "spatial"
+	default:
+		return "other"
+	}
+}
 
 func typesCompatible(c1, c2 *schema.Column) bool {
 	if c1.Type == nil || c2.Type == nil {
 		return false
 	}
 	if c1.Type.Type != nil && c2.Type.Type != nil {
-		return reflect.TypeOf(c1.Type.Type) == reflect.TypeOf(c2.Type.Type)
+		return typeCategory(c1.Type.Type) == typeCategory(c2.Type.Type)
 	}
 	return c1.Type.Raw == c2.Type.Raw
 }
