@@ -25,7 +25,6 @@ func GenerateClient(sch schema.Schema, pkgName string, embedPath string, default
 		"capitalize": capitalize,
 		"lowercase":  lowercase,
 	})
-
 	tmpl, err := tmpl.ParseFS(templatesFS, "templates/*.gotpl")
 	if err != nil {
 		return "", err
@@ -46,7 +45,13 @@ func GenerateClient(sch schema.Schema, pkgName string, embedPath string, default
 
 	var buf bytes.Buffer
 	// sequentially !!!!
-	files := []string{"header.gotpl", "enums.gotpl", "client.gotpl", "delegates.gotpl"}
+	files := []string{
+		"header.gotpl",
+		"enums.gotpl",
+		"client.gotpl",
+		"tx.gotpl",
+		"delegates.gotpl",
+	}
 	for _, file := range files {
 		if err := tmpl.ExecuteTemplate(&buf, file, data); err != nil {
 			return "", err
