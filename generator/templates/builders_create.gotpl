@@ -1,0 +1,106 @@
+type CreateBuilder[M any, I any, S any, O any] struct {
+	client   *Queries
+	input    I
+	execFunc func(ctx context.Context, input I, s *S, o *O) (*M, error)
+}
+
+func (b *CreateBuilder[M, I, S, O]) Select(s S) *CreateSelectBuilder[M, I, S, O] {
+	return &CreateSelectBuilder[M, I, S, O]{builder: b, selects: s}
+}
+
+func (b *CreateBuilder[M, I, S, O]) Omit(o O) *CreateOmitBuilder[M, I, S, O] {
+	return &CreateOmitBuilder[M, I, S, O]{builder: b, omits: o}
+}
+
+func (b *CreateBuilder[M, I, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.execFunc(ctx, b.input, nil, nil)
+}
+
+type CreateSelectBuilder[M any, I any, S any, O any] struct {
+	builder *CreateBuilder[M, I, S, O]
+	selects S
+}
+
+func (b *CreateSelectBuilder[M, I, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.input, &b.selects, nil)
+}
+
+type CreateOmitBuilder[M any, I any, S any, O any] struct {
+	builder *CreateBuilder[M, I, S, O]
+	omits   O
+}
+
+func (b *CreateOmitBuilder[M, I, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.input, nil, &b.omits)
+}
+func executeInsert[M any](
+	ctx context.Context,
+	q *Queries,
+	table string,
+	cols []string,
+	vals []any,
+	returningCols []string,
+	idCol string,
+	scanFunc func(record *M, cols []string) []any,
+) (*M, error) {
+	placeholders := make([]string, len(cols))
+	for i := range cols {
+		placeholders[i] = q.dialect.BindVar(i + 1)
+	}
+
+	var res M
+	quotedReturningCols := make([]string, len(returningCols))
+	for i, col := range returningCols {
+		quotedReturningCols[i] = q.dialect.Quote(col)
+	}
+
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", 
+		q.dialect.Quote(table), 
+		strings.Join(cols, ", "), 
+		strings.Join(placeholders, ", "),
+	)
+
+	if q.dialect.SupportsReturning() {
+		query += " RETURNING " + strings.Join(quotedReturningCols, ", ")
+		row := q.db.QueryRowContext(ctx, query, vals...)
+		
+		scanTargets := scanFunc(&res, returningCols)
+		if err := row.Scan(scanTargets...); err != nil {
+			return nil, err
+		}
+		return &res, nil
+	}
+
+	// Fallback for dialects without RETURNING (MySQL)
+	result, err := q.db.ExecContext(ctx, query, vals...)
+	if err != nil {
+		return nil, err
+	}
+
+	var idVal any
+	for i, c := range cols {
+		if c == q.dialect.Quote(idCol) {
+			idVal = vals[i]
+			break
+		}
+	}
+	if idVal == nil {
+		lastID, err := result.LastInsertId()
+		if err != nil {
+			return nil, err
+		}
+		idVal = lastID
+	}
+
+	selectQuery := fmt.Sprintf("SELECT %s FROM %s WHERE %s = ?",
+		strings.Join(quotedReturningCols, ", "),
+		q.dialect.Quote(table),
+		q.dialect.Quote(idCol),
+	)
+	row := q.db.QueryRowContext(ctx, selectQuery, idVal)
+	scanTargets := scanFunc(&res, returningCols)
+	if err := row.Scan(scanTargets...); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
