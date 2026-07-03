@@ -44,12 +44,14 @@ func TestGenerateClient(t *testing.T) {
 		t.Fatalf("failed to generate client: %v\nCode output:\n%s", err, code)
 	}
 
-	// Verify package name
+	if !strings.Contains(code, "type CreateBuilder[M any, I any, S any, O any] struct {") {
+		t.Errorf("expected CreateBuilder struct in code, got:\n%s", code)
+	}
+
 	if !strings.Contains(code, "package client") {
 		t.Errorf("expected package client, got:\n%s", code)
 	}
 
-	// Verify client and delegates
 	if !strings.Contains(code, "type DB struct {") {
 		t.Errorf("expected DB struct, got:\n%s", code)
 	}
@@ -66,7 +68,6 @@ func TestGenerateClient(t *testing.T) {
 		t.Errorf("expected PostDelegate struct, got:\n%s", code)
 	}
 
-	// Verify enums and namespaces (Step 2)
 	if !strings.Contains(code, "type RoleType string") {
 		t.Errorf("expected RoleType type definition, got:\n%s", code)
 	}

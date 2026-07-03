@@ -50,6 +50,7 @@ func GenerateClient(sch schema.Schema, pkgName string, embedPath string, default
 		"enums.gotpl",
 		"client.gotpl",
 		"tx.gotpl",
+		"builders_create.gotpl",
 		"delegates.gotpl",
 	}
 	for _, file := range files {

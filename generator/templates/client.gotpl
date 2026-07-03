@@ -1,3 +1,19 @@
+type Dialect interface {
+	Quote(ident string) string
+	BindVar(idx int) string
+	SupportsReturning() bool
+}
+
+type postgresDialect struct{}
+func (postgresDialect) Quote(ident string) string    { return `"` + ident + `"` }
+func (postgresDialect) BindVar(idx int) string       { return fmt.Sprintf("$%d", idx) }
+func (postgresDialect) SupportsReturning() bool      { return true }
+
+type sqliteDialect struct{}
+func (sqliteDialect) Quote(ident string) string      { return `"` + ident + `"` }
+func (sqliteDialect) BindVar(idx int) string         { return "?" }
+func (sqliteDialect) SupportsReturning() bool        { return true }
+
 type DBTX interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	PrepareContext(context.Context, string) (*sql.Stmt, error)
@@ -8,6 +24,7 @@ type DBTX interface {
 type Queries struct {
 	db       DBTX
 	provider string
+	dialect  Dialect
 	{{- range $model := .Schema.Models }}
 	{{ $model.Name }} *{{ $model.Name }}Delegate
 	{{- end }}
@@ -27,9 +44,23 @@ func Open(provider, dataSourceName string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	var d Dialect
+	switch provider {
+	case "postgres", "postgresql":
+		d = postgresDialect{}
+	case "sqlite", "sqlite3":
+		d = sqliteDialect{}
+
+	default:
+		sqlDB.Close()
+		return nil, fmt.Errorf("unsupported database provider: %s", provider)
+	}
+
 	q := &Queries{
 		db:       sqlDB,
 		provider: provider,
+		dialect:  d,
 		{{- range $enum := .Schema.Enums }}
 		{{ $enum.Name }}: {{ $enum.Name }},
 		{{- end }}
