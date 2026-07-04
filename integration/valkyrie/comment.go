@@ -168,13 +168,23 @@ func (q *Queries) executeCommentCreate(ctx context.Context, input CommentCreateI
 	}
 
 	idCol := "id"
+	hasRelations := selects != nil && (selects.Post != nil || selects.Author != nil)
 
-	res, err := executeInsert(ctx, q, "Comment", cols, vals, returningCols, idCol, scanFunc)
-	if err != nil {
-		return nil, err
+	var res *Comment
+	var err error
+	if hasRelations {
+		err = q.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = executeInsert(ctx, txQ, "Comment", cols, vals, returningCols, idCol, scanFunc)
+			if err != nil {
+				return err
+			}
+			return txQ.loadCommentRelations(ctx, []*Comment{res}, selects)
+		})
+	} else {
+		res, err = executeInsert(ctx, q, "Comment", cols, vals, returningCols, idCol, scanFunc)
 	}
-
-	if err := q.loadCommentRelations(ctx, []*Comment{res}, selects); err != nil {
+	if err != nil {
 		return nil, err
 	}
 

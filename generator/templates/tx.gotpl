@@ -9,6 +9,9 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	if err != nil {
 		return nil, err
 	}
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(db.provider))
+	{{- end }}
 	q := &Queries{
 		db:       sqlTx,
 		provider: db.provider,
@@ -28,11 +31,17 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 
 // Commit commits the transaction.
 func (tx *Tx) Commit() error {
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(tx.provider))
+	{{- end }}
 	return tx.tx.Commit()
 }
 
 // Rollback aborts the transaction.
 func (tx *Tx) Rollback() error {
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(tx.provider))
+	{{- end }}
 	return tx.tx.Rollback()
 }
 

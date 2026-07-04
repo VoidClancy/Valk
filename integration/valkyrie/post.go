@@ -155,13 +155,23 @@ func (q *Queries) executePostCreate(ctx context.Context, input PostCreateInput, 
 	}
 
 	idCol := "id"
+	hasRelations := selects != nil && (selects.Author != nil || selects.Comments != nil || selects.Categories != nil)
 
-	res, err := executeInsert(ctx, q, "Post", cols, vals, returningCols, idCol, scanFunc)
-	if err != nil {
-		return nil, err
+	var res *Post
+	var err error
+	if hasRelations {
+		err = q.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = executeInsert(ctx, txQ, "Post", cols, vals, returningCols, idCol, scanFunc)
+			if err != nil {
+				return err
+			}
+			return txQ.loadPostRelations(ctx, []*Post{res}, selects)
+		})
+	} else {
+		res, err = executeInsert(ctx, q, "Post", cols, vals, returningCols, idCol, scanFunc)
 	}
-
-	if err := q.loadPostRelations(ctx, []*Post{res}, selects); err != nil {
+	if err != nil {
 		return nil, err
 	}
 

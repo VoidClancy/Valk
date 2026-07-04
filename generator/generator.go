@@ -18,6 +18,7 @@ type templateData struct {
 	EmbedDir        string
 	DefaultDiskPath string
 	Schema          schema.Schema
+	DefaultLogs     []string
 }
 
 type modelTemplateData struct {
@@ -25,11 +26,19 @@ type modelTemplateData struct {
 	Model       *schema.Model
 }
 
-func GenerateClient(sch schema.Schema, pkgName string, embedPath string, defaultDiskPath string) (map[string]string, error) {
+func GenerateClient(sch schema.Schema, pkgName string, embedPath string, defaultDiskPath string, defaultLogs []string) (map[string]string, error) {
 	tmpl := template.New("").Funcs(template.FuncMap{
 		"capitalize":    capitalize,
 		"lowercase":     lowercase,
 		"fkForRelation": fkForRelation,
+		"hasLog": func(level string) bool {
+			for _, l := range defaultLogs {
+				if l == "all" || l == level {
+					return true
+				}
+			}
+			return false
+		},
 	})
 	tmpl, err := tmpl.ParseFS(templatesFS, "templates/*.gotpl")
 	if err != nil {
@@ -47,6 +56,7 @@ func GenerateClient(sch schema.Schema, pkgName string, embedPath string, default
 		EmbedDir:        embedDir,
 		DefaultDiskPath: defaultDiskPath,
 		Schema:          sch,
+		DefaultLogs:     defaultLogs,
 	}
 
 	outputs := make(map[string]string)

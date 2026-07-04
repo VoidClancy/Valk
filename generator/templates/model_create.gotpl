@@ -74,12 +74,27 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, input {{ .
 
 	idCol := "{{ range $field := .Model.ScalarFields }}{{ if $field.IsID }}{{ $field.EffectiveColName }}{{ end }}{{ end }}"
 
-	res, err := executeInsert(ctx, q, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, idCol, scanFunc)
-	if err != nil {
-		return nil, err
-	}
+	{{- if .Model.RelationFields }}
+	hasRelations := selects != nil && ({{ range $i, $rel := .Model.RelationFields }}{{ if $i }} || {{ end }}selects.{{ capitalize $rel.Name }} != nil{{ end }})
+	{{- else }}
+	hasRelations := false
+	{{- end }}
 
-	if err := q.load{{ .Model.Name }}Relations(ctx, []*{{ .Model.Name }}{res}, selects); err != nil {
+	var res *{{ .Model.Name }}
+	var err error
+	if hasRelations {
+		err = q.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = executeInsert(ctx, txQ, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, idCol, scanFunc)
+			if err != nil {
+				return err
+			}
+			return txQ.load{{ .Model.Name }}Relations(ctx, []*{{ .Model.Name }}{res}, selects)
+		})
+	} else {
+		res, err = executeInsert(ctx, q, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, idCol, scanFunc)
+	}
+	if err != nil {
 		return nil, err
 	}
 
