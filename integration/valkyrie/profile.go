@@ -127,13 +127,23 @@ func (q *Queries) executeProfileCreate(ctx context.Context, input ProfileCreateI
 	}
 
 	idCol := "id"
+	hasRelations := selects != nil && (selects.User != nil)
 
-	res, err := executeInsert(ctx, q, "Profile", cols, vals, returningCols, idCol, scanFunc)
-	if err != nil {
-		return nil, err
+	var res *Profile
+	var err error
+	if hasRelations {
+		err = q.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = executeInsert(ctx, txQ, "Profile", cols, vals, returningCols, idCol, scanFunc)
+			if err != nil {
+				return err
+			}
+			return txQ.loadProfileRelations(ctx, []*Profile{res}, selects)
+		})
+	} else {
+		res, err = executeInsert(ctx, q, "Profile", cols, vals, returningCols, idCol, scanFunc)
 	}
-
-	if err := q.loadProfileRelations(ctx, []*Profile{res}, selects); err != nil {
+	if err != nil {
 		return nil, err
 	}
 

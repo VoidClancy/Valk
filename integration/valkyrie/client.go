@@ -191,6 +191,53 @@ func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Resu
 	return res, err
 }
 
+func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) error {
+	if _, ok := q.db.(*sql.Tx); ok {
+		return fn(q)
+	}
+
+	starter, ok := q.db.(interface {
+		BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	})
+	if !ok {
+		return fn(q)
+	}
+	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(q.provider))
+	tx, err := starter.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
+			_ = tx.Rollback()
+			panic(p)
+		}
+	}()
+
+	txQueries := &Queries{
+		db:       tx,
+		provider: q.provider,
+		dialect:  q.dialect,
+		UserRole: q.UserRole,
+	}
+	txQueries.User = &UserDelegate{client: txQueries}
+	txQueries.Profile = &ProfileDelegate{client: txQueries}
+	txQueries.Post = &PostDelegate{client: txQueries}
+	txQueries.Comment = &CommentDelegate{client: txQueries}
+	txQueries.Category = &CategoryDelegate{client: txQueries}
+	txQueries.CategoryToPost = &CategoryToPostDelegate{client: txQueries}
+
+	if err := fn(txQueries); err != nil {
+		log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
+		_ = tx.Rollback()
+		return err
+	}
+	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(q.provider))
+	return tx.Commit()
+}
+
 type Tx struct {
 	*Queries
 	tx *sql.Tx
@@ -202,6 +249,7 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(db.provider))
 	q := &Queries{
 		db:       sqlTx,
 		provider: db.provider,
@@ -222,11 +270,13 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 
 // Commit commits the transaction.
 func (tx *Tx) Commit() error {
+	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(tx.provider))
 	return tx.tx.Commit()
 }
 
 // Rollback aborts the transaction.
 func (tx *Tx) Rollback() error {
+	log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(tx.provider))
 	return tx.tx.Rollback()
 }
 

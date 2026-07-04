@@ -174,3 +174,59 @@ func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Resu
 	{{- end }}
 	return res, err
 }
+
+func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) error {
+	if _, ok := q.db.(*sql.Tx); ok {
+		return fn(q)
+	}
+
+	starter, ok := q.db.(interface {
+		BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	})
+	if !ok {
+		return fn(q)
+	}
+
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(q.provider))
+	{{- end }}
+	tx, err := starter.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			{{- if hasLog "query" }}
+			log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
+			{{- end }}
+			_ = tx.Rollback()
+			panic(p)
+		}
+	}()
+
+	txQueries := &Queries{
+		db:       tx,
+		provider: q.provider,
+		dialect:  q.dialect,
+		{{- range $enum := .Schema.Enums }}
+		{{ $enum.Name }}: q.{{ $enum.Name }},
+		{{- end }}
+	}
+	{{- range $model := .Schema.Models }}
+	txQueries.{{ $model.Name }} = &{{ $model.Name }}Delegate{client: txQueries}
+	{{- end }}
+
+	if err := fn(txQueries); err != nil {
+		{{- if hasLog "query" }}
+		log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
+		{{- end }}
+		_ = tx.Rollback()
+		return err
+	}
+
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(q.provider))
+	{{- end }}
+	return tx.Commit()
+}

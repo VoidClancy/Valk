@@ -114,13 +114,23 @@ func (q *Queries) executeCategoryCreate(ctx context.Context, input CategoryCreat
 	}
 
 	idCol := "id"
+	hasRelations := selects != nil && (selects.Posts != nil)
 
-	res, err := executeInsert(ctx, q, "Category", cols, vals, returningCols, idCol, scanFunc)
-	if err != nil {
-		return nil, err
+	var res *Category
+	var err error
+	if hasRelations {
+		err = q.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = executeInsert(ctx, txQ, "Category", cols, vals, returningCols, idCol, scanFunc)
+			if err != nil {
+				return err
+			}
+			return txQ.loadCategoryRelations(ctx, []*Category{res}, selects)
+		})
+	} else {
+		res, err = executeInsert(ctx, q, "Category", cols, vals, returningCols, idCol, scanFunc)
 	}
-
-	if err := q.loadCategoryRelations(ctx, []*Category{res}, selects); err != nil {
+	if err != nil {
 		return nil, err
 	}
 
