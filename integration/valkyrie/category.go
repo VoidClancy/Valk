@@ -70,62 +70,15 @@ func (q *Queries) selectCategoryCols(selects *CategorySelect, omits *CategoryOmi
 		return categoryDefaultCols
 	}
 
-	var cols []string
-	var anySelected bool
-	if selects != nil {
-		if selects.Id {
-			anySelected = true
-		}
-		if selects.Name {
-			anySelected = true
-		}
-		if selects.Posts != nil {
-			anySelected = true
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Id {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Id {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "id")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Name {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Name {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "name")
-		}
+	anySelected := selects != nil && (selects.Id || selects.Name || selects.Posts != nil)
+
+	specs := []colSpec{
+		{"id", selects != nil && selects.Id, omits != nil && omits.Id, false},
+		{"name", selects != nil && selects.Name, omits != nil && omits.Name, false},
 	}
 
-	if len(cols) == 0 {
-		cols = append(cols, "id")
-		cols = append(cols, "name")
-	}
+	cols := computeCols(specs, selects != nil, anySelected)
 
-	// Force-include any requested columns
 	for _, f := range forceCols {
 		if !slices.Contains(cols, f) {
 			cols = append(cols, f)
@@ -182,21 +135,13 @@ func (q *Queries) loadCategoryRelations(ctx context.Context, records []*Category
 		// Inverse holds the FK: CategoryToPost.categoryId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *Category) (string, bool) {
-				return fmt.Sprint(p.Id), true
-			},
+			directKey(func(p *Category) int32 { return p.Id }),
 			"CategoryToPost",
 			"categoryId",
 			returningCols,
-			func(rows *sql.Rows, child *CategoryToPost) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *CategoryToPost) (string, bool) {
-				return fmt.Sprint(child.CategoryId), true
-			},
-			func(p *Category, children []*CategoryToPost) {
-				p.Posts = append(p.Posts, children...)
-			},
+			scanInto(returningCols, (*CategoryToPost).ScanFields),
+			directKey(func(c *CategoryToPost) int32 { return c.CategoryId }),
+			appendMany(func(p *Category) *[]*CategoryToPost { return &p.Posts }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading posts: %w", err)

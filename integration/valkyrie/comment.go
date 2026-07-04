@@ -108,183 +108,20 @@ func (q *Queries) selectCommentCols(selects *CommentSelect, omits *CommentOmit, 
 		return commentDefaultCols
 	}
 
-	var cols []string
-	var anySelected bool
-	if selects != nil {
-		if selects.Id {
-			anySelected = true
-		}
-		if selects.Textify {
-			anySelected = true
-		}
-		if selects.Dummy3 {
-			anySelected = true
-		}
-		if selects.Dummy1 {
-			anySelected = true
-		}
-		if selects.Dummy2 {
-			anySelected = true
-		}
-		if selects.PostId {
-			anySelected = true
-		}
-		if selects.AuthorId {
-			anySelected = true
-		}
-		if selects.Post != nil {
-			anySelected = true
-		}
-		if selects.Author != nil {
-			anySelected = true
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Id {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Id {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "id")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Textify {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Textify {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "textify")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Dummy3 {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Dummy3 {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "dummy3")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Dummy1 {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Dummy1 {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "dummy1")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Dummy2 {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Dummy2 {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "dummy2")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.PostId {
-				include = true
-			}
-			// Force-include FK when its relation is selected
-			if selects.Post != nil {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.PostId {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "postId")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.AuthorId {
-				include = true
-			}
-			// Force-include FK when its relation is selected
-			if selects.Author != nil {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.AuthorId {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "authorId")
-		}
+	anySelected := selects != nil && (selects.Id || selects.Textify || selects.Dummy3 || selects.Dummy1 || selects.Dummy2 || selects.PostId || selects.AuthorId || selects.Post != nil || selects.Author != nil)
+
+	specs := []colSpec{
+		{"id", selects != nil && selects.Id, omits != nil && omits.Id, false},
+		{"textify", selects != nil && selects.Textify, omits != nil && omits.Textify, false},
+		{"dummy3", selects != nil && selects.Dummy3, omits != nil && omits.Dummy3, false},
+		{"dummy1", selects != nil && selects.Dummy1, omits != nil && omits.Dummy1, false},
+		{"dummy2", selects != nil && selects.Dummy2, omits != nil && omits.Dummy2, false},
+		{"postId", selects != nil && selects.PostId, omits != nil && omits.PostId, selects != nil && selects.Post != nil},
+		{"authorId", selects != nil && selects.AuthorId, omits != nil && omits.AuthorId, selects != nil && selects.Author != nil},
 	}
 
-	if len(cols) == 0 {
-		cols = append(cols, "id")
-		cols = append(cols, "textify")
-		cols = append(cols, "dummy3")
-		cols = append(cols, "dummy1")
-		cols = append(cols, "dummy2")
-		cols = append(cols, "postId")
-		cols = append(cols, "authorId")
-	}
+	cols := computeCols(specs, selects != nil, anySelected)
 
-	// Force-include any requested columns
 	for _, f := range forceCols {
 		if !slices.Contains(cols, f) {
 			cols = append(cols, f)
@@ -352,23 +189,13 @@ func (q *Queries) loadCommentRelations(ctx context.Context, records []*Comment, 
 		// Current model holds the FK: Comment.postId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *Comment) (string, bool) {
-				return fmt.Sprint(p.PostId), true
-			},
+			directKey(func(p *Comment) string { return p.PostId }),
 			"Post",
 			"id",
 			returningCols,
-			func(rows *sql.Rows, child *Post) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *Post) (string, bool) {
-				return fmt.Sprint(child.Id), true
-			},
-			func(p *Comment, children []*Post) {
-				if len(children) > 0 {
-					p.Post = children[0]
-				}
-			},
+			scanInto(returningCols, (*Post).ScanFields),
+			directKey(func(c *Post) string { return c.Id }),
+			setOne(func(p *Comment, c *Post) { p.Post = c }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading post: %w", err)
@@ -382,23 +209,13 @@ func (q *Queries) loadCommentRelations(ctx context.Context, records []*Comment, 
 		// Current model holds the FK: Comment.authorId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *Comment) (string, bool) {
-				return fmt.Sprint(p.AuthorId), true
-			},
+			directKey(func(p *Comment) string { return p.AuthorId }),
 			"User",
 			"id",
 			returningCols,
-			func(rows *sql.Rows, child *User) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *User) (string, bool) {
-				return fmt.Sprint(child.Id), true
-			},
-			func(p *Comment, children []*User) {
-				if len(children) > 0 {
-					p.Author = children[0]
-				}
-			},
+			scanInto(returningCols, (*User).ScanFields),
+			directKey(func(c *User) string { return c.Id }),
+			setOne(func(p *Comment, c *User) { p.Author = c }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading author: %w", err)
