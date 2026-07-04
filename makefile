@@ -1,4 +1,4 @@
-.PHONY:  build run test install db-up db-down db-clean bi fmt fmt-check vet integration-gen integration-test bench race lint
+.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check vet integration-gen integration-test bench race lint
 
 bi: build install
 	
@@ -10,6 +10,9 @@ bench:
 
 build: 
 	go build -o bin/valkyrie 
+
+build-prod:
+	go build -ldflags="-s -w" -o bin/valkyrie
 
 install: build
 	mkdir -p $(HOME)/go/bin
