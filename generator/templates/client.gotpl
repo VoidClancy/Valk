@@ -83,21 +83,47 @@ func (db *DB) Raw() *sql.DB {
 {{- if .EmbedPath }}
 // RunMigrations runs all pending migrations from the embedded folder.
 func (db *DB) RunMigrations(ctx context.Context) error {
+	{{- if hasLog "info" }}
+	log.Println("Running migrations...")
+	{{- end }}
 	if err := goose.SetDialect(db.provider); err != nil {
 		return err
 	}
 	goose.SetLogger(goose.NopLogger())
 	goose.SetBaseFS(migrationsFS)
-	return goose.UpContext(ctx, db.sqlDB, "{{ .EmbedDir }}")
+	err := goose.UpContext(ctx, db.sqlDB, "{{ .EmbedDir }}")
+	if err != nil {
+		{{- if hasLog "error" }}
+		log.Printf("Migrations failed: %v", err)
+		{{- end }}
+		return err
+	}
+	{{- if hasLog "info" }}
+	log.Println("Migrations completed successfully.")
+	{{- end }}
+	return nil
 }
 {{- else }}
 // RunMigrations runs all pending migrations from the disk folder.
 func (db *DB) RunMigrations(ctx context.Context) error {
+	{{- if hasLog "info" }}
+	log.Println("Running migrations...")
+	{{- end }}
 	if err := goose.SetDialect(db.provider); err != nil {
 		return err
 	}
 	goose.SetLogger(goose.NopLogger())
-	return goose.UpContext(ctx, db.sqlDB, "{{ .DefaultDiskPath }}")
+	err := goose.UpContext(ctx, db.sqlDB, "{{ .DefaultDiskPath }}")
+	if err != nil {
+		{{- if hasLog "error" }}
+		log.Printf("Migrations failed: %v", err)
+		{{- end }}
+		return err
+	}
+	{{- if hasLog "info" }}
+	log.Println("Migrations completed successfully.")
+	{{- end }}
+	return nil
 }
 {{- end }}
 
@@ -114,4 +140,37 @@ func (q *Queries) bindVars(count int) string {
 		sb.WriteString(q.dialect.BindVar(i + 1))
 	}
 	return sb.String()
+}
+
+func (q *Queries) query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Query: %s | Args: %v", strings.ToUpper(q.provider), query, args)
+	{{- end }}
+	res, err := q.db.QueryContext(ctx, query, args...)
+	{{- if hasLog "error" }}
+	if err != nil {
+		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+	}
+	{{- end }}
+	return res, err
+}
+
+func (q *Queries) queryRow(ctx context.Context, query string, args ...any) *sql.Row {
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL QueryRow: %s | Args: %v", strings.ToUpper(q.provider), query, args)
+	{{- end }}
+	return q.db.QueryRowContext(ctx, query, args...)
+}
+
+func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Exec: %s | Args: %v", strings.ToUpper(q.provider), query, args)
+	{{- end }}
+	res, err := q.db.ExecContext(ctx, query, args...)
+	{{- if hasLog "error" }}
+	if err != nil {
+		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+	}
+	{{- end }}
+	return res, err
 }

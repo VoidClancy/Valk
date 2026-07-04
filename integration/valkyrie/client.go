@@ -7,6 +7,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -137,12 +138,19 @@ func (db *DB) Raw() *sql.DB {
 
 // RunMigrations runs all pending migrations from the embedded folder.
 func (db *DB) RunMigrations(ctx context.Context) error {
+	log.Println("Running migrations...")
 	if err := goose.SetDialect(db.provider); err != nil {
 		return err
 	}
 	goose.SetLogger(goose.NopLogger())
 	goose.SetBaseFS(migrationsFS)
-	return goose.UpContext(ctx, db.sqlDB, "migrations")
+	err := goose.UpContext(ctx, db.sqlDB, "migrations")
+	if err != nil {
+		log.Printf("Migrations failed: %v", err)
+		return err
+	}
+	log.Println("Migrations completed successfully.")
+	return nil
 }
 
 func (q *Queries) bindVars(count int) string {
@@ -158,6 +166,29 @@ func (q *Queries) bindVars(count int) string {
 		sb.WriteString(q.dialect.BindVar(i + 1))
 	}
 	return sb.String()
+}
+
+func (q *Queries) query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	log.Printf("[%s] SQL Query: %s | Args: %v", strings.ToUpper(q.provider), query, args)
+	res, err := q.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+	}
+	return res, err
+}
+
+func (q *Queries) queryRow(ctx context.Context, query string, args ...any) *sql.Row {
+	log.Printf("[%s] SQL QueryRow: %s | Args: %v", strings.ToUpper(q.provider), query, args)
+	return q.db.QueryRowContext(ctx, query, args...)
+}
+
+func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	log.Printf("[%s] SQL Exec: %s | Args: %v", strings.ToUpper(q.provider), query, args)
+	res, err := q.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+	}
+	return res, err
 }
 
 type Tx struct {
@@ -309,7 +340,7 @@ func executeInsert[M any](
 
 	var res M
 	if q.dialect.SupportsReturning() {
-		row := q.db.QueryRowContext(ctx, query, vals...)
+		row := q.queryRow(ctx, query, vals...)
 
 		scanTargets := scanFunc(&res, returningCols)
 		if err := row.Scan(scanTargets...); err != nil {
@@ -319,7 +350,7 @@ func executeInsert[M any](
 	}
 
 	// Fallback for dialects without RETURNING (MySQL)
-	result, err := q.db.ExecContext(ctx, query, vals...)
+	result, err := q.exec(ctx, query, vals...)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +386,7 @@ func executeInsert[M any](
 	selectSb.WriteString(q.dialect.Quote(idCol))
 	selectSb.WriteString(" = ?")
 
-	row := q.db.QueryRowContext(ctx, selectSb.String(), idVal)
+	row := q.queryRow(ctx, selectSb.String(), idVal)
 	scanTargets := scanFunc(&res, returningCols)
 	if err := row.Scan(scanTargets...); err != nil {
 		return nil, err
@@ -406,7 +437,7 @@ func loadRelation[P any, C any](
 	sb.WriteString(")")
 	query := sb.String()
 
-	rows, err := q.db.QueryContext(ctx, query, parentKeys...)
+	rows, err := q.query(ctx, query, parentKeys...)
 	if err != nil {
 		return nil, err
 	}

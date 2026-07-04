@@ -9,6 +9,7 @@ import (
 	"embed"
 	{{- end }}
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"

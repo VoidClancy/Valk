@@ -4,12 +4,23 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"slices"
 )
+
+var LogLevels = []string{
+	"query",
+	"info",
+	"warn",
+	"error",
+	"all",
+	"none",
+}
 
 type Config struct {
 	Database DatabaseConfig `json:"database"`
 	Schema   string         `json:"schema"`
 	Output   OutputConfig   `json:"output"`
+	Log      []string       `json:"log"`
 }
 
 type DatabaseConfig struct {
@@ -35,6 +46,20 @@ func GetConfig() *Config {
 		log.Fatal(err)
 		return nil
 	}
+	// hasAll := false
+	for _, l := range config.Log {
+		if l == "all" {
+			// hasAll = true
+		}
+		if !slices.Contains(LogLevels, l) && l != "all" {
+			log.Fatalf("invalid log level in valkyrie.json: %q (must be one of: query, info, warn, error, all)", l)
+			return nil
+		}
+	}
+	// if hasAll && len(config.Log) > 1 {
+	// 	log.Fatal("invalid log configuration: 'all' must be the only log level specified")
+	// 	return nil
+	// }
 
 	return &config
 }

@@ -47,7 +47,7 @@ func handleGenerate() {
 		pkgName = "valkyrie"
 	}
 
-	outputs, err := generator.GenerateClient(*schemaDef, pkgName, embedRelDir, config.Output.Migrations)
+	outputs, err := generator.GenerateClient(*schemaDef, pkgName, embedRelDir, config.Output.Migrations, config.Log)
 	if err != nil {
 		fmt.Printf("failed to generate client: %v\n", err)
 		return
