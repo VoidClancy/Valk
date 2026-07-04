@@ -73,73 +73,15 @@ func (q *Queries) selectCategoryToPostCols(selects *CategoryToPostSelect, omits 
 		return categoryToPostDefaultCols
 	}
 
-	var cols []string
-	var anySelected bool
-	if selects != nil {
-		if selects.PostId {
-			anySelected = true
-		}
-		if selects.CategoryId {
-			anySelected = true
-		}
-		if selects.Post != nil {
-			anySelected = true
-		}
-		if selects.Category != nil {
-			anySelected = true
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.PostId {
-				include = true
-			}
-			// Force-include FK when its relation is selected
-			if selects.Post != nil {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.PostId {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "postId")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.CategoryId {
-				include = true
-			}
-			// Force-include FK when its relation is selected
-			if selects.Category != nil {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.CategoryId {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "categoryId")
-		}
+	anySelected := selects != nil && (selects.PostId || selects.CategoryId || selects.Post != nil || selects.Category != nil)
+
+	specs := []colSpec{
+		{"postId", selects != nil && selects.PostId, omits != nil && omits.PostId, selects != nil && selects.Post != nil},
+		{"categoryId", selects != nil && selects.CategoryId, omits != nil && omits.CategoryId, selects != nil && selects.Category != nil},
 	}
 
-	if len(cols) == 0 {
-		cols = append(cols, "postId")
-		cols = append(cols, "categoryId")
-	}
+	cols := computeCols(specs, selects != nil, anySelected)
 
-	// Force-include any requested columns
 	for _, f := range forceCols {
 		if !slices.Contains(cols, f) {
 			cols = append(cols, f)
@@ -192,23 +134,13 @@ func (q *Queries) loadCategoryToPostRelations(ctx context.Context, records []*Ca
 		// Current model holds the FK: CategoryToPost.postId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *CategoryToPost) (string, bool) {
-				return fmt.Sprint(p.PostId), true
-			},
+			directKey(func(p *CategoryToPost) string { return p.PostId }),
 			"Post",
 			"id",
 			returningCols,
-			func(rows *sql.Rows, child *Post) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *Post) (string, bool) {
-				return fmt.Sprint(child.Id), true
-			},
-			func(p *CategoryToPost, children []*Post) {
-				if len(children) > 0 {
-					p.Post = children[0]
-				}
-			},
+			scanInto(returningCols, (*Post).ScanFields),
+			directKey(func(c *Post) string { return c.Id }),
+			setOne(func(p *CategoryToPost, c *Post) { p.Post = c }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading post: %w", err)
@@ -222,23 +154,13 @@ func (q *Queries) loadCategoryToPostRelations(ctx context.Context, records []*Ca
 		// Current model holds the FK: CategoryToPost.categoryId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *CategoryToPost) (string, bool) {
-				return fmt.Sprint(p.CategoryId), true
-			},
+			directKey(func(p *CategoryToPost) int32 { return p.CategoryId }),
 			"Category",
 			"id",
 			returningCols,
-			func(rows *sql.Rows, child *Category) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *Category) (string, bool) {
-				return fmt.Sprint(child.Id), true
-			},
-			func(p *CategoryToPost, children []*Category) {
-				if len(children) > 0 {
-					p.Category = children[0]
-				}
-			},
+			scanInto(returningCols, (*Category).ScanFields),
+			directKey(func(c *Category) int32 { return c.Id }),
+			setOne(func(p *CategoryToPost, c *Category) { p.Category = c }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading category: %w", err)

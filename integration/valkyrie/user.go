@@ -103,144 +103,18 @@ func (q *Queries) selectUserCols(selects *UserSelect, omits *UserOmit, forceCols
 		return userDefaultCols
 	}
 
-	var cols []string
-	var anySelected bool
-	if selects != nil {
-		if selects.Id {
-			anySelected = true
-		}
-		if selects.Email {
-			anySelected = true
-		}
-		if selects.PhoneNum {
-			anySelected = true
-		}
-		if selects.Role {
-			anySelected = true
-		}
-		if selects.ReferredById {
-			anySelected = true
-		}
-		if selects.Profile != nil {
-			anySelected = true
-		}
-		if selects.Posts != nil {
-			anySelected = true
-		}
-		if selects.Comments != nil {
-			anySelected = true
-		}
-		if selects.ReferredBy != nil {
-			anySelected = true
-		}
-		if selects.Referrals != nil {
-			anySelected = true
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Id {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Id {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "id")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Email {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Email {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "email")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.PhoneNum {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.PhoneNum {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "phoneNum")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Role {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Role {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "role")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.ReferredById {
-				include = true
-			}
-			// Force-include FK when its relation is selected
-			if selects.ReferredBy != nil {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.ReferredById {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "referredById")
-		}
+	anySelected := selects != nil && (selects.Id || selects.Email || selects.PhoneNum || selects.Role || selects.ReferredById || selects.Profile != nil || selects.Posts != nil || selects.Comments != nil || selects.ReferredBy != nil || selects.Referrals != nil)
+
+	specs := []colSpec{
+		{"id", selects != nil && selects.Id, omits != nil && omits.Id, false},
+		{"email", selects != nil && selects.Email, omits != nil && omits.Email, false},
+		{"phoneNum", selects != nil && selects.PhoneNum, omits != nil && omits.PhoneNum, false},
+		{"role", selects != nil && selects.Role, omits != nil && omits.Role, false},
+		{"referredById", selects != nil && selects.ReferredById, omits != nil && omits.ReferredById, selects != nil && selects.ReferredBy != nil},
 	}
 
-	if len(cols) == 0 {
-		cols = append(cols, "id")
-		cols = append(cols, "email")
-		cols = append(cols, "phoneNum")
-		cols = append(cols, "role")
-		cols = append(cols, "referredById")
-	}
+	cols := computeCols(specs, selects != nil, anySelected)
 
-	// Force-include any requested columns
 	for _, f := range forceCols {
 		if !slices.Contains(cols, f) {
 			cols = append(cols, f)
@@ -308,23 +182,13 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 		// Inverse holds the FK: Profile.userId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *User) (string, bool) {
-				return fmt.Sprint(p.Id), true
-			},
+			directKey(func(p *User) string { return p.Id }),
 			"Profile",
 			"userId",
 			returningCols,
-			func(rows *sql.Rows, child *Profile) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *Profile) (string, bool) {
-				return fmt.Sprint(child.UserId), true
-			},
-			func(p *User, children []*Profile) {
-				if len(children) > 0 {
-					p.Profile = children[0]
-				}
-			},
+			scanInto(returningCols, (*Profile).ScanFields),
+			directKey(func(c *Profile) string { return c.UserId }),
+			setOne(func(p *User, c *Profile) { p.Profile = c }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading profile: %w", err)
@@ -338,21 +202,13 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 		// Inverse holds the FK: Post.authorId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *User) (string, bool) {
-				return fmt.Sprint(p.Id), true
-			},
+			directKey(func(p *User) string { return p.Id }),
 			"Post",
 			"authorId",
 			returningCols,
-			func(rows *sql.Rows, child *Post) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *Post) (string, bool) {
-				return fmt.Sprint(child.AuthorId), true
-			},
-			func(p *User, children []*Post) {
-				p.Posts = append(p.Posts, children...)
-			},
+			scanInto(returningCols, (*Post).ScanFields),
+			directKey(func(c *Post) string { return c.AuthorId }),
+			appendMany(func(p *User) *[]*Post { return &p.Posts }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading posts: %w", err)
@@ -366,21 +222,13 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 		// Inverse holds the FK: Comment.authorId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *User) (string, bool) {
-				return fmt.Sprint(p.Id), true
-			},
+			directKey(func(p *User) string { return p.Id }),
 			"Comment",
 			"authorId",
 			returningCols,
-			func(rows *sql.Rows, child *Comment) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *Comment) (string, bool) {
-				return fmt.Sprint(child.AuthorId), true
-			},
-			func(p *User, children []*Comment) {
-				p.Comments = append(p.Comments, children...)
-			},
+			scanInto(returningCols, (*Comment).ScanFields),
+			directKey(func(c *Comment) string { return c.AuthorId }),
+			appendMany(func(p *User) *[]*Comment { return &p.Comments }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading comments: %w", err)
@@ -394,26 +242,13 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 		// Current model holds the FK: User.referredById
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *User) (string, bool) {
-				if p.ReferredById == nil {
-					return "", false
-				}
-				return fmt.Sprint(*p.ReferredById), true
-			},
+			optionalKey(func(p *User) *string { return p.ReferredById }),
 			"User",
 			"id",
 			returningCols,
-			func(rows *sql.Rows, child *User) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *User) (string, bool) {
-				return fmt.Sprint(child.Id), true
-			},
-			func(p *User, children []*User) {
-				if len(children) > 0 {
-					p.ReferredBy = children[0]
-				}
-			},
+			scanInto(returningCols, (*User).ScanFields),
+			directKey(func(c *User) string { return c.Id }),
+			setOne(func(p *User, c *User) { p.ReferredBy = c }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading referredBy: %w", err)
@@ -427,24 +262,13 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 		// Inverse holds the FK: User.referredById
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *User) (string, bool) {
-				return fmt.Sprint(p.Id), true
-			},
+			directKey(func(p *User) string { return p.Id }),
 			"User",
 			"referredById",
 			returningCols,
-			func(rows *sql.Rows, child *User) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *User) (string, bool) {
-				if child.ReferredById == nil {
-					return "", false
-				}
-				return fmt.Sprint(*child.ReferredById), true
-			},
-			func(p *User, children []*User) {
-				p.Referrals = append(p.Referrals, children...)
-			},
+			scanInto(returningCols, (*User).ScanFields),
+			optionalKey(func(c *User) *string { return c.ReferredById }),
+			appendMany(func(p *User) *[]*User { return &p.Referrals }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading referrals: %w", err)

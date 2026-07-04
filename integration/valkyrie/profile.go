@@ -77,88 +77,16 @@ func (q *Queries) selectProfileCols(selects *ProfileSelect, omits *ProfileOmit, 
 		return profileDefaultCols
 	}
 
-	var cols []string
-	var anySelected bool
-	if selects != nil {
-		if selects.Id {
-			anySelected = true
-		}
-		if selects.Bio {
-			anySelected = true
-		}
-		if selects.UserId {
-			anySelected = true
-		}
-		if selects.User != nil {
-			anySelected = true
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Id {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Id {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "id")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Bio {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Bio {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "bio")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.UserId {
-				include = true
-			}
-			// Force-include FK when its relation is selected
-			if selects.User != nil {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.UserId {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "userId")
-		}
+	anySelected := selects != nil && (selects.Id || selects.Bio || selects.UserId || selects.User != nil)
+
+	specs := []colSpec{
+		{"id", selects != nil && selects.Id, omits != nil && omits.Id, false},
+		{"bio", selects != nil && selects.Bio, omits != nil && omits.Bio, false},
+		{"userId", selects != nil && selects.UserId, omits != nil && omits.UserId, selects != nil && selects.User != nil},
 	}
 
-	if len(cols) == 0 {
-		cols = append(cols, "id")
-		cols = append(cols, "bio")
-		cols = append(cols, "userId")
-	}
+	cols := computeCols(specs, selects != nil, anySelected)
 
-	// Force-include any requested columns
 	for _, f := range forceCols {
 		if !slices.Contains(cols, f) {
 			cols = append(cols, f)
@@ -220,23 +148,13 @@ func (q *Queries) loadProfileRelations(ctx context.Context, records []*Profile, 
 		// Current model holds the FK: Profile.userId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *Profile) (string, bool) {
-				return fmt.Sprint(p.UserId), true
-			},
+			directKey(func(p *Profile) string { return p.UserId }),
 			"User",
 			"id",
 			returningCols,
-			func(rows *sql.Rows, child *User) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *User) (string, bool) {
-				return fmt.Sprint(child.Id), true
-			},
-			func(p *Profile, children []*User) {
-				if len(children) > 0 {
-					p.User = children[0]
-				}
-			},
+			scanInto(returningCols, (*User).ScanFields),
+			directKey(func(c *User) string { return c.Id }),
+			setOne(func(p *Profile, c *User) { p.User = c }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading user: %w", err)

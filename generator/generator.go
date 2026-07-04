@@ -58,6 +58,7 @@ func GenerateClient(sch schema.Schema, pkgName string, embedPath string, default
 		"client.gotpl",
 		"tx.gotpl",
 		"builders_create.gotpl",
+		"relations_runtime.gotpl",
 	}
 	for _, file := range files {
 		if err := tmpl.ExecuteTemplate(&buf, file, data); err != nil {

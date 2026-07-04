@@ -97,138 +97,18 @@ func (q *Queries) selectPostCols(selects *PostSelect, omits *PostOmit, forceCols
 		return postDefaultCols
 	}
 
-	var cols []string
-	var anySelected bool
-	if selects != nil {
-		if selects.Id {
-			anySelected = true
-		}
-		if selects.Title {
-			anySelected = true
-		}
-		if selects.Content {
-			anySelected = true
-		}
-		if selects.Published {
-			anySelected = true
-		}
-		if selects.AuthorId {
-			anySelected = true
-		}
-		if selects.Author != nil {
-			anySelected = true
-		}
-		if selects.Comments != nil {
-			anySelected = true
-		}
-		if selects.Categories != nil {
-			anySelected = true
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Id {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Id {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "id")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Title {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Title {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "title")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Content {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Content {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "content")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.Published {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.Published {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "published")
-		}
-	}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.AuthorId {
-				include = true
-			}
-			// Force-include FK when its relation is selected
-			if selects.Author != nil {
-				include = true
-			}
-		} else if omits != nil {
-			if omits.AuthorId {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "authorId")
-		}
+	anySelected := selects != nil && (selects.Id || selects.Title || selects.Content || selects.Published || selects.AuthorId || selects.Author != nil || selects.Comments != nil || selects.Categories != nil)
+
+	specs := []colSpec{
+		{"id", selects != nil && selects.Id, omits != nil && omits.Id, false},
+		{"title", selects != nil && selects.Title, omits != nil && omits.Title, false},
+		{"content", selects != nil && selects.Content, omits != nil && omits.Content, false},
+		{"published", selects != nil && selects.Published, omits != nil && omits.Published, false},
+		{"authorId", selects != nil && selects.AuthorId, omits != nil && omits.AuthorId, selects != nil && selects.Author != nil},
 	}
 
-	if len(cols) == 0 {
-		cols = append(cols, "id")
-		cols = append(cols, "title")
-		cols = append(cols, "content")
-		cols = append(cols, "published")
-		cols = append(cols, "authorId")
-	}
+	cols := computeCols(specs, selects != nil, anySelected)
 
-	// Force-include any requested columns
 	for _, f := range forceCols {
 		if !slices.Contains(cols, f) {
 			cols = append(cols, f)
@@ -296,23 +176,13 @@ func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, select
 		// Current model holds the FK: Post.authorId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *Post) (string, bool) {
-				return fmt.Sprint(p.AuthorId), true
-			},
+			directKey(func(p *Post) string { return p.AuthorId }),
 			"User",
 			"id",
 			returningCols,
-			func(rows *sql.Rows, child *User) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *User) (string, bool) {
-				return fmt.Sprint(child.Id), true
-			},
-			func(p *Post, children []*User) {
-				if len(children) > 0 {
-					p.Author = children[0]
-				}
-			},
+			scanInto(returningCols, (*User).ScanFields),
+			directKey(func(c *User) string { return c.Id }),
+			setOne(func(p *Post, c *User) { p.Author = c }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading author: %w", err)
@@ -326,21 +196,13 @@ func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, select
 		// Inverse holds the FK: Comment.postId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *Post) (string, bool) {
-				return fmt.Sprint(p.Id), true
-			},
+			directKey(func(p *Post) string { return p.Id }),
 			"Comment",
 			"postId",
 			returningCols,
-			func(rows *sql.Rows, child *Comment) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *Comment) (string, bool) {
-				return fmt.Sprint(child.PostId), true
-			},
-			func(p *Post, children []*Comment) {
-				p.Comments = append(p.Comments, children...)
-			},
+			scanInto(returningCols, (*Comment).ScanFields),
+			directKey(func(c *Comment) string { return c.PostId }),
+			appendMany(func(p *Post) *[]*Comment { return &p.Comments }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading comments: %w", err)
@@ -354,21 +216,13 @@ func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, select
 		// Inverse holds the FK: CategoryToPost.postId
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *Post) (string, bool) {
-				return fmt.Sprint(p.Id), true
-			},
+			directKey(func(p *Post) string { return p.Id }),
 			"CategoryToPost",
 			"postId",
 			returningCols,
-			func(rows *sql.Rows, child *CategoryToPost) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *CategoryToPost) (string, bool) {
-				return fmt.Sprint(child.PostId), true
-			},
-			func(p *Post, children []*CategoryToPost) {
-				p.Categories = append(p.Categories, children...)
-			},
+			scanInto(returningCols, (*CategoryToPost).ScanFields),
+			directKey(func(c *CategoryToPost) string { return c.PostId }),
+			appendMany(func(p *Post) *[]*CategoryToPost { return &p.Categories }),
 		)
 		if err != nil {
 			return fmt.Errorf("loading categories: %w", err)
