@@ -20,20 +20,15 @@ func (q *Queries) load{{ .Model.Name }}Relations(ctx context.Context, records []
 		{{- end }}
 		allChildren, err := loadRelation(
 			ctx, q, records,
-			func(p *{{ $.Model.Name }}) (string, bool) {
-				{{- if gt (len $relation.FKFields) 0 }}
-					{{- if (index $relation.FKFields 0).Optional }}
-				if p.{{ capitalize (index $relation.FKFields 0).Name }} == nil {
-					return "", false
-				}
-				return fmt.Sprint(*p.{{ capitalize (index $relation.FKFields 0).Name }}), true
-					{{- else }}
-				return fmt.Sprint(p.{{ capitalize (index $relation.FKFields 0).Name }}), true
-					{{- end }}
+			{{- if gt (len $relation.FKFields) 0 }}
+				{{- if (index $relation.FKFields 0).Optional }}
+			optionalKey(func(p *{{ $.Model.Name }}) {{ (index $relation.FKFields 0).GoType }} { return p.{{ capitalize (index $relation.FKFields 0).Name }} }),
 				{{- else }}
-				return fmt.Sprint(p.{{ capitalize (index $relation.Inverse.RefFields 0).Name }}), true
+			directKey(func(p *{{ $.Model.Name }}) {{ (index $relation.FKFields 0).GoType }} { return p.{{ capitalize (index $relation.FKFields 0).Name }} }),
 				{{- end }}
-			},
+			{{- else }}
+			directKey(func(p *{{ $.Model.Name }}) {{ (index $relation.Inverse.RefFields 0).GoType }} { return p.{{ capitalize (index $relation.Inverse.RefFields 0).Name }} }),
+			{{- end }}
 			"{{ $relation.TargetModel.EffectiveTableName }}",
 			{{- if gt (len $relation.FKFields) 0 }}
 			"{{ (index $relation.RefFields 0).EffectiveColName }}",
@@ -41,32 +36,21 @@ func (q *Queries) load{{ .Model.Name }}Relations(ctx context.Context, records []
 			"{{ (index $relation.Inverse.FKFields 0).EffectiveColName }}",
 			{{- end }}
 			returningCols,
-			func(rows *sql.Rows, child *{{ $relation.TargetModelName }}) error {
-				return rows.Scan(child.ScanFields(returningCols)...)
-			},
-			func(child *{{ $relation.TargetModelName }}) (string, bool) {
-				{{- if gt (len $relation.FKFields) 0 }}
-				return fmt.Sprint(child.{{ capitalize (index $relation.RefFields 0).Name }}), true
+			scanInto(returningCols, (*{{ $relation.TargetModelName }}).ScanFields),
+			{{- if gt (len $relation.FKFields) 0 }}
+			directKey(func(c *{{ $relation.TargetModelName }}) {{ (index $relation.RefFields 0).GoType }} { return c.{{ capitalize (index $relation.RefFields 0).Name }} }),
+			{{- else }}
+				{{- if (index $relation.Inverse.FKFields 0).Optional }}
+			optionalKey(func(c *{{ $relation.TargetModelName }}) {{ (index $relation.Inverse.FKFields 0).GoType }} { return c.{{ capitalize (index $relation.Inverse.FKFields 0).Name }} }),
 				{{- else }}
-					{{- if (index $relation.Inverse.FKFields 0).Optional }}
-				if child.{{ capitalize (index $relation.Inverse.FKFields 0).Name }} == nil {
-					return "", false
-				}
-				return fmt.Sprint(*child.{{ capitalize (index $relation.Inverse.FKFields 0).Name }}), true
-					{{- else }}
-				return fmt.Sprint(child.{{ capitalize (index $relation.Inverse.FKFields 0).Name }}), true
-					{{- end }}
+			directKey(func(c *{{ $relation.TargetModelName }}) {{ (index $relation.Inverse.FKFields 0).GoType }} { return c.{{ capitalize (index $relation.Inverse.FKFields 0).Name }} }),
 				{{- end }}
-			},
-			func(p *{{ $.Model.Name }}, children []*{{ $relation.TargetModelName }}) {
-				{{- if and (eq (len $relation.FKFields) 0) $relation.IsArray }}
-				p.{{ capitalize $relation.Name }} = append(p.{{ capitalize $relation.Name }}, children...)
-				{{- else }}
-				if len(children) > 0 {
-					p.{{ capitalize $relation.Name }} = children[0]
-				}
-				{{- end }}
-			},
+			{{- end }}
+			{{- if and (eq (len $relation.FKFields) 0) $relation.IsArray }}
+			appendMany(func(p *{{ $.Model.Name }}) *[]*{{ $relation.TargetModelName }} { return &p.{{ capitalize $relation.Name }} }),
+			{{- else }}
+			setOne(func(p *{{ $.Model.Name }}, c *{{ $relation.TargetModelName }}) { p.{{ capitalize $relation.Name }} = c }),
+			{{- end }}
 		)
 		if err != nil {
 			return fmt.Errorf("loading {{ $relation.Name }}: %w", err)

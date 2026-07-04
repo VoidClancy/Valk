@@ -63,56 +63,18 @@ func (q *Queries) select{{ .Model.Name }}Cols(selects *{{ .Model.Name }}Select, 
 		return {{ lowercase .Model.Name }}DefaultCols
 	}
 
-	var cols []string
-	var anySelected bool
-	if selects != nil {
-		{{- range $field := .Model.ScalarFields }}
-		if selects.{{ capitalize $field.Name }} {
-			anySelected = true
-		}
-		{{- end }}
-		{{- range $relation := .Model.RelationFields }}
-		if selects.{{ capitalize $relation.Name }} != nil {
-			anySelected = true
-		}
-		{{- end }}
-	}
+	anySelected := selects != nil && ({{ range $i, $f := .Model.ScalarFields }}{{ if $i }} || {{ end }}selects.{{ capitalize $f.Name }}{{ end }}{{ range .Model.RelationFields }} || selects.{{ capitalize .Name }} != nil{{ end }})
 
-	{{- range $field := .Model.ScalarFields }}
-	{
-		include := true
-		if selects != nil {
-			include = false
-			if !anySelected {
-				include = true
-			} else if selects.{{ capitalize $field.Name }} {
-				include = true
-			}
+	specs := []colSpec{
+		{{- range $field := .Model.ScalarFields }}
+		{"{{ $field.EffectiveColName }}", selects != nil && selects.{{ capitalize $field.Name }}, omits != nil && omits.{{ capitalize $field.Name }},
 			{{- $relName := fkForRelation $.Model $field }}
-			{{- if ne $relName "" }}
-			// Force-include FK when its relation is selected
-			if selects.{{ capitalize $relName }} != nil {
-				include = true
-			}
-			{{- end }}
-		} else if omits != nil {
-			if omits.{{ capitalize $field.Name }} {
-				include = false
-			}
-		}
-		if include {
-			cols = append(cols, "{{ $field.EffectiveColName }}")
-		}
-	}
-	{{- end }}
-
-	if len(cols) == 0 {
-		{{- range $field := .Model.ScalarFields }}
-		cols = append(cols, "{{ $field.EffectiveColName }}")
+			{{- if ne $relName "" }} selects != nil && selects.{{ capitalize $relName }} != nil{{ else }} false{{ end }}},
 		{{- end }}
 	}
 
-	// Force-include any requested columns
+	cols := computeCols(specs, selects != nil, anySelected)
+
 	for _, f := range forceCols {
 		if !slices.Contains(cols, f) {
 			cols = append(cols, f)
