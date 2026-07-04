@@ -1,0 +1,87 @@
+func (d *{{ .Model.Name }}Delegate) Create(input {{ .Model.Name }}CreateInput) *CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}CreateInput, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
+	return &CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}CreateInput, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
+		client:   d.client,
+		input:    input,
+		execFunc: d.client.execute{{ .Model.Name }}Create,
+	}
+}
+
+func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, input {{ .Model.Name }}CreateInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	var cols []string
+	var vals []any
+
+	{{- range $field := .Model.ScalarFields }}
+		{{- if $field.EnumRef }}
+			{{- if $field.IsArray }}
+				if input.{{ capitalize $field.Name }} != nil {
+					cols = append(cols, q.dialect.Quote("{{ $field.EffectiveColName }}"))
+					vals = append(vals, input.{{ capitalize $field.Name }})
+				}
+			{{- else }}
+				if input.{{ capitalize $field.Name }} != nil {
+					cols = append(cols, q.dialect.Quote("{{ $field.EffectiveColName }}"))
+					vals = append(vals, *input.{{ capitalize $field.Name }})
+				}
+			{{- end }}
+		{{- else }}
+			{{- if $field.IsArray }}
+				if input.{{ capitalize $field.Name }} != nil {
+					cols = append(cols, q.dialect.Quote("{{ $field.EffectiveColName }}"))
+					vals = append(vals, input.{{ capitalize $field.Name }})
+				}
+			{{- else }}
+				{{- if and $field.Default (eq $field.Default.Kind.String "Func") }}
+					if input.{{ capitalize $field.Name }} != nil {
+						cols = append(cols, q.dialect.Quote("{{ $field.EffectiveColName }}"))
+						vals = append(vals, *input.{{ capitalize $field.Name }})
+					} else {
+						cols = append(cols, q.dialect.Quote("{{ $field.EffectiveColName }}"))
+						{{- if eq $field.Default.FuncName "cuid" }}
+							vals = append(vals, generateCUID())
+						{{- else if eq $field.Default.FuncName "uuid" }}
+							vals = append(vals, generateUUID())
+						{{- else if eq $field.Default.FuncName "now" }}
+							vals = append(vals, time.Now())
+						{{- end }}
+					}
+				{{- else if or $field.Optional (ne $field.Default nil) }}
+					if input.{{ capitalize $field.Name }} != nil {
+						cols = append(cols, q.dialect.Quote("{{ $field.EffectiveColName }}"))
+						vals = append(vals, *input.{{ capitalize $field.Name }})
+					}
+				{{- else }}
+					{{- if and $field.IsID (eq $field.GoType "string") }}
+						cols = append(cols, q.dialect.Quote("{{ $field.EffectiveColName }}"))
+						if input.{{ capitalize $field.Name }} != "" {
+							vals = append(vals, input.{{ capitalize $field.Name }})
+						} else {
+							vals = append(vals, generateCUID())
+						}
+					{{- else }}
+						cols = append(cols, q.dialect.Quote("{{ $field.EffectiveColName }}"))
+						vals = append(vals, input.{{ capitalize $field.Name }})
+					{{- end }}
+				{{- end }}
+			{{- end }}
+		{{- end }}
+	{{- end }}
+
+	returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
+
+	scanFunc := func(res *{{ .Model.Name }}, cols []string) []any {
+		return res.ScanFields(cols)
+	}
+
+	idCol := "{{ range $field := .Model.ScalarFields }}{{ if $field.IsID }}{{ $field.EffectiveColName }}{{ end }}{{ end }}"
+
+	res, err := executeInsert(ctx, q, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, idCol, scanFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := q.load{{ .Model.Name }}Relations(ctx, []*{{ .Model.Name }}{res}, selects); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}

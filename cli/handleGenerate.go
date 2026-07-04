@@ -47,15 +47,17 @@ func handleGenerate() {
 		pkgName = "valkyrie"
 	}
 
-	content, err := generator.GenerateClient(*schemaDef, pkgName, embedRelDir, config.Output.Migrations)
+	outputs, err := generator.GenerateClient(*schemaDef, pkgName, embedRelDir, config.Output.Migrations)
 	if err != nil {
 		fmt.Printf("failed to generate client: %v\n", err)
 		return
 	}
 
-	if err := os.WriteFile(filepath.Join(config.Output.Client, "client.go"), []byte(content), 0644); err != nil {
-		fmt.Println(err)
-		return
+	for filename, content := range outputs {
+		if err := os.WriteFile(filepath.Join(config.Output.Client, filename), []byte(content), 0644); err != nil {
+			fmt.Println(err)
+			return
+		}
 	}
 
 	fmt.Println("Generating Client...")

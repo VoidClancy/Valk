@@ -1,0 +1,123 @@
+// {{ .Model.Name }} represents the database model
+type {{ .Model.Name }} struct {
+	{{- range $field := .Model.ScalarFields }}
+	{{ capitalize $field.Name }} {{ if $field.EnumRef }}{{ if $field.IsArray }}[]{{ $field.EnumRef.Name }}Type{{ else }}{{ if $field.Optional }}*{{ end }}{{ $field.EnumRef.Name }}Type{{ end }}{{ else }}{{ $field.GoType }}{{ end }} `db:"{{ $field.EffectiveColName }}" json:"{{ $field.Name }}"`
+	{{- end }}
+	{{- range $relation := .Model.RelationFields }}
+	{{ capitalize $relation.Name }} {{ if $relation.IsArray }}[]*{{ $relation.TargetModelName }}{{ else }}*{{ $relation.TargetModelName }}{{ end }} `json:"{{ $relation.Name }},omitempty"`
+	{{- end }}
+}
+
+// {{ .Model.Name }}CreateInput represents the input structure for creation
+type {{ .Model.Name }}CreateInput struct {
+	{{- range $field := .Model.ScalarFields }}
+	{{ capitalize $field.Name }} {{ if $field.EnumRef }}{{ if $field.IsArray }}[]{{ $field.EnumRef.Name }}Type{{ else }}*{{ $field.EnumRef.Name }}Type{{ end }}{{ else }}{{ if $field.IsArray }}{{ $field.GoType }}{{ else }}{{ if and (ne $field.Default nil) (not $field.Optional) }}*{{ end }}{{ $field.GoType }}{{ end }}{{ end }} `json:"{{ $field.Name }}"`
+	{{- end }}
+}
+
+// {{ .Model.Name }}Select specifies which fields to include
+type {{ .Model.Name }}Select struct {
+	{{- range $field := .Model.ScalarFields }}
+	{{ capitalize $field.Name }} bool `json:"{{ $field.Name }}"`
+	{{- end }}
+	{{- range $relation := .Model.RelationFields }}
+	{{ capitalize $relation.Name }} *{{ $relation.TargetModelName }}Select `json:"{{ $relation.Name }},omitempty"`
+	{{- end }}
+}
+
+// {{ .Model.Name }}Omit specifies which fields to exclude
+type {{ .Model.Name }}Omit struct {
+	{{- range $field := .Model.ScalarFields }}
+	{{ capitalize $field.Name }} bool `json:"{{ $field.Name }}"`
+	{{- end }}
+	{{- range $relation := .Model.RelationFields }}
+	{{ capitalize $relation.Name }} *{{ $relation.TargetModelName }}Omit `json:"{{ $relation.Name }},omitempty"`
+	{{- end }}
+}
+
+type {{ .Model.Name }}Delegate struct {
+	client *Queries
+}
+
+func (m *{{ .Model.Name }}) ScanFields(cols []string) []any {
+	targets := make([]any, len(cols))
+	for i, col := range cols {
+		switch col {
+		{{- range $field := .Model.ScalarFields }}
+		case "{{ $field.EffectiveColName }}":
+			targets[i] = &m.{{ capitalize $field.Name }}
+		{{- end }}
+		}
+	}
+	return targets
+}
+
+var {{ lowercase .Model.Name }}DefaultCols = []string{
+	{{- range $field := .Model.ScalarFields }}
+	"{{ $field.EffectiveColName }}",
+	{{- end }}
+}
+
+func (q *Queries) select{{ .Model.Name }}Cols(selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, forceCols ...string) []string {
+	if selects == nil && omits == nil && len(forceCols) == 0 {
+		return {{ lowercase .Model.Name }}DefaultCols
+	}
+
+	var cols []string
+	var anySelected bool
+	if selects != nil {
+		{{- range $field := .Model.ScalarFields }}
+		if selects.{{ capitalize $field.Name }} {
+			anySelected = true
+		}
+		{{- end }}
+		{{- range $relation := .Model.RelationFields }}
+		if selects.{{ capitalize $relation.Name }} != nil {
+			anySelected = true
+		}
+		{{- end }}
+	}
+
+	{{- range $field := .Model.ScalarFields }}
+	{
+		include := true
+		if selects != nil {
+			include = false
+			if !anySelected {
+				include = true
+			} else if selects.{{ capitalize $field.Name }} {
+				include = true
+			}
+			{{- $relName := fkForRelation $.Model $field }}
+			{{- if ne $relName "" }}
+			// Force-include FK when its relation is selected
+			if selects.{{ capitalize $relName }} != nil {
+				include = true
+			}
+			{{- end }}
+		} else if omits != nil {
+			if omits.{{ capitalize $field.Name }} {
+				include = false
+			}
+		}
+		if include {
+			cols = append(cols, "{{ $field.EffectiveColName }}")
+		}
+	}
+	{{- end }}
+
+	if len(cols) == 0 {
+		{{- range $field := .Model.ScalarFields }}
+		cols = append(cols, "{{ $field.EffectiveColName }}")
+		{{- end }}
+	}
+
+	// Force-include any requested columns
+	for _, f := range forceCols {
+		if !slices.Contains(cols, f) {
+			cols = append(cols, f)
+		}
+	}
+
+	return cols
+}

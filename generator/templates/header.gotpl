@@ -9,6 +9,7 @@ import (
 	"embed"
 	{{- end }}
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ var _ = json.RawMessage{}
 var _ = strings.Join
 var _ = uuid.New
 var _ = rand.Read
+var _ = strconv.AppendUint
 
 {{- if .EmbedPath }}
 //go:embed {{ .EmbedPath }}
@@ -28,10 +30,18 @@ var migrationsFS embed.FS
 {{- end }}
 
 func generateCUID() string {
-	now := time.Now().UnixMilli()
+	now := uint64(time.Now().UnixMilli())
 	b := make([]byte, 8)
 	_, _ = rand.Read(b)
-	return fmt.Sprintf("c%x%x", now, b)
+	buf := make([]byte, 1, 33)
+	buf[0] = 'c'
+	buf = strconv.AppendUint(buf, now, 16)
+	
+	const hextable = "0123456789abcdef"
+	for _, v := range b {
+		buf = append(buf, hextable[v>>4], hextable[v&0x0f])
+	}
+	return string(buf)
 }
 
 func generateUUID() string {

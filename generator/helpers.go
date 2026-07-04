@@ -2,6 +2,7 @@ package generator
 
 import (
 	"strings"
+	"valkyrie/schema"
 )
 
 func capitalize(s string) string {
@@ -22,4 +23,16 @@ func lowercase(s string) string {
 		s = strings.ToLower(s)
 	}
 	return strings.ToLower(s[:1]) + s[1:]
+}
+
+// returns the relation name if this scalar field is a FK for a relation on the model, empty string if not
+func fkForRelation(model *schema.Model, field *schema.ScalarField) string {
+	for _, rel := range model.RelationFields {
+		for _, fk := range rel.FKFields {
+			if fk.Name == field.Name {
+				return rel.Name
+			}
+		}
+	}
+	return ""
 }

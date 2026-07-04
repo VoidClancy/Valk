@@ -43,25 +43,40 @@ func executeInsert[M any](
 	idCol string,
 	scanFunc func(record *M, cols []string) []any,
 ) (*M, error) {
-	placeholders := make([]string, len(cols))
-	for i := range cols {
-		placeholders[i] = q.dialect.BindVar(i + 1)
+	var sb strings.Builder
+	sb.Grow(128 + len(table) + len(cols)*15 + len(returningCols)*15)
+
+	sb.WriteString("INSERT INTO ")
+	sb.WriteString(q.dialect.Quote(table))
+	sb.WriteString(" (")
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(col)
 	}
+	sb.WriteString(") VALUES (")
+	for i := range cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(q.dialect.BindVar(i + 1))
+	}
+	sb.WriteString(")")
+
+	if q.dialect.SupportsReturning() && len(returningCols) > 0 {
+		sb.WriteString(" RETURNING ")
+		for i, col := range returningCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(q.dialect.Quote(col))
+		}
+	}
+	query := sb.String()
 
 	var res M
-	quotedReturningCols := make([]string, len(returningCols))
-	for i, col := range returningCols {
-		quotedReturningCols[i] = q.dialect.Quote(col)
-	}
-
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", 
-		q.dialect.Quote(table), 
-		strings.Join(cols, ", "), 
-		strings.Join(placeholders, ", "),
-	)
-
 	if q.dialect.SupportsReturning() {
-		query += " RETURNING " + strings.Join(quotedReturningCols, ", ")
 		row := q.db.QueryRowContext(ctx, query, vals...)
 		
 		scanTargets := scanFunc(&res, returningCols)
@@ -78,8 +93,9 @@ func executeInsert[M any](
 	}
 
 	var idVal any
+	quotedIdCol := q.dialect.Quote(idCol)
 	for i, c := range cols {
-		if c == q.dialect.Quote(idCol) {
+		if c == quotedIdCol {
 			idVal = vals[i]
 			break
 		}
@@ -92,15 +108,104 @@ func executeInsert[M any](
 		idVal = lastID
 	}
 
-	selectQuery := fmt.Sprintf("SELECT %s FROM %s WHERE %s = ?",
-		strings.Join(quotedReturningCols, ", "),
-		q.dialect.Quote(table),
-		q.dialect.Quote(idCol),
-	)
-	row := q.db.QueryRowContext(ctx, selectQuery, idVal)
+	var selectSb strings.Builder
+	selectSb.Grow(64 + len(returningCols)*15 + len(table) + len(idCol))
+	selectSb.WriteString("SELECT ")
+	for i, col := range returningCols {
+		if i > 0 {
+			selectSb.WriteString(", ")
+		}
+		selectSb.WriteString(q.dialect.Quote(col))
+	}
+	selectSb.WriteString(" FROM ")
+	selectSb.WriteString(q.dialect.Quote(table))
+	selectSb.WriteString(" WHERE ")
+	selectSb.WriteString(q.dialect.Quote(idCol))
+	selectSb.WriteString(" = ?")
+
+	row := q.db.QueryRowContext(ctx, selectSb.String(), idVal)
 	scanTargets := scanFunc(&res, returningCols)
 	if err := row.Scan(scanTargets...); err != nil {
 		return nil, err
 	}
 	return &res, nil
+}
+
+
+func loadRelation[P any, C any](
+	ctx context.Context,
+	q *Queries,
+	parents []*P,
+	parentKey func(*P) (string, bool),
+	table string,
+	fkCol string,
+	returningCols []string,
+	scan func(*sql.Rows, *C) error,
+	childKey func(*C) (string, bool),
+	assign func(*P, []*C),
+) ([]*C, error) {
+	var parentKeys []any
+	for _, p := range parents {
+		if p == nil {
+			continue
+		}
+		if key, ok := parentKey(p); ok {
+			parentKeys = append(parentKeys, key)
+		}
+	}
+	if len(parentKeys) == 0 {
+		return nil, nil
+	}
+
+	var sb strings.Builder
+	sb.Grow(128 + len(returningCols)*15 + len(table) + len(fkCol) + len(parentKeys)*3)
+	sb.WriteString("SELECT ")
+	for i, col := range returningCols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(q.dialect.Quote(col))
+	}
+	sb.WriteString(" FROM ")
+	sb.WriteString(q.dialect.Quote(table))
+	sb.WriteString(" WHERE ")
+	sb.WriteString(q.dialect.Quote(fkCol))
+	sb.WriteString(" IN (")
+	sb.WriteString(q.bindVars(len(parentKeys)))
+	sb.WriteString(")")
+	query := sb.String()
+
+	rows, err := q.db.QueryContext(ctx, query, parentKeys...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	childMap := make(map[string][]*C)
+	var allChildren []*C
+
+	for rows.Next() {
+		var child C
+		if err := scan(rows, &child); err != nil {
+			return nil, err
+		}
+		if key, ok := childKey(&child); ok {
+			childMap[key] = append(childMap[key], &child)
+		}
+		allChildren = append(allChildren, &child)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for _, p := range parents {
+		if p == nil {
+			continue
+		}
+		if key, ok := parentKey(p); ok {
+			assign(p, childMap[key])
+		}
+	}
+
+	return allChildren, nil
 }

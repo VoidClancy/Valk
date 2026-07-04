@@ -39,9 +39,14 @@ func TestGenerateClient(t *testing.T) {
 		t.Fatalf("parser errors: %v", errs)
 	}
 
-	code, err := GenerateClient(*sch, "client", "migrations/*.sql", "migrations")
+	outputs, err := GenerateClient(*sch, "client", "migrations/*.sql", "migrations")
 	if err != nil {
-		t.Fatalf("failed to generate client: %v\nCode output:\n%s", err, code)
+		t.Fatalf("failed to generate client: %v\n", err)
+	}
+
+	code := ""
+	for _, content := range outputs {
+		code += content + "\n"
 	}
 
 	if !strings.Contains(code, "type CreateBuilder[M any, I any, S any, O any] struct {") {
