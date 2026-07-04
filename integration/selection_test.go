@@ -1,0 +1,255 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"integration/valkyrie"
+	"testing"
+
+	_ "modernc.org/sqlite"
+)
+
+func TestRelationLoadChildHoldsFK(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	u, err := db.User.Create(valkyrie.UserCreateInput{
+		Email:    "parent@example.com",
+		PhoneNum: "+111111111",
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	_, err = db.Post.Create(valkyrie.PostCreateInput{
+		Title:    "Post 1",
+		Content:  new("Content 1"),
+		AuthorId: u.Id,
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create post 1: %v", err)
+	}
+	_, err = db.Post.Create(valkyrie.PostCreateInput{
+		Title:    "Post 2",
+		Content:  new("Content 2"),
+		AuthorId: u.Id,
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create post 2: %v", err)
+	}
+
+	_, err = db.Profile.Create(valkyrie.ProfileCreateInput{
+		Bio:    new("My bio"),
+		UserId: u.Id,
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create profile: %v", err)
+	}
+
+	u2, err := db.User.Create(valkyrie.UserCreateInput{
+		Email:    "parent2@example.com",
+		PhoneNum: "+222222222",
+	}).Select(valkyrie.UserSelect{
+		Id:    true,
+		Email: true,
+		Posts: &valkyrie.PostSelect{
+			Id:    true,
+			Title: true,
+		},
+		Profile: &valkyrie.ProfileSelect{
+			Id:  true,
+			Bio: true,
+		},
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create user2: %v", err)
+	}
+
+	b, _ := json.MarshalIndent(u2, "", "  ")
+	fmt.Println(string(b))
+
+	if len(u2.Posts) != 0 {
+		t.Errorf("expected 0 posts for new user, got %d", len(u2.Posts))
+	}
+	if u2.Profile != nil {
+		t.Errorf("expected nil profile for new user, got %+v", u2.Profile)
+	}
+}
+
+func TestRelationLoadParentHoldsFK(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	u, err := db.User.Create(valkyrie.UserCreateInput{
+		Email:    "author@example.com",
+		PhoneNum: "+222222222",
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	p, err := db.Post.Create(valkyrie.PostCreateInput{
+		Title:    "My Post",
+		AuthorId: u.Id,
+	}).Select(valkyrie.PostSelect{
+		Id:       true,
+		Title:    true,
+		AuthorId: true,
+		Author: &valkyrie.UserSelect{
+			Id:    true,
+			Email: true,
+		},
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create post: %v", err)
+	}
+
+	b, _ := json.MarshalIndent(p, "", "  ")
+	fmt.Println(string(b))
+
+	if p.Title != "My Post" {
+		t.Errorf("expected title 'My Post', got '%s'", p.Title)
+	}
+	if p.Author == nil {
+		t.Fatalf("expected author to be loaded, got nil")
+	}
+	if p.Author.Id != u.Id {
+		t.Errorf("expected author id '%s', got '%s'", u.Id, p.Author.Id)
+	}
+	if p.Author.Email != "author@example.com" {
+		t.Errorf("expected author email 'author@example.com', got '%s'", p.Author.Email)
+	}
+}
+
+func TestRelationLoadSelfRelation(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	referrer, err := db.User.Create(valkyrie.UserCreateInput{
+		Email:    "referrer@example.com",
+		PhoneNum: "+333333333",
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create referrer: %v", err)
+	}
+
+	referred, err := db.User.Create(valkyrie.UserCreateInput{
+		Email:        "referred@example.com",
+		PhoneNum:     "+444444444",
+		ReferredById: &referrer.Id,
+	}).Select(valkyrie.UserSelect{
+		Id:           true,
+		Email:        true,
+		ReferredById: true,
+		ReferredBy: &valkyrie.UserSelect{
+			Id:    true,
+			Email: true,
+		},
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create referred user: %v", err)
+	}
+
+	b, _ := json.MarshalIndent(referred, "", "  ")
+	fmt.Println(string(b))
+
+	if referred.ReferredBy == nil {
+		t.Fatalf("expected referredBy to be loaded, got nil")
+	}
+	if referred.ReferredBy.Id != referrer.Id {
+		t.Errorf("expected referredBy id '%s', got '%s'", referrer.Id, referred.ReferredBy.Id)
+	}
+	if referred.ReferredBy.Email != "referrer@example.com" {
+		t.Errorf("expected referredBy email 'referrer@example.com', got '%s'", referred.ReferredBy.Email)
+	}
+}
+
+func TestRelationLoadDeepNesting(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	u, err := db.User.Create(valkyrie.UserCreateInput{
+		Email:    "deep@example.com",
+		PhoneNum: "+555555555",
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	p, err := db.Post.Create(valkyrie.PostCreateInput{
+		Title:    "Deep Post",
+		AuthorId: u.Id,
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create post: %v", err)
+	}
+
+	_, err = db.Comment.Create(valkyrie.CommentCreateInput{
+		Textify:  42,
+		Dummy3:   "d3",
+		Dummy1:   1,
+		Dummy2:   "d2",
+		PostId:   p.Id,
+		AuthorId: u.Id,
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create comment: %v", err)
+	}
+
+	p2, err := db.Post.Create(valkyrie.PostCreateInput{
+		Title:    "Another Post",
+		AuthorId: u.Id,
+	}).Select(valkyrie.PostSelect{
+		Id:    true,
+		Title: true,
+		Author: &valkyrie.UserSelect{
+			Id:    true,
+			Email: true,
+			Posts: &valkyrie.PostSelect{
+				Id:    true,
+				Title: true,
+				Comments: &valkyrie.CommentSelect{
+					Id:      true,
+					Textify: true,
+				},
+			},
+		},
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create post2: %v", err)
+	}
+
+	b, _ := json.MarshalIndent(p2, "", "  ")
+	fmt.Println(string(b))
+
+	if p2.Author == nil {
+		t.Fatalf("expected author to be loaded")
+	}
+	if p2.Author.Email != "deep@example.com" {
+		t.Errorf("expected author email 'deep@example.com', got '%s'", p2.Author.Email)
+	}
+	if len(p2.Author.Posts) != 2 {
+		t.Fatalf("expected 2 posts on author, got %d", len(p2.Author.Posts))
+	}
+	var deepPost *valkyrie.Post
+	for _, post := range p2.Author.Posts {
+		if post.Title == "Deep Post" {
+			deepPost = post
+			break
+		}
+	}
+	if deepPost == nil {
+		t.Fatalf("expected to find 'Deep Post' in author's posts")
+	}
+	if len(deepPost.Comments) != 1 {
+		t.Fatalf("expected 1 comment on Deep Post, got %d", len(deepPost.Comments))
+	}
+	if deepPost.Comments[0].Textify != 42 {
+		t.Errorf("expected comment textify 42, got %d", deepPost.Comments[0].Textify)
+	}
+}

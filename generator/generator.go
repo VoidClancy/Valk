@@ -20,14 +20,20 @@ type templateData struct {
 	Schema          schema.Schema
 }
 
-func GenerateClient(sch schema.Schema, pkgName string, embedPath string, defaultDiskPath string) (string, error) {
+type modelTemplateData struct {
+	PackageName string
+	Model       *schema.Model
+}
+
+func GenerateClient(sch schema.Schema, pkgName string, embedPath string, defaultDiskPath string) (map[string]string, error) {
 	tmpl := template.New("").Funcs(template.FuncMap{
-		"capitalize": capitalize,
-		"lowercase":  lowercase,
+		"capitalize":    capitalize,
+		"lowercase":     lowercase,
+		"fkForRelation": fkForRelation,
 	})
 	tmpl, err := tmpl.ParseFS(templatesFS, "templates/*.gotpl")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var embedDir string
@@ -43,26 +49,56 @@ func GenerateClient(sch schema.Schema, pkgName string, embedPath string, default
 		Schema:          sch,
 	}
 
+	outputs := make(map[string]string)
+
 	var buf bytes.Buffer
-	// sequentially !!!!
 	files := []string{
 		"header.gotpl",
 		"enums.gotpl",
 		"client.gotpl",
 		"tx.gotpl",
 		"builders_create.gotpl",
-		"delegates.gotpl",
 	}
 	for _, file := range files {
 		if err := tmpl.ExecuteTemplate(&buf, file, data); err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
 	formatted, err := format.Source(buf.Bytes())
 	if err != nil {
-		return buf.String(), err
+		return nil, err
+	}
+	outputs["client.go"] = string(formatted)
+
+	for _, m := range sch.Models {
+		var mBuf bytes.Buffer
+		mData := modelTemplateData{
+			PackageName: pkgName,
+			Model:       m,
+		}
+
+		if err := tmpl.ExecuteTemplate(&mBuf, "model_header.gotpl", mData); err != nil {
+			return nil, err
+		}
+
+		mFiles := []string{
+			"model_structs.gotpl",
+			"model_create.gotpl",
+			"model_relations.gotpl",
+		}
+		for _, file := range mFiles {
+			if err := tmpl.ExecuteTemplate(&mBuf, file, mData); err != nil {
+				return nil, err
+			}
+		}
+
+		mFormatted, err := format.Source(mBuf.Bytes())
+		if err != nil {
+			return nil, err
+		}
+		outputs[lowercase(m.Name)+".go"] = string(mFormatted)
 	}
 
-	return string(formatted), nil
+	return outputs, nil
 }

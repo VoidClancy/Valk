@@ -1,0 +1,17 @@
+package {{ .PackageName }}
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"slices"
+	"strings"
+	"time"
+)
+
+var _ = time.Time{}
+var _ = fmt.Sprintf
+var _ = strings.Join
+var _ = context.Background
+var _ = sql.LevelDefault
+var _ = slices.Contains[[]string, string]

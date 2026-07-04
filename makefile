@@ -1,7 +1,12 @@
-.PHONY:  build run test install db-up db-down db-clean bi fmt fmt-check vet integration-gen integration-test
+.PHONY:  build run test install db-up db-down db-clean bi fmt fmt-check vet integration-gen integration-test bench race lint
 
 bi: build install
 	
+race:
+	go test -race ./... && cd integration && go test -race ./...
+
+bench:
+	cd integration && go test -bench=. -benchmem -benchtime=2s -count=3
 
 build: 
 	go build -o bin/valkyrie 
@@ -29,6 +34,10 @@ fmt-check:
 vet:
 	go vet ./...
 	cd integration && go vet ./...
+
+lint:
+	-$(shell go env GOPATH)/bin/staticcheck ./...
+	-$(shell go env GOPATH)/bin/gocritic check ./...
 
 integration-gen: build
 	cd integration && ../bin/valkyrie generate
