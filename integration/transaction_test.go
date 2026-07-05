@@ -15,7 +15,10 @@ func TestTransactionCommit(t *testing.T) {
 
 	err := db.Transaction(ctx, func(tx *valkyrie.Tx) error {
 		_, err := tx.Raw().ExecContext(ctx,
-			"INSERT INTO User (id, email, phoneNum, role) VALUES (?, ?, ?, ?)",
+			query(
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES ($1, $2, $3, $4)`,
+			),
 			"u1", "user1@example.com", "123456789", "student",
 		)
 		return err
@@ -25,7 +28,10 @@ func TestTransactionCommit(t *testing.T) {
 	}
 
 	var email string
-	err = db.Raw().QueryRowContext(ctx, "SELECT email FROM User WHERE id = ?", "u1").Scan(&email)
+	err = db.Raw().QueryRowContext(ctx, query(
+		`SELECT "email" FROM "User" WHERE "id" = ?`,
+		`SELECT "email" FROM "User" WHERE "id" = $1`,
+	), "u1").Scan(&email)
 	if err != nil {
 		t.Fatalf("failed to query committed user: %v", err)
 	}
@@ -42,7 +48,10 @@ func TestTransactionRollbackOnError(t *testing.T) {
 	expectedErr := errors.New("something went wrong")
 	err := db.Transaction(ctx, func(tx *valkyrie.Tx) error {
 		_, err := tx.Raw().ExecContext(ctx,
-			"INSERT INTO User (id, email, phoneNum, role) VALUES (?, ?, ?, ?)",
+			query(
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES ($1, $2, $3, $4)`,
+			),
 			"u2", "user2@example.com", "987654321", "ADMIN",
 		)
 		if err != nil {
@@ -56,7 +65,10 @@ func TestTransactionRollbackOnError(t *testing.T) {
 	}
 
 	var count int
-	err = db.Raw().QueryRowContext(ctx, "SELECT COUNT(*) FROM User WHERE id = ?", "u2").Scan(&count)
+	err = db.Raw().QueryRowContext(ctx, query(
+		`SELECT COUNT(*) FROM "User" WHERE "id" = ?`,
+		`SELECT COUNT(*) FROM "User" WHERE "id" = $1`,
+	), "u2").Scan(&count)
 	if err != nil {
 		t.Fatalf("failed to query database: %v", err)
 	}
@@ -81,7 +93,10 @@ func TestTransactionRollbackOnPanic(t *testing.T) {
 		}
 
 		var count int
-		err := db.Raw().QueryRowContext(ctx, "SELECT COUNT(*) FROM User WHERE id = ?", "u3").Scan(&count)
+		err := db.Raw().QueryRowContext(ctx, query(
+			`SELECT COUNT(*) FROM "User" WHERE "id" = ?`,
+			`SELECT COUNT(*) FROM "User" WHERE "id" = $1`,
+		), "u3").Scan(&count)
 		if err != nil {
 			t.Fatalf("failed to query database after panic rollback: %v", err)
 		}
@@ -92,7 +107,10 @@ func TestTransactionRollbackOnPanic(t *testing.T) {
 
 	_ = db.Transaction(ctx, func(tx *valkyrie.Tx) error {
 		_, err := tx.Raw().ExecContext(ctx,
-			"INSERT INTO User (id, email, phoneNum, role) VALUES (?, ?, ?, ?)",
+			query(
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES ($1, $2, $3, $4)`,
+			),
 			"u3", "user3@example.com", "555555555", "TEACHER",
 		)
 		if err != nil {
@@ -112,7 +130,10 @@ func TestManualTransactionCommitAndRollback(t *testing.T) {
 		t.Fatalf("failed to begin tx1: %v", err)
 	}
 	_, err = tx1.Raw().ExecContext(ctx,
-		"INSERT INTO User (id, email, phoneNum, role) VALUES (?, ?, ?, ?)",
+		query(
+			`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
+			`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES ($1, $2, $3, $4)`,
+		),
 		"u4", "user4@example.com", "444444444", "student",
 	)
 	if err != nil {
@@ -124,7 +145,10 @@ func TestManualTransactionCommitAndRollback(t *testing.T) {
 	}
 
 	var count1 int
-	err = db.Raw().QueryRowContext(ctx, "SELECT COUNT(*) FROM User WHERE id = ?", "u4").Scan(&count1)
+	err = db.Raw().QueryRowContext(ctx, query(
+		`SELECT COUNT(*) FROM "User" WHERE "id" = ?`,
+		`SELECT COUNT(*) FROM "User" WHERE "id" = $1`,
+	), "u4").Scan(&count1)
 	if err != nil || count1 != 1 {
 		t.Errorf("expected user to be committed, count=%d, err=%v", count1, err)
 	}
@@ -134,7 +158,10 @@ func TestManualTransactionCommitAndRollback(t *testing.T) {
 		t.Fatalf("failed to begin tx2: %v", err)
 	}
 	_, err = tx2.Raw().ExecContext(ctx,
-		"INSERT INTO User (id, email, phoneNum, role) VALUES (?, ?, ?, ?)",
+		query(
+			`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
+			`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES ($1, $2, $3, $4)`,
+		),
 		"u5", "user5@example.com", "555555555", "student",
 	)
 	if err != nil {
@@ -146,7 +173,10 @@ func TestManualTransactionCommitAndRollback(t *testing.T) {
 	}
 
 	var count2 int
-	err = db.Raw().QueryRowContext(ctx, "SELECT COUNT(*) FROM User WHERE id = ?", "u5").Scan(&count2)
+	err = db.Raw().QueryRowContext(ctx, query(
+		`SELECT COUNT(*) FROM "User" WHERE "id" = ?`,
+		`SELECT COUNT(*) FROM "User" WHERE "id" = $1`,
+	), "u5").Scan(&count2)
 	if err != nil || count2 != 0 {
 		t.Errorf("expected user to be rolled back, count=%d, err=%v", count2, err)
 	}

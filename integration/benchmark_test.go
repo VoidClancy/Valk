@@ -17,7 +17,7 @@ func generateCUID() string {
 	buf := make([]byte, 1, 33)
 	buf[0] = 'c'
 	buf = strconv.AppendUint(buf, now, 16)
-	
+
 	const hextable = "0123456789abcdef"
 	for _, v := range b {
 		buf = append(buf, hextable[v>>4], hextable[v&0x0f])
@@ -35,14 +35,17 @@ func TestCreationBenchmark(t *testing.T) {
 	// 1. Raw SQL Insert (Write Only)
 	t.Logf("Running %d iterations of Raw SQL Insert (Write-only)...", iterations)
 	startRawWrite := time.Now()
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		id := "raw-w-" + strconv.Itoa(i)
 		email := fmt.Sprintf("raw-w-%d@example.com", i)
 		phone := fmt.Sprintf("+12345%d", i)
 		role := "student"
 
 		_, err := db.Raw().ExecContext(ctx,
-			"INSERT INTO User (id, email, phoneNum, role) VALUES (?, ?, ?, ?)",
+			query(
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES ($1, $2, $3, $4)`,
+			),
 			id, email, phone, role,
 		)
 		if err != nil {
@@ -55,10 +58,10 @@ func TestCreationBenchmark(t *testing.T) {
 	// 2. ORM Create (which inserts and scans back the record)
 	t.Logf("Running %d iterations of ORM Create...", iterations)
 	startORM := time.Now()
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		_, err := db.User.Create(valkyrie.UserCreateInput{
 			Email:    fmt.Sprintf("orm-%d@example.com", i),
-			PhoneNum: fmt.Sprintf("+12345%d", i),
+			PhoneNum: fmt.Sprintf("+54321%d", i),
 		}).Exec(ctx)
 		if err != nil {
 			t.Fatalf("ORM create failed: %v", err)
@@ -73,11 +76,14 @@ func TestCreationBenchmark(t *testing.T) {
 	for i := range iterations {
 		id := "raw-r-" + strconv.Itoa(i)
 		email := fmt.Sprintf("raw-r-%d@example.com", i)
-		phone := fmt.Sprintf("+12345%d", i)
+		phone := fmt.Sprintf("+99999%d", i)
 		role := "student"
 
 		_, err := db.Raw().ExecContext(ctx,
-			"INSERT INTO User (id, email, phoneNum, role) VALUES (?, ?, ?, ?)",
+			query(
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES ($1, $2, $3, $4)`,
+			),
 			id, email, phone, role,
 		)
 		if err != nil {
@@ -86,7 +92,10 @@ func TestCreationBenchmark(t *testing.T) {
 
 		var res valkyrie.User
 		err = db.Raw().QueryRowContext(ctx,
-			"SELECT id, email, phoneNum, role, referredById FROM User WHERE id = ?",
+			query(
+				`SELECT "id", "email", "phoneNum", "role", "referredById" FROM "User" WHERE "id" = ?`,
+				`SELECT "id", "email", "phoneNum", "role", "referredById" FROM "User" WHERE "id" = $1`,
+			),
 			id,
 		).Scan(&res.Id, &res.Email, &res.PhoneNum, &res.Role, &res.ReferredById)
 		if err != nil {
@@ -125,7 +134,10 @@ func BenchmarkRawSQLCreate(b *testing.B) {
 		role := "student"
 
 		_, err := db.Raw().ExecContext(ctx,
-			"INSERT INTO User (id, email, phoneNum, role) VALUES (?, ?, ?, ?)",
+			query(
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES ($1, $2, $3, $4)`,
+			),
 			id, email, phone, role,
 		)
 		if err != nil {
@@ -146,7 +158,10 @@ func BenchmarkRawSQLCreateWithScan(b *testing.B) {
 		role := "student"
 
 		_, err := db.Raw().ExecContext(ctx,
-			"INSERT INTO User (id, email, phoneNum, role) VALUES (?, ?, ?, ?)",
+			query(
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
+				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES ($1, $2, $3, $4)`,
+			),
 			id, email, phone, role,
 		)
 		if err != nil {
@@ -155,7 +170,10 @@ func BenchmarkRawSQLCreateWithScan(b *testing.B) {
 
 		var res valkyrie.User
 		err = db.Raw().QueryRowContext(ctx,
-			"SELECT id, email, phoneNum, role, referredById FROM User WHERE id = ?",
+			query(
+				`SELECT "id", "email", "phoneNum", "role", "referredById" FROM "User" WHERE "id" = ?`,
+				`SELECT "id", "email", "phoneNum", "role", "referredById" FROM "User" WHERE "id" = $1`,
+			),
 			id,
 		).Scan(&res.Id, &res.Email, &res.PhoneNum, &res.Role, &res.ReferredById)
 		if err != nil {

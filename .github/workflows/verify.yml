@@ -40,8 +40,18 @@ jobs:
     - name: Run compiler unit tests
       run: make test
 
-    - name: Run Integration Tests
-      env:
-        PG_DATABASE_URL: ${{ secrets.PG_DATABASE_URL }}
-        SQLITE_DATABASE_URL: ${{ secrets.SQLITE_DATABASE_URL }}
+    - name: Run SQLite Integration Tests
       run: make integration-test
+
+    - name: Run Postgres Integration Tests
+      run: |
+        PG_URL="${{ secrets.PG_DATABASE_URL }}"
+        if [ -z "$PG_URL" ]; then
+          PG_URL="postgres://testuser:testpassword@localhost:5432/valkyrie_test?sslmode=disable"
+        fi
+        sed -i 's/provider = "sqlite"/provider = "postgres"/' integration/schema.prisma
+        rm -f integration/valkyrie/migrations/*.sql
+        make integration-gen
+        cd integration
+        ../bin/valkyrie migrate -u "$PG_URL" init_pg
+        PG_DATABASE_URL="$PG_URL" go test -v ./...
