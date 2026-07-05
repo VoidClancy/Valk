@@ -9,7 +9,9 @@ import (
 	"embed"
 	{{- end }}
 	"fmt"
+	{{- if hasAnyLog }}
 	"log"
+	{{- end }}
 	"strconv"
 	"strings"
 	"time"

@@ -130,6 +130,24 @@ func (q *Queries) selectCommentCols(selects *CommentSelect, omits *CommentOmit, 
 
 	return cols
 }
+
+var CommentColOrder = []string{
+	"id",
+	"textify",
+	"dummy3",
+	"dummy1",
+	"dummy2",
+	"postId",
+	"authorId",
+}
+
+func (s *CommentSelect) hasAnyRelation() bool {
+	if s == nil {
+		return false
+	}
+	return s.Post != nil || s.Author != nil
+}
+
 func (d *CommentDelegate) Create(input CommentCreateInput) *CreateBuilder[Comment, CommentCreateInput, CommentSelect, CommentOmit] {
 	return &CreateBuilder[Comment, CommentCreateInput, CommentSelect, CommentOmit]{
 		client:   d.client,
@@ -139,27 +157,8 @@ func (d *CommentDelegate) Create(input CommentCreateInput) *CreateBuilder[Commen
 }
 
 func (q *Queries) executeCommentCreate(ctx context.Context, input CommentCreateInput, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
-	var cols []string
-	var vals []any
-	if input.Id != nil {
-		cols = append(cols, q.dialect.Quote("id"))
-		vals = append(vals, *input.Id)
-	} else {
-		cols = append(cols, q.dialect.Quote("id"))
-		vals = append(vals, generateCUID())
-	}
-	cols = append(cols, q.dialect.Quote("textify"))
-	vals = append(vals, input.Textify)
-	cols = append(cols, q.dialect.Quote("dummy3"))
-	vals = append(vals, input.Dummy3)
-	cols = append(cols, q.dialect.Quote("dummy1"))
-	vals = append(vals, input.Dummy1)
-	cols = append(cols, q.dialect.Quote("dummy2"))
-	vals = append(vals, input.Dummy2)
-	cols = append(cols, q.dialect.Quote("postId"))
-	vals = append(vals, input.PostId)
-	cols = append(cols, q.dialect.Quote("authorId"))
-	vals = append(vals, input.AuthorId)
+	m := q.CommentInputToMap(input)
+	cols, vals := mapToColsVals(m, CommentColOrder)
 
 	returningCols := q.selectCommentCols(selects, omits)
 
@@ -168,7 +167,8 @@ func (q *Queries) executeCommentCreate(ctx context.Context, input CommentCreateI
 	}
 
 	idCol := "id"
-	hasRelations := selects != nil && (selects.Post != nil || selects.Author != nil)
+
+	hasRelations := selects.hasAnyRelation()
 
 	var res *Comment
 	var err error
@@ -189,6 +189,134 @@ func (q *Queries) executeCommentCreate(ctx context.Context, input CommentCreateI
 	}
 
 	return res, nil
+}
+
+func (q *Queries) CommentInputToMap(input CommentCreateInput) map[string]any {
+	m := make(map[string]any)
+	if input.Id != nil {
+		m["id"] = *input.Id
+	} else {
+		m["id"] = generateCUID()
+	}
+	m["textify"] = input.Textify
+	m["dummy3"] = input.Dummy3
+	m["dummy1"] = input.Dummy1
+	m["dummy2"] = input.Dummy2
+	m["postId"] = input.PostId
+	m["authorId"] = input.AuthorId
+	return m
+}
+
+func (d *CommentDelegate) CreateMany(inputs []CommentCreateInput) *CreateManyBuilder[Comment, CommentCreateInput] {
+	return &CreateManyBuilder[Comment, CommentCreateInput]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.executeCommentCreateMany,
+	}
+}
+
+func (d *CommentDelegate) CreateManyAndReturn(inputs []CommentCreateInput) *CreateManyAndReturnBuilder[Comment, CommentCreateInput, CommentSelect, CommentOmit] {
+	return &CreateManyAndReturnBuilder[Comment, CommentCreateInput, CommentSelect, CommentOmit]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.executeCommentCreateManyAndReturn,
+	}
+}
+
+func (q *Queries) executeCommentCreateMany(ctx context.Context, inputs []CommentCreateInput) (int64, error) {
+	if len(inputs) == 0 {
+		return 0, nil
+	}
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.CommentInputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "Comment", rowMaps, CommentColOrder, nil)
+		res, err := q.exec(ctx, query, vals...)
+		if err != nil {
+			return 0, err
+		}
+		return res.RowsAffected()
+	}
+
+	var count int64
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			_, err := txQ.executeCommentCreate(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			count++
+		}
+		return nil
+	})
+	return count, err
+}
+
+func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, inputs []CommentCreateInput, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
+	if len(inputs) == 0 {
+		return nil, nil
+	}
+
+	hasRelations := selects.hasAnyRelation()
+	returningCols := q.selectCommentCols(selects, omits)
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.CommentInputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "Comment", rowMaps, CommentColOrder, returningCols)
+		var records []*Comment
+		err := q.transaction(ctx, func(txQ *Queries) error {
+			rows, err := txQ.query(ctx, query, vals...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var record Comment
+				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
+					return err
+				}
+				records = append(records, &record)
+			}
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.loadCommentRelations(ctx, records, selects)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return records, nil
+	}
+
+	// Fallback to loop inside transaction
+	var records []*Comment
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			res, err := txQ.executeCommentCreate(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			records = append(records, res)
+		}
+
+		if hasRelations {
+			return txQ.loadCommentRelations(ctx, records, selects)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
 }
 func (q *Queries) loadCommentRelations(ctx context.Context, records []*Comment, selects *CommentSelect) error {
 	if selects == nil || len(records) == 0 {

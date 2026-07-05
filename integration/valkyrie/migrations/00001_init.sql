@@ -30,7 +30,10 @@ CREATE TABLE `Post` (
 );
 CREATE TABLE `Comment` (
   `id` text NOT NULL,
-  `text` text NOT NULL,
+  `textify` integer NOT NULL,
+  `dummy3` text NOT NULL,
+  `dummy1` integer NOT NULL,
+  `dummy2` text NOT NULL,
   `postId` text NOT NULL,
   `authorId` text NOT NULL,
   PRIMARY KEY (`id`),

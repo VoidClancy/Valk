@@ -67,6 +67,11 @@ func main() {
 		log.Fatalf("failed to create user: %v", err)
 	}
 
+	usersCount, err := db.User.CreateMany([]valkyrie.UserCreateInput{
+		{Email: "cl@gm.com"}, {Email: "cc@gg.com"},
+	}).Exec(ctx)
+	fmt.Printf("\nCREATED %d USERS\n", usersCount)
+	fmt.Println("COMMENT:")
 	printJSON(comment)
 
 }

@@ -90,6 +90,19 @@ func (q *Queries) selectCategoryToPostCols(selects *CategoryToPostSelect, omits 
 
 	return cols
 }
+
+var CategoryToPostColOrder = []string{
+	"postId",
+	"categoryId",
+}
+
+func (s *CategoryToPostSelect) hasAnyRelation() bool {
+	if s == nil {
+		return false
+	}
+	return s.Post != nil || s.Category != nil
+}
+
 func (d *CategoryToPostDelegate) Create(input CategoryToPostCreateInput) *CreateBuilder[CategoryToPost, CategoryToPostCreateInput, CategoryToPostSelect, CategoryToPostOmit] {
 	return &CreateBuilder[CategoryToPost, CategoryToPostCreateInput, CategoryToPostSelect, CategoryToPostOmit]{
 		client:   d.client,
@@ -99,12 +112,8 @@ func (d *CategoryToPostDelegate) Create(input CategoryToPostCreateInput) *Create
 }
 
 func (q *Queries) executeCategoryToPostCreate(ctx context.Context, input CategoryToPostCreateInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
-	var cols []string
-	var vals []any
-	cols = append(cols, q.dialect.Quote("postId"))
-	vals = append(vals, input.PostId)
-	cols = append(cols, q.dialect.Quote("categoryId"))
-	vals = append(vals, input.CategoryId)
+	m := q.CategoryToPostInputToMap(input)
+	cols, vals := mapToColsVals(m, CategoryToPostColOrder)
 
 	returningCols := q.selectCategoryToPostCols(selects, omits)
 
@@ -113,7 +122,8 @@ func (q *Queries) executeCategoryToPostCreate(ctx context.Context, input Categor
 	}
 
 	idCol := ""
-	hasRelations := selects != nil && (selects.Post != nil || selects.Category != nil)
+
+	hasRelations := selects.hasAnyRelation()
 
 	var res *CategoryToPost
 	var err error
@@ -134,6 +144,125 @@ func (q *Queries) executeCategoryToPostCreate(ctx context.Context, input Categor
 	}
 
 	return res, nil
+}
+
+func (q *Queries) CategoryToPostInputToMap(input CategoryToPostCreateInput) map[string]any {
+	m := make(map[string]any)
+	m["postId"] = input.PostId
+	m["categoryId"] = input.CategoryId
+	return m
+}
+
+func (d *CategoryToPostDelegate) CreateMany(inputs []CategoryToPostCreateInput) *CreateManyBuilder[CategoryToPost, CategoryToPostCreateInput] {
+	return &CreateManyBuilder[CategoryToPost, CategoryToPostCreateInput]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.executeCategoryToPostCreateMany,
+	}
+}
+
+func (d *CategoryToPostDelegate) CreateManyAndReturn(inputs []CategoryToPostCreateInput) *CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostCreateInput, CategoryToPostSelect, CategoryToPostOmit] {
+	return &CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostCreateInput, CategoryToPostSelect, CategoryToPostOmit]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.executeCategoryToPostCreateManyAndReturn,
+	}
+}
+
+func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, inputs []CategoryToPostCreateInput) (int64, error) {
+	if len(inputs) == 0 {
+		return 0, nil
+	}
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.CategoryToPostInputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "CategoryToPost", rowMaps, CategoryToPostColOrder, nil)
+		res, err := q.exec(ctx, query, vals...)
+		if err != nil {
+			return 0, err
+		}
+		return res.RowsAffected()
+	}
+
+	var count int64
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			_, err := txQ.executeCategoryToPostCreate(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			count++
+		}
+		return nil
+	})
+	return count, err
+}
+
+func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, inputs []CategoryToPostCreateInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
+	if len(inputs) == 0 {
+		return nil, nil
+	}
+
+	hasRelations := selects.hasAnyRelation()
+	returningCols := q.selectCategoryToPostCols(selects, omits)
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.CategoryToPostInputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "CategoryToPost", rowMaps, CategoryToPostColOrder, returningCols)
+		var records []*CategoryToPost
+		err := q.transaction(ctx, func(txQ *Queries) error {
+			rows, err := txQ.query(ctx, query, vals...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var record CategoryToPost
+				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
+					return err
+				}
+				records = append(records, &record)
+			}
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.loadCategoryToPostRelations(ctx, records, selects)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return records, nil
+	}
+
+	// Fallback to loop inside transaction
+	var records []*CategoryToPost
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			res, err := txQ.executeCategoryToPostCreate(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			records = append(records, res)
+		}
+
+		if hasRelations {
+			return txQ.loadCategoryToPostRelations(ctx, records, selects)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
 }
 func (q *Queries) loadCategoryToPostRelations(ctx context.Context, records []*CategoryToPost, selects *CategoryToPostSelect) error {
 	if selects == nil || len(records) == 0 {

@@ -123,6 +123,22 @@ func (q *Queries) selectUserCols(selects *UserSelect, omits *UserOmit, forceCols
 
 	return cols
 }
+
+var UserColOrder = []string{
+	"id",
+	"email",
+	"phoneNum",
+	"role",
+	"referredById",
+}
+
+func (s *UserSelect) hasAnyRelation() bool {
+	if s == nil {
+		return false
+	}
+	return s.Profile != nil || s.Posts != nil || s.Comments != nil || s.ReferredBy != nil || s.Referrals != nil
+}
+
 func (d *UserDelegate) Create(input UserCreateInput) *CreateBuilder[User, UserCreateInput, UserSelect, UserOmit] {
 	return &CreateBuilder[User, UserCreateInput, UserSelect, UserOmit]{
 		client:   d.client,
@@ -132,27 +148,8 @@ func (d *UserDelegate) Create(input UserCreateInput) *CreateBuilder[User, UserCr
 }
 
 func (q *Queries) executeUserCreate(ctx context.Context, input UserCreateInput, selects *UserSelect, omits *UserOmit) (*User, error) {
-	var cols []string
-	var vals []any
-	if input.Id != nil {
-		cols = append(cols, q.dialect.Quote("id"))
-		vals = append(vals, *input.Id)
-	} else {
-		cols = append(cols, q.dialect.Quote("id"))
-		vals = append(vals, generateCUID())
-	}
-	cols = append(cols, q.dialect.Quote("email"))
-	vals = append(vals, input.Email)
-	cols = append(cols, q.dialect.Quote("phoneNum"))
-	vals = append(vals, input.PhoneNum)
-	if input.Role != nil {
-		cols = append(cols, q.dialect.Quote("role"))
-		vals = append(vals, *input.Role)
-	}
-	if input.ReferredById != nil {
-		cols = append(cols, q.dialect.Quote("referredById"))
-		vals = append(vals, *input.ReferredById)
-	}
+	m := q.UserInputToMap(input)
+	cols, vals := mapToColsVals(m, UserColOrder)
 
 	returningCols := q.selectUserCols(selects, omits)
 
@@ -161,7 +158,8 @@ func (q *Queries) executeUserCreate(ctx context.Context, input UserCreateInput, 
 	}
 
 	idCol := "id"
-	hasRelations := selects != nil && (selects.Profile != nil || selects.Posts != nil || selects.Comments != nil || selects.ReferredBy != nil || selects.Referrals != nil)
+
+	hasRelations := selects.hasAnyRelation()
 
 	var res *User
 	var err error
@@ -182,6 +180,136 @@ func (q *Queries) executeUserCreate(ctx context.Context, input UserCreateInput, 
 	}
 
 	return res, nil
+}
+
+func (q *Queries) UserInputToMap(input UserCreateInput) map[string]any {
+	m := make(map[string]any)
+	if input.Id != nil {
+		m["id"] = *input.Id
+	} else {
+		m["id"] = generateCUID()
+	}
+	m["email"] = input.Email
+	m["phoneNum"] = input.PhoneNum
+	if input.Role != nil {
+		m["role"] = *input.Role
+	}
+	if input.ReferredById != nil {
+		m["referredById"] = *input.ReferredById
+	}
+	return m
+}
+
+func (d *UserDelegate) CreateMany(inputs []UserCreateInput) *CreateManyBuilder[User, UserCreateInput] {
+	return &CreateManyBuilder[User, UserCreateInput]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.executeUserCreateMany,
+	}
+}
+
+func (d *UserDelegate) CreateManyAndReturn(inputs []UserCreateInput) *CreateManyAndReturnBuilder[User, UserCreateInput, UserSelect, UserOmit] {
+	return &CreateManyAndReturnBuilder[User, UserCreateInput, UserSelect, UserOmit]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.executeUserCreateManyAndReturn,
+	}
+}
+
+func (q *Queries) executeUserCreateMany(ctx context.Context, inputs []UserCreateInput) (int64, error) {
+	if len(inputs) == 0 {
+		return 0, nil
+	}
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.UserInputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "User", rowMaps, UserColOrder, nil)
+		res, err := q.exec(ctx, query, vals...)
+		if err != nil {
+			return 0, err
+		}
+		return res.RowsAffected()
+	}
+
+	var count int64
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			_, err := txQ.executeUserCreate(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			count++
+		}
+		return nil
+	})
+	return count, err
+}
+
+func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, inputs []UserCreateInput, selects *UserSelect, omits *UserOmit) ([]*User, error) {
+	if len(inputs) == 0 {
+		return nil, nil
+	}
+
+	hasRelations := selects.hasAnyRelation()
+	returningCols := q.selectUserCols(selects, omits)
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.UserInputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "User", rowMaps, UserColOrder, returningCols)
+		var records []*User
+		err := q.transaction(ctx, func(txQ *Queries) error {
+			rows, err := txQ.query(ctx, query, vals...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var record User
+				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
+					return err
+				}
+				records = append(records, &record)
+			}
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.loadUserRelations(ctx, records, selects)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return records, nil
+	}
+
+	// Fallback to loop inside transaction
+	var records []*User
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			res, err := txQ.executeUserCreate(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			records = append(records, res)
+		}
+
+		if hasRelations {
+			return txQ.loadUserRelations(ctx, records, selects)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
 }
 func (q *Queries) loadUserRelations(ctx context.Context, records []*User, selects *UserSelect) error {
 	if selects == nil || len(records) == 0 {

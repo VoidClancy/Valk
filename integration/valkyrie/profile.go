@@ -95,6 +95,20 @@ func (q *Queries) selectProfileCols(selects *ProfileSelect, omits *ProfileOmit, 
 
 	return cols
 }
+
+var ProfileColOrder = []string{
+	"id",
+	"bio",
+	"userId",
+}
+
+func (s *ProfileSelect) hasAnyRelation() bool {
+	if s == nil {
+		return false
+	}
+	return s.User != nil
+}
+
 func (d *ProfileDelegate) Create(input ProfileCreateInput) *CreateBuilder[Profile, ProfileCreateInput, ProfileSelect, ProfileOmit] {
 	return &CreateBuilder[Profile, ProfileCreateInput, ProfileSelect, ProfileOmit]{
 		client:   d.client,
@@ -104,21 +118,8 @@ func (d *ProfileDelegate) Create(input ProfileCreateInput) *CreateBuilder[Profil
 }
 
 func (q *Queries) executeProfileCreate(ctx context.Context, input ProfileCreateInput, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
-	var cols []string
-	var vals []any
-	if input.Id != nil {
-		cols = append(cols, q.dialect.Quote("id"))
-		vals = append(vals, *input.Id)
-	} else {
-		cols = append(cols, q.dialect.Quote("id"))
-		vals = append(vals, generateCUID())
-	}
-	if input.Bio != nil {
-		cols = append(cols, q.dialect.Quote("bio"))
-		vals = append(vals, *input.Bio)
-	}
-	cols = append(cols, q.dialect.Quote("userId"))
-	vals = append(vals, input.UserId)
+	m := q.ProfileInputToMap(input)
+	cols, vals := mapToColsVals(m, ProfileColOrder)
 
 	returningCols := q.selectProfileCols(selects, omits)
 
@@ -127,7 +128,8 @@ func (q *Queries) executeProfileCreate(ctx context.Context, input ProfileCreateI
 	}
 
 	idCol := "id"
-	hasRelations := selects != nil && (selects.User != nil)
+
+	hasRelations := selects.hasAnyRelation()
 
 	var res *Profile
 	var err error
@@ -148,6 +150,132 @@ func (q *Queries) executeProfileCreate(ctx context.Context, input ProfileCreateI
 	}
 
 	return res, nil
+}
+
+func (q *Queries) ProfileInputToMap(input ProfileCreateInput) map[string]any {
+	m := make(map[string]any)
+	if input.Id != nil {
+		m["id"] = *input.Id
+	} else {
+		m["id"] = generateCUID()
+	}
+	if input.Bio != nil {
+		m["bio"] = *input.Bio
+	}
+	m["userId"] = input.UserId
+	return m
+}
+
+func (d *ProfileDelegate) CreateMany(inputs []ProfileCreateInput) *CreateManyBuilder[Profile, ProfileCreateInput] {
+	return &CreateManyBuilder[Profile, ProfileCreateInput]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.executeProfileCreateMany,
+	}
+}
+
+func (d *ProfileDelegate) CreateManyAndReturn(inputs []ProfileCreateInput) *CreateManyAndReturnBuilder[Profile, ProfileCreateInput, ProfileSelect, ProfileOmit] {
+	return &CreateManyAndReturnBuilder[Profile, ProfileCreateInput, ProfileSelect, ProfileOmit]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.executeProfileCreateManyAndReturn,
+	}
+}
+
+func (q *Queries) executeProfileCreateMany(ctx context.Context, inputs []ProfileCreateInput) (int64, error) {
+	if len(inputs) == 0 {
+		return 0, nil
+	}
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.ProfileInputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "Profile", rowMaps, ProfileColOrder, nil)
+		res, err := q.exec(ctx, query, vals...)
+		if err != nil {
+			return 0, err
+		}
+		return res.RowsAffected()
+	}
+
+	var count int64
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			_, err := txQ.executeProfileCreate(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			count++
+		}
+		return nil
+	})
+	return count, err
+}
+
+func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, inputs []ProfileCreateInput, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
+	if len(inputs) == 0 {
+		return nil, nil
+	}
+
+	hasRelations := selects.hasAnyRelation()
+	returningCols := q.selectProfileCols(selects, omits)
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.ProfileInputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "Profile", rowMaps, ProfileColOrder, returningCols)
+		var records []*Profile
+		err := q.transaction(ctx, func(txQ *Queries) error {
+			rows, err := txQ.query(ctx, query, vals...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var record Profile
+				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
+					return err
+				}
+				records = append(records, &record)
+			}
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.loadProfileRelations(ctx, records, selects)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return records, nil
+	}
+
+	// Fallback to loop inside transaction
+	var records []*Profile
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			res, err := txQ.executeProfileCreate(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			records = append(records, res)
+		}
+
+		if hasRelations {
+			return txQ.loadProfileRelations(ctx, records, selects)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
 }
 func (q *Queries) loadProfileRelations(ctx context.Context, records []*Profile, selects *ProfileSelect) error {
 	if selects == nil || len(records) == 0 {

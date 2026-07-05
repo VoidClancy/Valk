@@ -117,6 +117,22 @@ func (q *Queries) selectPostCols(selects *PostSelect, omits *PostOmit, forceCols
 
 	return cols
 }
+
+var PostColOrder = []string{
+	"id",
+	"title",
+	"content",
+	"published",
+	"authorId",
+}
+
+func (s *PostSelect) hasAnyRelation() bool {
+	if s == nil {
+		return false
+	}
+	return s.Author != nil || s.Comments != nil || s.Categories != nil
+}
+
 func (d *PostDelegate) Create(input PostCreateInput) *CreateBuilder[Post, PostCreateInput, PostSelect, PostOmit] {
 	return &CreateBuilder[Post, PostCreateInput, PostSelect, PostOmit]{
 		client:   d.client,
@@ -126,27 +142,8 @@ func (d *PostDelegate) Create(input PostCreateInput) *CreateBuilder[Post, PostCr
 }
 
 func (q *Queries) executePostCreate(ctx context.Context, input PostCreateInput, selects *PostSelect, omits *PostOmit) (*Post, error) {
-	var cols []string
-	var vals []any
-	if input.Id != nil {
-		cols = append(cols, q.dialect.Quote("id"))
-		vals = append(vals, *input.Id)
-	} else {
-		cols = append(cols, q.dialect.Quote("id"))
-		vals = append(vals, generateCUID())
-	}
-	cols = append(cols, q.dialect.Quote("title"))
-	vals = append(vals, input.Title)
-	if input.Content != nil {
-		cols = append(cols, q.dialect.Quote("content"))
-		vals = append(vals, *input.Content)
-	}
-	if input.Published != nil {
-		cols = append(cols, q.dialect.Quote("published"))
-		vals = append(vals, *input.Published)
-	}
-	cols = append(cols, q.dialect.Quote("authorId"))
-	vals = append(vals, input.AuthorId)
+	m := q.PostInputToMap(input)
+	cols, vals := mapToColsVals(m, PostColOrder)
 
 	returningCols := q.selectPostCols(selects, omits)
 
@@ -155,7 +152,8 @@ func (q *Queries) executePostCreate(ctx context.Context, input PostCreateInput, 
 	}
 
 	idCol := "id"
-	hasRelations := selects != nil && (selects.Author != nil || selects.Comments != nil || selects.Categories != nil)
+
+	hasRelations := selects.hasAnyRelation()
 
 	var res *Post
 	var err error
@@ -176,6 +174,136 @@ func (q *Queries) executePostCreate(ctx context.Context, input PostCreateInput, 
 	}
 
 	return res, nil
+}
+
+func (q *Queries) PostInputToMap(input PostCreateInput) map[string]any {
+	m := make(map[string]any)
+	if input.Id != nil {
+		m["id"] = *input.Id
+	} else {
+		m["id"] = generateCUID()
+	}
+	m["title"] = input.Title
+	if input.Content != nil {
+		m["content"] = *input.Content
+	}
+	if input.Published != nil {
+		m["published"] = *input.Published
+	}
+	m["authorId"] = input.AuthorId
+	return m
+}
+
+func (d *PostDelegate) CreateMany(inputs []PostCreateInput) *CreateManyBuilder[Post, PostCreateInput] {
+	return &CreateManyBuilder[Post, PostCreateInput]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.executePostCreateMany,
+	}
+}
+
+func (d *PostDelegate) CreateManyAndReturn(inputs []PostCreateInput) *CreateManyAndReturnBuilder[Post, PostCreateInput, PostSelect, PostOmit] {
+	return &CreateManyAndReturnBuilder[Post, PostCreateInput, PostSelect, PostOmit]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.executePostCreateManyAndReturn,
+	}
+}
+
+func (q *Queries) executePostCreateMany(ctx context.Context, inputs []PostCreateInput) (int64, error) {
+	if len(inputs) == 0 {
+		return 0, nil
+	}
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.PostInputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "Post", rowMaps, PostColOrder, nil)
+		res, err := q.exec(ctx, query, vals...)
+		if err != nil {
+			return 0, err
+		}
+		return res.RowsAffected()
+	}
+
+	var count int64
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			_, err := txQ.executePostCreate(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			count++
+		}
+		return nil
+	})
+	return count, err
+}
+
+func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, inputs []PostCreateInput, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
+	if len(inputs) == 0 {
+		return nil, nil
+	}
+
+	hasRelations := selects.hasAnyRelation()
+	returningCols := q.selectPostCols(selects, omits)
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.PostInputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "Post", rowMaps, PostColOrder, returningCols)
+		var records []*Post
+		err := q.transaction(ctx, func(txQ *Queries) error {
+			rows, err := txQ.query(ctx, query, vals...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var record Post
+				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
+					return err
+				}
+				records = append(records, &record)
+			}
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.loadPostRelations(ctx, records, selects)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return records, nil
+	}
+
+	// Fallback to loop inside transaction
+	var records []*Post
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			res, err := txQ.executePostCreate(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			records = append(records, res)
+		}
+
+		if hasRelations {
+			return txQ.loadPostRelations(ctx, records, selects)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
 }
 func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, selects *PostSelect) error {
 	if selects == nil || len(records) == 0 {

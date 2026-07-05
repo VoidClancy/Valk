@@ -33,6 +33,53 @@ type CreateOmitBuilder[M any, I any, S any, O any] struct {
 func (b *CreateOmitBuilder[M, I, S, O]) Exec(ctx context.Context) (*M, error) {
 	return b.builder.execFunc(ctx, b.builder.input, nil, &b.omits)
 }
+
+type CreateManyBuilder[M any, I any] struct {
+	client   *Queries
+	inputs   []I
+	execFunc func(ctx context.Context, inputs []I) (int64, error)
+}
+
+func (b *CreateManyBuilder[M, I]) Exec(ctx context.Context) (int64, error) {
+	return b.execFunc(ctx, b.inputs)
+}
+
+type CreateManyAndReturnBuilder[M any, I any, S any, O any] struct {
+	client   *Queries
+	inputs   []I
+	execFunc func(ctx context.Context, inputs []I, s *S, o *O) ([]*M, error)
+}
+
+func (b *CreateManyAndReturnBuilder[M, I, S, O]) Select(s S) *CreateManyAndReturnSelectBuilder[M, I, S, O] {
+	return &CreateManyAndReturnSelectBuilder[M, I, S, O]{builder: b, selects: s}
+}
+
+func (b *CreateManyAndReturnBuilder[M, I, S, O]) Omit(o O) *CreateManyAndReturnOmitBuilder[M, I, S, O] {
+	return &CreateManyAndReturnOmitBuilder[M, I, S, O]{builder: b, omits: o}
+}
+
+func (b *CreateManyAndReturnBuilder[M, I, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.execFunc(ctx, b.inputs, nil, nil)
+}
+
+type CreateManyAndReturnSelectBuilder[M any, I any, S any, O any] struct {
+	builder *CreateManyAndReturnBuilder[M, I, S, O]
+	selects S
+}
+
+func (b *CreateManyAndReturnSelectBuilder[M, I, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.builder.execFunc(ctx, b.builder.inputs, &b.selects, nil)
+}
+
+type CreateManyAndReturnOmitBuilder[M any, I any, S any, O any] struct {
+	builder *CreateManyAndReturnBuilder[M, I, S, O]
+	omits   O
+}
+
+func (b *CreateManyAndReturnOmitBuilder[M, I, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.builder.execFunc(ctx, b.builder.inputs, nil, &b.omits)
+}
+
 func executeInsert[M any](
 	ctx context.Context,
 	q *Queries,
@@ -53,7 +100,7 @@ func executeInsert[M any](
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		sb.WriteString(col)
+		sb.WriteString(q.dialect.Quote(col))
 	}
 	sb.WriteString(") VALUES (")
 	for i := range cols {
@@ -93,9 +140,8 @@ func executeInsert[M any](
 	}
 
 	var idVal any
-	quotedIdCol := q.dialect.Quote(idCol)
 	for i, c := range cols {
-		if c == quotedIdCol {
+		if c == idCol {
 			idVal = vals[i]
 			break
 		}
