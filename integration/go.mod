@@ -6,6 +6,7 @@ replace valkyrie => ../
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/lib/pq v1.12.3
 	github.com/pressly/goose/v3 v3.27.2
 	modernc.org/sqlite v1.53.0
 )

@@ -36,7 +36,10 @@ func TestCreateBasic(t *testing.T) {
 
 	var dbEmail, dbPhone string
 	var dbRole string
-	err = db.Raw().QueryRowContext(ctx, "SELECT email, phoneNum, role FROM User WHERE id = ?", u.Id).Scan(&dbEmail, &dbPhone, &dbRole)
+	err = db.Raw().QueryRowContext(ctx, query(
+		`SELECT "email", "phoneNum", "role" FROM "User" WHERE "id" = ?`,
+		`SELECT "email", "phoneNum", "role" FROM "User" WHERE "id" = $1`,
+	), u.Id).Scan(&dbEmail, &dbPhone, &dbRole)
 	if err != nil {
 		t.Fatalf("failed to query database for created user: %v", err)
 	}
