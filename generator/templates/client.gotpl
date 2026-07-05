@@ -2,6 +2,7 @@ type Dialect interface {
 	Quote(ident string) string
 	BindVar(idx int) string
 	SupportsReturning() bool
+	SupportsBulkInsert() bool
 }
 
 {{- if or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql") }}
@@ -9,6 +10,7 @@ type postgresDialect struct{}
 func (postgresDialect) Quote(ident string) string    { return `"` + ident + `"` }
 func (postgresDialect) BindVar(idx int) string       { return fmt.Sprintf("$%d", idx) }
 func (postgresDialect) SupportsReturning() bool      { return true }
+func (postgresDialect) SupportsBulkInsert() bool     { return true }
 {{- end }}
 
 {{- if or (eq .Schema.Datasource.Provider "sqlite") (eq .Schema.Datasource.Provider "sqlite3") }}
@@ -16,6 +18,7 @@ type sqliteDialect struct{}
 func (sqliteDialect) Quote(ident string) string      { return `"` + ident + `"` }
 func (sqliteDialect) BindVar(idx int) string         { return "?" }
 func (sqliteDialect) SupportsReturning() bool        { return true }
+func (sqliteDialect) SupportsBulkInsert() bool       { return false }
 {{- end }}
 
 type DBTX interface {

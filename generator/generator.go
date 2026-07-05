@@ -39,6 +39,14 @@ func GenerateClient(sch schema.Schema, pkgName string, embedPath string, default
 			}
 			return false
 		},
+		"hasAnyLog": func() bool {
+			for _, l := range defaultLogs {
+				if l != "none" {
+					return true
+				}
+			}
+			return false
+		},
 	})
 	tmpl, err := tmpl.ParseFS(templatesFS, "templates/*.gotpl")
 	if err != nil {

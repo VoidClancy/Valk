@@ -7,7 +7,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -69,12 +68,14 @@ type Dialect interface {
 	Quote(ident string) string
 	BindVar(idx int) string
 	SupportsReturning() bool
+	SupportsBulkInsert() bool
 }
 type sqliteDialect struct{}
 
 func (sqliteDialect) Quote(ident string) string { return `"` + ident + `"` }
 func (sqliteDialect) BindVar(idx int) string    { return "?" }
 func (sqliteDialect) SupportsReturning() bool   { return true }
+func (sqliteDialect) SupportsBulkInsert() bool  { return false }
 
 type DBTX interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
@@ -138,7 +139,6 @@ func (db *DB) Raw() *sql.DB {
 
 // RunMigrations runs all pending migrations from the embedded folder.
 func (db *DB) RunMigrations(ctx context.Context) error {
-	log.Println("Running migrations...")
 	if err := goose.SetDialect(db.provider); err != nil {
 		return err
 	}
@@ -146,10 +146,8 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 	goose.SetBaseFS(migrationsFS)
 	err := goose.UpContext(ctx, db.sqlDB, "migrations")
 	if err != nil {
-		log.Printf("Migrations failed: %v", err)
 		return err
 	}
-	log.Println("Migrations completed successfully.")
 	return nil
 }
 
@@ -169,25 +167,16 @@ func (q *Queries) bindVars(count int) string {
 }
 
 func (q *Queries) query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	log.Printf("[%s] SQL Query: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	res, err := q.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
-	}
 	return res, err
 }
 
 func (q *Queries) queryRow(ctx context.Context, query string, args ...any) *sql.Row {
-	log.Printf("[%s] SQL QueryRow: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	return q.db.QueryRowContext(ctx, query, args...)
 }
 
 func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	log.Printf("[%s] SQL Exec: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	res, err := q.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
-	}
 	return res, err
 }
 
@@ -202,7 +191,6 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 	if !ok {
 		return fn(q)
 	}
-	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(q.provider))
 	tx, err := starter.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -210,7 +198,6 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 
 	defer func() {
 		if p := recover(); p != nil {
-			log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
 			_ = tx.Rollback()
 			panic(p)
 		}
@@ -230,11 +217,9 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 	txQueries.CategoryToPost = &CategoryToPostDelegate{client: txQueries}
 
 	if err := fn(txQueries); err != nil {
-		log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
 		_ = tx.Rollback()
 		return err
 	}
-	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(q.provider))
 	return tx.Commit()
 }
 
@@ -249,7 +234,6 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(db.provider))
 	q := &Queries{
 		db:       sqlTx,
 		provider: db.provider,
@@ -270,13 +254,11 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 
 // Commit commits the transaction.
 func (tx *Tx) Commit() error {
-	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(tx.provider))
 	return tx.tx.Commit()
 }
 
 // Rollback aborts the transaction.
 func (tx *Tx) Rollback() error {
-	log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(tx.provider))
 	return tx.tx.Rollback()
 }
 
@@ -346,6 +328,53 @@ type CreateOmitBuilder[M any, I any, S any, O any] struct {
 func (b *CreateOmitBuilder[M, I, S, O]) Exec(ctx context.Context) (*M, error) {
 	return b.builder.execFunc(ctx, b.builder.input, nil, &b.omits)
 }
+
+type CreateManyBuilder[M any, I any] struct {
+	client   *Queries
+	inputs   []I
+	execFunc func(ctx context.Context, inputs []I) (int64, error)
+}
+
+func (b *CreateManyBuilder[M, I]) Exec(ctx context.Context) (int64, error) {
+	return b.execFunc(ctx, b.inputs)
+}
+
+type CreateManyAndReturnBuilder[M any, I any, S any, O any] struct {
+	client   *Queries
+	inputs   []I
+	execFunc func(ctx context.Context, inputs []I, s *S, o *O) ([]*M, error)
+}
+
+func (b *CreateManyAndReturnBuilder[M, I, S, O]) Select(s S) *CreateManyAndReturnSelectBuilder[M, I, S, O] {
+	return &CreateManyAndReturnSelectBuilder[M, I, S, O]{builder: b, selects: s}
+}
+
+func (b *CreateManyAndReturnBuilder[M, I, S, O]) Omit(o O) *CreateManyAndReturnOmitBuilder[M, I, S, O] {
+	return &CreateManyAndReturnOmitBuilder[M, I, S, O]{builder: b, omits: o}
+}
+
+func (b *CreateManyAndReturnBuilder[M, I, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.execFunc(ctx, b.inputs, nil, nil)
+}
+
+type CreateManyAndReturnSelectBuilder[M any, I any, S any, O any] struct {
+	builder *CreateManyAndReturnBuilder[M, I, S, O]
+	selects S
+}
+
+func (b *CreateManyAndReturnSelectBuilder[M, I, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.builder.execFunc(ctx, b.builder.inputs, &b.selects, nil)
+}
+
+type CreateManyAndReturnOmitBuilder[M any, I any, S any, O any] struct {
+	builder *CreateManyAndReturnBuilder[M, I, S, O]
+	omits   O
+}
+
+func (b *CreateManyAndReturnOmitBuilder[M, I, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.builder.execFunc(ctx, b.builder.inputs, nil, &b.omits)
+}
+
 func executeInsert[M any](
 	ctx context.Context,
 	q *Queries,
@@ -366,7 +395,7 @@ func executeInsert[M any](
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		sb.WriteString(col)
+		sb.WriteString(q.dialect.Quote(col))
 	}
 	sb.WriteString(") VALUES (")
 	for i := range cols {
@@ -406,9 +435,8 @@ func executeInsert[M any](
 	}
 
 	var idVal any
-	quotedIdCol := q.dialect.Quote(idCol)
 	for i, c := range cols {
-		if c == quotedIdCol {
+		if c == idCol {
 			idVal = vals[i]
 			break
 		}
@@ -584,4 +612,76 @@ func computeCols(specs []colSpec, hasSelects, anySelected bool) []string {
 		}
 	}
 	return cols
+}
+
+func mapToColsVals(m map[string]any, colOrder []string) (cols []string, vals []any) {
+	for _, c := range colOrder {
+		if v, ok := m[c]; ok {
+			cols = append(cols, c)
+			vals = append(vals, v)
+		}
+	}
+	return
+}
+
+func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any, colOrder []string, returningCols []string) (string, []any) {
+	colsSet := make(map[string]bool)
+	for _, rMap := range rowMaps {
+		for col := range rMap {
+			colsSet[col] = true
+		}
+	}
+	var cols []string
+	for _, c := range colOrder {
+		if colsSet[c] {
+			cols = append(cols, c)
+		}
+	}
+
+	var vals []any
+	for _, rMap := range rowMaps {
+		for _, col := range cols {
+			vals = append(vals, rMap[col])
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString("INSERT INTO ")
+	sb.WriteString(dialect.Quote(table))
+	sb.WriteString(" (")
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(dialect.Quote(col))
+	}
+	sb.WriteString(") VALUES ")
+
+	paramIndex := 1
+	for i := range rowMaps {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString("(")
+		for j := range cols {
+			if j > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(dialect.BindVar(paramIndex))
+			paramIndex++
+		}
+		sb.WriteString(")")
+	}
+
+	if dialect.SupportsReturning() && len(returningCols) > 0 {
+		sb.WriteString(" RETURNING ")
+		for i, col := range returningCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(dialect.Quote(col))
+		}
+	}
+
+	return sb.String(), vals
 }
