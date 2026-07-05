@@ -25,6 +25,9 @@ func (d PostgresDialect) GetSQLType(sf *schema.ScalarField) string {
 		}
 		return d.QuoteIdent(enumName)
 	}
+	if sf.NativeType != nil && len(sf.NativeType.Args) > 0 {
+		return fmt.Sprintf("%s(%s)", strings.ToUpper(sf.SQLType), strings.Join(sf.NativeType.Args, ", "))
+	}
 	return strings.ToUpper(sf.SQLType)
 }
 

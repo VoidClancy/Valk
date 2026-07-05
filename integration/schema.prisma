@@ -35,7 +35,7 @@ model Profile {
 
 model Post {
     id         String           @id @default(cuid())
-    title      String
+    title      String           @db.VarChar(22)
     content    String?
     published  Boolean          @default(false)
     authorId   String
