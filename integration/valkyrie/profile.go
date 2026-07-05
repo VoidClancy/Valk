@@ -96,6 +96,13 @@ func (q *Queries) selectProfileCols(selects *ProfileSelect, omits *ProfileOmit, 
 	return cols
 }
 
+func (input ProfileCreateInput) Validate() error {
+	if input.UserId == "" {
+		return fmt.Errorf("field UserId is required")
+	}
+	return nil
+}
+
 var ProfileColOrder = []string{
 	"id",
 	"bio",
@@ -118,6 +125,9 @@ func (d *ProfileDelegate) Create(input ProfileCreateInput) *CreateBuilder[Profil
 }
 
 func (q *Queries) executeProfileCreate(ctx context.Context, input ProfileCreateInput, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
 	m := q.ProfileInputToMap(input)
 	cols, vals := mapToColsVals(m, ProfileColOrder)
 
@@ -186,6 +196,11 @@ func (q *Queries) executeProfileCreateMany(ctx context.Context, inputs []Profile
 	if len(inputs) == 0 {
 		return 0, nil
 	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+	}
 
 	if q.dialect.SupportsBulkInsert() {
 		rowMaps := make([]map[string]any, len(inputs))
@@ -217,6 +232,11 @@ func (q *Queries) executeProfileCreateMany(ctx context.Context, inputs []Profile
 func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, inputs []ProfileCreateInput, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
 	if len(inputs) == 0 {
 		return nil, nil
+	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
 	}
 
 	hasRelations := selects.hasAnyRelation()

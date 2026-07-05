@@ -91,6 +91,13 @@ func (q *Queries) selectCategoryToPostCols(selects *CategoryToPostSelect, omits 
 	return cols
 }
 
+func (input CategoryToPostCreateInput) Validate() error {
+	if input.PostId == "" {
+		return fmt.Errorf("field PostId is required")
+	}
+	return nil
+}
+
 var CategoryToPostColOrder = []string{
 	"postId",
 	"categoryId",
@@ -112,6 +119,9 @@ func (d *CategoryToPostDelegate) Create(input CategoryToPostCreateInput) *Create
 }
 
 func (q *Queries) executeCategoryToPostCreate(ctx context.Context, input CategoryToPostCreateInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
 	m := q.CategoryToPostInputToMap(input)
 	cols, vals := mapToColsVals(m, CategoryToPostColOrder)
 
@@ -173,6 +183,11 @@ func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, inputs []
 	if len(inputs) == 0 {
 		return 0, nil
 	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+	}
 
 	if q.dialect.SupportsBulkInsert() {
 		rowMaps := make([]map[string]any, len(inputs))
@@ -204,6 +219,11 @@ func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, inputs []
 func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, inputs []CategoryToPostCreateInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
 	if len(inputs) == 0 {
 		return nil, nil
+	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
 	}
 
 	hasRelations := selects.hasAnyRelation()

@@ -131,6 +131,22 @@ func (q *Queries) selectCommentCols(selects *CommentSelect, omits *CommentOmit, 
 	return cols
 }
 
+func (input CommentCreateInput) Validate() error {
+	if input.Dummy3 == "" {
+		return fmt.Errorf("field Dummy3 is required")
+	}
+	if input.Dummy2 == "" {
+		return fmt.Errorf("field Dummy2 is required")
+	}
+	if input.PostId == "" {
+		return fmt.Errorf("field PostId is required")
+	}
+	if input.AuthorId == "" {
+		return fmt.Errorf("field AuthorId is required")
+	}
+	return nil
+}
+
 var CommentColOrder = []string{
 	"id",
 	"textify",
@@ -157,6 +173,9 @@ func (d *CommentDelegate) Create(input CommentCreateInput) *CreateBuilder[Commen
 }
 
 func (q *Queries) executeCommentCreate(ctx context.Context, input CommentCreateInput, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
 	m := q.CommentInputToMap(input)
 	cols, vals := mapToColsVals(m, CommentColOrder)
 
@@ -227,6 +246,11 @@ func (q *Queries) executeCommentCreateMany(ctx context.Context, inputs []Comment
 	if len(inputs) == 0 {
 		return 0, nil
 	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+	}
 
 	if q.dialect.SupportsBulkInsert() {
 		rowMaps := make([]map[string]any, len(inputs))
@@ -258,6 +282,11 @@ func (q *Queries) executeCommentCreateMany(ctx context.Context, inputs []Comment
 func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, inputs []CommentCreateInput, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
 	if len(inputs) == 0 {
 		return nil, nil
+	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
 	}
 
 	hasRelations := selects.hasAnyRelation()

@@ -18,4 +18,12 @@ var {{ $enum.Name }} = {{ lowercase $enum.Name }}Namespace{
 	{{ capitalize $val.Name }}: {{ $enum.Name }}Type{{ capitalize $val.Name }},
 	{{- end }}
 }
+
+func (e {{ $enum.Name }}Type) IsValid() bool {
+	switch e {
+	case {{ range $i, $val := $enum.ValueMap }}{{ if $i }}, {{ end }}{{ $enum.Name }}Type{{ capitalize $val.Name }}{{ end }}:
+		return true
+	}
+	return false
+}
 {{- end }}

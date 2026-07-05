@@ -118,6 +118,16 @@ func (q *Queries) selectPostCols(selects *PostSelect, omits *PostOmit, forceCols
 	return cols
 }
 
+func (input PostCreateInput) Validate() error {
+	if input.Title == "" {
+		return fmt.Errorf("field Title is required")
+	}
+	if input.AuthorId == "" {
+		return fmt.Errorf("field AuthorId is required")
+	}
+	return nil
+}
+
 var PostColOrder = []string{
 	"id",
 	"title",
@@ -142,6 +152,9 @@ func (d *PostDelegate) Create(input PostCreateInput) *CreateBuilder[Post, PostCr
 }
 
 func (q *Queries) executePostCreate(ctx context.Context, input PostCreateInput, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
 	m := q.PostInputToMap(input)
 	cols, vals := mapToColsVals(m, PostColOrder)
 
@@ -214,6 +227,11 @@ func (q *Queries) executePostCreateMany(ctx context.Context, inputs []PostCreate
 	if len(inputs) == 0 {
 		return 0, nil
 	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+	}
 
 	if q.dialect.SupportsBulkInsert() {
 		rowMaps := make([]map[string]any, len(inputs))
@@ -245,6 +263,11 @@ func (q *Queries) executePostCreateMany(ctx context.Context, inputs []PostCreate
 func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, inputs []PostCreateInput, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
 	if len(inputs) == 0 {
 		return nil, nil
+	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
 	}
 
 	hasRelations := selects.hasAnyRelation()

@@ -24,6 +24,9 @@ func (d *{{ .Model.Name }}Delegate) Create(input {{ .Model.Name }}CreateInput) *
 }
 
 func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, input {{ .Model.Name }}CreateInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
 	m := q.{{ .Model.Name }}InputToMap(input)
 	cols, vals := mapToColsVals(m, {{ .Model.Name }}ColOrder)
 
@@ -130,6 +133,11 @@ func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, inputs
 	if len(inputs) == 0 {
 		return 0, nil
 	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+	}
 
 	if q.dialect.SupportsBulkInsert() {
 		rowMaps := make([]map[string]any, len(inputs))
@@ -161,6 +169,11 @@ func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, inputs
 func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Context, inputs []{{ .Model.Name }}CreateInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
 	if len(inputs) == 0 {
 		return nil, nil
+	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
 	}
 
 	hasRelations := selects.hasAnyRelation()

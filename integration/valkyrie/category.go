@@ -88,6 +88,13 @@ func (q *Queries) selectCategoryCols(selects *CategorySelect, omits *CategoryOmi
 	return cols
 }
 
+func (input CategoryCreateInput) Validate() error {
+	if input.Name == "" {
+		return fmt.Errorf("field Name is required")
+	}
+	return nil
+}
+
 var CategoryColOrder = []string{
 	"id",
 	"name",
@@ -109,6 +116,9 @@ func (d *CategoryDelegate) Create(input CategoryCreateInput) *CreateBuilder[Cate
 }
 
 func (q *Queries) executeCategoryCreate(ctx context.Context, input CategoryCreateInput, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
 	m := q.CategoryInputToMap(input)
 	cols, vals := mapToColsVals(m, CategoryColOrder)
 
@@ -173,6 +183,11 @@ func (q *Queries) executeCategoryCreateMany(ctx context.Context, inputs []Catego
 	if len(inputs) == 0 {
 		return 0, nil
 	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+	}
 
 	if q.dialect.SupportsBulkInsert() {
 		rowMaps := make([]map[string]any, len(inputs))
@@ -204,6 +219,11 @@ func (q *Queries) executeCategoryCreateMany(ctx context.Context, inputs []Catego
 func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, inputs []CategoryCreateInput, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
 	if len(inputs) == 0 {
 		return nil, nil
+	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
 	}
 
 	hasRelations := selects.hasAnyRelation()

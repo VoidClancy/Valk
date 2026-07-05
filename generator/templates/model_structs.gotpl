@@ -83,3 +83,39 @@ func (q *Queries) select{{ .Model.Name }}Cols(selects *{{ .Model.Name }}Select, 
 
 	return cols
 }
+
+func (input {{ .Model.Name }}CreateInput) Validate() error {
+	{{- range $field := .Model.ScalarFields }}
+	{{- if $field.EnumRef }}
+		{{- if $field.IsArray }}
+		for _, val := range input.{{ capitalize $field.Name }} {
+			if !val.IsValid() {
+				return fmt.Errorf("invalid enum value %q for field {{ capitalize $field.Name }}", val)
+			}
+		}
+		{{- else if and (eq $field.Default nil) (not $field.Optional) }}
+		if input.{{ capitalize $field.Name }} == nil {
+			return fmt.Errorf("field {{ capitalize $field.Name }} is required")
+		}
+		if !input.{{ capitalize $field.Name }}.IsValid() {
+			return fmt.Errorf("invalid enum value %q for field {{ capitalize $field.Name }}", *input.{{ capitalize $field.Name }})
+		}
+		{{- else }}
+		if input.{{ capitalize $field.Name }} != nil {
+			if !input.{{ capitalize $field.Name }}.IsValid() {
+				return fmt.Errorf("invalid enum value %q for field {{ capitalize $field.Name }}", *input.{{ capitalize $field.Name }})
+			}
+		}
+		{{- end }}
+	{{- else }}
+		{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
+			{{- if eq $field.GoType "string" }}
+			if input.{{ capitalize $field.Name }} == "" {
+				return fmt.Errorf("field {{ capitalize $field.Name }} is required")
+			}
+			{{- end }}
+		{{- end }}
+	{{- end }}
+	{{- end }}
+	return nil
+}
