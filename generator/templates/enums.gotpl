@@ -1,0 +1,29 @@
+{{- range $enum := .Schema.Enums }}
+type {{ $enum.Name }}Type string
+
+const (
+	{{- range $val := $enum.ValueMap }}
+	{{ $enum.Name }}Type{{ capitalize $val.Name }} {{ $enum.Name }}Type = "{{ $val.DBName }}"
+	{{- end }}
+)
+
+type {{ lowercase $enum.Name }}Namespace struct {
+	{{- range $val := $enum.ValueMap }}
+	{{ capitalize $val.Name }} {{ $enum.Name }}Type
+	{{- end }}
+}
+
+var {{ $enum.Name }} = {{ lowercase $enum.Name }}Namespace{
+	{{- range $val := $enum.ValueMap }}
+	{{ capitalize $val.Name }}: {{ $enum.Name }}Type{{ capitalize $val.Name }},
+	{{- end }}
+}
+
+func (e {{ $enum.Name }}Type) IsValid() bool {
+	switch e {
+	case {{ range $i, $val := $enum.ValueMap }}{{ if $i }}, {{ end }}{{ $enum.Name }}Type{{ capitalize $val.Name }}{{ end }}:
+		return true
+	}
+	return false
+}
+{{- end }}

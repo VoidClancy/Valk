@@ -1,0 +1,77 @@
+type Tx struct {
+	*Queries
+	tx *sql.Tx
+}
+
+// BeginTx starts a database transaction.
+func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
+	sqlTx, err := db.sqlDB.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(db.provider))
+	{{- end }}
+	q := &Queries{
+		db:       sqlTx,
+		provider: db.provider,
+		dialect:  db.dialect,
+		{{- range $enum := .Schema.Enums }}
+		{{ $enum.Name }}: db.{{ $enum.Name }},
+		{{- end }}
+	}
+	{{- range $model := .Schema.Models }}
+	q.{{ $model.Name }} = &{{ $model.Name }}Delegate{client: q}
+	{{- end }}
+	return &Tx{
+		Queries: q,
+		tx:      sqlTx,
+	}, nil
+}
+
+// Commit commits the transaction.
+func (tx *Tx) Commit() error {
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(tx.provider))
+	{{- end }}
+	return tx.tx.Commit()
+}
+
+// Rollback aborts the transaction.
+func (tx *Tx) Rollback() error {
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(tx.provider))
+	{{- end }}
+	return tx.tx.Rollback()
+}
+
+// Raw returns the underlying *sql.Tx transaction handle.
+func (tx *Tx) Raw() *sql.Tx {
+	return tx.tx
+}
+
+// Transaction starts a transaction and runs the provided function.
+// If the function returns an error, the transaction is rolled back.
+// Otherwise, the transaction is committed.
+func (db *DB) Transaction(ctx context.Context, fn func(tx *Tx) error) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			panic(p) // re-throw panic after Rollback
+		}
+	}()
+
+	if err := fn(tx); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("transaction error: %w (rollback failed: %v)", err, rbErr)
+		}
+		return err
+	}
+
+	return tx.Commit()
+}

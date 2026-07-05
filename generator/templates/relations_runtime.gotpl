@@ -1,0 +1,138 @@
+func directKey[T any, K any](get func(*T) K) func(*T) (string, bool) {
+	return func(t *T) (string, bool) {
+		return fmt.Sprint(get(t)), true
+	}
+}
+
+func optionalKey[T any, K any](get func(*T) *K) func(*T) (string, bool) {
+	return func(t *T) (string, bool) {
+		if p := get(t); p != nil {
+			return fmt.Sprint(*p), true
+		}
+		return "", false
+	}
+}
+
+func setOne[P any, C any](set func(*P, *C)) func(*P, []*C) {
+	return func(p *P, children []*C) {
+		if len(children) > 0 {
+			set(p, children[0])
+		}
+	}
+}
+
+func appendMany[P any, C any](get func(*P) *[]*C) func(*P, []*C) {
+	return func(p *P, children []*C) {
+		if s := get(p); s != nil {
+			*s = append(*s, children...)
+		}
+	}
+}
+
+func scanInto[C any](cols []string, scan func(*C, []string) []any) func(*sql.Rows, *C) error {
+	return func(rows *sql.Rows, c *C) error {
+		return rows.Scan(scan(c, cols)...)
+	}
+}
+
+type colSpec struct {
+	col      string
+	selected bool
+	omitted  bool
+	forceIn  bool
+}
+
+func computeCols(specs []colSpec, hasSelects, anySelected bool) []string {
+	var cols []string
+	for _, s := range specs {
+		include := true
+		if hasSelects {
+			include = !anySelected || s.selected || s.forceIn
+		} else if s.omitted {
+			include = false
+		}
+		if include {
+			cols = append(cols, s.col)
+		}
+	}
+	if len(cols) == 0 {
+		for _, s := range specs {
+			cols = append(cols, s.col)
+		}
+	}
+	return cols
+}
+
+func mapToColsVals(m map[string]any, colOrder []string) (cols []string, vals []any) {
+	for _, c := range colOrder {
+		if v, ok := m[c]; ok {
+			cols = append(cols, c)
+			vals = append(vals, v)
+		}
+	}
+	return
+}
+
+func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any, colOrder []string, returningCols []string) (string, []any) {
+	colsSet := make(map[string]bool)
+	for _, rMap := range rowMaps {
+		for col := range rMap {
+			colsSet[col] = true
+		}
+	}
+	var cols []string
+	for _, c := range colOrder {
+		if colsSet[c] {
+			cols = append(cols, c)
+		}
+	}
+
+	var vals []any
+	for _, rMap := range rowMaps {
+		for _, col := range cols {
+			vals = append(vals, rMap[col])
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString("INSERT INTO ")
+	sb.WriteString(dialect.Quote(table))
+	sb.WriteString(" (")
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(dialect.Quote(col))
+	}
+	sb.WriteString(") VALUES ")
+
+	paramIndex := 1
+	for i := range rowMaps {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString("(")
+		for j := range cols {
+			if j > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(dialect.BindVar(paramIndex))
+			paramIndex++
+		}
+		sb.WriteString(")")
+	}
+
+	if dialect.SupportsReturning() && len(returningCols) > 0 {
+		sb.WriteString(" RETURNING ")
+		for i, col := range returningCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(dialect.Quote(col))
+		}
+	}
+
+	return sb.String(), vals
+}
+
+

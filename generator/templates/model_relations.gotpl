@@ -1,0 +1,65 @@
+func (q *Queries) load{{ .Model.Name }}Relations(ctx context.Context, records []*{{ .Model.Name }}, selects *{{ .Model.Name }}Select) error {
+	if selects == nil || len(records) == 0 {
+		return nil
+	}
+
+	{{- range $relation := .Model.RelationFields }}
+	if selects.{{ capitalize $relation.Name }} != nil {
+		{{- $forceCol := "" }}
+		{{- if gt (len $relation.FKFields) 0 }}
+			{{- $forceCol = (index $relation.RefFields 0).EffectiveColName }}
+		{{- else }}
+			{{- $forceCol = (index $relation.Inverse.FKFields 0).EffectiveColName }}
+		{{- end }}
+		returningCols := q.select{{ $relation.TargetModelName }}Cols(selects.{{ capitalize $relation.Name }}, nil, "{{ $forceCol }}")
+
+		{{- if gt (len $relation.FKFields) 0 }}
+		// Current model holds the FK: {{ $.Model.Name }}.{{ (index $relation.FKFields 0).Name }}
+		{{- else }}
+		// Inverse holds the FK: {{ $relation.TargetModelName }}.{{ (index $relation.Inverse.FKFields 0).Name }}
+		{{- end }}
+		allChildren, err := loadRelation(
+			ctx, q, records,
+			{{- if gt (len $relation.FKFields) 0 }}
+				{{- if (index $relation.FKFields 0).Optional }}
+			optionalKey(func(p *{{ $.Model.Name }}) {{ (index $relation.FKFields 0).GoType }} { return p.{{ capitalize (index $relation.FKFields 0).Name }} }),
+				{{- else }}
+			directKey(func(p *{{ $.Model.Name }}) {{ (index $relation.FKFields 0).GoType }} { return p.{{ capitalize (index $relation.FKFields 0).Name }} }),
+				{{- end }}
+			{{- else }}
+			directKey(func(p *{{ $.Model.Name }}) {{ (index $relation.Inverse.RefFields 0).GoType }} { return p.{{ capitalize (index $relation.Inverse.RefFields 0).Name }} }),
+			{{- end }}
+			"{{ $relation.TargetModel.EffectiveTableName }}",
+			{{- if gt (len $relation.FKFields) 0 }}
+			"{{ (index $relation.RefFields 0).EffectiveColName }}",
+			{{- else }}
+			"{{ (index $relation.Inverse.FKFields 0).EffectiveColName }}",
+			{{- end }}
+			returningCols,
+			scanInto(returningCols, (*{{ $relation.TargetModelName }}).ScanFields),
+			{{- if gt (len $relation.FKFields) 0 }}
+			directKey(func(c *{{ $relation.TargetModelName }}) {{ (index $relation.RefFields 0).GoType }} { return c.{{ capitalize (index $relation.RefFields 0).Name }} }),
+			{{- else }}
+				{{- if (index $relation.Inverse.FKFields 0).Optional }}
+			optionalKey(func(c *{{ $relation.TargetModelName }}) {{ (index $relation.Inverse.FKFields 0).GoType }} { return c.{{ capitalize (index $relation.Inverse.FKFields 0).Name }} }),
+				{{- else }}
+			directKey(func(c *{{ $relation.TargetModelName }}) {{ (index $relation.Inverse.FKFields 0).GoType }} { return c.{{ capitalize (index $relation.Inverse.FKFields 0).Name }} }),
+				{{- end }}
+			{{- end }}
+			{{- if and (eq (len $relation.FKFields) 0) $relation.IsArray }}
+			appendMany(func(p *{{ $.Model.Name }}) *[]*{{ $relation.TargetModelName }} { return &p.{{ capitalize $relation.Name }} }),
+			{{- else }}
+			setOne(func(p *{{ $.Model.Name }}, c *{{ $relation.TargetModelName }}) { p.{{ capitalize $relation.Name }} = c }),
+			{{- end }}
+		)
+		if err != nil {
+			return fmt.Errorf("loading {{ $relation.Name }}: %w", err)
+		}
+		if err := q.load{{ $relation.TargetModelName }}Relations(ctx, allChildren, selects.{{ capitalize $relation.Name }}); err != nil {
+			return err
+		}
+	}
+	{{- end }}
+
+	return nil
+}

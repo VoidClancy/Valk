@@ -1,0 +1,52 @@
+package {{ .PackageName }}
+
+import (
+	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/json"
+	{{- if .EmbedPath }}
+	"embed"
+	{{- end }}
+	"fmt"
+	{{- if hasAnyLog }}
+	"log"
+	{{- end }}
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/pressly/goose/v3"
+)
+
+var _ = time.Time{}
+var _ = json.RawMessage{}
+var _ = strings.Join
+var _ = uuid.New
+var _ = rand.Read
+var _ = strconv.AppendUint
+
+{{- if .EmbedPath }}
+//go:embed {{ .EmbedPath }}
+var migrationsFS embed.FS
+{{- end }}
+
+func generateCUID() string {
+	now := uint64(time.Now().UnixMilli())
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	buf := make([]byte, 1, 33)
+	buf[0] = 'c'
+	buf = strconv.AppendUint(buf, now, 16)
+	
+	const hextable = "0123456789abcdef"
+	for _, v := range b {
+		buf = append(buf, hextable[v>>4], hextable[v&0x0f])
+	}
+	return string(buf)
+}
+
+func generateUUID() string {
+	return uuid.New().String()
+}

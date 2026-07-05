@@ -1,0 +1,235 @@
+type Dialect interface {
+	Quote(ident string) string
+	BindVar(idx int) string
+	SupportsReturning() bool
+	SupportsBulkInsert() bool
+}
+
+{{- if or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql") }}
+type postgresDialect struct{}
+func (postgresDialect) Quote(ident string) string    { return `"` + ident + `"` }
+func (postgresDialect) BindVar(idx int) string       { return fmt.Sprintf("$%d", idx) }
+func (postgresDialect) SupportsReturning() bool      { return true }
+func (postgresDialect) SupportsBulkInsert() bool     { return true }
+{{- end }}
+
+{{- if or (eq .Schema.Datasource.Provider "sqlite") (eq .Schema.Datasource.Provider "sqlite3") }}
+type sqliteDialect struct{}
+func (sqliteDialect) Quote(ident string) string      { return `"` + ident + `"` }
+func (sqliteDialect) BindVar(idx int) string         { return "?" }
+func (sqliteDialect) SupportsReturning() bool        { return true }
+func (sqliteDialect) SupportsBulkInsert() bool       { return false }
+{{- end }}
+
+type DBTX interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	PrepareContext(context.Context, string) (*sql.Stmt, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+type Queries struct {
+	db       DBTX
+	provider string
+	dialect  Dialect
+	{{- range $model := .Schema.Models }}
+	{{ $model.Name }} *{{ $model.Name }}Delegate
+	{{- end }}
+	{{- range $enum := .Schema.Enums }}
+	{{ $enum.Name }} {{ lowercase $enum.Name }}Namespace
+	{{- end }}
+}
+
+type DB struct {
+	*Queries
+	sqlDB *sql.DB
+}
+
+// Open opens a database connection and returns a client.
+func Open(provider, dataSourceName string) (*DB, error) {
+	sqlDB, err := sql.Open(provider, dataSourceName)
+	if err != nil {
+		return nil, err
+	}
+
+	q := &Queries{
+		db:       sqlDB,
+		provider: provider,
+		{{- if or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql") }}
+		dialect:  postgresDialect{},
+		{{- else if or (eq .Schema.Datasource.Provider "sqlite") (eq .Schema.Datasource.Provider "sqlite3") }}
+		dialect:  sqliteDialect{},
+		{{- end }}
+		{{- range $enum := .Schema.Enums }}
+		{{ $enum.Name }}: {{ $enum.Name }},
+		{{- end }}
+	}
+	{{- range $model := .Schema.Models }}
+	q.{{ $model.Name }} = &{{ $model.Name }}Delegate{client: q}
+	{{- end }}
+	return &DB{
+		Queries: q,
+		sqlDB:   sqlDB,
+	}, nil
+}
+
+// Close closes the database connection.
+func (db *DB) Close() error {
+	return db.sqlDB.Close()
+}
+
+// Raw returns the underlying *sql.DB connection pool.
+func (db *DB) Raw() *sql.DB {
+	return db.sqlDB
+}
+
+{{- if .EmbedPath }}
+// RunMigrations runs all pending migrations from the embedded folder.
+func (db *DB) RunMigrations(ctx context.Context) error {
+	{{- if hasLog "info" }}
+	log.Println("Running migrations...")
+	{{- end }}
+	if err := goose.SetDialect(db.provider); err != nil {
+		return err
+	}
+	goose.SetLogger(goose.NopLogger())
+	goose.SetBaseFS(migrationsFS)
+	err := goose.UpContext(ctx, db.sqlDB, "{{ .EmbedDir }}")
+	if err != nil {
+		{{- if hasLog "error" }}
+		log.Printf("Migrations failed: %v", err)
+		{{- end }}
+		return err
+	}
+	{{- if hasLog "info" }}
+	log.Println("Migrations completed successfully.")
+	{{- end }}
+	return nil
+}
+{{- else }}
+// RunMigrations runs all pending migrations from the disk folder.
+func (db *DB) RunMigrations(ctx context.Context) error {
+	{{- if hasLog "info" }}
+	log.Println("Running migrations...")
+	{{- end }}
+	if err := goose.SetDialect(db.provider); err != nil {
+		return err
+	}
+	goose.SetLogger(goose.NopLogger())
+	err := goose.UpContext(ctx, db.sqlDB, "{{ .DefaultDiskPath }}")
+	if err != nil {
+		{{- if hasLog "error" }}
+		log.Printf("Migrations failed: %v", err)
+		{{- end }}
+		return err
+	}
+	{{- if hasLog "info" }}
+	log.Println("Migrations completed successfully.")
+	{{- end }}
+	return nil
+}
+{{- end }}
+
+func (q *Queries) bindVars(count int) string {
+	if count <= 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.Grow(count * 3)
+	for i := 0; i < count; i++ {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(q.dialect.BindVar(i + 1))
+	}
+	return sb.String()
+}
+
+func (q *Queries) query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Query: %s | Args: %v", strings.ToUpper(q.provider), query, args)
+	{{- end }}
+	res, err := q.db.QueryContext(ctx, query, args...)
+	{{- if hasLog "error" }}
+	if err != nil {
+		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+	}
+	{{- end }}
+	return res, err
+}
+
+func (q *Queries) queryRow(ctx context.Context, query string, args ...any) *sql.Row {
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL QueryRow: %s | Args: %v", strings.ToUpper(q.provider), query, args)
+	{{- end }}
+	return q.db.QueryRowContext(ctx, query, args...)
+}
+
+func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Exec: %s | Args: %v", strings.ToUpper(q.provider), query, args)
+	{{- end }}
+	res, err := q.db.ExecContext(ctx, query, args...)
+	{{- if hasLog "error" }}
+	if err != nil {
+		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+	}
+	{{- end }}
+	return res, err
+}
+
+func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) error {
+	if _, ok := q.db.(*sql.Tx); ok {
+		return fn(q)
+	}
+
+	starter, ok := q.db.(interface {
+		BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	})
+	if !ok {
+		return fn(q)
+	}
+
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(q.provider))
+	{{- end }}
+	tx, err := starter.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			{{- if hasLog "query" }}
+			log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
+			{{- end }}
+			_ = tx.Rollback()
+			panic(p)
+		}
+	}()
+
+	txQueries := &Queries{
+		db:       tx,
+		provider: q.provider,
+		dialect:  q.dialect,
+		{{- range $enum := .Schema.Enums }}
+		{{ $enum.Name }}: q.{{ $enum.Name }},
+		{{- end }}
+	}
+	{{- range $model := .Schema.Models }}
+	txQueries.{{ $model.Name }} = &{{ $model.Name }}Delegate{client: txQueries}
+	{{- end }}
+
+	if err := fn(txQueries); err != nil {
+		{{- if hasLog "query" }}
+		log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
+		{{- end }}
+		_ = tx.Rollback()
+		return err
+	}
+
+	{{- if hasLog "query" }}
+	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(q.provider))
+	{{- end }}
+	return tx.Commit()
+}

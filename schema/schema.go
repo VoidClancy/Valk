@@ -89,6 +89,13 @@ type Model struct {
 	Indexes         []Index
 }
 
+func (m *Model) EffectiveTableName() string {
+	if m.TableName != "" {
+		return m.TableName
+	}
+	return m.Name
+}
+
 type UniqueConstraint struct {
 	Fields []string
 	Name   string
@@ -148,6 +155,13 @@ type ScalarField struct {
 	EnumRef     *Enum
 	NativeType  *NativeType
 	Attributes  []Attribute
+}
+
+func (sf *ScalarField) EffectiveColName() string {
+	if sf.ColName != "" {
+		return sf.ColName
+	}
+	return sf.Name
 }
 
 type NativeType struct {

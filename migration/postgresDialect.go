@@ -1,9 +1,13 @@
 package migration
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 	"valkyrie/schema"
+
+	"ariga.io/atlas/sql/migrate"
+	"ariga.io/atlas/sql/postgres"
 )
 
 type PostgresDialect struct{}
@@ -84,3 +88,9 @@ func (d PostgresDialect) FormatSinglePK(tableName, colName string, isAutoInc boo
 }
 
 func (d PostgresDialect) FormatEnumConstraint(colName string, enum *schema.Enum) string { return "" }
+
+func (PostgresDialect) SupportsNativeEnums() bool { return true }
+
+func (PostgresDialect) OpenConn(db *sql.DB) (migrate.Driver, error) {
+	return postgres.Open(db)
+}

@@ -1,5 +1,5 @@
 datasource db {
-    provider = "postgres"
+    provider = "sqlite"
 }
 
 enum UserRole {
@@ -10,15 +10,10 @@ enum UserRole {
     @@map("user_roles")
 }
 
-enum Clancy {
-    VOICES
-    BLEH
-}
-
 model User {
-    id       String    @id @default(cuid()) @map("twistedID")
+    id       String    @id @default(cuid())
     email    String    @unique
-    phoneNum String
+    phoneNum String    @unique
     role     UserRole  @default(STUDENT)
     profile  Profile?
     posts    Post[]
@@ -35,7 +30,7 @@ model Profile {
     id     String  @id @default(cuid())
     bio    String?
     userId String  @unique
-    user   User    @relation(fields: [userId], references: [id])
+    user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Post {
@@ -51,7 +46,10 @@ model Post {
 
 model Comment {
     id       String @id @default(cuid())
-    text     String
+    textify  Int
+    dummy3   String
+    dummy1   Int
+    dummy2   String
     postId   String
     post     Post   @relation(fields: [postId], references: [id])
     authorId String

@@ -1,0 +1,236 @@
+var {{ .Model.Name }}ColOrder = []string{
+{{- range $field := .Model.ScalarFields }}
+	"{{ $field.EffectiveColName }}",
+{{- end }}
+}
+
+func (s *{{ .Model.Name }}Select) hasAnyRelation() bool {
+	if s == nil {
+		return false
+	}
+	{{- if .Model.RelationFields }}
+	return {{ range $i, $rel := .Model.RelationFields }}{{ if $i }} || {{ end }}s.{{ capitalize $rel.Name }} != nil{{ end }}
+	{{- else }}
+	return false
+	{{- end }}
+}
+
+func (d *{{ .Model.Name }}Delegate) Create(input {{ .Model.Name }}CreateInput) *CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}CreateInput, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
+	return &CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}CreateInput, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
+		client:   d.client,
+		input:    input,
+		execFunc: d.client.execute{{ .Model.Name }}Create,
+	}
+}
+
+func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, input {{ .Model.Name }}CreateInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+	m := q.{{ .Model.Name }}InputToMap(input)
+	cols, vals := mapToColsVals(m, {{ .Model.Name }}ColOrder)
+
+	returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
+
+	scanFunc := func(res *{{ .Model.Name }}, cols []string) []any {
+		return res.ScanFields(cols)
+	}
+
+	idCol := "{{ range $field := .Model.ScalarFields }}{{ if $field.IsID }}{{ $field.EffectiveColName }}{{ end }}{{ end }}"
+
+	hasRelations := selects.hasAnyRelation()
+
+	var res *{{ .Model.Name }}
+	var err error
+	if hasRelations {
+		err = q.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = executeInsert(ctx, txQ, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, idCol, scanFunc)
+			if err != nil {
+				return err
+			}
+			return txQ.load{{ .Model.Name }}Relations(ctx, []*{{ .Model.Name }}{res}, selects)
+		})
+	} else {
+		res, err = executeInsert(ctx, q, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, idCol, scanFunc)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (q *Queries) {{ .Model.Name }}InputToMap(input {{ .Model.Name }}CreateInput) map[string]any {
+	m := make(map[string]any)
+	{{- range $field := .Model.ScalarFields }}
+		{{- if $field.EnumRef }}
+			{{- if $field.IsArray }}
+				if input.{{ capitalize $field.Name }} != nil {
+					m["{{ $field.EffectiveColName }}"] = input.{{ capitalize $field.Name }}
+				}
+			{{- else }}
+				if input.{{ capitalize $field.Name }} != nil {
+					m["{{ $field.EffectiveColName }}"] = *input.{{ capitalize $field.Name }}
+				}
+			{{- end }}
+		{{- else }}
+			{{- if $field.IsArray }}
+				if input.{{ capitalize $field.Name }} != nil {
+					m["{{ $field.EffectiveColName }}"] = input.{{ capitalize $field.Name }}
+				}
+			{{- else }}
+				{{- if and $field.Default (eq $field.Default.Kind.String "Func") }}
+					if input.{{ capitalize $field.Name }} != nil {
+						m["{{ $field.EffectiveColName }}"] = *input.{{ capitalize $field.Name }}
+					} else {
+						{{- if eq $field.Default.FuncName "cuid" }}
+							m["{{ $field.EffectiveColName }}"] = generateCUID()
+						{{- else if eq $field.Default.FuncName "uuid" }}
+							m["{{ $field.EffectiveColName }}"] = generateUUID()
+						{{- else if eq $field.Default.FuncName "now" }}
+							m["{{ $field.EffectiveColName }}"] = time.Now()
+						{{- end }}
+					}
+				{{- else if or $field.Optional (ne $field.Default nil) }}
+					if input.{{ capitalize $field.Name }} != nil {
+						m["{{ $field.EffectiveColName }}"] = *input.{{ capitalize $field.Name }}
+					}
+				{{- else }}
+					{{- if and $field.IsID (eq $field.GoType "string") }}
+						if input.{{ capitalize $field.Name }} != "" {
+							m["{{ $field.EffectiveColName }}"] = input.{{ capitalize $field.Name }}
+						} else {
+							m["{{ $field.EffectiveColName }}"] = generateCUID()
+						}
+					{{- else }}
+						m["{{ $field.EffectiveColName }}"] = input.{{ capitalize $field.Name }}
+					{{- end }}
+				{{- end }}
+			{{- end }}
+		{{- end }}
+	{{- end }}
+	return m
+}
+
+func (d *{{ .Model.Name }}Delegate) CreateMany(inputs []{{ .Model.Name }}CreateInput) *CreateManyBuilder[{{ .Model.Name }}, {{ .Model.Name }}CreateInput] {
+	return &CreateManyBuilder[{{ .Model.Name }}, {{ .Model.Name }}CreateInput]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.execute{{ .Model.Name }}CreateMany,
+	}
+}
+
+func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(inputs []{{ .Model.Name }}CreateInput) *CreateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}CreateInput, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
+	return &CreateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}CreateInput, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
+		client:   d.client,
+		inputs:   inputs,
+		execFunc: d.client.execute{{ .Model.Name }}CreateManyAndReturn,
+	}
+}
+
+func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, inputs []{{ .Model.Name }}CreateInput) (int64, error) {
+	if len(inputs) == 0 {
+		return 0, nil
+	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+	}
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.{{ .Model.Name }}InputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "{{ .Model.EffectiveTableName }}", rowMaps, {{ .Model.Name }}ColOrder, nil)
+		res, err := q.exec(ctx, query, vals...)
+		if err != nil {
+			return 0, err
+		}
+		return res.RowsAffected()
+	}
+
+	var count int64
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			_, err := txQ.execute{{ .Model.Name }}Create(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			count++
+		}
+		return nil
+	})
+	return count, err
+}
+
+func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Context, inputs []{{ .Model.Name }}CreateInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
+	if len(inputs) == 0 {
+		return nil, nil
+	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+	}
+
+	hasRelations := selects.hasAnyRelation()
+	returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
+
+	if q.dialect.SupportsBulkInsert() {
+		rowMaps := make([]map[string]any, len(inputs))
+		for i, input := range inputs {
+			rowMaps[i] = q.{{ .Model.Name }}InputToMap(input)
+		}
+		query, vals := buildBulkInsertSQL(q.dialect, "{{ .Model.EffectiveTableName }}", rowMaps, {{ .Model.Name }}ColOrder, returningCols)
+		var records []*{{ .Model.Name }}
+		err := q.transaction(ctx, func(txQ *Queries) error {
+			rows, err := txQ.query(ctx, query, vals...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var record {{ .Model.Name }}
+				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
+					return err
+				}
+				records = append(records, &record)
+			}
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.load{{ .Model.Name }}Relations(ctx, records, selects)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return records, nil
+	}
+
+	// Fallback to loop inside transaction
+	var records []*{{ .Model.Name }}
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		for _, input := range inputs {
+			res, err := txQ.execute{{ .Model.Name }}Create(ctx, input, nil, nil)
+			if err != nil {
+				return err
+			}
+			records = append(records, res)
+		}
+
+		if hasRelations {
+			return txQ.load{{ .Model.Name }}Relations(ctx, records, selects)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
+}
