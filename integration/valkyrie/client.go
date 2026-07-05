@@ -64,6 +64,14 @@ var UserRole = userRoleNamespace{
 	Teacher: UserRoleTypeTeacher,
 }
 
+func (e UserRoleType) IsValid() bool {
+	switch e {
+	case UserRoleTypeAdmin, UserRoleTypeStudent, UserRoleTypeTeacher:
+		return true
+	}
+	return false
+}
+
 type Dialect interface {
 	Quote(ident string) string
 	BindVar(idx int) string

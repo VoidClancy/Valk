@@ -124,6 +124,21 @@ func (q *Queries) selectUserCols(selects *UserSelect, omits *UserOmit, forceCols
 	return cols
 }
 
+func (input UserCreateInput) Validate() error {
+	if input.Email == "" {
+		return fmt.Errorf("field Email is required")
+	}
+	if input.PhoneNum == "" {
+		return fmt.Errorf("field PhoneNum is required")
+	}
+	if input.Role != nil {
+		if !input.Role.IsValid() {
+			return fmt.Errorf("invalid enum value %q for field Role", *input.Role)
+		}
+	}
+	return nil
+}
+
 var UserColOrder = []string{
 	"id",
 	"email",
@@ -148,6 +163,9 @@ func (d *UserDelegate) Create(input UserCreateInput) *CreateBuilder[User, UserCr
 }
 
 func (q *Queries) executeUserCreate(ctx context.Context, input UserCreateInput, selects *UserSelect, omits *UserOmit) (*User, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
 	m := q.UserInputToMap(input)
 	cols, vals := mapToColsVals(m, UserColOrder)
 
@@ -220,6 +238,11 @@ func (q *Queries) executeUserCreateMany(ctx context.Context, inputs []UserCreate
 	if len(inputs) == 0 {
 		return 0, nil
 	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+	}
 
 	if q.dialect.SupportsBulkInsert() {
 		rowMaps := make([]map[string]any, len(inputs))
@@ -251,6 +274,11 @@ func (q *Queries) executeUserCreateMany(ctx context.Context, inputs []UserCreate
 func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, inputs []UserCreateInput, selects *UserSelect, omits *UserOmit) ([]*User, error) {
 	if len(inputs) == 0 {
 		return nil, nil
+	}
+	for i, input := range inputs {
+		if err := input.Validate(); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
 	}
 
 	hasRelations := selects.hasAnyRelation()

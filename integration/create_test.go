@@ -132,3 +132,33 @@ func TestCreateWithCustomEnum(t *testing.T) {
 		t.Errorf("expected role '%s', got '%s'", valkyrie.UserRole.Admin, u.Role)
 	}
 }
+
+func TestCreateValidation(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	_, err := db.User.Create(valkyrie.UserCreateInput{
+		// no email
+		PhoneNum: "+123456789",
+	}).Exec(ctx)
+	if err == nil {
+		t.Fatal("expected error creating user with empty required email, got nil")
+	}
+	if !strings.Contains(err.Error(), "field Email is required") {
+		t.Errorf("expected error message to contain 'field Email is required', got: %v", err)
+	}
+
+	invalidRole := valkyrie.UserRoleType("INVALID_ROLE")
+	_, err = db.User.Create(valkyrie.UserCreateInput{
+		Email:    "invalid_role@example.com",
+		PhoneNum: "+123456789",
+		Role:     &invalidRole,
+	}).Exec(ctx)
+	if err == nil {
+		t.Fatal("expected error creating user with invalid enum role, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid enum value \"INVALID_ROLE\" for field Role") {
+		t.Errorf("expected error message to contain 'invalid enum value \"INVALID_ROLE\" for field Role', got: %v", err)
+	}
+}

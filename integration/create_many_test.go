@@ -49,7 +49,8 @@ func TestCreateMany(t *testing.T) {
 
 	t.Run("CreateManyAndReturn works and supports Select", func(t *testing.T) {
 		author, err := client.User.Create(valkyrie.UserCreateInput{
-			Email: "author@example.com",
+			Email:    "author@example.com",
+			PhoneNum: "+444",
 		}).Exec(ctx)
 		if err != nil {
 			t.Fatalf("failed to create author: %v", err)
