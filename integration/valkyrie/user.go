@@ -23,6 +23,7 @@ type User struct {
 	Id           string       `db:"id" json:"id"`
 	Email        string       `db:"email" json:"email"`
 	PhoneNum     string       `db:"phoneNum" json:"phoneNum"`
+	Password     *string      `db:"password" json:"password"`
 	Role         UserRoleType `db:"role" json:"role"`
 	ReferredById *string      `db:"referredById" json:"referredById"`
 	Profile      *Profile     `json:"profile,omitempty"`
@@ -37,6 +38,7 @@ type UserCreateInput struct {
 	Id           *string       `json:"id"`
 	Email        string        `json:"email"`
 	PhoneNum     string        `json:"phoneNum"`
+	Password     *string       `json:"password"`
 	Role         *UserRoleType `json:"role"`
 	ReferredById *string       `json:"referredById"`
 }
@@ -46,6 +48,7 @@ type UserSelect struct {
 	Id           bool           `json:"id"`
 	Email        bool           `json:"email"`
 	PhoneNum     bool           `json:"phoneNum"`
+	Password     bool           `json:"password"`
 	Role         bool           `json:"role"`
 	ReferredById bool           `json:"referredById"`
 	Profile      *ProfileSelect `json:"profile,omitempty"`
@@ -60,6 +63,7 @@ type UserOmit struct {
 	Id           bool         `json:"id"`
 	Email        bool         `json:"email"`
 	PhoneNum     bool         `json:"phoneNum"`
+	Password     bool         `json:"password"`
 	Role         bool         `json:"role"`
 	ReferredById bool         `json:"referredById"`
 	Profile      *ProfileOmit `json:"profile,omitempty"`
@@ -70,7 +74,17 @@ type UserOmit struct {
 }
 
 type UserDelegate struct {
-	client *Queries
+	client       *Queries
+	beforeCreate func(context.Context, *UserCreateInput) error
+	afterCreate  func(context.Context, *User) error
+}
+
+func (d *UserDelegate) BeforeCreate(hook func(context.Context, *UserCreateInput) error) {
+	d.beforeCreate = hook
+}
+
+func (d *UserDelegate) AfterCreate(hook func(context.Context, *User) error) {
+	d.afterCreate = hook
 }
 
 func (m *User) ScanFields(cols []string) []any {
@@ -83,6 +97,8 @@ func (m *User) ScanFields(cols []string) []any {
 			targets[i] = &m.Email
 		case "phoneNum":
 			targets[i] = &m.PhoneNum
+		case "password":
+			targets[i] = &m.Password
 		case "role":
 			targets[i] = &m.Role
 		case "referredById":
@@ -96,6 +112,7 @@ var userDefaultCols = []string{
 	"id",
 	"email",
 	"phoneNum",
+	"password",
 	"role",
 	"referredById",
 }
@@ -105,12 +122,13 @@ func (q *Queries) selectUserCols(selects *UserSelect, omits *UserOmit, forceCols
 		return userDefaultCols
 	}
 
-	anySelected := selects != nil && (selects.Id || selects.Email || selects.PhoneNum || selects.Role || selects.ReferredById || selects.Profile != nil || selects.Posts != nil || selects.Comments != nil || selects.ReferredBy != nil || selects.Referrals != nil)
+	anySelected := selects != nil && (selects.Id || selects.Email || selects.PhoneNum || selects.Password || selects.Role || selects.ReferredById || selects.Profile != nil || selects.Posts != nil || selects.Comments != nil || selects.ReferredBy != nil || selects.Referrals != nil)
 
 	specs := []colSpec{
 		{"id", selects != nil && selects.Id, omits != nil && omits.Id, false},
 		{"email", selects != nil && selects.Email, omits != nil && omits.Email, false},
 		{"phoneNum", selects != nil && selects.PhoneNum, omits != nil && omits.PhoneNum, false},
+		{"password", selects != nil && selects.Password, omits != nil && omits.Password, false},
 		{"role", selects != nil && selects.Role, omits != nil && omits.Role, false},
 		{"referredById", selects != nil && selects.ReferredById, omits != nil && omits.ReferredById, selects != nil && selects.ReferredBy != nil},
 	}
@@ -171,6 +189,7 @@ var UserColOrder = []string{
 	"id",
 	"email",
 	"phoneNum",
+	"password",
 	"role",
 	"referredById",
 }
@@ -191,6 +210,12 @@ func (d *UserDelegate) Create(input UserCreateInput) *CreateBuilder[User, UserCr
 }
 
 func (q *Queries) executeUserCreate(ctx context.Context, input UserCreateInput, selects *UserSelect, omits *UserOmit) (*User, error) {
+	if q.User.beforeCreate != nil {
+		if err := q.User.beforeCreate(ctx, &input); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -225,6 +250,12 @@ func (q *Queries) executeUserCreate(ctx context.Context, input UserCreateInput, 
 		return nil, err
 	}
 
+	if q.User.afterCreate != nil {
+		if err := q.User.afterCreate(ctx, res); err != nil {
+			return nil, err
+		}
+	}
+
 	return res, nil
 }
 
@@ -237,6 +268,9 @@ func (q *Queries) UserInputToMap(input UserCreateInput) map[string]any {
 	}
 	m["email"] = input.Email
 	m["phoneNum"] = input.PhoneNum
+	if input.Password != nil {
+		m["password"] = *input.Password
+	}
 	if input.Role != nil {
 		m["role"] = *input.Role
 	}

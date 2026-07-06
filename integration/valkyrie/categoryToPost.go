@@ -49,7 +49,17 @@ type CategoryToPostOmit struct {
 }
 
 type CategoryToPostDelegate struct {
-	client *Queries
+	client       *Queries
+	beforeCreate func(context.Context, *CategoryToPostCreateInput) error
+	afterCreate  func(context.Context, *CategoryToPost) error
+}
+
+func (d *CategoryToPostDelegate) BeforeCreate(hook func(context.Context, *CategoryToPostCreateInput) error) {
+	d.beforeCreate = hook
+}
+
+func (d *CategoryToPostDelegate) AfterCreate(hook func(context.Context, *CategoryToPost) error) {
+	d.afterCreate = hook
 }
 
 func (m *CategoryToPost) ScanFields(cols []string) []any {
@@ -132,6 +142,12 @@ func (d *CategoryToPostDelegate) Create(input CategoryToPostCreateInput) *Create
 }
 
 func (q *Queries) executeCategoryToPostCreate(ctx context.Context, input CategoryToPostCreateInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	if q.CategoryToPost.beforeCreate != nil {
+		if err := q.CategoryToPost.beforeCreate(ctx, &input); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -164,6 +180,12 @@ func (q *Queries) executeCategoryToPostCreate(ctx context.Context, input Categor
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if q.CategoryToPost.afterCreate != nil {
+		if err := q.CategoryToPost.afterCreate(ctx, res); err != nil {
+			return nil, err
+		}
 	}
 
 	return res, nil

@@ -46,7 +46,17 @@ type CategoryOmit struct {
 }
 
 type CategoryDelegate struct {
-	client *Queries
+	client       *Queries
+	beforeCreate func(context.Context, *CategoryCreateInput) error
+	afterCreate  func(context.Context, *Category) error
+}
+
+func (d *CategoryDelegate) BeforeCreate(hook func(context.Context, *CategoryCreateInput) error) {
+	d.beforeCreate = hook
+}
+
+func (d *CategoryDelegate) AfterCreate(hook func(context.Context, *Category) error) {
+	d.afterCreate = hook
 }
 
 func (m *Category) ScanFields(cols []string) []any {
@@ -129,6 +139,12 @@ func (d *CategoryDelegate) Create(input CategoryCreateInput) *CreateBuilder[Cate
 }
 
 func (q *Queries) executeCategoryCreate(ctx context.Context, input CategoryCreateInput, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+	if q.Category.beforeCreate != nil {
+		if err := q.Category.beforeCreate(ctx, &input); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -161,6 +177,12 @@ func (q *Queries) executeCategoryCreate(ctx context.Context, input CategoryCreat
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if q.Category.afterCreate != nil {
+		if err := q.Category.afterCreate(ctx, res); err != nil {
+			return nil, err
+		}
 	}
 
 	return res, nil

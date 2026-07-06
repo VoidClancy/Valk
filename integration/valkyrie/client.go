@@ -161,16 +161,35 @@ func Open(provider, dataSourceName string) (*DB, error) {
 		dialect:  sqliteDialect{},
 		UserRole: UserRole,
 	}
+	q.initDelegates()
+	return &DB{
+		Queries: q,
+		sqlDB:   sqlDB,
+	}, nil
+}
+
+func (q *Queries) initDelegates() {
 	q.User = &UserDelegate{client: q}
 	q.Profile = &ProfileDelegate{client: q}
 	q.Post = &PostDelegate{client: q}
 	q.Comment = &CommentDelegate{client: q}
 	q.Category = &CategoryDelegate{client: q}
 	q.CategoryToPost = &CategoryToPostDelegate{client: q}
-	return &DB{
-		Queries: q,
-		sqlDB:   sqlDB,
-	}, nil
+}
+
+func (q *Queries) copyHooksFrom(other *Queries) {
+	q.User.beforeCreate = other.User.beforeCreate
+	q.User.afterCreate = other.User.afterCreate
+	q.Profile.beforeCreate = other.Profile.beforeCreate
+	q.Profile.afterCreate = other.Profile.afterCreate
+	q.Post.beforeCreate = other.Post.beforeCreate
+	q.Post.afterCreate = other.Post.afterCreate
+	q.Comment.beforeCreate = other.Comment.beforeCreate
+	q.Comment.afterCreate = other.Comment.afterCreate
+	q.Category.beforeCreate = other.Category.beforeCreate
+	q.Category.afterCreate = other.Category.afterCreate
+	q.CategoryToPost.beforeCreate = other.CategoryToPost.beforeCreate
+	q.CategoryToPost.afterCreate = other.CategoryToPost.afterCreate
 }
 
 // Close closes the database connection.
@@ -255,12 +274,8 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 		dialect:  q.dialect,
 		UserRole: q.UserRole,
 	}
-	txQueries.User = &UserDelegate{client: txQueries}
-	txQueries.Profile = &ProfileDelegate{client: txQueries}
-	txQueries.Post = &PostDelegate{client: txQueries}
-	txQueries.Comment = &CommentDelegate{client: txQueries}
-	txQueries.Category = &CategoryDelegate{client: txQueries}
-	txQueries.CategoryToPost = &CategoryToPostDelegate{client: txQueries}
+	txQueries.initDelegates()
+	txQueries.copyHooksFrom(q)
 
 	if err := fn(txQueries); err != nil {
 		_ = tx.Rollback()
@@ -286,12 +301,8 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 		dialect:  db.dialect,
 		UserRole: db.UserRole,
 	}
-	q.User = &UserDelegate{client: q}
-	q.Profile = &ProfileDelegate{client: q}
-	q.Post = &PostDelegate{client: q}
-	q.Comment = &CommentDelegate{client: q}
-	q.Category = &CategoryDelegate{client: q}
-	q.CategoryToPost = &CategoryToPostDelegate{client: q}
+	q.initDelegates()
+	q.copyHooksFrom(db.Queries)
 	return &Tx{
 		Queries: q,
 		tx:      sqlTx,

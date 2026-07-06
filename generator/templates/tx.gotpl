@@ -20,9 +20,8 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 		{{ $enum.Name }}: db.{{ $enum.Name }},
 		{{- end }}
 	}
-	{{- range $model := .Schema.Models }}
-	q.{{ $model.Name }} = &{{ $model.Name }}Delegate{client: q}
-	{{- end }}
+	q.initDelegates()
+	q.copyHooksFrom(db.Queries)
 	return &Tx{
 		Queries: q,
 		tx:      sqlTx,

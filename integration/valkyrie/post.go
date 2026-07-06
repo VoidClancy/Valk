@@ -64,7 +64,17 @@ type PostOmit struct {
 }
 
 type PostDelegate struct {
-	client *Queries
+	client       *Queries
+	beforeCreate func(context.Context, *PostCreateInput) error
+	afterCreate  func(context.Context, *Post) error
+}
+
+func (d *PostDelegate) BeforeCreate(hook func(context.Context, *PostCreateInput) error) {
+	d.beforeCreate = hook
+}
+
+func (d *PostDelegate) AfterCreate(hook func(context.Context, *Post) error) {
+	d.afterCreate = hook
 }
 
 func (m *Post) ScanFields(cols []string) []any {
@@ -180,6 +190,12 @@ func (d *PostDelegate) Create(input PostCreateInput) *CreateBuilder[Post, PostCr
 }
 
 func (q *Queries) executePostCreate(ctx context.Context, input PostCreateInput, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	if q.Post.beforeCreate != nil {
+		if err := q.Post.beforeCreate(ctx, &input); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -212,6 +228,12 @@ func (q *Queries) executePostCreate(ctx context.Context, input PostCreateInput, 
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if q.Post.afterCreate != nil {
+		if err := q.Post.afterCreate(ctx, res); err != nil {
+			return nil, err
+		}
 	}
 
 	return res, nil

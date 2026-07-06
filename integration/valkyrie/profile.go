@@ -50,7 +50,17 @@ type ProfileOmit struct {
 }
 
 type ProfileDelegate struct {
-	client *Queries
+	client       *Queries
+	beforeCreate func(context.Context, *ProfileCreateInput) error
+	afterCreate  func(context.Context, *Profile) error
+}
+
+func (d *ProfileDelegate) BeforeCreate(hook func(context.Context, *ProfileCreateInput) error) {
+	d.beforeCreate = hook
+}
+
+func (d *ProfileDelegate) AfterCreate(hook func(context.Context, *Profile) error) {
+	d.afterCreate = hook
 }
 
 func (m *Profile) ScanFields(cols []string) []any {
@@ -147,6 +157,12 @@ func (d *ProfileDelegate) Create(input ProfileCreateInput) *CreateBuilder[Profil
 }
 
 func (q *Queries) executeProfileCreate(ctx context.Context, input ProfileCreateInput, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	if q.Profile.beforeCreate != nil {
+		if err := q.Profile.beforeCreate(ctx, &input); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -179,6 +195,12 @@ func (q *Queries) executeProfileCreate(ctx context.Context, input ProfileCreateI
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if q.Profile.afterCreate != nil {
+		if err := q.Profile.afterCreate(ctx, res); err != nil {
+			return nil, err
+		}
 	}
 
 	return res, nil

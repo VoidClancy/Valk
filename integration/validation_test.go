@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"sync"
@@ -446,4 +448,78 @@ func countAllUsers(t *testing.T, ctx context.Context, db *valkyrie.DB) int {
 		t.Fatalf("count query failed: %v", err)
 	}
 	return count
+}
+
+func TestCreate_Hooks(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	db.User.BeforeCreate(func(ctx context.Context, input *valkyrie.UserCreateInput) error {
+		if input.Email == "hook@example.com" {
+			input.PhoneNum = "+188888888"
+		}
+		return nil
+	})
+
+	var afterCalled bool
+	db.User.AfterCreate(func(ctx context.Context, u *valkyrie.User) error {
+		if u.Email == "hook@example.com" {
+			afterCalled = true
+		}
+		return nil
+	})
+
+	u, err := db.User.Create(valkyrie.UserCreateInput{
+		Email:    "hook@example.com",
+		PhoneNum: "+100000000", // Will be modified by hook
+	}).Exec(ctx)
+
+	if err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	if u.PhoneNum != "+188888888" {
+		t.Errorf("expected PhoneNum mutated to '+188888888', got %q", u.PhoneNum)
+	}
+
+	if !afterCalled {
+		t.Error("expected AfterCreate hook to be called")
+	}
+}
+
+func TestCreate_Hooks_PasswordHashing(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	db.User.BeforeCreate(func(ctx context.Context, input *valkyrie.UserCreateInput) error {
+		if input.Email == "hash@example.com" && input.Password != nil {
+
+			h := sha256.Sum256([]byte(*input.Password))
+			hashed := hex.EncodeToString(h[:])
+			input.Password = &hashed
+		}
+		return nil
+	})
+
+	rawPassword := "12345678"
+
+	u, err := db.User.Create(valkyrie.UserCreateInput{
+		Email:    "hash@example.com",
+		PhoneNum: "+199999999",
+		Password: &rawPassword,
+	}).Exec(ctx)
+
+	if err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	if u.Password == nil {
+		t.Fatal("expected Password field to be populated, got nil")
+	}
+
+	if *u.Password == rawPassword {
+		t.Errorf("expected Password to be hashed, got %q", *u.Password)
+	}
 }

@@ -24,6 +24,12 @@ func (d *{{ .Model.Name }}Delegate) Create(input {{ .Model.Name }}CreateInput) *
 }
 
 func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, input {{ .Model.Name }}CreateInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	if q.{{ .Model.Name }}.beforeCreate != nil {
+		if err := q.{{ .Model.Name }}.beforeCreate(ctx, &input); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -56,6 +62,12 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, input {{ .
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if q.{{ .Model.Name }}.afterCreate != nil {
+		if err := q.{{ .Model.Name }}.afterCreate(ctx, res); err != nil {
+			return nil, err
+		}
 	}
 
 	return res, nil
