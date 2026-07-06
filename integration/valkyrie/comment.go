@@ -69,7 +69,17 @@ type CommentOmit struct {
 }
 
 type CommentDelegate struct {
-	client *Queries
+	client       *Queries
+	beforeCreate func(context.Context, *CommentCreateInput) error
+	afterCreate  func(context.Context, *Comment) error
+}
+
+func (d *CommentDelegate) BeforeCreate(hook func(context.Context, *CommentCreateInput) error) {
+	d.beforeCreate = hook
+}
+
+func (d *CommentDelegate) AfterCreate(hook func(context.Context, *Comment) error) {
+	d.afterCreate = hook
 }
 
 func (m *Comment) ScanFields(cols []string) []any {
@@ -213,6 +223,12 @@ func (d *CommentDelegate) Create(input CommentCreateInput) *CreateBuilder[Commen
 }
 
 func (q *Queries) executeCommentCreate(ctx context.Context, input CommentCreateInput, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	if q.Comment.beforeCreate != nil {
+		if err := q.Comment.beforeCreate(ctx, &input); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -245,6 +261,12 @@ func (q *Queries) executeCommentCreate(ctx context.Context, input CommentCreateI
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if q.Comment.afterCreate != nil {
+		if err := q.Comment.afterCreate(ctx, res); err != nil {
+			return nil, err
+		}
 	}
 
 	return res, nil

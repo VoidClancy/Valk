@@ -36,7 +36,17 @@ type {{ .Model.Name }}Omit struct {
 }
 
 type {{ .Model.Name }}Delegate struct {
-	client *Queries
+	client       *Queries
+	beforeCreate func(context.Context, *{{ .Model.Name }}CreateInput) error
+	afterCreate  func(context.Context, *{{ .Model.Name }}) error
+}
+
+func (d *{{ .Model.Name }}Delegate) BeforeCreate(hook func(context.Context, *{{ .Model.Name }}CreateInput) error) {
+	d.beforeCreate = hook
+}
+
+func (d *{{ .Model.Name }}Delegate) AfterCreate(hook func(context.Context, *{{ .Model.Name }}) error) {
+	d.afterCreate = hook
 }
 
 func (m *{{ .Model.Name }}) ScanFields(cols []string) []any {

@@ -64,13 +64,24 @@ func Open(provider, dataSourceName string) (*DB, error) {
 		{{ $enum.Name }}: {{ $enum.Name }},
 		{{- end }}
 	}
-	{{- range $model := .Schema.Models }}
-	q.{{ $model.Name }} = &{{ $model.Name }}Delegate{client: q}
-	{{- end }}
+	q.initDelegates()
 	return &DB{
 		Queries: q,
 		sqlDB:   sqlDB,
 	}, nil
+}
+
+func (q *Queries) initDelegates() {
+	{{- range $model := .Schema.Models }}
+	q.{{ $model.Name }} = &{{ $model.Name }}Delegate{client: q}
+	{{- end }}
+}
+
+func (q *Queries) copyHooksFrom(other *Queries) {
+	{{- range $model := .Schema.Models }}
+	q.{{ $model.Name }}.beforeCreate = other.{{ $model.Name }}.beforeCreate
+	q.{{ $model.Name }}.afterCreate = other.{{ $model.Name }}.afterCreate
+	{{- end }}
 }
 
 // Close closes the database connection.
@@ -216,9 +227,8 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 		{{ $enum.Name }}: q.{{ $enum.Name }},
 		{{- end }}
 	}
-	{{- range $model := .Schema.Models }}
-	txQueries.{{ $model.Name }} = &{{ $model.Name }}Delegate{client: txQueries}
-	{{- end }}
+	txQueries.initDelegates()
+	txQueries.copyHooksFrom(q)
 
 	if err := fn(txQueries); err != nil {
 		{{- if hasLog "query" }}
