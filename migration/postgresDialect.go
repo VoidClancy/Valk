@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"valkyrie/schema"
+	"valk/schema"
 
 	"ariga.io/atlas/sql/migrate"
 	"ariga.io/atlas/sql/postgres"

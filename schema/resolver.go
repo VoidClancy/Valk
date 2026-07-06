@@ -2,7 +2,7 @@ package schema
 
 import (
 	"fmt"
-	providers "valkyrie/dbProviders"
+	providers "valk/dbProviders"
 )
 
 type PSLTypeMapping struct {

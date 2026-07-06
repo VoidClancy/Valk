@@ -8,8 +8,8 @@ type {{ .Model.Name }} struct {
 	{{- end }}
 }
 
-// {{ .Model.Name }}CreateInput represents the input structure for creation
-type {{ .Model.Name }}CreateInput struct {
+// {{ .Model.Name }}Create represents the input structure for creation
+type {{ .Model.Name }}Create struct {
 	{{- range $field := .Model.ScalarFields }}
 	{{ capitalize $field.Name }} {{ if $field.EnumRef }}{{ if $field.IsArray }}[]{{ $field.EnumRef.Name }}Type{{ else }}*{{ $field.EnumRef.Name }}Type{{ end }}{{ else }}{{ if $field.IsArray }}{{ $field.GoType }}{{ else }}{{ if and (ne $field.Default nil) (not $field.Optional) }}*{{ end }}{{ $field.GoType }}{{ end }}{{ end }} `json:"{{ $field.Name }}"`
 	{{- end }}
@@ -37,11 +37,11 @@ type {{ .Model.Name }}Omit struct {
 
 type {{ .Model.Name }}Delegate struct {
 	client       *Queries
-	beforeCreate func(context.Context, *{{ .Model.Name }}CreateInput) error
+	beforeCreate func(context.Context, *{{ .Model.Name }}Create) error
 	afterCreate  func(context.Context, *{{ .Model.Name }}) error
 }
 
-func (d *{{ .Model.Name }}Delegate) BeforeCreate(hook func(context.Context, *{{ .Model.Name }}CreateInput) error) {
+func (d *{{ .Model.Name }}Delegate) BeforeCreate(hook func(context.Context, *{{ .Model.Name }}Create) error) {
 	d.beforeCreate = hook
 }
 
@@ -94,7 +94,7 @@ func (q *Queries) select{{ .Model.Name }}Cols(selects *{{ .Model.Name }}Select, 
 	return cols
 }
 
-func (input {{ .Model.Name }}CreateInput) Validate() error {
+func (input {{ .Model.Name }}Create) Validate() error {
 	errs := &ValidationError{}
 
 	{{- range $field := .Model.ScalarFields }}

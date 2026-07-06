@@ -2,7 +2,7 @@ package generator
 
 import (
 	"strings"
-	"valkyrie/schema"
+	"valk/schema"
 )
 
 func capitalize(s string) string {

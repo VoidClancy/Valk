@@ -10,8 +10,8 @@ import (
 	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"
 
-	providers "valkyrie/dbProviders"
-	vs "valkyrie/schema"
+	providers "valk/dbProviders"
+	vs "valk/schema"
 )
 
 // Helper: Open unique SQLite in-memory database

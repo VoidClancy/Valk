@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"integration/valkyrie"
+	"integration/valk"
 	"testing"
 )
 
@@ -14,7 +14,7 @@ func TestCreateMany(t *testing.T) {
 	defer cleanup()
 
 	t.Run("CreateMany returns correct count", func(t *testing.T) {
-		count, err := client.User.CreateMany([]valkyrie.UserCreateInput{
+		count, err := client.User.CreateMany([]valk.UserCreate{
 			{
 				Email:    "bulk1@example.com",
 				PhoneNum: "+111",
@@ -48,7 +48,7 @@ func TestCreateMany(t *testing.T) {
 	})
 
 	t.Run("CreateManyAndReturn works and supports Select", func(t *testing.T) {
-		author, err := client.User.Create(valkyrie.UserCreateInput{
+		author, err := client.User.Create(valk.UserCreate{
 			Email:    "author@example.com",
 			PhoneNum: "+444",
 		}).Exec(ctx)
@@ -56,7 +56,7 @@ func TestCreateMany(t *testing.T) {
 			t.Fatalf("failed to create author: %v", err)
 		}
 
-		posts, err := client.Post.CreateManyAndReturn([]valkyrie.PostCreateInput{
+		posts, err := client.Post.CreateManyAndReturn([]valk.PostCreate{
 			{
 				Title:    "Post One",
 				AuthorId: author.Id,
@@ -65,10 +65,10 @@ func TestCreateMany(t *testing.T) {
 				Title:    "Post Two",
 				AuthorId: author.Id,
 			},
-		}).Select(valkyrie.PostSelect{
+		}).Select(valk.PostSelect{
 			Id:    true,
 			Title: true,
-			Author: &valkyrie.UserSelect{
+			Author: &valk.UserSelect{
 				Email: true,
 			},
 		}).Exec(ctx)

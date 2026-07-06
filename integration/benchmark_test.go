@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"integration/valkyrie"
+	"integration/valk"
 	"strconv"
 	"testing"
 	"time"
@@ -59,7 +59,7 @@ func TestCreationBenchmark(t *testing.T) {
 	t.Logf("Running %d iterations of ORM Create...", iterations)
 	startORM := time.Now()
 	for i := range iterations {
-		_, err := db.User.Create(valkyrie.UserCreateInput{
+		_, err := db.User.Create(valk.UserCreate{
 			Email:    fmt.Sprintf("orm-%d@example.com", i),
 			PhoneNum: fmt.Sprintf("+54321%d", i),
 		}).Exec(ctx)
@@ -90,7 +90,7 @@ func TestCreationBenchmark(t *testing.T) {
 			t.Fatalf("Raw SQL write failed: %v", err)
 		}
 
-		var res valkyrie.User
+		var res valk.User
 		err = db.Raw().QueryRowContext(ctx,
 			query(
 				`SELECT "id", "email", "phoneNum", "role", "referredById" FROM "User" WHERE "id" = ?`,
@@ -112,7 +112,7 @@ func BenchmarkORMCreate(b *testing.B) {
 	ctx := context.Background()
 
 	for i := 0; b.Loop(); i++ {
-		_, err := db.User.Create(valkyrie.UserCreateInput{
+		_, err := db.User.Create(valk.UserCreate{
 			Email:    fmt.Sprintf("bench-orm-%d@example.com", i),
 			PhoneNum: fmt.Sprintf("+98765%d", i),
 		}).Exec(ctx)
@@ -168,7 +168,7 @@ func BenchmarkRawSQLCreateWithScan(b *testing.B) {
 			b.Fatalf("Raw SQL write failed: %v", err)
 		}
 
-		var res valkyrie.User
+		var res valk.User
 		err = db.Raw().QueryRowContext(ctx,
 			query(
 				`SELECT "id", "email", "phoneNum", "role", "referredById" FROM "User" WHERE "id" = ?`,

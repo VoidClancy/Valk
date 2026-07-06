@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"integration/valkyrie"
+	"integration/valk"
 	"strings"
 	"testing"
 )
@@ -12,7 +12,7 @@ func TestCreateBasic(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email:    "test@example.com",
 		PhoneNum: "+123456789",
 	}).Exec(ctx)
@@ -27,8 +27,8 @@ func TestCreateBasic(t *testing.T) {
 	if u.PhoneNum != "+123456789" {
 		t.Errorf("expected phoneNum '+123456789', got '%s'", u.PhoneNum)
 	}
-	if u.Role != valkyrie.UserRole.Student {
-		t.Errorf("expected role '%s' (default), got '%s'", valkyrie.UserRole.Student, u.Role)
+	if u.Role != valk.UserRole.Student {
+		t.Errorf("expected role '%s' (default), got '%s'", valk.UserRole.Student, u.Role)
 	}
 	if !strings.HasPrefix(u.Id, "c") || len(u.Id) < 10 {
 		t.Errorf("expected generated ID to be a CUID, got '%s'", u.Id)
@@ -54,13 +54,13 @@ func TestCreateWithSelect(t *testing.T) {
 	ctx := context.Background()
 
 	u, err := db.User.Create(
-		valkyrie.UserCreateInput{
+		valk.UserCreate{
 			Email:    "select@example.com",
 			PhoneNum: "+999999999",
-		}).Select(valkyrie.UserSelect{
+		}).Select(valk.UserSelect{
 		Id:    true,
 		Email: true,
-		Profile: &valkyrie.ProfileSelect{
+		Profile: &valk.ProfileSelect{
 			Id:  true,
 			Bio: true,
 		},
@@ -89,10 +89,10 @@ func TestCreateWithOmit(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email:    "omit@example.com",
 		PhoneNum: "+888888888",
-	}).Omit(valkyrie.UserOmit{
+	}).Omit(valk.UserOmit{
 		PhoneNum: true,
 	}).Exec(ctx)
 
@@ -106,8 +106,8 @@ func TestCreateWithOmit(t *testing.T) {
 	if u.Id == "" {
 		t.Errorf("expected non-empty ID")
 	}
-	if u.Role != valkyrie.UserRole.Student {
-		t.Errorf("expected non-omitted role '%s', got '%s'", valkyrie.UserRole.Student, u.Role)
+	if u.Role != valk.UserRole.Student {
+		t.Errorf("expected non-omitted role '%s', got '%s'", valk.UserRole.Student, u.Role)
 	}
 	if u.PhoneNum != "" {
 		t.Errorf("expected omitted phoneNum to be empty, got '%s'", u.PhoneNum)
@@ -119,9 +119,9 @@ func TestCreateWithCustomEnum(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	adminRole := valkyrie.UserRole.Admin
+	adminRole := valk.UserRole.Admin
 
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email:    "admin@example.com",
 		PhoneNum: "+000000000",
 		Role:     &adminRole,
@@ -131,8 +131,8 @@ func TestCreateWithCustomEnum(t *testing.T) {
 		t.Fatalf("failed to create admin: %v", err)
 	}
 
-	if u.Role != valkyrie.UserRole.Admin {
-		t.Errorf("expected role '%s', got '%s'", valkyrie.UserRole.Admin, u.Role)
+	if u.Role != valk.UserRole.Admin {
+		t.Errorf("expected role '%s', got '%s'", valk.UserRole.Admin, u.Role)
 	}
 }
 
@@ -142,7 +142,7 @@ func TestCreateValidation(t *testing.T) {
 	ctx := context.Background()
 
 	// basic required check
-	_, err := db.User.Create(valkyrie.UserCreateInput{
+	_, err := db.User.Create(valk.UserCreate{
 		// no email
 		PhoneNum: "+123456789",
 	}).Exec(ctx)
@@ -150,9 +150,9 @@ func TestCreateValidation(t *testing.T) {
 		t.Fatal("expected error creating user with empty required email, got nil")
 	}
 
-	valErr, ok := err.(valkyrie.ValidationError)
+	valErr, ok := err.(valk.ValidationError)
 	if !ok {
-		t.Fatalf("expected error to be valkyrie.ValidationError, got type %T: %v", err, err)
+		t.Fatalf("expected error to be valk.ValidationError, got type %T: %v", err, err)
 	}
 
 	foundEmailErr := false
@@ -166,8 +166,8 @@ func TestCreateValidation(t *testing.T) {
 	}
 
 	// invalid enum
-	invalidRole := valkyrie.UserRoleType("INVALID_ROLE")
-	_, err = db.User.Create(valkyrie.UserCreateInput{
+	invalidRole := valk.UserRoleType("INVALID_ROLE")
+	_, err = db.User.Create(valk.UserCreate{
 		Email:    "invalid_role@example.com",
 		PhoneNum: "+123456789",
 		Role:     &invalidRole,
@@ -175,9 +175,9 @@ func TestCreateValidation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error creating user with invalid enum role, got nil")
 	}
-	valErr2, ok := err.(valkyrie.ValidationError)
+	valErr2, ok := err.(valk.ValidationError)
 	if !ok {
-		t.Fatalf("expected valkyrie.ValidationError, got %T: %v", err, err)
+		t.Fatalf("expected valk.ValidationError, got %T: %v", err, err)
 	}
 	foundRoleErr := false
 	for _, fErr := range valErr2.Errors {
@@ -190,32 +190,32 @@ func TestCreateValidation(t *testing.T) {
 	}
 
 	// Multi-error (no email + null-byte)
-	_, err = db.User.Create(valkyrie.UserCreateInput{
+	_, err = db.User.Create(valk.UserCreate{
 		// no email
 		PhoneNum: "phone\x00num",
 	}).Exec(ctx)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	valErr3, ok := err.(valkyrie.ValidationError)
+	valErr3, ok := err.(valk.ValidationError)
 	if !ok {
-		t.Fatalf("expected valkyrie.ValidationError, got: %v", err)
+		t.Fatalf("expected valk.ValidationError, got: %v", err)
 	}
 	if len(valErr3.Errors) < 2 {
 		t.Errorf("expected at least 2 errors aggregated, got %d: %v", len(valErr3.Errors), valErr3.Errors)
 	}
 
 	// UTF-8 validation
-	_, err = db.User.Create(valkyrie.UserCreateInput{
+	_, err = db.User.Create(valk.UserCreate{
 		Email:    "utf8@example.com",
 		PhoneNum: "invalid\xffutf8",
 	}).Exec(ctx)
 	if err == nil {
 		t.Fatal("expected error for invalid UTF-8, got nil")
 	}
-	valErr4, ok := err.(valkyrie.ValidationError)
+	valErr4, ok := err.(valk.ValidationError)
 	if !ok {
-		t.Fatalf("expected valkyrie.ValidationError, got: %v", err)
+		t.Fatalf("expected valk.ValidationError, got: %v", err)
 	}
 	foundSafetyErr := false
 	for _, fErr := range valErr4.Errors {
