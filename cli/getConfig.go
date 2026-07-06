@@ -35,9 +35,9 @@ type OutputConfig struct {
 
 func GetConfig() *Config {
 	var config Config
-	configFile, err := os.ReadFile("valkyrie.json")
+	configFile, err := os.ReadFile("valk.json")
 	if err != nil {
-		log.Fatal("valkyrie.json not found")
+		log.Fatal("valk.json not found")
 		return nil
 	}
 
@@ -52,7 +52,7 @@ func GetConfig() *Config {
 			// hasAll = true
 		}
 		if !slices.Contains(LogLevels, l) && l != "all" {
-			log.Fatalf("invalid log level in valkyrie.json: %q (must be one of: query, info, warn, error, all)", l)
+			log.Fatalf("invalid log level in valk.json: %q (must be one of: query, info, warn, error, all)", l)
 			return nil
 		}
 	}

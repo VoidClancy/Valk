@@ -12,7 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"integration/valkyrie"
+	"integration/valk"
 )
 
 func TestCreate_DuplicateEmail_Rejected(t *testing.T) {
@@ -20,14 +20,14 @@ func TestCreate_DuplicateEmail_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	input := valkyrie.UserCreateInput{Email: "dupe@example.com", PhoneNum: "+100000001"}
+	input := valk.UserCreate{Email: "dupe@example.com", PhoneNum: "+100000001"}
 
 	if _, err := db.User.Create(input).Exec(ctx); err != nil {
 		t.Fatalf("first insert should succeed, got: %v", err)
 	}
 
 	// Same email, different phoneNum, must still fail if email is unique
-	dupe := valkyrie.UserCreateInput{Email: "dupe@example.com", PhoneNum: "+100000002"}
+	dupe := valk.UserCreate{Email: "dupe@example.com", PhoneNum: "+100000002"}
 	if _, err := db.User.Create(dupe).Exec(ctx); err == nil {
 		t.Fatal("expected unique constraint violation on duplicate email, got nil error")
 	}
@@ -47,13 +47,13 @@ func TestCreate_DuplicateEmail_CaseVariants(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	if _, err := db.User.Create(valkyrie.UserCreateInput{
+	if _, err := db.User.Create(valk.UserCreate{
 		Email: "Case@Example.com", PhoneNum: "+100000003",
 	}).Exec(ctx); err != nil {
 		t.Fatalf("failed initial insert: %v", err)
 	}
 
-	_, err := db.User.Create(valkyrie.UserCreateInput{
+	_, err := db.User.Create(valk.UserCreate{
 		Email: "case@example.com", PhoneNum: "+100000004",
 	}).Exec(ctx)
 
@@ -65,14 +65,14 @@ func TestCreate_CompoundUnique_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	if _, err := db.User.Create(valkyrie.UserCreateInput{
+	if _, err := db.User.Create(valk.UserCreate{
 		Email: "a@example.com", PhoneNum: "+199999999",
 	}).Exec(ctx); err != nil {
 		t.Fatalf("first insert failed: %v", err)
 	}
 
 	// Same email + same phoneNum  hits @@unique([email, phoneNum]).
-	if _, err := db.User.Create(valkyrie.UserCreateInput{
+	if _, err := db.User.Create(valk.UserCreate{
 		Email: "a@example.com", PhoneNum: "+199999999",
 	}).Exec(ctx); err == nil {
 		t.Fatal("expected unique constraint violation on duplicate (email, phoneNum)")
@@ -84,7 +84,7 @@ func TestCreate_ZeroValueInput_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valkyrie.UserCreateInput{}).Exec(ctx)
+	_, err := db.User.Create(valk.UserCreate{}).Exec(ctx)
 	if err == nil {
 		t.Fatal("expected error creating user with entirely zero-value input (missing required email)")
 	}
@@ -95,7 +95,7 @@ func TestCreate_EmptyStringEmail_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valkyrie.UserCreateInput{
+	_, err := db.User.Create(valk.UserCreate{
 		Email: "", PhoneNum: "+100000005",
 	}).Exec(ctx)
 	if err == nil {
@@ -108,7 +108,7 @@ func TestCreate_WhitespaceOnlyEmail_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valkyrie.UserCreateInput{
+	_, err := db.User.Create(valk.UserCreate{
 		Email: "   ", PhoneNum: "+100000006",
 	}).Exec(ctx)
 
@@ -123,7 +123,7 @@ func TestCreate_ReferredBy_NonexistentID_Rejected(t *testing.T) {
 	ctx := context.Background()
 
 	fakeID := "clnonexistent00000000000"
-	_, err := db.User.Create(valkyrie.UserCreateInput{
+	_, err := db.User.Create(valk.UserCreate{
 		Email:        "orphan@example.com",
 		PhoneNum:     "+100000007",
 		ReferredById: &fakeID,
@@ -140,7 +140,7 @@ func TestCreate_ReferredBy_SelfReference_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email: "self@example.com", PhoneNum: "+100000008",
 	}).Exec(ctx)
 	if err != nil {
@@ -148,7 +148,7 @@ func TestCreate_ReferredBy_SelfReference_Rejected(t *testing.T) {
 	}
 
 	bReferrer := u.Id
-	b, err := db.User.Create(valkyrie.UserCreateInput{
+	b, err := db.User.Create(valk.UserCreate{
 		Email: "referred@example.com", PhoneNum: "+100000009", ReferredById: &bReferrer,
 	}).Exec(ctx)
 	if err != nil {
@@ -164,9 +164,9 @@ func TestCreate_InvalidEnumValue_BypassingTypeSystem(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	pffff := valkyrie.UserRoleType("totallyNotARole")
+	pffff := valk.UserRoleType("totallyNotARole")
 
-	_, err := db.User.Create(valkyrie.UserCreateInput{
+	_, err := db.User.Create(valk.UserCreate{
 		Email: "pffff-role@example.com", PhoneNum: "+100000010", Role: &pffff,
 	}).Exec(ctx)
 
@@ -180,13 +180,13 @@ func TestCreate_DefaultEnumAppliedWhenNil(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email: "noRole@example.com", PhoneNum: "+100000011", Role: nil,
 	}).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create: %v", err)
 	}
-	if u.Role != valkyrie.UserRole.Student {
+	if u.Role != valk.UserRole.Student {
 		t.Errorf("expected default role Student when Role is nil, got %q", u.Role)
 	}
 }
@@ -213,7 +213,7 @@ func TestCreate_StringEdgeCases(t *testing.T) {
 			defer cleanup()
 			ctx := context.Background()
 
-			u, err := db.User.Create(valkyrie.UserCreateInput{
+			u, err := db.User.Create(valk.UserCreate{
 				Email: tc.email, PhoneNum: tc.phone,
 			}).Exec(ctx)
 
@@ -245,7 +245,7 @@ func TestCreate_Select_ForceIncludesFK_EvenWhenNotExplicitlySelected(t *testing.
 	defer cleanup()
 	ctx := context.Background()
 
-	referrer, err := db.User.Create(valkyrie.UserCreateInput{
+	referrer, err := db.User.Create(valk.UserCreate{
 		Email: "referrer@example.com", PhoneNum: "+300000002",
 	}).Exec(ctx)
 	if err != nil {
@@ -253,11 +253,11 @@ func TestCreate_Select_ForceIncludesFK_EvenWhenNotExplicitlySelected(t *testing.
 	}
 
 	rid := referrer.Id
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email: "referredfk@example.com", PhoneNum: "+300000003", ReferredById: &rid,
-	}).Select(valkyrie.UserSelect{
+	}).Select(valk.UserSelect{
 		Id:         true,
-		ReferredBy: &valkyrie.UserSelect{Id: true},
+		ReferredBy: &valk.UserSelect{Id: true},
 		// ReferredById itself intenionally not selected
 	}).Exec(ctx)
 
@@ -278,9 +278,9 @@ func TestCreate_Select_EmptyStruct_ReturnsEverything(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email: "empty-select@example.com", PhoneNum: "+300000004",
-	}).Select(valkyrie.UserSelect{}).Exec(ctx)
+	}).Select(valk.UserSelect{}).Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("create failed: %v", err)
@@ -297,7 +297,7 @@ func TestCreate_ContextAlreadyCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel before the call even starts
 
-	_, err := db.User.Create(valkyrie.UserCreateInput{
+	_, err := db.User.Create(valk.UserCreate{
 		Email: "cancelled@example.com", PhoneNum: "+400000001",
 	}).Exec(ctx)
 
@@ -324,7 +324,7 @@ func TestCreate_ContextTimeout_DuringExec(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
 	defer cancel()
 
-	_, err := db.User.Create(valkyrie.UserCreateInput{
+	_, err := db.User.Create(valk.UserCreate{
 		Email: "timeout@example.com", PhoneNum: "+400000002",
 	}).Exec(ctx)
 
@@ -347,7 +347,7 @@ func TestCreate_ConcurrentDuplicateEmail_ExactlyOneWins(t *testing.T) {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
-			_, err := db.User.Create(valkyrie.UserCreateInput{
+			_, err := db.User.Create(valk.UserCreate{
 				Email:    "race@example.com",
 				PhoneNum: fmt.Sprintf("+50000%04d", n), // distinct phones so only email collides
 			}).Exec(ctx)
@@ -389,7 +389,7 @@ func TestCreate_ConcurrentUniqueIDs_NoCollision(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			u, err := db.User.Create(valkyrie.UserCreateInput{
+			u, err := db.User.Create(valk.UserCreate{
 				Email:    fmt.Sprintf("bulk%d@example.com", idx),
 				PhoneNum: fmt.Sprintf("+600%06d", idx),
 			}).Exec(ctx)
@@ -425,7 +425,7 @@ func TestCreate_FailurePartway_LeavesNoPartialRow(t *testing.T) {
 	fakeReferrer := "clDoesNotExist00000000000"
 	before := countAllUsers(t, ctx, db)
 
-	_, err := db.User.Create(valkyrie.UserCreateInput{
+	_, err := db.User.Create(valk.UserCreate{
 		Email:        "partial@example.com",
 		PhoneNum:     "+700000001",
 		ReferredById: &fakeReferrer,
@@ -441,7 +441,7 @@ func TestCreate_FailurePartway_LeavesNoPartialRow(t *testing.T) {
 	}
 }
 
-func countAllUsers(t *testing.T, ctx context.Context, db *valkyrie.DB) int {
+func countAllUsers(t *testing.T, ctx context.Context, db *valk.DB) int {
 	t.Helper()
 	var count int
 	if err := db.Raw().QueryRowContext(ctx, query("SELECT COUNT(*) FROM User", "SELECT COUNT(*) FROM \"User\"")).Scan(&count); err != nil {
@@ -455,7 +455,7 @@ func TestCreate_Hooks(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	db.User.BeforeCreate(func(ctx context.Context, input *valkyrie.UserCreateInput) error {
+	db.User.BeforeCreate(func(ctx context.Context, input *valk.UserCreate) error {
 		if input.Email == "hook@example.com" {
 			input.PhoneNum = "+188888888"
 		}
@@ -463,14 +463,14 @@ func TestCreate_Hooks(t *testing.T) {
 	})
 
 	var afterCalled bool
-	db.User.AfterCreate(func(ctx context.Context, u *valkyrie.User) error {
+	db.User.AfterCreate(func(ctx context.Context, u *valk.User) error {
 		if u.Email == "hook@example.com" {
 			afterCalled = true
 		}
 		return nil
 	})
 
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email:    "hook@example.com",
 		PhoneNum: "+100000000", // Will be modified by hook
 	}).Exec(ctx)
@@ -493,7 +493,7 @@ func TestCreate_Hooks_PasswordHashing(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	db.User.BeforeCreate(func(ctx context.Context, input *valkyrie.UserCreateInput) error {
+	db.User.BeforeCreate(func(ctx context.Context, input *valk.UserCreate) error {
 		if input.Email == "hash@example.com" && input.Password != nil {
 
 			h := sha256.Sum256([]byte(*input.Password))
@@ -505,7 +505,7 @@ func TestCreate_Hooks_PasswordHashing(t *testing.T) {
 
 	rawPassword := "12345678"
 
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email:    "hash@example.com",
 		PhoneNum: "+199999999",
 		Password: &rawPassword,

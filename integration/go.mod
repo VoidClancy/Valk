@@ -2,7 +2,7 @@ module integration
 
 go 1.26.4
 
-replace valkyrie => ../
+replace valk => ../
 
 require (
 	github.com/google/uuid v1.6.0

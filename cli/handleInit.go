@@ -6,8 +6,8 @@ import (
 )
 
 func handleInit() {
-	os.WriteFile("valkyrie.json", []byte(configFileContent), 0644)
-	fmt.Println("creating valkyrie.json ....")
+	os.WriteFile("valk.json", []byte(configFileContent), 0644)
+	fmt.Println("creating valk.json ....")
 }
 
 var configFileContent string = `
@@ -20,8 +20,8 @@ var configFileContent string = `
   "schema": "./schema.prisma",
 
   "output": {
-    "client": "./valkyrie",
-    "migrations": "./valkyrie/migrations"
+    "client": "./valk",
+    "migrations": "./valk/migrations"
   }
 }
 	`

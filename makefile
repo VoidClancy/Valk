@@ -11,17 +11,17 @@ bench:
 	cd integration && go test -bench=. -benchmem -benchtime=2s -count=3
 
 build: 
-	go build -o bin/valkyrie 
+	go build -o bin/valk 
 
 build-prod:
-	go build -ldflags="-s -w" -o bin/valkyrie
+	go build -ldflags="-s -w" -o bin/valk
 
 install: build
 	mkdir -p $(HOME)/go/bin
-	ln -sf $(shell pwd)/bin/valkyrie $(HOME)/go/bin/valkyrie
+	ln -sf $(shell pwd)/bin/valk $(HOME)/go/bin/valk
 
 run:
-	go build -o bin/valkyrie && ./bin/valkyrie
+	go build -o bin/valk && ./bin/valk
 
 test:
 	go test -v ./...
@@ -45,7 +45,7 @@ lint:
 	-$(shell go env GOPATH)/bin/gocritic check ./...
 
 integration-gen: build
-	cd integration && ../bin/valkyrie generate
+	cd integration && ../bin/valk generate
 
 integration-test: integration-gen
 	cd integration && go test -v ./...

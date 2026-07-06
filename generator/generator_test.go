@@ -3,7 +3,7 @@ package generator
 import (
 	"strings"
 	"testing"
-	"valkyrie/schema"
+	"valk/schema"
 )
 
 func TestGenerateClient_NativeDBConstraints(t *testing.T) {
@@ -41,7 +41,7 @@ func TestGenerateClient_NativeDBConstraints(t *testing.T) {
 		},
 	}
 
-	outputs, err := GenerateClient(sch, "valkyrie", "", "", nil)
+	outputs, err := GenerateClient(sch, "valk", "", "", nil)
 	if err != nil {
 		t.Fatalf("failed to generate client: %v", err)
 	}

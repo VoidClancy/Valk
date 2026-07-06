@@ -3,8 +3,8 @@ package migration
 import (
 	"fmt"
 	"strings"
-	providers "valkyrie/dbProviders"
-	vs "valkyrie/schema"
+	providers "valk/dbProviders"
+	vs "valk/schema"
 
 	"ariga.io/atlas/sql/postgres"
 	"ariga.io/atlas/sql/schema"

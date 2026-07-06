@@ -3,7 +3,7 @@ package schema
 import (
 	"encoding/json"
 	"fmt"
-	providers "valkyrie/dbProviders"
+	providers "valk/dbProviders"
 )
 
 type Severity int

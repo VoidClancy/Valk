@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"integration/valkyrie"
+	"integration/valk"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -15,7 +15,7 @@ func TestRelationLoadChildHoldsFK(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email:    "parent@example.com",
 		PhoneNum: "+111111111",
 	}).Exec(ctx)
@@ -23,7 +23,7 @@ func TestRelationLoadChildHoldsFK(t *testing.T) {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	_, err = db.Post.Create(valkyrie.PostCreateInput{
+	_, err = db.Post.Create(valk.PostCreate{
 		Title:    "Post 1",
 		Content:  new("Content 1"),
 		AuthorId: u.Id,
@@ -31,7 +31,7 @@ func TestRelationLoadChildHoldsFK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create post 1: %v", err)
 	}
-	_, err = db.Post.Create(valkyrie.PostCreateInput{
+	_, err = db.Post.Create(valk.PostCreate{
 		Title:    "Post 2",
 		Content:  new("Content 2"),
 		AuthorId: u.Id,
@@ -40,7 +40,7 @@ func TestRelationLoadChildHoldsFK(t *testing.T) {
 		t.Fatalf("failed to create post 2: %v", err)
 	}
 
-	_, err = db.Profile.Create(valkyrie.ProfileCreateInput{
+	_, err = db.Profile.Create(valk.ProfileCreate{
 		Bio:    new("My bio"),
 		UserId: u.Id,
 	}).Exec(ctx)
@@ -48,17 +48,17 @@ func TestRelationLoadChildHoldsFK(t *testing.T) {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
-	u2, err := db.User.Create(valkyrie.UserCreateInput{
+	u2, err := db.User.Create(valk.UserCreate{
 		Email:    "parent2@example.com",
 		PhoneNum: "+222222222",
-	}).Select(valkyrie.UserSelect{
+	}).Select(valk.UserSelect{
 		Id:    true,
 		Email: true,
-		Posts: &valkyrie.PostSelect{
+		Posts: &valk.PostSelect{
 			Id:    true,
 			Title: true,
 		},
-		Profile: &valkyrie.ProfileSelect{
+		Profile: &valk.ProfileSelect{
 			Id:  true,
 			Bio: true,
 		},
@@ -83,7 +83,7 @@ func TestRelationLoadParentHoldsFK(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email:    "author@example.com",
 		PhoneNum: "+222222222",
 	}).Exec(ctx)
@@ -91,14 +91,14 @@ func TestRelationLoadParentHoldsFK(t *testing.T) {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	p, err := db.Post.Create(valkyrie.PostCreateInput{
+	p, err := db.Post.Create(valk.PostCreate{
 		Title:    "My Post",
 		AuthorId: u.Id,
-	}).Select(valkyrie.PostSelect{
+	}).Select(valk.PostSelect{
 		Id:       true,
 		Title:    true,
 		AuthorId: true,
-		Author: &valkyrie.UserSelect{
+		Author: &valk.UserSelect{
 			Id:    true,
 			Email: true,
 		},
@@ -129,7 +129,7 @@ func TestRelationLoadSelfRelation(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	referrer, err := db.User.Create(valkyrie.UserCreateInput{
+	referrer, err := db.User.Create(valk.UserCreate{
 		Email:    "referrer@example.com",
 		PhoneNum: "+333333333",
 	}).Exec(ctx)
@@ -137,15 +137,15 @@ func TestRelationLoadSelfRelation(t *testing.T) {
 		t.Fatalf("failed to create referrer: %v", err)
 	}
 
-	referred, err := db.User.Create(valkyrie.UserCreateInput{
+	referred, err := db.User.Create(valk.UserCreate{
 		Email:        "referred@example.com",
 		PhoneNum:     "+444444444",
 		ReferredById: &referrer.Id,
-	}).Select(valkyrie.UserSelect{
+	}).Select(valk.UserSelect{
 		Id:           true,
 		Email:        true,
 		ReferredById: true,
-		ReferredBy: &valkyrie.UserSelect{
+		ReferredBy: &valk.UserSelect{
 			Id:    true,
 			Email: true,
 		},
@@ -173,7 +173,7 @@ func TestRelationLoadDeepNesting(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valkyrie.UserCreateInput{
+	u, err := db.User.Create(valk.UserCreate{
 		Email:    "deep@example.com",
 		PhoneNum: "+555555555",
 	}).Exec(ctx)
@@ -181,7 +181,7 @@ func TestRelationLoadDeepNesting(t *testing.T) {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	p, err := db.Post.Create(valkyrie.PostCreateInput{
+	p, err := db.Post.Create(valk.PostCreate{
 		Title:    "Deep Post",
 		AuthorId: u.Id,
 	}).Exec(ctx)
@@ -189,7 +189,7 @@ func TestRelationLoadDeepNesting(t *testing.T) {
 		t.Fatalf("failed to create post: %v", err)
 	}
 
-	_, err = db.Comment.Create(valkyrie.CommentCreateInput{
+	_, err = db.Comment.Create(valk.CommentCreate{
 		Textify:  42,
 		Dummy3:   "d3",
 		Dummy1:   1,
@@ -201,19 +201,19 @@ func TestRelationLoadDeepNesting(t *testing.T) {
 		t.Fatalf("failed to create comment: %v", err)
 	}
 
-	p2, err := db.Post.Create(valkyrie.PostCreateInput{
+	p2, err := db.Post.Create(valk.PostCreate{
 		Title:    "Another Post",
 		AuthorId: u.Id,
-	}).Select(valkyrie.PostSelect{
+	}).Select(valk.PostSelect{
 		Id:    true,
 		Title: true,
-		Author: &valkyrie.UserSelect{
+		Author: &valk.UserSelect{
 			Id:    true,
 			Email: true,
-			Posts: &valkyrie.PostSelect{
+			Posts: &valk.PostSelect{
 				Id:    true,
 				Title: true,
-				Comments: &valkyrie.CommentSelect{
+				Comments: &valk.CommentSelect{
 					Id:      true,
 					Textify: true,
 				},
@@ -236,7 +236,7 @@ func TestRelationLoadDeepNesting(t *testing.T) {
 	if len(p2.Author.Posts) != 2 {
 		t.Fatalf("expected 2 posts on author, got %d", len(p2.Author.Posts))
 	}
-	var deepPost *valkyrie.Post
+	var deepPost *valk.Post
 	for _, post := range p2.Author.Posts {
 		if post.Title == "Deep Post" {
 			deepPost = post

@@ -6,7 +6,7 @@ import (
 	"go/format"
 	"path/filepath"
 	"text/template"
-	"valkyrie/schema"
+	"valk/schema"
 )
 
 //go:embed templates/*.gotpl

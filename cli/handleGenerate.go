@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"valkyrie/generator"
-	"valkyrie/schema"
+	"valk/generator"
+	"valk/schema"
 )
 
 func handleGenerate() {
@@ -44,7 +44,7 @@ func handleGenerate() {
 
 	pkgName := filepath.Base(config.Output.Client)
 	if pkgName == "." || pkgName == "" {
-		pkgName = "valkyrie"
+		pkgName = "valk"
 	}
 
 	outputs, err := generator.GenerateClient(*schemaDef, pkgName, embedRelDir, config.Output.Migrations, config.Log)

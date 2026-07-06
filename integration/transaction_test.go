@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"integration/valkyrie"
+	"integration/valk"
 	"testing"
 )
 
@@ -13,7 +13,7 @@ func TestTransactionCommit(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	err := db.Transaction(ctx, func(tx *valkyrie.Tx) error {
+	err := db.Transaction(ctx, func(tx *valk.Tx) error {
 		_, err := tx.Raw().ExecContext(ctx,
 			query(
 				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
@@ -46,7 +46,7 @@ func TestTransactionRollbackOnError(t *testing.T) {
 	ctx := context.Background()
 
 	expectedErr := errors.New("something went wrong")
-	err := db.Transaction(ctx, func(tx *valkyrie.Tx) error {
+	err := db.Transaction(ctx, func(tx *valk.Tx) error {
 		_, err := tx.Raw().ExecContext(ctx,
 			query(
 				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
@@ -105,7 +105,7 @@ func TestTransactionRollbackOnPanic(t *testing.T) {
 		}
 	}()
 
-	_ = db.Transaction(ctx, func(tx *valkyrie.Tx) error {
+	_ = db.Transaction(ctx, func(tx *valk.Tx) error {
 		_, err := tx.Raw().ExecContext(ctx,
 			query(
 				`INSERT INTO "User" ("id", "email", "phoneNum", "role") VALUES (?, ?, ?, ?)`,
@@ -187,7 +187,7 @@ func TestTransactionNestedErrorWrapping(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	err := db.Transaction(ctx, func(tx *valkyrie.Tx) error {
+	err := db.Transaction(ctx, func(tx *valk.Tx) error {
 		// invalid SQL to trigger a real SQL error
 		_, err := tx.Raw().ExecContext(ctx, "INSERT INTO NonExistentTable (id) VALUES (1)")
 		return err

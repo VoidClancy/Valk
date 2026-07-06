@@ -2,15 +2,22 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"integration/valkyrie"
+	"integration/valk"
 
 	"log"
 
 	_ "modernc.org/sqlite"
 )
 
+func hashPassword(pass string) string {
+	h := sha256.Sum256([]byte(pass))
+	return hex.EncodeToString(h[:])
+
+}
 func main() {
 
 	db := openConn()
@@ -23,17 +30,31 @@ func main() {
 
 	runMigrations(db, ctx)
 
-	author, err := db.User.Create(valkyrie.UserCreateInput{
+	db.User.BeforeCreate(func(ctx context.Context, i *valk.UserCreate) error {
+		if i.Password != nil {
+			hash := hashPassword(*i.Password)
+			i.Password = &hash
+			return nil
+		}
+		return nil
+	})
+
+	db.User.AfterCreate(func(ctx context.Context, u *valk.User) error {
+		fmt.Printf("HASHED PASS: %s \n", *u.Password)
+		return nil
+	})
+	author, err := db.User.Create(valk.UserCreate{
 		Email:    "clancySizer@gmail.com",
 		PhoneNum: "+1234567890",
-		Role:     &valkyrie.UserRole.Admin,
+		Password: new("veryStrongPassword"),
+		Role:     &valk.UserRole.Admin,
 	}).Exec(ctx)
 
 	if err != nil {
 		log.Fatalf("failed to create user: %v", err)
 	}
 
-	post, err := db.Post.Create(valkyrie.PostCreateInput{
+	post, err := db.Post.Create(valk.PostCreate{
 
 		Content:  new("eheheh"),
 		Title:    "some post",
@@ -45,29 +66,29 @@ func main() {
 
 	}
 
-	comment, err := db.Comment.Create(valkyrie.CommentCreateInput{
+	comment, err := db.Comment.Create(valk.CommentCreate{
 		Textify:  42,
 		Dummy3:   "d3",
 		Dummy1:   1,
 		Dummy2:   "d2",
 		PostId:   post.Id,
 		AuthorId: author.Id,
-	}).Select(valkyrie.CommentSelect{
+	}).Select(valk.CommentSelect{
 		Id:      true,
 		Textify: true,
 		Dummy3:  true,
 		Dummy1:  true,
 		Dummy2:  true,
 		PostId:  true,
-		Author:  &valkyrie.UserSelect{},
-		Post:    &valkyrie.PostSelect{},
+		Author:  &valk.UserSelect{},
+		Post:    &valk.PostSelect{},
 	}).Exec(ctx)
 
 	if err != nil {
 		log.Fatalf("failed to create user: %v", err)
 	}
 
-	usersCount, err := db.User.CreateMany([]valkyrie.UserCreateInput{
+	usersCount, err := db.User.CreateMany([]valk.UserCreate{
 		{Email: "cl@gm.com"}, {Email: "cc@gg.com"},
 	}).Exec(ctx)
 	fmt.Printf("\nCREATED %d USERS\n", usersCount)
@@ -75,20 +96,20 @@ func main() {
 	printJSON(comment)
 
 }
-func openConn() *valkyrie.DB {
-	db, err := valkyrie.Open("sqlite", "file::memory:?_pragma=foreign_keys(1)")
+func openConn() *valk.DB {
+	db, err := valk.Open("sqlite", "file::memory:?_pragma=foreign_keys(1)")
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)
 	}
 	return db
 }
 
-func runMigrations(db *valkyrie.DB, ctx context.Context) {
+func runMigrations(db *valk.DB, ctx context.Context) {
 	if err := db.RunMigrations(ctx); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 }
-func runManualTransaction(db *valkyrie.DB, ctx context.Context) {
+func runManualTransaction(db *valk.DB, ctx context.Context) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		fmt.Printf("Manual Transaction: failed to begin: %v", err)
@@ -97,7 +118,7 @@ func runManualTransaction(db *valkyrie.DB, ctx context.Context) {
 	defer tx.Rollback()
 
 	fmt.Println("Manual Transaction: started successfully")
-	author, err := tx.User.Create(valkyrie.UserCreateInput{
+	author, err := tx.User.Create(valk.UserCreate{
 		Email:    "clancySizer@gmail.com",
 		PhoneNum: "+1234567890",
 	}).Exec(ctx)
@@ -107,13 +128,13 @@ func runManualTransaction(db *valkyrie.DB, ctx context.Context) {
 
 	}
 
-	postWithAuthor, err := tx.Post.Create(valkyrie.PostCreateInput{
+	postWithAuthor, err := tx.Post.Create(valk.PostCreate{
 		Title:    "A Post",
 		AuthorId: author.Id,
-	}).Select(valkyrie.PostSelect{
+	}).Select(valk.PostSelect{
 		Id:    true,
 		Title: true,
-		Author: &valkyrie.UserSelect{
+		Author: &valk.UserSelect{
 
 			Email: true,
 		},
@@ -136,11 +157,11 @@ func runManualTransaction(db *valkyrie.DB, ctx context.Context) {
 
 }
 
-func runBlockBasedTransaction(db *valkyrie.DB, ctx context.Context) {
-	err := db.Transaction(ctx, func(tx *valkyrie.Tx) error {
+func runBlockBasedTransaction(db *valk.DB, ctx context.Context) {
+	err := db.Transaction(ctx, func(tx *valk.Tx) error {
 		fmt.Println("Block-based Transaction: started successfully")
 
-		author, err := tx.User.Create(valkyrie.UserCreateInput{
+		author, err := tx.User.Create(valk.UserCreate{
 			Email:    "clancySizer@gmail.com",
 			PhoneNum: "+1234567890",
 		}).Exec(ctx)
@@ -148,13 +169,13 @@ func runBlockBasedTransaction(db *valkyrie.DB, ctx context.Context) {
 			return err
 		}
 
-		postWithAuthor, err := tx.Post.Create(valkyrie.PostCreateInput{
+		postWithAuthor, err := tx.Post.Create(valk.PostCreate{
 			Title:    "A Post",
 			AuthorId: author.Id,
-		}).Select(valkyrie.PostSelect{
+		}).Select(valk.PostSelect{
 			Id:    true,
 			Title: true,
-			Author: &valkyrie.UserSelect{
+			Author: &valk.UserSelect{
 
 				Email: true,
 			},

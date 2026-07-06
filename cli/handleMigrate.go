@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"valkyrie/migration"
-	"valkyrie/schema"
+	"valk/migration"
+	"valk/schema"
 
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
@@ -41,7 +41,7 @@ func handleMigrate(args []string) {
 
 	cfg := GetConfig()
 	if cfg == nil {
-		fmt.Println("Error: valkyrie.json not found or invalid")
+		fmt.Println("Error: valk.json not found or invalid")
 		os.Exit(1)
 	}
 

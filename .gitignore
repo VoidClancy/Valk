@@ -4,3 +4,4 @@ bin
 *.db
 .vscode
 docker-compose.yml
+api-example.gotpl
