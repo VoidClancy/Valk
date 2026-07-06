@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"valk/generator"
-	"valk/schema"
+	"github.com/voidclancy/valk/generator"
+	"github.com/voidclancy/valk/schema"
 )
 
 func handleGenerate() {

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	providers "valk/dbProviders"
-	vs "valk/schema"
+	providers "github.com/voidclancy/valk/dbProviders"
+	vs "github.com/voidclancy/valk/schema"
 
 	"ariga.io/atlas/sql/migrate"
 	"ariga.io/atlas/sql/schema"
