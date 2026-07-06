@@ -31,7 +31,7 @@ func TestCreate_DuplicateEmail_Rejected(t *testing.T) {
 	}
 
 	var count int
-	if err := db.Raw().QueryRowContext(ctx, "SELECT COUNT(*) FROM User WHERE email = ?", "dupe@example.com").Scan(&count); err != nil {
+	if err := db.Raw().QueryRowContext(ctx, query("SELECT COUNT(*) FROM User WHERE email = ?", "SELECT COUNT(*) FROM \"User\" WHERE email = $1"), "dupe@example.com").Scan(&count); err != nil {
 		t.Fatalf("failed count query: %v", err)
 	}
 	if count != 1 {
@@ -226,7 +226,7 @@ func TestCreate_StringEdgeCases(t *testing.T) {
 			}
 			if err == nil {
 				var stored string
-				qerr := db.Raw().QueryRowContext(ctx, "SELECT email FROM User WHERE id = ?", u.Id).Scan(&stored)
+				qerr := db.Raw().QueryRowContext(ctx, query("SELECT email FROM User WHERE id = ?", "SELECT email FROM \"User\" WHERE id = $1"), u.Id).Scan(&stored)
 				if qerr != nil {
 					t.Fatalf("failed to read back: %v", qerr)
 				}
@@ -306,7 +306,7 @@ func TestCreate_ContextAlreadyCancelled(t *testing.T) {
 	// Confirm nothing leaked through despite the cancelled context.
 	var count int
 	if qerr := db.Raw().QueryRowContext(context.Background(),
-		"SELECT COUNT(*) FROM User WHERE email = ?", "cancelled@example.com").Scan(&count); qerr != nil {
+		query("SELECT COUNT(*) FROM User WHERE email = ?", "SELECT COUNT(*) FROM \"User\" WHERE email = $1"), "cancelled@example.com").Scan(&count); qerr != nil {
 		t.Fatalf("count query failed: %v", qerr)
 	}
 	if count != 0 {
@@ -364,7 +364,7 @@ func TestCreate_ConcurrentDuplicateEmail_ExactlyOneWins(t *testing.T) {
 	}
 
 	var count int
-	if err := db.Raw().QueryRowContext(ctx, "SELECT COUNT(*) FROM User WHERE email = ?", "race@example.com").Scan(&count); err != nil {
+	if err := db.Raw().QueryRowContext(ctx, query("SELECT COUNT(*) FROM User WHERE email = ?", "SELECT COUNT(*) FROM \"User\" WHERE email = $1"), "race@example.com").Scan(&count); err != nil {
 		t.Fatalf("count query failed: %v", err)
 	}
 	if count != 1 {
@@ -442,7 +442,7 @@ func TestCreate_FailurePartway_LeavesNoPartialRow(t *testing.T) {
 func countAllUsers(t *testing.T, ctx context.Context, db *valkyrie.DB) int {
 	t.Helper()
 	var count int
-	if err := db.Raw().QueryRowContext(ctx, "SELECT COUNT(*) FROM User").Scan(&count); err != nil {
+	if err := db.Raw().QueryRowContext(ctx, query("SELECT COUNT(*) FROM User", "SELECT COUNT(*) FROM \"User\"")).Scan(&count); err != nil {
 		t.Fatalf("count query failed: %v", err)
 	}
 	return count
