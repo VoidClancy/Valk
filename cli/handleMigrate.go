@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"valk/migration"
-	"valk/schema"
+	"github.com/voidclancy/valk/migration"
+	"github.com/voidclancy/valk/schema"
 
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"

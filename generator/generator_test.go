@@ -3,7 +3,7 @@ package generator
 import (
 	"strings"
 	"testing"
-	"valk/schema"
+	"github.com/voidclancy/valk/schema"
 )
 
 func TestGenerateClient_NativeDBConstraints(t *testing.T) {

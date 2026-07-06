@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"valk/schema"
+	"github.com/voidclancy/valk/schema"
 
 	"ariga.io/atlas/sql/migrate"
 	"ariga.io/atlas/sql/sqlite"

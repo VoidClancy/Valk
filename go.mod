@@ -1,4 +1,4 @@
-module valk
+module github.com/voidclancy/valk
 
 go 1.26.4
 

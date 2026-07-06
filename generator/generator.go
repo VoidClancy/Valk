@@ -6,7 +6,7 @@ import (
 	"go/format"
 	"path/filepath"
 	"text/template"
-	"valk/schema"
+	"github.com/voidclancy/valk/schema"
 )
 
 //go:embed templates/*.gotpl
