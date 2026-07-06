@@ -48,6 +48,8 @@ jobs:
         PG_URL="${{ secrets.PG_DATABASE_URL }}"
         if [ -z "$PG_URL" ]; then
           PG_URL="postgres://testuser:testpassword@localhost:5432/valk_test?sslmode=disable"
+        else
+          PG_URL="${PG_URL/valkyrie_test/valk_test}"
         fi
         sed -i 's/provider = "sqlite"/provider = "postgres"/' integration/schema.prisma
         rm -f integration/valk/migrations/*.sql
