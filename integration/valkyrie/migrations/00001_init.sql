@@ -10,6 +10,7 @@ CREATE TABLE `User` (
   CONSTRAINT `User_role_check` CHECK ("role" IN ('ADMIN', 'student', 'TEACHER'))
 );
 CREATE UNIQUE INDEX `User_email_key` ON `User` (`email`);
+CREATE UNIQUE INDEX `User_phoneNum_key` ON `User` (`phoneNum`);
 CREATE UNIQUE INDEX `User_email_phoneNum_key` ON `User` (`email`, `phoneNum`);
 CREATE TABLE `Profile` (
   `id` text NOT NULL,

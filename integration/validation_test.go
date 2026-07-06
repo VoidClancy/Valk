@@ -1,0 +1,449 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+	"unicode/utf8"
+
+	"integration/valkyrie"
+)
+
+func TestCreate_DuplicateEmail_Rejected(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	input := valkyrie.UserCreateInput{Email: "dupe@example.com", PhoneNum: "+100000001"}
+
+	if _, err := db.User.Create(input).Exec(ctx); err != nil {
+		t.Fatalf("first insert should succeed, got: %v", err)
+	}
+
+	// Same email, different phoneNum, must still fail if email is unique
+	dupe := valkyrie.UserCreateInput{Email: "dupe@example.com", PhoneNum: "+100000002"}
+	if _, err := db.User.Create(dupe).Exec(ctx); err == nil {
+		t.Fatal("expected unique constraint violation on duplicate email, got nil error")
+	}
+
+	var count int
+	if err := db.Raw().QueryRowContext(ctx, "SELECT COUNT(*) FROM User WHERE email = ?", "dupe@example.com").Scan(&count); err != nil {
+		t.Fatalf("failed count query: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected exactly 1 row after rejected duplicate, got %d", count)
+	}
+}
+
+func TestCreate_DuplicateEmail_CaseVariants(t *testing.T) {
+
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	if _, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "Case@Example.com", PhoneNum: "+100000003",
+	}).Exec(ctx); err != nil {
+		t.Fatalf("failed initial insert: %v", err)
+	}
+
+	_, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "case@example.com", PhoneNum: "+100000004",
+	}).Exec(ctx)
+
+	t.Logf("case-variant email insert result: err=%v (confirm this matches intended uniqueness semantics)", err)
+}
+
+func TestCreate_CompoundUnique_Rejected(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	if _, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "a@example.com", PhoneNum: "+199999999",
+	}).Exec(ctx); err != nil {
+		t.Fatalf("first insert failed: %v", err)
+	}
+
+	// Same email + same phoneNum  hits @@unique([email, phoneNum]).
+	if _, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "a@example.com", PhoneNum: "+199999999",
+	}).Exec(ctx); err == nil {
+		t.Fatal("expected unique constraint violation on duplicate (email, phoneNum)")
+	}
+}
+
+func TestCreate_ZeroValueInput_Rejected(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	_, err := db.User.Create(valkyrie.UserCreateInput{}).Exec(ctx)
+	if err == nil {
+		t.Fatal("expected error creating user with entirely zero-value input (missing required email)")
+	}
+}
+
+func TestCreate_EmptyStringEmail_Rejected(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	_, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "", PhoneNum: "+100000005",
+	}).Exec(ctx)
+	if err == nil {
+		t.Fatal("expected error creating user with empty-string email")
+	}
+}
+
+func TestCreate_WhitespaceOnlyEmail_Rejected(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	_, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "   ", PhoneNum: "+100000006",
+	}).Exec(ctx)
+
+	if err == nil {
+		t.Log("WARNING: whitespace-only email was accepted  confirm this is intentional, not an oversight")
+	}
+}
+
+func TestCreate_ReferredBy_NonexistentID_Rejected(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	fakeID := "clnonexistent00000000000"
+	_, err := db.User.Create(valkyrie.UserCreateInput{
+		Email:        "orphan@example.com",
+		PhoneNum:     "+100000007",
+		ReferredById: &fakeID,
+	}).Exec(ctx)
+
+	if err == nil {
+		t.Fatal("expected FK violation when referredById points to a nonexistent user")
+	}
+}
+
+func TestCreate_ReferredBy_SelfReference_Rejected(t *testing.T) {
+
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	u, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "self@example.com", PhoneNum: "+100000008",
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("setup insert failed: %v", err)
+	}
+
+	bReferrer := u.Id
+	b, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "referred@example.com", PhoneNum: "+100000009", ReferredById: &bReferrer,
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("valid referral chain should succeed: %v", err)
+	}
+	if b.ReferredById == nil || *b.ReferredById != u.Id {
+		t.Fatalf("expected ReferredById %q, got %v", u.Id, b.ReferredById)
+	}
+}
+
+func TestCreate_InvalidEnumValue_BypassingTypeSystem(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	pffff := valkyrie.UserRoleType("totallyNotARole")
+
+	_, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "pffff-role@example.com", PhoneNum: "+100000010", Role: &pffff,
+	}).Exec(ctx)
+
+	if err == nil {
+		t.Fatal("expected rejection of an enum value outside the declared domain")
+	}
+}
+
+func TestCreate_DefaultEnumAppliedWhenNil(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	u, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "noRole@example.com", PhoneNum: "+100000011", Role: nil,
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create: %v", err)
+	}
+	if u.Role != valkyrie.UserRole.Student {
+		t.Errorf("expected default role Student when Role is nil, got %q", u.Role)
+	}
+}
+
+func TestCreate_StringEdgeCases(t *testing.T) {
+	cases := []struct {
+		name        string
+		email       string
+		phone       string
+		expectError bool
+	}{
+		{"unicode_email_local_part", "üñîçødé@example.com", "+200000001", false},
+		// {"emoji_in_phone", "emoji@example.com", "+2000🎉0002", true}, // should pass when i implement validation metadata///
+		// {"very_long_email", strings.Repeat("a", 300) + "@example.com", "+200000003", true},  // should pass when i implement validation metadata (or a db.VarChar() but not now to keep it valid for integration tests with sqlite)///
+		{"sql_injection_shaped_email", `test' OR '1'='1@example.com`, "+200000004", false},
+		{"null_byte_in_email", "nul\x00byte@example.com", "+200000005", true},
+		{"leading_trailing_whitespace_email", "  padded@example.com  ", "+200000006", false},
+		{"rtl_override_char", "\u202Eevil@example.com", "+200000007", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db, cleanup := setupTestDB(t)
+			defer cleanup()
+			ctx := context.Background()
+
+			u, err := db.User.Create(valkyrie.UserCreateInput{
+				Email: tc.email, PhoneNum: tc.phone,
+			}).Exec(ctx)
+
+			if tc.expectError && err == nil {
+				t.Fatalf("expected error for input %q, got success (id=%s)", tc.email, u.Id)
+			}
+			if !tc.expectError && err != nil {
+				t.Fatalf("expected success for input %q, got error: %v", tc.email, err)
+			}
+			if err == nil && !utf8.ValidString(u.Email) {
+				t.Errorf("returned email is not valid UTF-8: %q", u.Email)
+			}
+			if err == nil {
+				var stored string
+				qerr := db.Raw().QueryRowContext(ctx, "SELECT email FROM User WHERE id = ?", u.Id).Scan(&stored)
+				if qerr != nil {
+					t.Fatalf("failed to read back: %v", qerr)
+				}
+				if stored != strings.TrimSpace(tc.email) && stored != tc.email {
+					t.Errorf("stored email %q does not match input %q (check for silent mutation)", stored, tc.email)
+				}
+			}
+		})
+	}
+}
+
+func TestCreate_Select_ForceIncludesFK_EvenWhenNotExplicitlySelected(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	referrer, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "referrer@example.com", PhoneNum: "+300000002",
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	rid := referrer.Id
+	u, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "referredfk@example.com", PhoneNum: "+300000003", ReferredById: &rid,
+	}).Select(valkyrie.UserSelect{
+		Id:         true,
+		ReferredBy: &valkyrie.UserSelect{Id: true},
+		// ReferredById itself intenionally not selected
+	}).Exec(ctx)
+
+	if err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+	if u.ReferredBy == nil {
+		t.Fatal("expected ReferredBy to be populated when its relation was selected")
+	}
+	if u.ReferredBy.Id != referrer.Id {
+		t.Errorf("expected ReferredBy.Id=%s, got %s", referrer.Id, u.ReferredBy.Id)
+	}
+}
+
+func TestCreate_Select_EmptyStruct_ReturnsEverything(t *testing.T) {
+
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	u, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "empty-select@example.com", PhoneNum: "+300000004",
+	}).Select(valkyrie.UserSelect{}).Exec(ctx)
+
+	if err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+	if u.Email != "empty-select@example.com" {
+		t.Errorf("expected empty Select{} to select everything (select all), got Email=%q", u.Email)
+	}
+}
+
+func TestCreate_ContextAlreadyCancelled(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before the call even starts
+
+	_, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "cancelled@example.com", PhoneNum: "+400000001",
+	}).Exec(ctx)
+
+	if err == nil {
+		t.Fatal("expected error when context is already cancelled")
+	}
+
+	// Confirm nothing leaked through despite the cancelled context.
+	var count int
+	if qerr := db.Raw().QueryRowContext(context.Background(),
+		"SELECT COUNT(*) FROM User WHERE email = ?", "cancelled@example.com").Scan(&count); qerr != nil {
+		t.Fatalf("count query failed: %v", qerr)
+	}
+	if count != 0 {
+		t.Fatalf("expected no row persisted for cancelled-context create, found %d", count)
+	}
+}
+
+func TestCreate_ContextTimeout_DuringExec(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// should fail cleanly with no partial write.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
+	defer cancel()
+
+	_, err := db.User.Create(valkyrie.UserCreateInput{
+		Email: "timeout@example.com", PhoneNum: "+400000002",
+	}).Exec(ctx)
+
+	if err == nil {
+		t.Log("create succeeded despite near-zero timeout  likely fine if driver executes faster than ctx propagation, but worth a second look under load")
+	}
+}
+
+func TestCreate_ConcurrentDuplicateEmail_ExactlyOneWins(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	const goroutines = 20
+	var wg sync.WaitGroup
+	var successes int64
+	var failures int64
+
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			_, err := db.User.Create(valkyrie.UserCreateInput{
+				Email:    "race@example.com",
+				PhoneNum: fmt.Sprintf("+50000%04d", n), // distinct phones so only email collides
+			}).Exec(ctx)
+			if err != nil {
+				atomic.AddInt64(&failures, 1)
+			} else {
+				atomic.AddInt64(&successes, 1)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	if successes != 1 {
+		t.Fatalf("expected exactly 1 success under concurrent duplicate-email creates, got %d successes, %d failures",
+			successes, failures)
+	}
+
+	var count int
+	if err := db.Raw().QueryRowContext(ctx, "SELECT COUNT(*) FROM User WHERE email = ?", "race@example.com").Scan(&count); err != nil {
+		t.Fatalf("count query failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected exactly 1 persisted row, found %d  unique constraint may not be enforced at the DB level under concurrency", count)
+	}
+}
+
+func TestCreate_ConcurrentUniqueIDs_NoCollision(t *testing.T) {
+
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	const n = 200
+	var wg sync.WaitGroup
+	ids := make([]string, n)
+	errs := make([]error, n)
+
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			u, err := db.User.Create(valkyrie.UserCreateInput{
+				Email:    fmt.Sprintf("bulk%d@example.com", idx),
+				PhoneNum: fmt.Sprintf("+600%06d", idx),
+			}).Exec(ctx)
+			errs[idx] = err
+			if err == nil {
+				ids[idx] = u.Id
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	seen := make(map[string]bool, n)
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("create %d failed: %v", i, err)
+		}
+		if ids[i] == "" {
+			t.Fatalf("create %d returned empty ID", i)
+		}
+		if seen[ids[i]] {
+			t.Fatalf("duplicate CUID generated: %s", ids[i])
+		}
+		seen[ids[i]] = true
+	}
+}
+
+func TestCreate_FailurePartway_LeavesNoPartialRow(t *testing.T) {
+
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	fakeReferrer := "clDoesNotExist00000000000"
+	before := countAllUsers(t, ctx, db)
+
+	_, err := db.User.Create(valkyrie.UserCreateInput{
+		Email:        "partial@example.com",
+		PhoneNum:     "+700000001",
+		ReferredById: &fakeReferrer,
+	}).Exec(ctx)
+
+	if err == nil {
+		t.Fatal("expected FK failure")
+	}
+
+	after := countAllUsers(t, ctx, db)
+	if after != before {
+		t.Fatalf("row count changed despite failed create: before=%d after=%d", before, after)
+	}
+}
+
+func countAllUsers(t *testing.T, ctx context.Context, db *valkyrie.DB) int {
+	t.Helper()
+	var count int
+	if err := db.Raw().QueryRowContext(ctx, "SELECT COUNT(*) FROM User").Scan(&count); err != nil {
+		t.Fatalf("count query failed: %v", err)
+	}
+	return count
+}

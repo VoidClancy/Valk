@@ -50,3 +50,42 @@ func generateCUID() string {
 func generateUUID() string {
 	return uuid.New().String()
 }
+
+// FieldError represents a single validation failure on a specific field.
+type FieldError struct {
+	Field string
+	Value any
+	Rule  string
+	Msg   string
+}
+
+func (e FieldError) Error() string {
+	return fmt.Sprintf("field %s: %s (value: %v, rule: %s)", e.Field, e.Msg, e.Value, e.Rule)
+}
+
+// ValidationError collects multiple validation errors during an operation.
+type ValidationError struct {
+	Errors []FieldError
+}
+
+func (e ValidationError) Error() string {
+	var msgs []string
+	for _, err := range e.Errors {
+		msgs = append(msgs, err.Error())
+	}
+	return fmt.Sprintf("validation failed: %s", strings.Join(msgs, "; "))
+}
+
+func (e *ValidationError) Add(field string, value any, rule string, msg string) {
+	e.Errors = append(e.Errors, FieldError{
+		Field: field,
+		Value: value,
+		Rule:  rule,
+		Msg:   msg,
+	})
+}
+
+func (e *ValidationError) HasErrors() bool {
+	return len(e.Errors) > 0
+}
+

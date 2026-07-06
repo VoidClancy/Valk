@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var _ = time.Time{}
@@ -15,6 +16,7 @@ var _ = strings.Join
 var _ = context.Background
 var _ = sql.LevelDefault
 var _ = slices.Contains[[]string, string]
+var _ = utf8.ValidString
 
 // Category represents the database model
 type Category struct {
@@ -89,8 +91,19 @@ func (q *Queries) selectCategoryCols(selects *CategorySelect, omits *CategoryOmi
 }
 
 func (input CategoryCreateInput) Validate() error {
+	errs := &ValidationError{}
 	if input.Name == "" {
-		return fmt.Errorf("field Name is required")
+		errs.Add("name", input.Name, "required", "field Name is required")
+	}
+	if strings.Contains(input.Name, "\x00") {
+		errs.Add("name", input.Name, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(input.Name) {
+		errs.Add("name", input.Name, "safety", "string must be valid UTF-8")
+	}
+
+	if errs.HasErrors() {
+		return *errs
 	}
 	return nil
 }

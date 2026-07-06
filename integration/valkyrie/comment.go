@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var _ = time.Time{}
@@ -15,6 +16,7 @@ var _ = strings.Join
 var _ = context.Background
 var _ = sql.LevelDefault
 var _ = slices.Contains[[]string, string]
+var _ = utf8.ValidString
 
 // Comment represents the database model
 type Comment struct {
@@ -132,17 +134,55 @@ func (q *Queries) selectCommentCols(selects *CommentSelect, omits *CommentOmit, 
 }
 
 func (input CommentCreateInput) Validate() error {
+	errs := &ValidationError{}
+	if input.Id != nil {
+		val := *input.Id
+		if strings.Contains(val, "\x00") {
+			errs.Add("id", val, "safety", "string cannot contain null bytes")
+		}
+		if !utf8.ValidString(val) {
+			errs.Add("id", val, "safety", "string must be valid UTF-8")
+		}
+	}
 	if input.Dummy3 == "" {
-		return fmt.Errorf("field Dummy3 is required")
+		errs.Add("dummy3", input.Dummy3, "required", "field Dummy3 is required")
+	}
+	if strings.Contains(input.Dummy3, "\x00") {
+		errs.Add("dummy3", input.Dummy3, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(input.Dummy3) {
+		errs.Add("dummy3", input.Dummy3, "safety", "string must be valid UTF-8")
 	}
 	if input.Dummy2 == "" {
-		return fmt.Errorf("field Dummy2 is required")
+		errs.Add("dummy2", input.Dummy2, "required", "field Dummy2 is required")
+	}
+	if strings.Contains(input.Dummy2, "\x00") {
+		errs.Add("dummy2", input.Dummy2, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(input.Dummy2) {
+		errs.Add("dummy2", input.Dummy2, "safety", "string must be valid UTF-8")
 	}
 	if input.PostId == "" {
-		return fmt.Errorf("field PostId is required")
+		errs.Add("postId", input.PostId, "required", "field PostId is required")
+	}
+	if strings.Contains(input.PostId, "\x00") {
+		errs.Add("postId", input.PostId, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(input.PostId) {
+		errs.Add("postId", input.PostId, "safety", "string must be valid UTF-8")
 	}
 	if input.AuthorId == "" {
-		return fmt.Errorf("field AuthorId is required")
+		errs.Add("authorId", input.AuthorId, "required", "field AuthorId is required")
+	}
+	if strings.Contains(input.AuthorId, "\x00") {
+		errs.Add("authorId", input.AuthorId, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(input.AuthorId) {
+		errs.Add("authorId", input.AuthorId, "safety", "string must be valid UTF-8")
+	}
+
+	if errs.HasErrors() {
+		return *errs
 	}
 	return nil
 }

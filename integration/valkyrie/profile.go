@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var _ = time.Time{}
@@ -15,6 +16,7 @@ var _ = strings.Join
 var _ = context.Background
 var _ = sql.LevelDefault
 var _ = slices.Contains[[]string, string]
+var _ = utf8.ValidString
 
 // Profile represents the database model
 type Profile struct {
@@ -97,8 +99,28 @@ func (q *Queries) selectProfileCols(selects *ProfileSelect, omits *ProfileOmit, 
 }
 
 func (input ProfileCreateInput) Validate() error {
+	errs := &ValidationError{}
+	if input.Id != nil {
+		val := *input.Id
+		if strings.Contains(val, "\x00") {
+			errs.Add("id", val, "safety", "string cannot contain null bytes")
+		}
+		if !utf8.ValidString(val) {
+			errs.Add("id", val, "safety", "string must be valid UTF-8")
+		}
+	}
 	if input.UserId == "" {
-		return fmt.Errorf("field UserId is required")
+		errs.Add("userId", input.UserId, "required", "field UserId is required")
+	}
+	if strings.Contains(input.UserId, "\x00") {
+		errs.Add("userId", input.UserId, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(input.UserId) {
+		errs.Add("userId", input.UserId, "safety", "string must be valid UTF-8")
+	}
+
+	if errs.HasErrors() {
+		return *errs
 	}
 	return nil
 }

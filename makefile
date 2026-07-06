@@ -1,7 +1,9 @@
 .PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check vet integration-gen integration-test bench race lint
 
 bi: build install
-	
+
+e2e: test integration-test
+
 race:
 	go test -race ./... && cd integration && go test -race ./...
 
