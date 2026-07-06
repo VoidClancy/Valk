@@ -141,6 +141,7 @@ func TestCreateValidation(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
+	// basic required check
 	_, err := db.User.Create(valkyrie.UserCreateInput{
 		// no email
 		PhoneNum: "+123456789",
@@ -148,10 +149,23 @@ func TestCreateValidation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error creating user with empty required email, got nil")
 	}
-	if !strings.Contains(err.Error(), "field Email is required") {
-		t.Errorf("expected error message to contain 'field Email is required', got: %v", err)
+
+	valErr, ok := err.(valkyrie.ValidationError)
+	if !ok {
+		t.Fatalf("expected error to be valkyrie.ValidationError, got type %T: %v", err, err)
 	}
 
+	foundEmailErr := false
+	for _, fErr := range valErr.Errors {
+		if fErr.Field == "email" && fErr.Rule == "required" {
+			foundEmailErr = true
+		}
+	}
+	if !foundEmailErr {
+		t.Errorf("expected required email error in ValidationError.Errors, got: %v", valErr.Errors)
+	}
+
+	// invalid enum
 	invalidRole := valkyrie.UserRoleType("INVALID_ROLE")
 	_, err = db.User.Create(valkyrie.UserCreateInput{
 		Email:    "invalid_role@example.com",
@@ -161,7 +175,55 @@ func TestCreateValidation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error creating user with invalid enum role, got nil")
 	}
-	if !strings.Contains(err.Error(), "invalid enum value \"INVALID_ROLE\" for field Role") {
-		t.Errorf("expected error message to contain 'invalid enum value \"INVALID_ROLE\" for field Role', got: %v", err)
+	valErr2, ok := err.(valkyrie.ValidationError)
+	if !ok {
+		t.Fatalf("expected valkyrie.ValidationError, got %T: %v", err, err)
+	}
+	foundRoleErr := false
+	for _, fErr := range valErr2.Errors {
+		if fErr.Field == "role" && fErr.Rule == "enum" {
+			foundRoleErr = true
+		}
+	}
+	if !foundRoleErr {
+		t.Errorf("expected enum role validation error, got: %v", valErr2.Errors)
+	}
+
+	// Multi-error (no email + null-byte)
+	_, err = db.User.Create(valkyrie.UserCreateInput{
+		// no email
+		PhoneNum: "phone\x00num",
+	}).Exec(ctx)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	valErr3, ok := err.(valkyrie.ValidationError)
+	if !ok {
+		t.Fatalf("expected valkyrie.ValidationError, got: %v", err)
+	}
+	if len(valErr3.Errors) < 2 {
+		t.Errorf("expected at least 2 errors aggregated, got %d: %v", len(valErr3.Errors), valErr3.Errors)
+	}
+
+	// UTF-8 validation
+	_, err = db.User.Create(valkyrie.UserCreateInput{
+		Email:    "utf8@example.com",
+		PhoneNum: "invalid\xffutf8",
+	}).Exec(ctx)
+	if err == nil {
+		t.Fatal("expected error for invalid UTF-8, got nil")
+	}
+	valErr4, ok := err.(valkyrie.ValidationError)
+	if !ok {
+		t.Fatalf("expected valkyrie.ValidationError, got: %v", err)
+	}
+	foundSafetyErr := false
+	for _, fErr := range valErr4.Errors {
+		if fErr.Field == "phoneNum" && fErr.Rule == "safety" && strings.Contains(fErr.Msg, "UTF-8") {
+			foundSafetyErr = true
+		}
+	}
+	if !foundSafetyErr {
+		t.Errorf("expected UTF-8 safety error on phoneNum, got: %v", valErr4.Errors)
 	}
 }

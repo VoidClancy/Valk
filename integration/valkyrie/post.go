@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var _ = time.Time{}
@@ -15,6 +16,7 @@ var _ = strings.Join
 var _ = context.Background
 var _ = sql.LevelDefault
 var _ = slices.Contains[[]string, string]
+var _ = utf8.ValidString
 
 // Post represents the database model
 type Post struct {
@@ -119,11 +121,37 @@ func (q *Queries) selectPostCols(selects *PostSelect, omits *PostOmit, forceCols
 }
 
 func (input PostCreateInput) Validate() error {
+	errs := &ValidationError{}
+	if input.Id != nil {
+		val := *input.Id
+		if strings.Contains(val, "\x00") {
+			errs.Add("id", val, "safety", "string cannot contain null bytes")
+		}
+		if !utf8.ValidString(val) {
+			errs.Add("id", val, "safety", "string must be valid UTF-8")
+		}
+	}
 	if input.Title == "" {
-		return fmt.Errorf("field Title is required")
+		errs.Add("title", input.Title, "required", "field Title is required")
+	}
+	if strings.Contains(input.Title, "\x00") {
+		errs.Add("title", input.Title, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(input.Title) {
+		errs.Add("title", input.Title, "safety", "string must be valid UTF-8")
 	}
 	if input.AuthorId == "" {
-		return fmt.Errorf("field AuthorId is required")
+		errs.Add("authorId", input.AuthorId, "required", "field AuthorId is required")
+	}
+	if strings.Contains(input.AuthorId, "\x00") {
+		errs.Add("authorId", input.AuthorId, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(input.AuthorId) {
+		errs.Add("authorId", input.AuthorId, "safety", "string must be valid UTF-8")
+	}
+
+	if errs.HasErrors() {
+		return *errs
 	}
 	return nil
 }

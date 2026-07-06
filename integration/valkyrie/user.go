@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var _ = time.Time{}
@@ -15,6 +16,7 @@ var _ = strings.Join
 var _ = context.Background
 var _ = sql.LevelDefault
 var _ = slices.Contains[[]string, string]
+var _ = utf8.ValidString
 
 // User represents the database model
 type User struct {
@@ -125,16 +127,42 @@ func (q *Queries) selectUserCols(selects *UserSelect, omits *UserOmit, forceCols
 }
 
 func (input UserCreateInput) Validate() error {
+	errs := &ValidationError{}
+	if input.Id != nil {
+		val := *input.Id
+		if strings.Contains(val, "\x00") {
+			errs.Add("id", val, "safety", "string cannot contain null bytes")
+		}
+		if !utf8.ValidString(val) {
+			errs.Add("id", val, "safety", "string must be valid UTF-8")
+		}
+	}
 	if input.Email == "" {
-		return fmt.Errorf("field Email is required")
+		errs.Add("email", input.Email, "required", "field Email is required")
+	}
+	if strings.Contains(input.Email, "\x00") {
+		errs.Add("email", input.Email, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(input.Email) {
+		errs.Add("email", input.Email, "safety", "string must be valid UTF-8")
 	}
 	if input.PhoneNum == "" {
-		return fmt.Errorf("field PhoneNum is required")
+		errs.Add("phoneNum", input.PhoneNum, "required", "field PhoneNum is required")
+	}
+	if strings.Contains(input.PhoneNum, "\x00") {
+		errs.Add("phoneNum", input.PhoneNum, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(input.PhoneNum) {
+		errs.Add("phoneNum", input.PhoneNum, "safety", "string must be valid UTF-8")
 	}
 	if input.Role != nil {
 		if !input.Role.IsValid() {
-			return fmt.Errorf("invalid enum value %q for field Role", *input.Role)
+			errs.Add("role", *input.Role, "enum", fmt.Sprintf("invalid enum value %q for field Role", *input.Role))
 		}
+	}
+
+	if errs.HasErrors() {
+		return *errs
 	}
 	return nil
 }

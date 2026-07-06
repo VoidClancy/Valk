@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var _ = time.Time{}
@@ -15,6 +16,7 @@ var _ = strings.Join
 var _ = context.Background
 var _ = sql.LevelDefault
 var _ = slices.Contains[[]string, string]
+var _ = utf8.ValidString
 
 // CategoryToPost represents the database model
 type CategoryToPost struct {
@@ -92,8 +94,19 @@ func (q *Queries) selectCategoryToPostCols(selects *CategoryToPostSelect, omits 
 }
 
 func (input CategoryToPostCreateInput) Validate() error {
+	errs := &ValidationError{}
 	if input.PostId == "" {
-		return fmt.Errorf("field PostId is required")
+		errs.Add("postId", input.PostId, "required", "field PostId is required")
+	}
+	if strings.Contains(input.PostId, "\x00") {
+		errs.Add("postId", input.PostId, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(input.PostId) {
+		errs.Add("postId", input.PostId, "safety", "string must be valid UTF-8")
+	}
+
+	if errs.HasErrors() {
+		return *errs
 	}
 	return nil
 }

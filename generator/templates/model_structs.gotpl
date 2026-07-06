@@ -85,37 +85,128 @@ func (q *Queries) select{{ .Model.Name }}Cols(selects *{{ .Model.Name }}Select, 
 }
 
 func (input {{ .Model.Name }}CreateInput) Validate() error {
+	errs := &ValidationError{}
+
 	{{- range $field := .Model.ScalarFields }}
+	{{- $fieldName := capitalize $field.Name }}
 	{{- if $field.EnumRef }}
 		{{- if $field.IsArray }}
-		for _, val := range input.{{ capitalize $field.Name }} {
+		for i, val := range input.{{ $fieldName }} {
 			if !val.IsValid() {
-				return fmt.Errorf("invalid enum value %q for field {{ capitalize $field.Name }}", val)
+				errs.Add(fmt.Sprintf("{{ $field.Name }}[%d]", i), val, "enum", fmt.Sprintf("invalid enum value %q for field {{ $fieldName }}", val))
 			}
 		}
 		{{- else if and (eq $field.Default nil) (not $field.Optional) }}
-		if input.{{ capitalize $field.Name }} == nil {
-			return fmt.Errorf("field {{ capitalize $field.Name }} is required")
-		}
-		if !input.{{ capitalize $field.Name }}.IsValid() {
-			return fmt.Errorf("invalid enum value %q for field {{ capitalize $field.Name }}", *input.{{ capitalize $field.Name }})
+		if input.{{ $fieldName }} == nil {
+			errs.Add("{{ $field.Name }}", nil, "required", "field {{ $fieldName }} is required")
+		} else if !input.{{ $fieldName }}.IsValid() {
+			errs.Add("{{ $field.Name }}", *input.{{ $fieldName }}, "enum", fmt.Sprintf("invalid enum value %q for field {{ $fieldName }}", *input.{{ $fieldName }}))
 		}
 		{{- else }}
-		if input.{{ capitalize $field.Name }} != nil {
-			if !input.{{ capitalize $field.Name }}.IsValid() {
-				return fmt.Errorf("invalid enum value %q for field {{ capitalize $field.Name }}", *input.{{ capitalize $field.Name }})
+		if input.{{ $fieldName }} != nil {
+			if !input.{{ $fieldName }}.IsValid() {
+				errs.Add("{{ $field.Name }}", *input.{{ $fieldName }}, "enum", fmt.Sprintf("invalid enum value %q for field {{ $fieldName }}", *input.{{ $fieldName }}))
 			}
 		}
 		{{- end }}
 	{{- else }}
-		{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
-			{{- if eq $field.GoType "string" }}
-			if input.{{ capitalize $field.Name }} == "" {
-				return fmt.Errorf("field {{ capitalize $field.Name }} is required")
+		{{- if eq $field.GoType "string" }}
+			{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
+			if input.{{ $fieldName }} == "" {
+				errs.Add("{{ $field.Name }}", input.{{ $fieldName }}, "required", "field {{ $fieldName }} is required")
 			}
+			{{- end }}
+			
+			{{- if and (ne $field.Default nil) (not $field.Optional) }}
+			if input.{{ $fieldName }} != nil {
+				val := *input.{{ $fieldName }}
+				if strings.Contains(val, "\x00") {
+					errs.Add("{{ $field.Name }}", val, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(val) {
+					errs.Add("{{ $field.Name }}", val, "safety", "string must be valid UTF-8")
+				}
+				{{- if $field.NativeType }}
+					{{- if or (eq $field.NativeType.Name "VarChar") (eq $field.NativeType.Name "Char") }}
+						{{- $limit := index $field.NativeType.Args 0 }}
+						if utf8.RuneCountInString(val) > {{ $limit }} {
+							errs.Add("{{ $field.Name }}", val, "length", "string exceeds maximum length of {{ $limit }} characters")
+						}
+					{{- end }}
+				{{- end }}
+			}
+			{{- else if $field.Optional }}
+			if input.{{ $fieldName }} != nil {
+				val := *input.{{ $fieldName }}
+				if strings.Contains(val, "\x00") {
+					errs.Add("{{ $field.Name }}", val, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(val) {
+					errs.Add("{{ $field.Name }}", val, "safety", "string must be valid UTF-8")
+				}
+				{{- if $field.NativeType }}
+					{{- if or (eq $field.NativeType.Name "VarChar") (eq $field.NativeType.Name "Char") }}
+						{{- $limit := index $field.NativeType.Args 0 }}
+						if utf8.RuneCountInString(val) > {{ $limit }} {
+							errs.Add("{{ $field.Name }}", val, "length", "string exceeds maximum length of {{ $limit }} characters")
+						}
+					{{- end }}
+				{{- end }}
+			}
+			{{- else }}
+			if strings.Contains(input.{{ $fieldName }}, "\x00") {
+				errs.Add("{{ $field.Name }}", input.{{ $fieldName }}, "safety", "string cannot contain null bytes")
+			}
+			if !utf8.ValidString(input.{{ $fieldName }}) {
+				errs.Add("{{ $field.Name }}", input.{{ $fieldName }}, "safety", "string must be valid UTF-8")
+			}
+			{{- if $field.NativeType }}
+				{{- if or (eq $field.NativeType.Name "VarChar") (eq $field.NativeType.Name "Char") }}
+					{{- $limit := index $field.NativeType.Args 0 }}
+					if utf8.RuneCountInString(input.{{ $fieldName }}) > {{ $limit }} {
+						errs.Add("{{ $field.Name }}", input.{{ $fieldName }}, "length", "string exceeds maximum length of {{ $limit }} characters")
+					}
+				{{- end }}
+			{{- end }}
+			{{- end }}
+		{{- else if or (eq $field.GoType "int32") (eq $field.GoType "int64") (eq $field.GoType "int") }}
+			{{- if $field.NativeType }}
+				{{- if eq $field.NativeType.Name "SmallInt" }}
+					{{- if and (ne $field.Default nil) (not $field.Optional) }}
+					if input.{{ $fieldName }} != nil && (*input.{{ $fieldName }} < -32768 || *input.{{ $fieldName }} > 32767) {
+						errs.Add("{{ $field.Name }}", *input.{{ $fieldName }}, "range", "value is out of range for SmallInt (-32768 to 32767)")
+					}
+					{{- else if $field.Optional }}
+					if input.{{ $fieldName }} != nil && (*input.{{ $fieldName }} < -32768 || *input.{{ $fieldName }} > 32767) {
+						errs.Add("{{ $field.Name }}", *input.{{ $fieldName }}, "range", "value is out of range for SmallInt (-32768 to 32767)")
+					}
+					{{- else }}
+					if input.{{ $fieldName }} < -32768 || input.{{ $fieldName }} > 32767 {
+						errs.Add("{{ $field.Name }}", input.{{ $fieldName }}, "range", "value is out of range for SmallInt (-32768 to 32767)")
+					}
+					{{- end }}
+				{{- else if eq $field.NativeType.Name "TinyInt" }}
+					{{- if and (ne $field.Default nil) (not $field.Optional) }}
+					if input.{{ $fieldName }} != nil && (*input.{{ $fieldName }} < -128 || *input.{{ $fieldName }} > 127) {
+						errs.Add("{{ $field.Name }}", *input.{{ $fieldName }}, "range", "value is out of range for TinyInt (-128 to 127)")
+					}
+					{{- else if $field.Optional }}
+					if input.{{ $fieldName }} != nil && (*input.{{ $fieldName }} < -128 || *input.{{ $fieldName }} > 127) {
+						errs.Add("{{ $field.Name }}", *input.{{ $fieldName }}, "range", "value is out of range for TinyInt (-128 to 127)")
+					}
+					{{- else }}
+					if input.{{ $fieldName }} < -128 || input.{{ $fieldName }} > 127 {
+						errs.Add("{{ $field.Name }}", input.{{ $fieldName }}, "range", "value is out of range for TinyInt (-128 to 127)")
+					}
+					{{- end }}
+				{{- end }}
 			{{- end }}
 		{{- end }}
 	{{- end }}
 	{{- end }}
+
+	if errs.HasErrors() {
+		return *errs
+	}
 	return nil
 }
