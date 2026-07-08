@@ -3,15 +3,18 @@ CREATE TABLE `User` (
   `id` text NOT NULL,
   `email` text NOT NULL,
   `phoneNum` text NOT NULL,
+  `password` text NULL,
   `role` text NOT NULL DEFAULT ('student'),
+  `roleOptional` text NULL,
   `referredById` text NULL,
   PRIMARY KEY (`id`),
   CONSTRAINT `User_referredById_fkey` FOREIGN KEY (`referredById`) REFERENCES `User` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION,
-  CONSTRAINT `User_role_check` CHECK ("role" IN ('ADMIN', 'student', 'TEACHER'))
+  CONSTRAINT `User_role_check` CHECK ("role" IN ('ADMIN', 'student', 'TEACHER')),
+  CONSTRAINT `User_roleOptional_check` CHECK ("roleOptional" IN ('ADMIN', 'student', 'TEACHER'))
 );
 CREATE UNIQUE INDEX `User_email_key` ON `User` (`email`);
 CREATE UNIQUE INDEX `User_phoneNum_key` ON `User` (`phoneNum`);
-CREATE UNIQUE INDEX `User_email_phoneNum_key` ON `User` (`email`, `phoneNum`);
+CREATE UNIQUE INDEX `emailPhone` ON `User` (`email`, `phoneNum`);
 CREATE TABLE `Profile` (
   `id` text NOT NULL,
   `bio` text NULL,
@@ -37,6 +40,7 @@ CREATE TABLE `Comment` (
   `dummy2` text NOT NULL,
   `postId` text NOT NULL,
   `authorId` text NOT NULL,
+  `meta` blob NULL,
   PRIMARY KEY (`id`),
   CONSTRAINT `Comment_postId_fkey` FOREIGN KEY (`postId`) REFERENCES `Post` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION,
   CONSTRAINT `Comment_authorId_fkey` FOREIGN KEY (`authorId`) REFERENCES `User` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION

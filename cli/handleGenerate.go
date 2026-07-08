@@ -47,14 +47,25 @@ func handleGenerate() {
 		pkgName = "valk"
 	}
 
-	outputs, err := generator.GenerateClient(*schemaDef, pkgName, embedRelDir, config.Output.Migrations, config.Log)
+	parentImportPath, err := generator.ResolveImportPath(config.Output.Client)
+	if err != nil {
+		fmt.Printf("failed to resolve parent import path: %v\n", err)
+		return
+	}
+
+	outputs, err := generator.GenerateClient(*schemaDef, pkgName, parentImportPath, embedRelDir, config.Output.Migrations, config.Log)
 	if err != nil {
 		fmt.Printf("failed to generate client: %v\n", err)
 		return
 	}
 
 	for filename, content := range outputs {
-		if err := os.WriteFile(filepath.Join(config.Output.Client, filename), []byte(content), 0644); err != nil {
+		outPath := filepath.Join(config.Output.Client, filename)
+		if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+			fmt.Println(err)
+			return
+		}
+		if err := os.WriteFile(outPath, []byte(content), 0644); err != nil {
 			fmt.Println(err)
 			return
 		}

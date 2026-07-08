@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/pressly/goose/v3"
@@ -282,6 +283,719 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 		return err
 	}
 	return tx.Commit()
+}
+
+type PredicateData struct {
+	Column    string
+	Operator  string
+	Value     any
+	IsLogical bool
+	Children  []PredicateData
+}
+
+type Predicate interface {
+	ToPredicateData() PredicateData
+	Validate() error
+}
+
+type UniquePredicate interface {
+	Predicate
+	IsUnique()
+	Validate() error
+}
+
+type StandardPredicate struct {
+	Data PredicateData
+}
+
+func (sp StandardPredicate) ToPredicateData() PredicateData {
+	return sp.Data
+}
+
+func validateValue(col string, val any) error {
+	switch v := val.(type) {
+	case string:
+		if strings.Contains(v, "\x00") {
+			return &ValidationError{
+				Errors: []FieldError{
+					{Field: col, Value: v, Rule: "safety", Msg: "string cannot contain null bytes"},
+				},
+			}
+		}
+		if !utf8.ValidString(v) {
+			return &ValidationError{
+				Errors: []FieldError{
+					{Field: col, Value: v, Rule: "safety", Msg: "string must be valid UTF-8"},
+				},
+			}
+		}
+	case []string:
+		for _, s := range v {
+			if err := validateValue(col, s); err != nil {
+				return err
+			}
+		}
+	case []any:
+		for _, item := range v {
+			if err := validateValue(col, item); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (pd PredicateData) Validate() error {
+	if pd.IsLogical {
+		for _, child := range pd.Children {
+			if err := child.Validate(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return validateValue(pd.Column, pd.Value)
+}
+
+func (sp StandardPredicate) Validate() error {
+	return sp.Data.Validate()
+}
+
+func And(preds ...Predicate) Predicate {
+	var children []PredicateData
+	for _, p := range preds {
+		if p != nil {
+			children = append(children, p.ToPredicateData())
+		}
+	}
+	return StandardPredicate{
+		Data: PredicateData{
+			IsLogical: true,
+			Operator:  "AND",
+			Children:  children,
+		},
+	}
+}
+
+func Or(preds ...Predicate) Predicate {
+	var children []PredicateData
+	for _, p := range preds {
+		if p != nil {
+			children = append(children, p.ToPredicateData())
+		}
+	}
+	return StandardPredicate{
+		Data: PredicateData{
+			IsLogical: true,
+			Operator:  "OR",
+			Children:  children,
+		},
+	}
+}
+
+func Not(pred Predicate) Predicate {
+	var children []PredicateData
+	if pred != nil {
+		children = append(children, pred.ToPredicateData())
+	}
+	return StandardPredicate{
+		Data: PredicateData{
+			IsLogical: true,
+			Operator:  "NOT",
+			Children:  children,
+		},
+	}
+}
+
+type Field[T any] struct {
+	Column string
+}
+
+func (f Field[T]) EQ(val T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "=",
+			Value:    val,
+		},
+	}
+}
+
+func (f Field[T]) NEQ(val T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "!=",
+			Value:    val,
+		},
+	}
+}
+
+func (f Field[T]) GT(val T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: ">",
+			Value:    val,
+		},
+	}
+}
+
+func (f Field[T]) GTE(val T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: ">=",
+			Value:    val,
+		},
+	}
+}
+
+func (f Field[T]) LT(val T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "<",
+			Value:    val,
+		},
+	}
+}
+
+func (f Field[T]) LTE(val T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "<=",
+			Value:    val,
+		},
+	}
+}
+
+func (f Field[T]) In(vals []T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IN",
+			Value:    vals,
+		},
+	}
+}
+
+func (f Field[T]) IsNull() Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IS NULL",
+		},
+	}
+}
+
+func (f Field[T]) IsNotNull() Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IS NOT NULL",
+		},
+	}
+}
+
+type UniqueField[T any] struct {
+	Column string
+}
+
+type UniqueFieldPredicate struct {
+	StandardPredicate
+}
+
+func (UniqueFieldPredicate) IsUnique() {}
+
+func (p UniqueFieldPredicate) Validate() error {
+	if p.Data.Column == "" {
+		return fmt.Errorf("at least one unique field must be set for FindUnique")
+	}
+	return p.StandardPredicate.Validate()
+}
+
+func (f UniqueField[T]) EQ(val T) UniquePredicate {
+	return UniqueFieldPredicate{
+		StandardPredicate: StandardPredicate{
+			Data: PredicateData{
+				Column:   f.Column,
+				Operator: "=",
+				Value:    val,
+			},
+		},
+	}
+}
+
+func (f UniqueField[T]) NEQ(val T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "!=",
+			Value:    val,
+		},
+	}
+}
+
+func (f UniqueField[T]) GT(val T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: ">",
+			Value:    val,
+		},
+	}
+}
+
+func (f UniqueField[T]) GTE(val T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: ">=",
+			Value:    val,
+		},
+	}
+}
+
+func (f UniqueField[T]) LT(val T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "<",
+			Value:    val,
+		},
+	}
+}
+
+func (f UniqueField[T]) LTE(val T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "<=",
+			Value:    val,
+		},
+	}
+}
+
+func (f UniqueField[T]) In(vals []T) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IN",
+			Value:    vals,
+		},
+	}
+}
+
+func (f UniqueField[T]) IsNull() Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IS NULL",
+		},
+	}
+}
+
+func (f UniqueField[T]) IsNotNull() Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IS NOT NULL",
+		},
+	}
+}
+
+type StringField struct {
+	Column string
+}
+
+func (f StringField) EQ(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "=",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringField) NEQ(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "!=",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringField) GT(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: ">",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringField) GTE(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: ">=",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringField) LT(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "<",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringField) LTE(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "<=",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringField) In(vals []string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IN",
+			Value:    vals,
+		},
+	}
+}
+
+func (f StringField) Like(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "LIKE",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringField) Contains(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "LIKE",
+			Value:    "%" + val + "%",
+		},
+	}
+}
+
+func (f StringField) IsNull() Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IS NULL",
+		},
+	}
+}
+
+func (f StringField) IsNotNull() Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IS NOT NULL",
+		},
+	}
+}
+
+type StringUniqueField struct {
+	Column string
+}
+
+func (f StringUniqueField) EQ(val string) UniquePredicate {
+	return UniqueFieldPredicate{
+		StandardPredicate: StandardPredicate{
+			Data: PredicateData{
+				Column:   f.Column,
+				Operator: "=",
+				Value:    val,
+			},
+		},
+	}
+}
+
+func (f StringUniqueField) NEQ(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "!=",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField) GT(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: ">",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField) GTE(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: ">=",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField) LT(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "<",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField) LTE(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "<=",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField) In(vals []string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IN",
+			Value:    vals,
+		},
+	}
+}
+
+func (f StringUniqueField) Like(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "LIKE",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField) Contains(val string) Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "LIKE",
+			Value:    "%" + val + "%",
+		},
+	}
+}
+
+func (f StringUniqueField) IsNull() Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IS NULL",
+		},
+	}
+}
+
+func (f StringUniqueField) IsNotNull() Predicate {
+	return StandardPredicate{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IS NOT NULL",
+		},
+	}
+}
+
+func CompilePredicates(dialect Dialect, preds []Predicate) (string, []any) {
+	if len(preds) == 0 {
+		return "", nil
+	}
+	var data []PredicateData
+	for _, p := range preds {
+		if p != nil {
+			data = append(data, p.ToPredicateData())
+		}
+	}
+	return CompilePredicateData(dialect, data)
+}
+
+func CompilePredicateData(dialect Dialect, data []PredicateData) (string, []any) {
+	if len(data) == 0 {
+		return "", nil
+	}
+	var parts []string
+	var args []any
+	var bindIdx = 1
+
+	var compile func(p PredicateData) string
+	compile = func(p PredicateData) string {
+		if p.IsLogical {
+			if len(p.Children) == 0 {
+				return ""
+			}
+			if p.Operator == "NOT" {
+				sub := compile(p.Children[0])
+				if sub == "" {
+					return ""
+				}
+				return fmt.Sprintf("NOT (%s)", sub)
+			}
+			var subParts []string
+			for _, child := range p.Children {
+				sub := compile(child)
+				if sub != "" {
+					subParts = append(subParts, sub)
+				}
+			}
+			if len(subParts) == 0 {
+				return ""
+			}
+			if len(subParts) == 1 {
+				return subParts[0]
+			}
+			return fmt.Sprintf("(%s)", strings.Join(subParts, " "+p.Operator+" "))
+		}
+
+		switch p.Operator {
+		case "IS NULL", "IS NOT NULL":
+			return fmt.Sprintf("%s %s", dialect.Quote(p.Column), p.Operator)
+		case "IN":
+			valSlice := unpackSlice(p.Value)
+			if len(valSlice) == 0 {
+				return "1=0"
+			}
+			var placeHolders []string
+			for range valSlice {
+				placeHolders = append(placeHolders, dialect.BindVar(bindIdx))
+				bindIdx++
+			}
+			for _, val := range valSlice {
+				args = append(args, val)
+			}
+			return fmt.Sprintf("%s IN (%s)", dialect.Quote(p.Column), strings.Join(placeHolders, ", "))
+		default:
+			placeholder := dialect.BindVar(bindIdx)
+			bindIdx++
+			args = append(args, p.Value)
+			return fmt.Sprintf("%s %s %s", dialect.Quote(p.Column), p.Operator, placeholder)
+		}
+	}
+
+	for _, p := range data {
+		part := compile(p)
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+
+	if len(parts) == 0 {
+		return "", nil
+	}
+	return strings.Join(parts, " AND "), args
+}
+
+func unpackSlice(val any) []any {
+	if val == nil {
+		return nil
+	}
+	switch v := val.(type) {
+	case []string:
+		res := make([]any, len(v))
+		for i, x := range v {
+			res[i] = x
+		}
+		return res
+	case []int:
+		res := make([]any, len(v))
+		for i, x := range v {
+			res[i] = x
+		}
+		return res
+	case []int32:
+		res := make([]any, len(v))
+		for i, x := range v {
+			res[i] = x
+		}
+		return res
+	case []int64:
+		res := make([]any, len(v))
+		for i, x := range v {
+			res[i] = x
+		}
+		return res
+	case []float32:
+		res := make([]any, len(v))
+		for i, x := range v {
+			res[i] = x
+		}
+		return res
+	case []float64:
+		res := make([]any, len(v))
+		for i, x := range v {
+			res[i] = x
+		}
+		return res
+	case []bool:
+		res := make([]any, len(v))
+		for i, x := range v {
+			res[i] = x
+		}
+		return res
+	case []time.Time:
+		res := make([]any, len(v))
+		for i, x := range v {
+			res[i] = x
+		}
+		return res
+	case [][]byte:
+		res := make([]any, len(v))
+		for i, x := range v {
+			res[i] = x
+		}
+		return res
+	case []json.RawMessage:
+		res := make([]any, len(v))
+		for i, x := range v {
+			res[i] = x
+		}
+		return res
+	case []any:
+		return v
+	case []UserRoleType:
+		res := make([]any, len(v))
+		for i, x := range v {
+			res[i] = x
+		}
+		return res
+	default:
+		return []any{val}
+	}
 }
 
 type Tx struct {
@@ -606,6 +1320,253 @@ func loadRelation[P any, C any](
 
 	return allChildren, nil
 }
+
+type FindUniqueBuilder[M any, S any, O any] struct {
+	client   *Queries
+	where    UniquePredicate
+	execFunc func(ctx context.Context, where UniquePredicate, s *S, o *O) (*M, error)
+}
+
+func (b *FindUniqueBuilder[M, S, O]) Select(s S) *FindUniqueSelectBuilder[M, S, O] {
+	return &FindUniqueSelectBuilder[M, S, O]{builder: b, selects: s}
+}
+
+func (b *FindUniqueBuilder[M, S, O]) Omit(o O) *FindUniqueOmitBuilder[M, S, O] {
+	return &FindUniqueOmitBuilder[M, S, O]{builder: b, omits: o}
+}
+
+func (b *FindUniqueBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.execFunc(ctx, b.where, nil, nil)
+}
+
+type FindUniqueSelectBuilder[M any, S any, O any] struct {
+	builder *FindUniqueBuilder[M, S, O]
+	selects S
+}
+
+func (b *FindUniqueSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, &b.selects, nil)
+}
+
+type FindUniqueOmitBuilder[M any, S any, O any] struct {
+	builder *FindUniqueBuilder[M, S, O]
+	omits   O
+}
+
+func (b *FindUniqueOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, nil, &b.omits)
+}
+
+type FindFirstBuilder[M any, S any, O any] struct {
+	client   *Queries
+	where    []Predicate
+	execFunc func(ctx context.Context, where []Predicate, s *S, o *O) (*M, error)
+}
+
+func (b *FindFirstBuilder[M, S, O]) Select(s S) *FindFirstSelectBuilder[M, S, O] {
+	return &FindFirstSelectBuilder[M, S, O]{builder: b, selects: s}
+}
+
+func (b *FindFirstBuilder[M, S, O]) Omit(o O) *FindFirstOmitBuilder[M, S, O] {
+	return &FindFirstOmitBuilder[M, S, O]{builder: b, omits: o}
+}
+
+func (b *FindFirstBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.execFunc(ctx, b.where, nil, nil)
+}
+
+type FindFirstSelectBuilder[M any, S any, O any] struct {
+	builder *FindFirstBuilder[M, S, O]
+	selects S
+}
+
+func (b *FindFirstSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, &b.selects, nil)
+}
+
+type FindFirstOmitBuilder[M any, S any, O any] struct {
+	builder *FindFirstBuilder[M, S, O]
+	omits   O
+}
+
+func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, nil, &b.omits)
+}
+
+type FindManyBuilder[M any, S any, O any] struct {
+	client   *Queries
+	where    []Predicate
+	execFunc func(ctx context.Context, where []Predicate, s *S, o *O) ([]*M, error)
+}
+
+func (b *FindManyBuilder[M, S, O]) Select(s S) *FindManySelectBuilder[M, S, O] {
+	return &FindManySelectBuilder[M, S, O]{builder: b, selects: s}
+}
+
+func (b *FindManyBuilder[M, S, O]) Omit(o O) *FindManyOmitBuilder[M, S, O] {
+	return &FindManyOmitBuilder[M, S, O]{builder: b, omits: o}
+}
+
+func (b *FindManyBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.execFunc(ctx, b.where, nil, nil)
+}
+
+type FindManySelectBuilder[M any, S any, O any] struct {
+	builder *FindManyBuilder[M, S, O]
+	selects S
+}
+
+func (b *FindManySelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, &b.selects, nil)
+}
+
+type FindManyOmitBuilder[M any, S any, O any] struct {
+	builder *FindManyBuilder[M, S, O]
+	omits   O
+}
+
+func (b *FindManyOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, nil, &b.omits)
+}
+
+func executeFindOne[M any](
+	ctx context.Context,
+	q *Queries,
+	table string,
+	whereClause string,
+	whereVals []any,
+	returningCols []string,
+	scanFunc func(record *M, cols []string) []any,
+) (*M, error) {
+	var sb strings.Builder
+	sb.Grow(64 + len(returningCols)*15 + len(table) + len(whereClause))
+	sb.WriteString("SELECT ")
+	for i, col := range returningCols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(q.dialect.Quote(col))
+	}
+	sb.WriteString(" FROM ")
+	sb.WriteString(q.dialect.Quote(table))
+	sb.WriteString(whereClause)
+	sb.WriteString(" LIMIT 1")
+
+	var res M
+	row := q.queryRow(ctx, sb.String(), whereVals...)
+	scanTargets := scanFunc(&res, returningCols)
+	if err := row.Scan(scanTargets...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &res, nil
+}
+
+func executeFindMany[M any](
+	ctx context.Context,
+	q *Queries,
+	table string,
+	whereClause string,
+	whereVals []any,
+	returningCols []string,
+	scanFunc func(record *M, cols []string) []any,
+) ([]*M, error) {
+	var sb strings.Builder
+	sb.Grow(64 + len(returningCols)*15 + len(table) + len(whereClause))
+	sb.WriteString("SELECT ")
+	for i, col := range returningCols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(q.dialect.Quote(col))
+	}
+	sb.WriteString(" FROM ")
+	sb.WriteString(q.dialect.Quote(table))
+	sb.WriteString(whereClause)
+
+	rows, err := q.query(ctx, sb.String(), whereVals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := make([]*M, 0)
+	for rows.Next() {
+		var res M
+		scanTargets := scanFunc(&res, returningCols)
+		if err := rows.Scan(scanTargets...); err != nil {
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func executeSingleWithRelations[M any](
+	ctx context.Context,
+	q *Queries,
+	table string,
+	whereClause string,
+	whereVals []any,
+	returningCols []string,
+	scanFunc func(*M, []string) []any,
+	hasRelations bool,
+	loadRelations func(ctx context.Context, txQ *Queries, results []*M) error,
+) (*M, error) {
+	if !hasRelations {
+		return executeFindOne(ctx, q, table, whereClause, whereVals, returningCols, scanFunc)
+	}
+
+	var res *M
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		var err error
+		res, err = executeFindOne(ctx, txQ, table, whereClause, whereVals, returningCols, scanFunc)
+		if err != nil || res == nil {
+			return err
+		}
+		return loadRelations(ctx, txQ, []*M{res})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func executeManyWithRelations[M any](
+	ctx context.Context,
+	q *Queries,
+	table string,
+	whereClause string,
+	whereVals []any,
+	returningCols []string,
+	scanFunc func(*M, []string) []any,
+	hasRelations bool,
+	loadRelations func(ctx context.Context, txQ *Queries, results []*M) error,
+) ([]*M, error) {
+	if !hasRelations {
+		return executeFindMany(ctx, q, table, whereClause, whereVals, returningCols, scanFunc)
+	}
+
+	results := make([]*M, 0)
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		var err error
+		results, err = executeFindMany(ctx, txQ, table, whereClause, whereVals, returningCols, scanFunc)
+		if err != nil || len(results) == 0 {
+			return err
+		}
+		return loadRelations(ctx, txQ, results)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
 func directKey[T any, K any](get func(*T) K) func(*T) (string, bool) {
 	return func(t *T) (string, bool) {
 		return fmt.Sprint(get(t)), true

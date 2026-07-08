@@ -2,19 +2,19 @@ package {{ .PackageName }}
 
 import (
 	"context"
-	"database/sql"
+	{{- if hasJsonField .Model }}
+	"encoding/json"
+	{{- end }}
 	"fmt"
 	"slices"
+	{{- if hasStringField .Model }}
 	"strings"
+	{{- end }}
+	{{- if hasTimeField .Model }}
 	"time"
+	{{- end }}
+	{{- if hasStringField .Model }}
 	"unicode/utf8"
+	{{- end }}
 )
-
-var _ = time.Time{}
-var _ = fmt.Sprintf
-var _ = strings.Join
-var _ = context.Background
-var _ = sql.LevelDefault
-var _ = slices.Contains[[]string, string]
-var _ = utf8.ValidString
 

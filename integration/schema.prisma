@@ -11,21 +11,21 @@ enum UserRole {
 }
 
 model User {
-    id       String    @id @default(cuid())
-    email    String    @unique
-    ///test this bitch
-    phoneNum String    @unique
-    password String?
-    role     UserRole  @default(STUDENT)
-    profile  Profile?
-    posts    Post[]
-    comments Comment[]
+    id           String    @id @default(cuid())
+    email        String    @unique
+    phoneNum     String    @unique
+    password     String?
+    role         UserRole  @default(STUDENT)
+    roleOptional UserRole?
+    profile      Profile?
+    posts        Post[]
+    comments     Comment[]
 
     referredById String?
     referredBy   User?   @relation("UserReferrals", fields: [referredById], references: [id])
     referrals    User[]  @relation("UserReferrals")
 
-    @@unique([email, phoneNum])
+    @@unique([email, phoneNum], name: "emailPhone")
 }
 
 model Profile {
@@ -56,6 +56,7 @@ model Comment {
     post     Post   @relation(fields: [postId], references: [id])
     authorId String
     author   User   @relation(fields: [authorId], references: [id])
+    meta     Json?
 }
 
 model Category {

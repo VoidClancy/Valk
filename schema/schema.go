@@ -96,6 +96,15 @@ func (m *Model) EffectiveTableName() string {
 	return m.Name
 }
 
+func (m *Model) GetField(name string) *ScalarField {
+	for _, f := range m.ScalarFields {
+		if f.Name == name {
+			return f
+		}
+	}
+	return nil
+}
+
 type UniqueConstraint struct {
 	Fields []string
 	Name   string

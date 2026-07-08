@@ -2,26 +2,16 @@ package valk
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
-
-var _ = time.Time{}
-var _ = fmt.Sprintf
-var _ = strings.Join
-var _ = context.Background
-var _ = sql.LevelDefault
-var _ = slices.Contains[[]string, string]
-var _ = utf8.ValidString
 
 // Profile represents the database model
 type Profile struct {
 	Id     string  `db:"id" json:"id"`
-	Bio    *string `db:"bio" json:"bio"`
+	Bio    *string `db:"bio" json:"bio,omitempty"`
 	UserId string  `db:"userId" json:"userId"`
 	User   *User   `json:"user,omitempty"`
 }
@@ -92,7 +82,7 @@ func (q *Queries) selectProfileCols(selects *ProfileSelect, omits *ProfileOmit, 
 	anySelected := selects != nil && (selects.Id || selects.Bio || selects.UserId || selects.User != nil)
 
 	specs := []colSpec{
-		{"id", selects != nil && selects.Id, omits != nil && omits.Id, false},
+		{"id", selects != nil && selects.Id, omits != nil && omits.Id, selects != nil && selects.hasAnyRelation()},
 		{"bio", selects != nil && selects.Bio, omits != nil && omits.Bio, false},
 		{"userId", selects != nil && selects.UserId, omits != nil && omits.UserId, selects != nil && selects.User != nil},
 	}
@@ -292,7 +282,7 @@ func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, inputs 
 			rowMaps[i] = q.ProfileInputToMap(input)
 		}
 		query, vals := buildBulkInsertSQL(q.dialect, "Profile", rowMaps, ProfileColOrder, returningCols)
-		var records []*Profile
+		records := make([]*Profile, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -321,7 +311,7 @@ func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, inputs 
 	}
 
 	// Fallback to loop inside transaction
-	var records []*Profile
+	records := make([]*Profile, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		for _, input := range inputs {
 			res, err := txQ.executeProfileCreate(ctx, input, nil, nil)
@@ -340,6 +330,94 @@ func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, inputs 
 		return nil, err
 	}
 	return records, nil
+}
+func (d *ProfileDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit] {
+	return &FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit]{
+		client:   d.client,
+		where:    where,
+		execFunc: d.client.executeProfileFindUnique,
+	}
+}
+
+func (d *ProfileDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Profile, ProfileSelect, ProfileOmit] {
+	return &FindFirstBuilder[Profile, ProfileSelect, ProfileOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executeProfileFindFirst,
+	}
+}
+
+func (d *ProfileDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Profile, ProfileSelect, ProfileOmit] {
+	return &FindManyBuilder[Profile, ProfileSelect, ProfileOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executeProfileFindMany,
+	}
+}
+
+func (q *Queries) executeProfileFindUnique(ctx context.Context, where UniquePredicate, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	if where == nil {
+		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
+	}
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	whereClause, vals := CompilePredicates(q.dialect, []Predicate{where})
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectProfileCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "Profile", whereClause, vals, returningCols,
+		func(res *Profile, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Profile) error {
+			return txQ.loadProfileRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executeProfileFindFirst(ctx context.Context, where []Predicate, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectProfileCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "Profile", whereClause, vals, returningCols,
+		func(res *Profile, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Profile) error {
+			return txQ.loadProfileRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executeProfileFindMany(ctx context.Context, where []Predicate, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectProfileCols(selects, omits)
+	return executeManyWithRelations(ctx, q, "Profile", whereClause, vals, returningCols,
+		func(res *Profile, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Profile) error {
+			return txQ.loadProfileRelations(ctx, results, selects)
+		},
+	)
 }
 func (q *Queries) loadProfileRelations(ctx context.Context, records []*Profile, selects *ProfileSelect) error {
 	if selects == nil || len(records) == 0 {

@@ -2,27 +2,17 @@ package valk
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
-
-var _ = time.Time{}
-var _ = fmt.Sprintf
-var _ = strings.Join
-var _ = context.Background
-var _ = sql.LevelDefault
-var _ = slices.Contains[[]string, string]
-var _ = utf8.ValidString
 
 // Post represents the database model
 type Post struct {
 	Id         string            `db:"id" json:"id"`
 	Title      string            `db:"title" json:"title"`
-	Content    *string           `db:"content" json:"content"`
+	Content    *string           `db:"content" json:"content,omitempty"`
 	Published  bool              `db:"published" json:"published"`
 	AuthorId   string            `db:"authorId" json:"authorId"`
 	Author     *User             `json:"author,omitempty"`
@@ -112,7 +102,7 @@ func (q *Queries) selectPostCols(selects *PostSelect, omits *PostOmit, forceCols
 	anySelected := selects != nil && (selects.Id || selects.Title || selects.Content || selects.Published || selects.AuthorId || selects.Author != nil || selects.Comments != nil || selects.Categories != nil)
 
 	specs := []colSpec{
-		{"id", selects != nil && selects.Id, omits != nil && omits.Id, false},
+		{"id", selects != nil && selects.Id, omits != nil && omits.Id, selects != nil && selects.hasAnyRelation()},
 		{"title", selects != nil && selects.Title, omits != nil && omits.Title, false},
 		{"content", selects != nil && selects.Content, omits != nil && omits.Content, false},
 		{"published", selects != nil && selects.Published, omits != nil && omits.Published, false},
@@ -329,7 +319,7 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, inputs []P
 			rowMaps[i] = q.PostInputToMap(input)
 		}
 		query, vals := buildBulkInsertSQL(q.dialect, "Post", rowMaps, PostColOrder, returningCols)
-		var records []*Post
+		records := make([]*Post, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -358,7 +348,7 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, inputs []P
 	}
 
 	// Fallback to loop inside transaction
-	var records []*Post
+	records := make([]*Post, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		for _, input := range inputs {
 			res, err := txQ.executePostCreate(ctx, input, nil, nil)
@@ -377,6 +367,94 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, inputs []P
 		return nil, err
 	}
 	return records, nil
+}
+func (d *PostDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Post, PostSelect, PostOmit] {
+	return &FindUniqueBuilder[Post, PostSelect, PostOmit]{
+		client:   d.client,
+		where:    where,
+		execFunc: d.client.executePostFindUnique,
+	}
+}
+
+func (d *PostDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Post, PostSelect, PostOmit] {
+	return &FindFirstBuilder[Post, PostSelect, PostOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executePostFindFirst,
+	}
+}
+
+func (d *PostDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Post, PostSelect, PostOmit] {
+	return &FindManyBuilder[Post, PostSelect, PostOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executePostFindMany,
+	}
+}
+
+func (q *Queries) executePostFindUnique(ctx context.Context, where UniquePredicate, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	if where == nil {
+		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
+	}
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	whereClause, vals := CompilePredicates(q.dialect, []Predicate{where})
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectPostCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "Post", whereClause, vals, returningCols,
+		func(res *Post, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Post) error {
+			return txQ.loadPostRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executePostFindFirst(ctx context.Context, where []Predicate, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectPostCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "Post", whereClause, vals, returningCols,
+		func(res *Post, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Post) error {
+			return txQ.loadPostRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executePostFindMany(ctx context.Context, where []Predicate, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectPostCols(selects, omits)
+	return executeManyWithRelations(ctx, q, "Post", whereClause, vals, returningCols,
+		func(res *Post, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Post) error {
+			return txQ.loadPostRelations(ctx, results, selects)
+		},
+	)
 }
 func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, selects *PostSelect) error {
 	if selects == nil || len(records) == 0 {

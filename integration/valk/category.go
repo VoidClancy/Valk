@@ -2,21 +2,11 @@ package valk
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
-
-var _ = time.Time{}
-var _ = fmt.Sprintf
-var _ = strings.Join
-var _ = context.Background
-var _ = sql.LevelDefault
-var _ = slices.Contains[[]string, string]
-var _ = utf8.ValidString
 
 // Category represents the database model
 type Category struct {
@@ -85,7 +75,7 @@ func (q *Queries) selectCategoryCols(selects *CategorySelect, omits *CategoryOmi
 	anySelected := selects != nil && (selects.Id || selects.Name || selects.Posts != nil)
 
 	specs := []colSpec{
-		{"id", selects != nil && selects.Id, omits != nil && omits.Id, false},
+		{"id", selects != nil && selects.Id, omits != nil && omits.Id, selects != nil && selects.hasAnyRelation()},
 		{"name", selects != nil && selects.Name, omits != nil && omits.Name, false},
 	}
 
@@ -270,7 +260,7 @@ func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, inputs
 			rowMaps[i] = q.CategoryInputToMap(input)
 		}
 		query, vals := buildBulkInsertSQL(q.dialect, "Category", rowMaps, CategoryColOrder, returningCols)
-		var records []*Category
+		records := make([]*Category, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -299,7 +289,7 @@ func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, inputs
 	}
 
 	// Fallback to loop inside transaction
-	var records []*Category
+	records := make([]*Category, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		for _, input := range inputs {
 			res, err := txQ.executeCategoryCreate(ctx, input, nil, nil)
@@ -318,6 +308,94 @@ func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, inputs
 		return nil, err
 	}
 	return records, nil
+}
+func (d *CategoryDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Category, CategorySelect, CategoryOmit] {
+	return &FindUniqueBuilder[Category, CategorySelect, CategoryOmit]{
+		client:   d.client,
+		where:    where,
+		execFunc: d.client.executeCategoryFindUnique,
+	}
+}
+
+func (d *CategoryDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Category, CategorySelect, CategoryOmit] {
+	return &FindFirstBuilder[Category, CategorySelect, CategoryOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executeCategoryFindFirst,
+	}
+}
+
+func (d *CategoryDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Category, CategorySelect, CategoryOmit] {
+	return &FindManyBuilder[Category, CategorySelect, CategoryOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executeCategoryFindMany,
+	}
+}
+
+func (q *Queries) executeCategoryFindUnique(ctx context.Context, where UniquePredicate, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+	if where == nil {
+		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
+	}
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	whereClause, vals := CompilePredicates(q.dialect, []Predicate{where})
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectCategoryCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "Category", whereClause, vals, returningCols,
+		func(res *Category, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Category) error {
+			return txQ.loadCategoryRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executeCategoryFindFirst(ctx context.Context, where []Predicate, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectCategoryCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "Category", whereClause, vals, returningCols,
+		func(res *Category, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Category) error {
+			return txQ.loadCategoryRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executeCategoryFindMany(ctx context.Context, where []Predicate, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectCategoryCols(selects, omits)
+	return executeManyWithRelations(ctx, q, "Category", whereClause, vals, returningCols,
+		func(res *Category, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Category) error {
+			return txQ.loadCategoryRelations(ctx, results, selects)
+		},
+	)
 }
 func (q *Queries) loadCategoryRelations(ctx context.Context, records []*Category, selects *CategorySelect) error {
 	if selects == nil || len(records) == 0 {

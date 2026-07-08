@@ -2,44 +2,37 @@ package valk
 
 import (
 	"context"
-	"database/sql"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
 
-var _ = time.Time{}
-var _ = fmt.Sprintf
-var _ = strings.Join
-var _ = context.Background
-var _ = sql.LevelDefault
-var _ = slices.Contains[[]string, string]
-var _ = utf8.ValidString
-
 // Comment represents the database model
 type Comment struct {
-	Id       string `db:"id" json:"id"`
-	Textify  int32  `db:"textify" json:"textify"`
-	Dummy3   string `db:"dummy3" json:"dummy3"`
-	Dummy1   int32  `db:"dummy1" json:"dummy1"`
-	Dummy2   string `db:"dummy2" json:"dummy2"`
-	PostId   string `db:"postId" json:"postId"`
-	AuthorId string `db:"authorId" json:"authorId"`
-	Post     *Post  `json:"post,omitempty"`
-	Author   *User  `json:"author,omitempty"`
+	Id       string           `db:"id" json:"id"`
+	Textify  int32            `db:"textify" json:"textify"`
+	Dummy3   string           `db:"dummy3" json:"dummy3"`
+	Dummy1   int32            `db:"dummy1" json:"dummy1"`
+	Dummy2   string           `db:"dummy2" json:"dummy2"`
+	PostId   string           `db:"postId" json:"postId"`
+	AuthorId string           `db:"authorId" json:"authorId"`
+	Meta     *json.RawMessage `db:"meta" json:"meta,omitempty"`
+	Post     *Post            `json:"post,omitempty"`
+	Author   *User            `json:"author,omitempty"`
 }
 
 // CommentCreate represents the input structure for creation
 type CommentCreate struct {
-	Id       *string `json:"id"`
-	Textify  int32   `json:"textify"`
-	Dummy3   string  `json:"dummy3"`
-	Dummy1   int32   `json:"dummy1"`
-	Dummy2   string  `json:"dummy2"`
-	PostId   string  `json:"postId"`
-	AuthorId string  `json:"authorId"`
+	Id       *string          `json:"id"`
+	Textify  int32            `json:"textify"`
+	Dummy3   string           `json:"dummy3"`
+	Dummy1   int32            `json:"dummy1"`
+	Dummy2   string           `json:"dummy2"`
+	PostId   string           `json:"postId"`
+	AuthorId string           `json:"authorId"`
+	Meta     *json.RawMessage `json:"meta"`
 }
 
 // CommentSelect specifies which fields to include
@@ -51,6 +44,7 @@ type CommentSelect struct {
 	Dummy2   bool        `json:"dummy2"`
 	PostId   bool        `json:"postId"`
 	AuthorId bool        `json:"authorId"`
+	Meta     bool        `json:"meta"`
 	Post     *PostSelect `json:"post,omitempty"`
 	Author   *UserSelect `json:"author,omitempty"`
 }
@@ -64,6 +58,7 @@ type CommentOmit struct {
 	Dummy2   bool      `json:"dummy2"`
 	PostId   bool      `json:"postId"`
 	AuthorId bool      `json:"authorId"`
+	Meta     bool      `json:"meta"`
 	Post     *PostOmit `json:"post,omitempty"`
 	Author   *UserOmit `json:"author,omitempty"`
 }
@@ -100,6 +95,8 @@ func (m *Comment) ScanFields(cols []string) []any {
 			targets[i] = &m.PostId
 		case "authorId":
 			targets[i] = &m.AuthorId
+		case "meta":
+			targets[i] = &m.Meta
 		}
 	}
 	return targets
@@ -113,6 +110,7 @@ var commentDefaultCols = []string{
 	"dummy2",
 	"postId",
 	"authorId",
+	"meta",
 }
 
 func (q *Queries) selectCommentCols(selects *CommentSelect, omits *CommentOmit, forceCols ...string) []string {
@@ -120,16 +118,17 @@ func (q *Queries) selectCommentCols(selects *CommentSelect, omits *CommentOmit, 
 		return commentDefaultCols
 	}
 
-	anySelected := selects != nil && (selects.Id || selects.Textify || selects.Dummy3 || selects.Dummy1 || selects.Dummy2 || selects.PostId || selects.AuthorId || selects.Post != nil || selects.Author != nil)
+	anySelected := selects != nil && (selects.Id || selects.Textify || selects.Dummy3 || selects.Dummy1 || selects.Dummy2 || selects.PostId || selects.AuthorId || selects.Meta || selects.Post != nil || selects.Author != nil)
 
 	specs := []colSpec{
-		{"id", selects != nil && selects.Id, omits != nil && omits.Id, false},
+		{"id", selects != nil && selects.Id, omits != nil && omits.Id, selects != nil && selects.hasAnyRelation()},
 		{"textify", selects != nil && selects.Textify, omits != nil && omits.Textify, false},
 		{"dummy3", selects != nil && selects.Dummy3, omits != nil && omits.Dummy3, false},
 		{"dummy1", selects != nil && selects.Dummy1, omits != nil && omits.Dummy1, false},
 		{"dummy2", selects != nil && selects.Dummy2, omits != nil && omits.Dummy2, false},
 		{"postId", selects != nil && selects.PostId, omits != nil && omits.PostId, selects != nil && selects.Post != nil},
 		{"authorId", selects != nil && selects.AuthorId, omits != nil && omits.AuthorId, selects != nil && selects.Author != nil},
+		{"meta", selects != nil && selects.Meta, omits != nil && omits.Meta, false},
 	}
 
 	cols := computeCols(specs, selects != nil, anySelected)
@@ -205,6 +204,7 @@ var CommentColOrder = []string{
 	"dummy2",
 	"postId",
 	"authorId",
+	"meta",
 }
 
 func (s *CommentSelect) hasAnyRelation() bool {
@@ -285,6 +285,9 @@ func (q *Queries) CommentInputToMap(input CommentCreate) map[string]any {
 	m["dummy2"] = input.Dummy2
 	m["postId"] = input.PostId
 	m["authorId"] = input.AuthorId
+	if input.Meta != nil {
+		m["meta"] = *input.Meta
+	}
 	return m
 }
 
@@ -360,7 +363,7 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, inputs 
 			rowMaps[i] = q.CommentInputToMap(input)
 		}
 		query, vals := buildBulkInsertSQL(q.dialect, "Comment", rowMaps, CommentColOrder, returningCols)
-		var records []*Comment
+		records := make([]*Comment, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -389,7 +392,7 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, inputs 
 	}
 
 	// Fallback to loop inside transaction
-	var records []*Comment
+	records := make([]*Comment, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		for _, input := range inputs {
 			res, err := txQ.executeCommentCreate(ctx, input, nil, nil)
@@ -408,6 +411,94 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, inputs 
 		return nil, err
 	}
 	return records, nil
+}
+func (d *CommentDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Comment, CommentSelect, CommentOmit] {
+	return &FindUniqueBuilder[Comment, CommentSelect, CommentOmit]{
+		client:   d.client,
+		where:    where,
+		execFunc: d.client.executeCommentFindUnique,
+	}
+}
+
+func (d *CommentDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Comment, CommentSelect, CommentOmit] {
+	return &FindFirstBuilder[Comment, CommentSelect, CommentOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executeCommentFindFirst,
+	}
+}
+
+func (d *CommentDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Comment, CommentSelect, CommentOmit] {
+	return &FindManyBuilder[Comment, CommentSelect, CommentOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executeCommentFindMany,
+	}
+}
+
+func (q *Queries) executeCommentFindUnique(ctx context.Context, where UniquePredicate, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	if where == nil {
+		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
+	}
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	whereClause, vals := CompilePredicates(q.dialect, []Predicate{where})
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectCommentCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "Comment", whereClause, vals, returningCols,
+		func(res *Comment, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Comment) error {
+			return txQ.loadCommentRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executeCommentFindFirst(ctx context.Context, where []Predicate, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectCommentCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "Comment", whereClause, vals, returningCols,
+		func(res *Comment, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Comment) error {
+			return txQ.loadCommentRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executeCommentFindMany(ctx context.Context, where []Predicate, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectCommentCols(selects, omits)
+	return executeManyWithRelations(ctx, q, "Comment", whereClause, vals, returningCols,
+		func(res *Comment, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*Comment) error {
+			return txQ.loadCommentRelations(ctx, results, selects)
+		},
+	)
 }
 func (q *Queries) loadCommentRelations(ctx context.Context, records []*Comment, selects *CommentSelect) error {
 	if selects == nil || len(records) == 0 {

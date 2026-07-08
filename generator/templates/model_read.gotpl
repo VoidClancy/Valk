@@ -1,0 +1,88 @@
+func (d *{{ .Model.Name }}Delegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
+	return &FindUniqueBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
+		client:   d.client,
+		where:    where,
+		execFunc: d.client.execute{{ .Model.Name }}FindUnique,
+	}
+}
+
+func (d *{{ .Model.Name }}Delegate) FindFirst(preds ...Predicate) *FindFirstBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
+	return &FindFirstBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.execute{{ .Model.Name }}FindFirst,
+	}
+}
+
+func (d *{{ .Model.Name }}Delegate) FindMany(preds ...Predicate) *FindManyBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
+	return &FindManyBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.execute{{ .Model.Name }}FindMany,
+	}
+}
+
+func (q *Queries) execute{{ .Model.Name }}FindUnique(ctx context.Context, where UniquePredicate, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	if where == nil {
+		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
+	}
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	whereClause, vals := CompilePredicates(q.dialect, []Predicate{where})
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
+		func(res *{{ .Model.Name }}, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}) error {
+			return txQ.load{{ .Model.Name }}Relations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) execute{{ .Model.Name }}FindFirst(ctx context.Context, where []Predicate, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
+		func(res *{{ .Model.Name }}, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}) error {
+			return txQ.load{{ .Model.Name }}Relations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) execute{{ .Model.Name }}FindMany(ctx context.Context, where []Predicate, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
+	return executeManyWithRelations(ctx, q, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
+		func(res *{{ .Model.Name }}, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}) error {
+			return txQ.load{{ .Model.Name }}Relations(ctx, results, selects)
+		},
+	)
+}
