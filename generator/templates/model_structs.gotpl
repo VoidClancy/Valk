@@ -1,7 +1,7 @@
 // {{ .Model.Name }} represents the database model
 type {{ .Model.Name }} struct {
 	{{- range $field := .Model.ScalarFields }}
-	{{ capitalize $field.Name }} {{ if $field.EnumRef }}{{ if $field.IsArray }}[]{{ $field.EnumRef.Name }}Type{{ else }}{{ if $field.Optional }}*{{ end }}{{ $field.EnumRef.Name }}Type{{ end }}{{ else }}{{ $field.GoType }}{{ end }} `db:"{{ $field.EffectiveColName }}" json:"{{ $field.Name }}"`
+	{{ capitalize $field.Name }} {{ if $field.EnumRef }}{{ if $field.IsArray }}[]{{ $field.EnumRef.Name }}Type{{ else }}{{ if $field.Optional }}*{{ end }}{{ $field.EnumRef.Name }}Type{{ end }}{{ else }}{{ $field.GoType }}{{ end }} `db:"{{ $field.EffectiveColName }}" json:"{{ $field.Name }}{{ if $field.Optional }},omitempty{{ end }}"`
 	{{- end }}
 	{{- range $relation := .Model.RelationFields }}
 	{{ capitalize $relation.Name }} {{ if $relation.IsArray }}[]*{{ $relation.TargetModelName }}{{ else }}*{{ $relation.TargetModelName }}{{ end }} `json:"{{ $relation.Name }},omitempty"`
@@ -78,8 +78,9 @@ func (q *Queries) select{{ .Model.Name }}Cols(selects *{{ .Model.Name }}Select, 
 	specs := []colSpec{
 		{{- range $field := .Model.ScalarFields }}
 		{"{{ $field.EffectiveColName }}", selects != nil && selects.{{ capitalize $field.Name }}, omits != nil && omits.{{ capitalize $field.Name }},
+			{{- if $field.IsID }} selects != nil && selects.hasAnyRelation(){{ else }}
 			{{- $relName := fkForRelation $.Model $field }}
-			{{- if ne $relName "" }} selects != nil && selects.{{ capitalize $relName }} != nil{{ else }} false{{ end }}},
+			{{- if ne $relName "" }} selects != nil && selects.{{ capitalize $relName }} != nil{{ else }} false{{ end }}{{ end }}},
 		{{- end }}
 	}
 
@@ -220,3 +221,6 @@ func (input {{ .Model.Name }}Create) Validate() error {
 	}
 	return nil
 }
+
+
+

@@ -2,21 +2,11 @@ package valk
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
-
-var _ = time.Time{}
-var _ = fmt.Sprintf
-var _ = strings.Join
-var _ = context.Background
-var _ = sql.LevelDefault
-var _ = slices.Contains[[]string, string]
-var _ = utf8.ValidString
 
 // CategoryToPost represents the database model
 type CategoryToPost struct {
@@ -270,7 +260,7 @@ func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, 
 			rowMaps[i] = q.CategoryToPostInputToMap(input)
 		}
 		query, vals := buildBulkInsertSQL(q.dialect, "CategoryToPost", rowMaps, CategoryToPostColOrder, returningCols)
-		var records []*CategoryToPost
+		records := make([]*CategoryToPost, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -299,7 +289,7 @@ func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, 
 	}
 
 	// Fallback to loop inside transaction
-	var records []*CategoryToPost
+	records := make([]*CategoryToPost, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		for _, input := range inputs {
 			res, err := txQ.executeCategoryToPostCreate(ctx, input, nil, nil)
@@ -318,6 +308,80 @@ func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, 
 		return nil, err
 	}
 	return records, nil
+}
+func (d *CategoryToPostDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+	return &FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
+		client:   d.client,
+		where:    where,
+		execFunc: d.client.executeCategoryToPostFindUnique,
+	}
+}
+
+func (d *CategoryToPostDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+	return &FindFirstBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executeCategoryToPostFindFirst,
+	}
+}
+
+func (d *CategoryToPostDelegate) FindMany(preds ...Predicate) *FindManyBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+	return &FindManyBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executeCategoryToPostFindMany,
+	}
+}
+
+func (q *Queries) executeCategoryToPostFindUnique(ctx context.Context, where UniquePredicate, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	if where == nil {
+		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
+	}
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	whereClause, vals := CompilePredicates(q.dialect, []Predicate{where})
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectCategoryToPostCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "CategoryToPost", whereClause, vals, returningCols,
+		func(res *CategoryToPost, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*CategoryToPost) error {
+			return txQ.loadCategoryToPostRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executeCategoryToPostFindFirst(ctx context.Context, where []Predicate, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectCategoryToPostCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "CategoryToPost", whereClause, vals, returningCols,
+		func(res *CategoryToPost, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*CategoryToPost) error {
+			return txQ.loadCategoryToPostRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executeCategoryToPostFindMany(ctx context.Context, where []Predicate, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectCategoryToPostCols(selects, omits)
+	return executeManyWithRelations(ctx, q, "CategoryToPost", whereClause, vals, returningCols,
+		func(res *CategoryToPost, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*CategoryToPost) error {
+			return txQ.loadCategoryToPostRelations(ctx, results, selects)
+		},
+	)
 }
 func (q *Queries) loadCategoryToPostRelations(ctx context.Context, records []*CategoryToPost, selects *CategoryToPostSelect) error {
 	if selects == nil || len(records) == 0 {

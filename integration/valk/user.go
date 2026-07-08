@@ -2,35 +2,26 @@ package valk
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
 
-var _ = time.Time{}
-var _ = fmt.Sprintf
-var _ = strings.Join
-var _ = context.Background
-var _ = sql.LevelDefault
-var _ = slices.Contains[[]string, string]
-var _ = utf8.ValidString
-
 // User represents the database model
 type User struct {
-	Id           string       `db:"id" json:"id"`
-	Email        string       `db:"email" json:"email"`
-	PhoneNum     string       `db:"phoneNum" json:"phoneNum"`
-	Password     *string      `db:"password" json:"password"`
-	Role         UserRoleType `db:"role" json:"role"`
-	ReferredById *string      `db:"referredById" json:"referredById"`
-	Profile      *Profile     `json:"profile,omitempty"`
-	Posts        []*Post      `json:"posts,omitempty"`
-	Comments     []*Comment   `json:"comments,omitempty"`
-	ReferredBy   *User        `json:"referredBy,omitempty"`
-	Referrals    []*User      `json:"referrals,omitempty"`
+	Id           string        `db:"id" json:"id"`
+	Email        string        `db:"email" json:"email"`
+	PhoneNum     string        `db:"phoneNum" json:"phoneNum"`
+	Password     *string       `db:"password" json:"password,omitempty"`
+	Role         UserRoleType  `db:"role" json:"role"`
+	RoleOptional *UserRoleType `db:"roleOptional" json:"roleOptional,omitempty"`
+	ReferredById *string       `db:"referredById" json:"referredById,omitempty"`
+	Profile      *Profile      `json:"profile,omitempty"`
+	Posts        []*Post       `json:"posts,omitempty"`
+	Comments     []*Comment    `json:"comments,omitempty"`
+	ReferredBy   *User         `json:"referredBy,omitempty"`
+	Referrals    []*User       `json:"referrals,omitempty"`
 }
 
 // UserCreate represents the input structure for creation
@@ -40,6 +31,7 @@ type UserCreate struct {
 	PhoneNum     string        `json:"phoneNum"`
 	Password     *string       `json:"password"`
 	Role         *UserRoleType `json:"role"`
+	RoleOptional *UserRoleType `json:"roleOptional"`
 	ReferredById *string       `json:"referredById"`
 }
 
@@ -50,6 +42,7 @@ type UserSelect struct {
 	PhoneNum     bool           `json:"phoneNum"`
 	Password     bool           `json:"password"`
 	Role         bool           `json:"role"`
+	RoleOptional bool           `json:"roleOptional"`
 	ReferredById bool           `json:"referredById"`
 	Profile      *ProfileSelect `json:"profile,omitempty"`
 	Posts        *PostSelect    `json:"posts,omitempty"`
@@ -65,6 +58,7 @@ type UserOmit struct {
 	PhoneNum     bool         `json:"phoneNum"`
 	Password     bool         `json:"password"`
 	Role         bool         `json:"role"`
+	RoleOptional bool         `json:"roleOptional"`
 	ReferredById bool         `json:"referredById"`
 	Profile      *ProfileOmit `json:"profile,omitempty"`
 	Posts        *PostOmit    `json:"posts,omitempty"`
@@ -101,6 +95,8 @@ func (m *User) ScanFields(cols []string) []any {
 			targets[i] = &m.Password
 		case "role":
 			targets[i] = &m.Role
+		case "roleOptional":
+			targets[i] = &m.RoleOptional
 		case "referredById":
 			targets[i] = &m.ReferredById
 		}
@@ -114,6 +110,7 @@ var userDefaultCols = []string{
 	"phoneNum",
 	"password",
 	"role",
+	"roleOptional",
 	"referredById",
 }
 
@@ -122,14 +119,15 @@ func (q *Queries) selectUserCols(selects *UserSelect, omits *UserOmit, forceCols
 		return userDefaultCols
 	}
 
-	anySelected := selects != nil && (selects.Id || selects.Email || selects.PhoneNum || selects.Password || selects.Role || selects.ReferredById || selects.Profile != nil || selects.Posts != nil || selects.Comments != nil || selects.ReferredBy != nil || selects.Referrals != nil)
+	anySelected := selects != nil && (selects.Id || selects.Email || selects.PhoneNum || selects.Password || selects.Role || selects.RoleOptional || selects.ReferredById || selects.Profile != nil || selects.Posts != nil || selects.Comments != nil || selects.ReferredBy != nil || selects.Referrals != nil)
 
 	specs := []colSpec{
-		{"id", selects != nil && selects.Id, omits != nil && omits.Id, false},
+		{"id", selects != nil && selects.Id, omits != nil && omits.Id, selects != nil && selects.hasAnyRelation()},
 		{"email", selects != nil && selects.Email, omits != nil && omits.Email, false},
 		{"phoneNum", selects != nil && selects.PhoneNum, omits != nil && omits.PhoneNum, false},
 		{"password", selects != nil && selects.Password, omits != nil && omits.Password, false},
 		{"role", selects != nil && selects.Role, omits != nil && omits.Role, false},
+		{"roleOptional", selects != nil && selects.RoleOptional, omits != nil && omits.RoleOptional, false},
 		{"referredById", selects != nil && selects.ReferredById, omits != nil && omits.ReferredById, selects != nil && selects.ReferredBy != nil},
 	}
 
@@ -178,6 +176,11 @@ func (input UserCreate) Validate() error {
 			errs.Add("role", *input.Role, "enum", fmt.Sprintf("invalid enum value %q for field Role", *input.Role))
 		}
 	}
+	if input.RoleOptional != nil {
+		if !input.RoleOptional.IsValid() {
+			errs.Add("roleOptional", *input.RoleOptional, "enum", fmt.Sprintf("invalid enum value %q for field RoleOptional", *input.RoleOptional))
+		}
+	}
 
 	if errs.HasErrors() {
 		return *errs
@@ -191,6 +194,7 @@ var UserColOrder = []string{
 	"phoneNum",
 	"password",
 	"role",
+	"roleOptional",
 	"referredById",
 }
 
@@ -274,6 +278,9 @@ func (q *Queries) UserInputToMap(input UserCreate) map[string]any {
 	if input.Role != nil {
 		m["role"] = *input.Role
 	}
+	if input.RoleOptional != nil {
+		m["roleOptional"] = *input.RoleOptional
+	}
 	if input.ReferredById != nil {
 		m["referredById"] = *input.ReferredById
 	}
@@ -352,7 +359,7 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, inputs []U
 			rowMaps[i] = q.UserInputToMap(input)
 		}
 		query, vals := buildBulkInsertSQL(q.dialect, "User", rowMaps, UserColOrder, returningCols)
-		var records []*User
+		records := make([]*User, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -381,7 +388,7 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, inputs []U
 	}
 
 	// Fallback to loop inside transaction
-	var records []*User
+	records := make([]*User, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		for _, input := range inputs {
 			res, err := txQ.executeUserCreate(ctx, input, nil, nil)
@@ -400,6 +407,80 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, inputs []U
 		return nil, err
 	}
 	return records, nil
+}
+func (d *UserDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[User, UserSelect, UserOmit] {
+	return &FindUniqueBuilder[User, UserSelect, UserOmit]{
+		client:   d.client,
+		where:    where,
+		execFunc: d.client.executeUserFindUnique,
+	}
+}
+
+func (d *UserDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[User, UserSelect, UserOmit] {
+	return &FindFirstBuilder[User, UserSelect, UserOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executeUserFindFirst,
+	}
+}
+
+func (d *UserDelegate) FindMany(preds ...Predicate) *FindManyBuilder[User, UserSelect, UserOmit] {
+	return &FindManyBuilder[User, UserSelect, UserOmit]{
+		client:   d.client,
+		where:    preds,
+		execFunc: d.client.executeUserFindMany,
+	}
+}
+
+func (q *Queries) executeUserFindUnique(ctx context.Context, where UniquePredicate, selects *UserSelect, omits *UserOmit) (*User, error) {
+	if where == nil {
+		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
+	}
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	whereClause, vals := CompilePredicates(q.dialect, []Predicate{where})
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectUserCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "User", whereClause, vals, returningCols,
+		func(res *User, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*User) error {
+			return txQ.loadUserRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executeUserFindFirst(ctx context.Context, where []Predicate, selects *UserSelect, omits *UserOmit) (*User, error) {
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectUserCols(selects, omits)
+	return executeSingleWithRelations(ctx, q, "User", whereClause, vals, returningCols,
+		func(res *User, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*User) error {
+			return txQ.loadUserRelations(ctx, results, selects)
+		},
+	)
+}
+
+func (q *Queries) executeUserFindMany(ctx context.Context, where []Predicate, selects *UserSelect, omits *UserOmit) ([]*User, error) {
+	whereClause, vals := CompilePredicates(q.dialect, where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := q.selectUserCols(selects, omits)
+	return executeManyWithRelations(ctx, q, "User", whereClause, vals, returningCols,
+		func(res *User, cols []string) []any { return res.ScanFields(cols) },
+		selects.hasAnyRelation(),
+		func(ctx context.Context, txQ *Queries, results []*User) error {
+			return txQ.loadUserRelations(ctx, results, selects)
+		},
+	)
 }
 func (q *Queries) loadUserRelations(ctx context.Context, records []*User, selects *UserSelect) error {
 	if selects == nil || len(records) == 0 {

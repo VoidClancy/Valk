@@ -1,0 +1,100 @@
+package {{ .PackageName }}
+
+import (
+	"fmt"
+	{{- if hasJsonField .Model }}
+	"encoding/json"
+	{{- end }}
+	{{- if hasTimeField .Model }}
+	"time"
+	{{- end }}
+	"{{ .ParentImportPath }}"
+)
+
+
+
+type UniquePredicate struct {
+	{{ .ParentPackageName }}.StandardPredicate
+}
+
+func (UniquePredicate) IsUnique() {}
+
+func (p UniquePredicate) Validate() error {
+	if p.StandardPredicate.Data.Column == "" && len(p.StandardPredicate.Data.Children) == 0 {
+		return fmt.Errorf("at least one unique field must be set for FindUnique")
+	}
+	return nil
+}
+
+type Select = {{ .ParentPackageName }}.{{ .Model.Name }}Select
+type Omit = {{ .ParentPackageName }}.{{ .Model.Name }}Omit
+type Create = {{ .ParentPackageName }}.{{ .Model.Name }}Create
+
+func And(preds ...{{ .ParentPackageName }}.Predicate) {{ .ParentPackageName }}.Predicate {
+	return {{ .ParentPackageName }}.And(preds...)
+}
+
+func Or(preds ...{{ .ParentPackageName }}.Predicate) {{ .ParentPackageName }}.Predicate {
+	return {{ .ParentPackageName }}.Or(preds...)
+}
+
+func Not(pred {{ .ParentPackageName }}.Predicate) {{ .ParentPackageName }}.Predicate {
+	return {{ .ParentPackageName }}.Not(pred)
+}
+
+{{ range $field := .Model.ScalarFields -}}
+{{- $isUnique := or $field.IsID $field.IsUnique -}}
+{{- $fieldType := fieldPredType $field $.ParentPackageName -}}
+{{- $col := $field.EffectiveColName -}}
+{{- if eq $field.Type "String" }}
+	{{- if $isUnique }}
+var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.StringUniqueField{Column: "{{ $col }}"}
+	{{- else }}
+var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.StringField{Column: "{{ $col }}"}
+	{{- end }}
+{{- else }}
+	{{- if $isUnique }}
+var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.UniqueField[{{ $fieldType }}]{Column: "{{ $col }}"}
+	{{- else }}
+var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.Field[{{ $fieldType }}]{Column: "{{ $col }}"}
+	{{- end }}
+{{- end }}
+{{ end }}
+
+{{- range $index := .Model.CompositeUnique }}
+{{- $constraintName := $index.Name }}
+{{- if eq $constraintName "" }}
+	{{- range $i, $f := $index.Fields }}
+		{{- if $i }}
+			{{- $constraintName = printf "%s_%s" $constraintName (capitalize $f) }}
+		{{- else }}
+			{{- $constraintName = capitalize $f }}
+		{{- end }}
+	{{- end }}
+{{- end }}
+// Helper for compound unique constraint: {{ $constraintName }}
+func {{ capitalize $constraintName }}Unique(
+	{{- range $i, $fName := $index.Fields -}}
+		{{- $field := $.Model.GetField $fName -}}
+		{{- if $i }}, {{ end -}}
+		{{- lowercase $field.Name }} {{ fieldPredType $field $.ParentPackageName -}}
+	{{- end -}}
+) UniquePredicate {
+	return UniquePredicate{
+		StandardPredicate: {{ $.ParentPackageName }}.StandardPredicate{
+			Data: {{ $.ParentPackageName }}.And(
+				{{- range $fName := $index.Fields }}
+				{{- $field := $.Model.GetField $fName }}
+				{{ $.ParentPackageName }}.StandardPredicate{
+					Data: {{ $.ParentPackageName }}.PredicateData{
+						Column:   "{{ $field.EffectiveColName }}",
+						Operator: "=",
+						Value:    {{ lowercase $field.Name }},
+					},
+				},
+				{{- end }}
+			).ToPredicateData(),
+		},
+	}
+}
+{{- end }}

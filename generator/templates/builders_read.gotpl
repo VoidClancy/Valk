@@ -1,0 +1,247 @@
+type FindUniqueBuilder[M any, S any, O any] struct {
+	client   *Queries
+	where    UniquePredicate
+	execFunc func(ctx context.Context, where UniquePredicate, s *S, o *O) (*M, error)
+}
+
+func (b *FindUniqueBuilder[M, S, O]) Select(s S) *FindUniqueSelectBuilder[M, S, O] {
+	return &FindUniqueSelectBuilder[M, S, O]{builder: b, selects: s}
+}
+
+func (b *FindUniqueBuilder[M, S, O]) Omit(o O) *FindUniqueOmitBuilder[M, S, O] {
+	return &FindUniqueOmitBuilder[M, S, O]{builder: b, omits: o}
+}
+
+func (b *FindUniqueBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.execFunc(ctx, b.where, nil, nil)
+}
+
+type FindUniqueSelectBuilder[M any, S any, O any] struct {
+	builder *FindUniqueBuilder[M, S, O]
+	selects S
+}
+
+func (b *FindUniqueSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, &b.selects, nil)
+}
+
+type FindUniqueOmitBuilder[M any, S any, O any] struct {
+	builder *FindUniqueBuilder[M, S, O]
+	omits   O
+}
+
+func (b *FindUniqueOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, nil, &b.omits)
+}
+
+type FindFirstBuilder[M any, S any, O any] struct {
+	client   *Queries
+	where    []Predicate
+	execFunc func(ctx context.Context, where []Predicate, s *S, o *O) (*M, error)
+}
+
+func (b *FindFirstBuilder[M, S, O]) Select(s S) *FindFirstSelectBuilder[M, S, O] {
+	return &FindFirstSelectBuilder[M, S, O]{builder: b, selects: s}
+}
+
+func (b *FindFirstBuilder[M, S, O]) Omit(o O) *FindFirstOmitBuilder[M, S, O] {
+	return &FindFirstOmitBuilder[M, S, O]{builder: b, omits: o}
+}
+
+func (b *FindFirstBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.execFunc(ctx, b.where, nil, nil)
+}
+
+type FindFirstSelectBuilder[M any, S any, O any] struct {
+	builder *FindFirstBuilder[M, S, O]
+	selects S
+}
+
+func (b *FindFirstSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, &b.selects, nil)
+}
+
+type FindFirstOmitBuilder[M any, S any, O any] struct {
+	builder *FindFirstBuilder[M, S, O]
+	omits   O
+}
+
+func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, nil, &b.omits)
+}
+
+type FindManyBuilder[M any, S any, O any] struct {
+	client   *Queries
+	where    []Predicate
+	execFunc func(ctx context.Context, where []Predicate, s *S, o *O) ([]*M, error)
+}
+
+func (b *FindManyBuilder[M, S, O]) Select(s S) *FindManySelectBuilder[M, S, O] {
+	return &FindManySelectBuilder[M, S, O]{builder: b, selects: s}
+}
+
+func (b *FindManyBuilder[M, S, O]) Omit(o O) *FindManyOmitBuilder[M, S, O] {
+	return &FindManyOmitBuilder[M, S, O]{builder: b, omits: o}
+}
+
+func (b *FindManyBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.execFunc(ctx, b.where, nil, nil)
+}
+
+type FindManySelectBuilder[M any, S any, O any] struct {
+	builder *FindManyBuilder[M, S, O]
+	selects S
+}
+
+func (b *FindManySelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, &b.selects, nil)
+}
+
+type FindManyOmitBuilder[M any, S any, O any] struct {
+	builder *FindManyBuilder[M, S, O]
+	omits   O
+}
+
+func (b *FindManyOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.builder.execFunc(ctx, b.builder.where, nil, &b.omits)
+}
+
+func executeFindOne[M any](
+	ctx context.Context,
+	q *Queries,
+	table string,
+	whereClause string,
+	whereVals []any,
+	returningCols []string,
+	scanFunc func(record *M, cols []string) []any,
+) (*M, error) {
+	var sb strings.Builder
+	sb.Grow(64 + len(returningCols)*15 + len(table) + len(whereClause))
+	sb.WriteString("SELECT ")
+	for i, col := range returningCols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(q.dialect.Quote(col))
+	}
+	sb.WriteString(" FROM ")
+	sb.WriteString(q.dialect.Quote(table))
+	sb.WriteString(whereClause)
+	sb.WriteString(" LIMIT 1")
+
+	var res M
+	row := q.queryRow(ctx, sb.String(), whereVals...)
+	scanTargets := scanFunc(&res, returningCols)
+	if err := row.Scan(scanTargets...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &res, nil
+}
+
+func executeFindMany[M any](
+	ctx context.Context,
+	q *Queries,
+	table string,
+	whereClause string,
+	whereVals []any,
+	returningCols []string,
+	scanFunc func(record *M, cols []string) []any,
+) ([]*M, error) {
+	var sb strings.Builder
+	sb.Grow(64 + len(returningCols)*15 + len(table) + len(whereClause))
+	sb.WriteString("SELECT ")
+	for i, col := range returningCols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(q.dialect.Quote(col))
+	}
+	sb.WriteString(" FROM ")
+	sb.WriteString(q.dialect.Quote(table))
+	sb.WriteString(whereClause)
+
+	rows, err := q.query(ctx, sb.String(), whereVals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := make([]*M, 0)
+	for rows.Next() {
+		var res M
+		scanTargets := scanFunc(&res, returningCols)
+		if err := rows.Scan(scanTargets...); err != nil {
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func executeSingleWithRelations[M any](
+	ctx context.Context,
+	q *Queries,
+	table string,
+	whereClause string,
+	whereVals []any,
+	returningCols []string,
+	scanFunc func(*M, []string) []any,
+	hasRelations bool,
+	loadRelations func(ctx context.Context, txQ *Queries, results []*M) error,
+) (*M, error) {
+	if !hasRelations {
+		return executeFindOne(ctx, q, table, whereClause, whereVals, returningCols, scanFunc)
+	}
+
+	var res *M
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		var err error
+		res, err = executeFindOne(ctx, txQ, table, whereClause, whereVals, returningCols, scanFunc)
+		if err != nil || res == nil {
+			return err
+		}
+		return loadRelations(ctx, txQ, []*M{res})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func executeManyWithRelations[M any](
+	ctx context.Context,
+	q *Queries,
+	table string,
+	whereClause string,
+	whereVals []any,
+	returningCols []string,
+	scanFunc func(*M, []string) []any,
+	hasRelations bool,
+	loadRelations func(ctx context.Context, txQ *Queries, results []*M) error,
+) ([]*M, error) {
+	if !hasRelations {
+		return executeFindMany(ctx, q, table, whereClause, whereVals, returningCols, scanFunc)
+	}
+
+	results := make([]*M, 0)
+	err := q.transaction(ctx, func(txQ *Queries) error {
+		var err error
+		results, err = executeFindMany(ctx, txQ, table, whereClause, whereVals, returningCols, scanFunc)
+		if err != nil || len(results) == 0 {
+			return err
+		}
+		return loadRelations(ctx, txQ, results)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+

@@ -41,7 +41,7 @@ func TestGenerateClient_NativeDBConstraints(t *testing.T) {
 		},
 	}
 
-	outputs, err := GenerateClient(sch, "valk", "", "", nil)
+	outputs, err := GenerateClient(sch, "valk", "github.com/voidclancy/valk", "", "", nil)
 	if err != nil {
 		t.Fatalf("failed to generate client: %v", err)
 	}

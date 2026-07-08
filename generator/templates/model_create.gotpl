@@ -197,7 +197,7 @@ func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Contex
 			rowMaps[i] = q.{{ .Model.Name }}InputToMap(input)
 		}
 		query, vals := buildBulkInsertSQL(q.dialect, "{{ .Model.EffectiveTableName }}", rowMaps, {{ .Model.Name }}ColOrder, returningCols)
-		var records []*{{ .Model.Name }}
+		records := make([]*{{ .Model.Name }}, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -226,7 +226,7 @@ func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Contex
 	}
 
 	// Fallback to loop inside transaction
-	var records []*{{ .Model.Name }}
+	records := make([]*{{ .Model.Name }}, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		for _, input := range inputs {
 			res, err := txQ.execute{{ .Model.Name }}Create(ctx, input, nil, nil)
