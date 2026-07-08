@@ -223,8 +223,35 @@ func (q *Queries) executeUserCreate(ctx context.Context, input UserCreate, selec
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
-	m := q.UserInputToMap(input)
-	cols, vals := mapToColsVals(m, UserColOrder)
+	var cols []string
+	var vals []any
+	if input.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, *input.Id)
+	} else {
+		cols = append(cols, "id")
+		vals = append(vals, generateCUID())
+	}
+	cols = append(cols, "email")
+	vals = append(vals, input.Email)
+	cols = append(cols, "phoneNum")
+	vals = append(vals, input.PhoneNum)
+	if input.Password != nil {
+		cols = append(cols, "password")
+		vals = append(vals, *input.Password)
+	}
+	if input.Role != nil {
+		cols = append(cols, "role")
+		vals = append(vals, *input.Role)
+	}
+	if input.RoleOptional != nil {
+		cols = append(cols, "roleOptional")
+		vals = append(vals, *input.RoleOptional)
+	}
+	if input.ReferredById != nil {
+		cols = append(cols, "referredById")
+		vals = append(vals, *input.ReferredById)
+	}
 
 	returningCols := q.selectUserCols(selects, omits)
 

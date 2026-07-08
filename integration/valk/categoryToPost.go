@@ -141,8 +141,12 @@ func (q *Queries) executeCategoryToPostCreate(ctx context.Context, input Categor
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
-	m := q.CategoryToPostInputToMap(input)
-	cols, vals := mapToColsVals(m, CategoryToPostColOrder)
+	var cols []string
+	var vals []any
+	cols = append(cols, "postId")
+	vals = append(vals, input.PostId)
+	cols = append(cols, "categoryId")
+	vals = append(vals, input.CategoryId)
 
 	returningCols := q.selectCategoryToPostCols(selects, omits)
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"integration/valk"
 	"integration/valk/comment"
+	"integration/valk/post"
 	"integration/valk/user"
 	"strings"
 	"sync"
@@ -570,7 +571,7 @@ func TestJsonField(t *testing.T) {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	p, err := db.Post.Create(valk.PostCreate{
+	p, err := db.Post.Create(post.Create{
 		Title:    "JSON Post",
 		AuthorId: u.Id,
 	}).Exec(ctx)

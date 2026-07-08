@@ -156,8 +156,21 @@ func (q *Queries) executeProfileCreate(ctx context.Context, input ProfileCreate,
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
-	m := q.ProfileInputToMap(input)
-	cols, vals := mapToColsVals(m, ProfileColOrder)
+	var cols []string
+	var vals []any
+	if input.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, *input.Id)
+	} else {
+		cols = append(cols, "id")
+		vals = append(vals, generateCUID())
+	}
+	if input.Bio != nil {
+		cols = append(cols, "bio")
+		vals = append(vals, *input.Bio)
+	}
+	cols = append(cols, "userId")
+	vals = append(vals, input.UserId)
 
 	returningCols := q.selectProfileCols(selects, omits)
 

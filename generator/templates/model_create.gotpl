@@ -33,8 +33,66 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, input {{ .
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
-	m := q.{{ .Model.Name }}InputToMap(input)
-	cols, vals := mapToColsVals(m, {{ .Model.Name }}ColOrder)
+	var cols []string
+	var vals []any
+
+	{{- range $field := .Model.ScalarFields }}
+		{{- $col := $field.EffectiveColName }}
+		{{- $fieldName := capitalize $field.Name }}
+		{{- if $field.EnumRef }}
+			{{- if $field.IsArray }}
+				if input.{{ $fieldName }} != nil {
+					cols = append(cols, "{{ $col }}")
+					vals = append(vals, input.{{ $fieldName }})
+				}
+			{{- else }}
+				if input.{{ $fieldName }} != nil {
+					cols = append(cols, "{{ $col }}")
+					vals = append(vals, *input.{{ $fieldName }})
+				}
+			{{- end }}
+		{{- else }}
+			{{- if $field.IsArray }}
+				if input.{{ $fieldName }} != nil {
+					cols = append(cols, "{{ $col }}")
+					vals = append(vals, input.{{ $fieldName }})
+				}
+			{{- else }}
+				{{- if and $field.Default (eq $field.Default.Kind.String "Func") }}
+					if input.{{ $fieldName }} != nil {
+						cols = append(cols, "{{ $col }}")
+						vals = append(vals, *input.{{ $fieldName }})
+					} else {
+						cols = append(cols, "{{ $col }}")
+						{{- if eq $field.Default.FuncName "cuid" }}
+							vals = append(vals, generateCUID())
+						{{- else if eq $field.Default.FuncName "uuid" }}
+							vals = append(vals, generateUUID())
+						{{- else if eq $field.Default.FuncName "now" }}
+							vals = append(vals, time.Now())
+						{{- end }}
+					}
+				{{- else if or $field.Optional (ne $field.Default nil) }}
+					if input.{{ $fieldName }} != nil {
+						cols = append(cols, "{{ $col }}")
+						vals = append(vals, *input.{{ $fieldName }})
+					}
+				{{- else }}
+					{{- if and $field.IsID (eq $field.GoType "string") }}
+						cols = append(cols, "{{ $col }}")
+						if input.{{ $fieldName }} != "" {
+							vals = append(vals, input.{{ $fieldName }})
+						} else {
+							vals = append(vals, generateCUID())
+						}
+					{{- else }}
+						cols = append(cols, "{{ $col }}")
+						vals = append(vals, input.{{ $fieldName }})
+					{{- end }}
+				{{- end }}
+			{{- end }}
+		{{- end }}
+	{{- end }}
 
 	returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
 

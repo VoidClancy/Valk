@@ -232,8 +232,31 @@ func (q *Queries) executeCommentCreate(ctx context.Context, input CommentCreate,
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
-	m := q.CommentInputToMap(input)
-	cols, vals := mapToColsVals(m, CommentColOrder)
+	var cols []string
+	var vals []any
+	if input.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, *input.Id)
+	} else {
+		cols = append(cols, "id")
+		vals = append(vals, generateCUID())
+	}
+	cols = append(cols, "textify")
+	vals = append(vals, input.Textify)
+	cols = append(cols, "dummy3")
+	vals = append(vals, input.Dummy3)
+	cols = append(cols, "dummy1")
+	vals = append(vals, input.Dummy1)
+	cols = append(cols, "dummy2")
+	vals = append(vals, input.Dummy2)
+	cols = append(cols, "postId")
+	vals = append(vals, input.PostId)
+	cols = append(cols, "authorId")
+	vals = append(vals, input.AuthorId)
+	if input.Meta != nil {
+		cols = append(cols, "meta")
+		vals = append(vals, *input.Meta)
+	}
 
 	returningCols := q.selectCommentCols(selects, omits)
 
