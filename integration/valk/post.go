@@ -189,8 +189,27 @@ func (q *Queries) executePostCreate(ctx context.Context, input PostCreate, selec
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
-	m := q.PostInputToMap(input)
-	cols, vals := mapToColsVals(m, PostColOrder)
+	var cols []string
+	var vals []any
+	if input.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, *input.Id)
+	} else {
+		cols = append(cols, "id")
+		vals = append(vals, generateCUID())
+	}
+	cols = append(cols, "title")
+	vals = append(vals, input.Title)
+	if input.Content != nil {
+		cols = append(cols, "content")
+		vals = append(vals, *input.Content)
+	}
+	if input.Published != nil {
+		cols = append(cols, "published")
+		vals = append(vals, *input.Published)
+	}
+	cols = append(cols, "authorId")
+	vals = append(vals, input.AuthorId)
 
 	returningCols := q.selectPostCols(selects, omits)
 

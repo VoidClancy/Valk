@@ -138,8 +138,16 @@ func (q *Queries) executeCategoryCreate(ctx context.Context, input CategoryCreat
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
-	m := q.CategoryInputToMap(input)
-	cols, vals := mapToColsVals(m, CategoryColOrder)
+	var cols []string
+	var vals []any
+	if input.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, *input.Id)
+	} else {
+		cols = append(cols, "id")
+	}
+	cols = append(cols, "name")
+	vals = append(vals, input.Name)
 
 	returningCols := q.selectCategoryCols(selects, omits)
 

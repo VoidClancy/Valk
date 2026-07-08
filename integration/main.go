@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"integration/valk"
 	"integration/valk/category"
@@ -26,6 +27,10 @@ type SeedData struct {
 }
 
 func seed(db *valk.DB, ctx context.Context) *SeedData {
+	db.User.BeforeCreate(func(ctx context.Context, uc *user.Create) error {
+		return errors.New("AAAAAAAAH")
+	})
+
 	referrer, err := db.User.Create(user.Create{
 		Email:    "referrer@example.com",
 		PhoneNum: "555-0001",
@@ -139,6 +144,17 @@ func main() {
 	fmt.Println("=== ALL ===")
 
 	printJSON(all)
+
+	bleh, err := db.User.FindMany(user.And(
+		user.Email.Contains("@example"),
+		user.Or(
+			user.Email.EQ("referred@example.com"),
+			user.PhoneNum.EQ("+1111"),
+		),
+	)).Select(user.Select{
+		Id: true,
+	}).Exec(ctx)
+	printJSON(bleh)
 
 	fmt.Println("=== QUERY 1: Deep Nested Select ===")
 	resUser, err := db.User.FindFirst(
