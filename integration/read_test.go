@@ -323,8 +323,8 @@ func TestControlCharacterInFilter(t *testing.T) {
 	ctx := context.Background()
 
 	res, err := db.User.FindFirst(user.Email.EQ("test\x00null@example.com")).Exec(ctx)
-	if err != nil {
-		t.Fatalf("query with an embedded null byte crashed instead of returning cleanly: %v", err)
+	if err == nil {
+		t.Fatalf("expected validation error for query with an embedded null byte, got nil")
 	}
 	if res != nil {
 		t.Errorf("expected no match for a value containing a null byte, got: %+v", res)
@@ -548,8 +548,8 @@ func TestCompoundUniqueConstraintEdgeCases(t *testing.T) {
 
 	t.Run("Control characters", func(t *testing.T) {
 		res, err := db.User.FindUnique(user.EmailPhoneUnique("compound_edge@example.com\x00", "800a\r\n")).Exec(ctx)
-		if err != nil {
-			t.Fatalf("query failed: %v", err)
+		if err == nil {
+			t.Fatalf("expected validation error for control-character mutated fields, got nil")
 		}
 		if res != nil {
 			t.Errorf("expected nil for control-character mutated fields, got: %+v", res)

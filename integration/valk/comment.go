@@ -458,6 +458,13 @@ func (q *Queries) executeCommentFindUnique(ctx context.Context, where UniquePred
 }
 
 func (q *Queries) executeCommentFindFirst(ctx context.Context, where []Predicate, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
 	whereClause, vals := CompilePredicates(q.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -473,6 +480,13 @@ func (q *Queries) executeCommentFindFirst(ctx context.Context, where []Predicate
 }
 
 func (q *Queries) executeCommentFindMany(ctx context.Context, where []Predicate, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
 	whereClause, vals := CompilePredicates(q.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause

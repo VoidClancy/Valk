@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/pressly/goose/v3"
@@ -294,6 +295,7 @@ type PredicateData struct {
 
 type Predicate interface {
 	ToPredicateData() PredicateData
+	Validate() error
 }
 
 type UniquePredicate interface {
@@ -308,6 +310,55 @@ type StandardPredicate struct {
 
 func (sp StandardPredicate) ToPredicateData() PredicateData {
 	return sp.Data
+}
+
+func validateValue(col string, val any) error {
+	switch v := val.(type) {
+	case string:
+		if strings.Contains(v, "\x00") {
+			return &ValidationError{
+				Errors: []FieldError{
+					{Field: col, Value: v, Rule: "safety", Msg: "string cannot contain null bytes"},
+				},
+			}
+		}
+		if !utf8.ValidString(v) {
+			return &ValidationError{
+				Errors: []FieldError{
+					{Field: col, Value: v, Rule: "safety", Msg: "string must be valid UTF-8"},
+				},
+			}
+		}
+	case []string:
+		for _, s := range v {
+			if err := validateValue(col, s); err != nil {
+				return err
+			}
+		}
+	case []any:
+		for _, item := range v {
+			if err := validateValue(col, item); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (pd PredicateData) Validate() error {
+	if pd.IsLogical {
+		for _, child := range pd.Children {
+			if err := child.Validate(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return validateValue(pd.Column, pd.Value)
+}
+
+func (sp StandardPredicate) Validate() error {
+	return sp.Data.Validate()
 }
 
 func And(preds ...Predicate) Predicate {
@@ -462,7 +513,7 @@ func (p UniqueFieldPredicate) Validate() error {
 	if p.Data.Column == "" {
 		return fmt.Errorf("at least one unique field must be set for FindUnique")
 	}
-	return nil
+	return p.StandardPredicate.Validate()
 }
 
 func (f UniqueField[T]) EQ(val T) UniquePredicate {

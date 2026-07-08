@@ -355,6 +355,13 @@ func (q *Queries) executeCategoryToPostFindUnique(ctx context.Context, where Uni
 }
 
 func (q *Queries) executeCategoryToPostFindFirst(ctx context.Context, where []Predicate, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
 	whereClause, vals := CompilePredicates(q.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -370,6 +377,13 @@ func (q *Queries) executeCategoryToPostFindFirst(ctx context.Context, where []Pr
 }
 
 func (q *Queries) executeCategoryToPostFindMany(ctx context.Context, where []Predicate, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
 	whereClause, vals := CompilePredicates(q.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause

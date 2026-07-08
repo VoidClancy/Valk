@@ -377,6 +377,13 @@ func (q *Queries) executeProfileFindUnique(ctx context.Context, where UniquePred
 }
 
 func (q *Queries) executeProfileFindFirst(ctx context.Context, where []Predicate, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
 	whereClause, vals := CompilePredicates(q.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -392,6 +399,13 @@ func (q *Queries) executeProfileFindFirst(ctx context.Context, where []Predicate
 }
 
 func (q *Queries) executeProfileFindMany(ctx context.Context, where []Predicate, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
 	whereClause, vals := CompilePredicates(q.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause

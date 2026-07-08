@@ -15,7 +15,7 @@ func (p UniquePredicate) Validate() error {
 	if p.StandardPredicate.Data.Column == "" && len(p.StandardPredicate.Data.Children) == 0 {
 		return fmt.Errorf("at least one unique field must be set for FindUnique")
 	}
-	return nil
+	return p.StandardPredicate.Validate()
 }
 
 type Select = valk.CategorySelect

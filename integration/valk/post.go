@@ -414,6 +414,13 @@ func (q *Queries) executePostFindUnique(ctx context.Context, where UniquePredica
 }
 
 func (q *Queries) executePostFindFirst(ctx context.Context, where []Predicate, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
 	whereClause, vals := CompilePredicates(q.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -429,6 +436,13 @@ func (q *Queries) executePostFindFirst(ctx context.Context, where []Predicate, s
 }
 
 func (q *Queries) executePostFindMany(ctx context.Context, where []Predicate, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
 	whereClause, vals := CompilePredicates(q.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
