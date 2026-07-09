@@ -42,7 +42,7 @@ type ProfileOmit struct {
 type ProfileDelegate struct {
 	client          *Queries
 	beforeCreate    func(context.Context, *ProfileCreate) error
-	afterCreate     func(context.Context, *Profile) error
+	afterCreate     func(context.Context, []*Profile) error
 	afterCreateMany func(context.Context, []ProfileCreate, int64) error
 }
 
@@ -50,7 +50,7 @@ func (d *ProfileDelegate) BeforeCreate(hook func(context.Context, *ProfileCreate
 	d.beforeCreate = hook
 }
 
-func (d *ProfileDelegate) AfterCreate(hook func(context.Context, *Profile) error) {
+func (d *ProfileDelegate) AfterCreate(hook func(context.Context, []*Profile) error) {
 	d.afterCreate = hook
 }
 
@@ -258,7 +258,7 @@ func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldA
 	}
 
 	if q.Profile.afterCreate != nil {
-		if err := q.Profile.afterCreate(ctx, res); err != nil {
+		if err := q.Profile.afterCreate(ctx, []*Profile{res}); err != nil {
 			return nil, err
 		}
 	}
@@ -336,10 +336,8 @@ func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records
 		return nil, err
 	}
 	if q.Profile.afterCreate != nil {
-		for _, r := range results {
-			if err := q.Profile.afterCreate(ctx, r); err != nil {
-				return nil, err
-			}
+		if err := q.Profile.afterCreate(ctx, results); err != nil {
+			return nil, err
 		}
 	}
 	return results, nil

@@ -38,7 +38,7 @@ type CategoryOmit struct {
 type CategoryDelegate struct {
 	client          *Queries
 	beforeCreate    func(context.Context, *CategoryCreate) error
-	afterCreate     func(context.Context, *Category) error
+	afterCreate     func(context.Context, []*Category) error
 	afterCreateMany func(context.Context, []CategoryCreate, int64) error
 }
 
@@ -46,7 +46,7 @@ func (d *CategoryDelegate) BeforeCreate(hook func(context.Context, *CategoryCrea
 	d.beforeCreate = hook
 }
 
-func (d *CategoryDelegate) AfterCreate(hook func(context.Context, *Category) error) {
+func (d *CategoryDelegate) AfterCreate(hook func(context.Context, []*Category) error) {
 	d.afterCreate = hook
 }
 
@@ -224,7 +224,7 @@ func (q *Queries) executeCategoryCreate(ctx context.Context, assignments []Field
 	}
 
 	if q.Category.afterCreate != nil {
-		if err := q.Category.afterCreate(ctx, res); err != nil {
+		if err := q.Category.afterCreate(ctx, []*Category{res}); err != nil {
 			return nil, err
 		}
 	}
@@ -302,10 +302,8 @@ func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, record
 		return nil, err
 	}
 	if q.Category.afterCreate != nil {
-		for _, r := range results {
-			if err := q.Category.afterCreate(ctx, r); err != nil {
-				return nil, err
-			}
+		if err := q.Category.afterCreate(ctx, results); err != nil {
+			return nil, err
 		}
 	}
 	return results, nil

@@ -66,7 +66,7 @@ type CommentOmit struct {
 type CommentDelegate struct {
 	client          *Queries
 	beforeCreate    func(context.Context, *CommentCreate) error
-	afterCreate     func(context.Context, *Comment) error
+	afterCreate     func(context.Context, []*Comment) error
 	afterCreateMany func(context.Context, []CommentCreate, int64) error
 }
 
@@ -74,7 +74,7 @@ func (d *CommentDelegate) BeforeCreate(hook func(context.Context, *CommentCreate
 	d.beforeCreate = hook
 }
 
-func (d *CommentDelegate) AfterCreate(hook func(context.Context, *Comment) error) {
+func (d *CommentDelegate) AfterCreate(hook func(context.Context, []*Comment) error) {
 	d.afterCreate = hook
 }
 
@@ -389,7 +389,7 @@ func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldA
 	}
 
 	if q.Comment.afterCreate != nil {
-		if err := q.Comment.afterCreate(ctx, res); err != nil {
+		if err := q.Comment.afterCreate(ctx, []*Comment{res}); err != nil {
 			return nil, err
 		}
 	}
@@ -467,10 +467,8 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records
 		return nil, err
 	}
 	if q.Comment.afterCreate != nil {
-		for _, r := range results {
-			if err := q.Comment.afterCreate(ctx, r); err != nil {
-				return nil, err
-			}
+		if err := q.Comment.afterCreate(ctx, results); err != nil {
+			return nil, err
 		}
 	}
 	return results, nil
