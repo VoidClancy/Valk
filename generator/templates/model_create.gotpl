@@ -372,11 +372,22 @@ func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Contex
 		}
 		rowMaps[i] = input.ToRowMap()
 	}
-	return executeCreateManyAndReturn(ctx, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, selects, omits,
+	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, selects, omits,
 		q.select{{ .Model.Name }}Cols,
 		q.load{{ .Model.Name }}Relations,
 		(*{{ .Model.Name }}).ScanFields,
 		(*{{ .Model.Name }}Select).hasAnyRelation,
 		idCol,
 	)
+	if err != nil {
+		return nil, err
+	}
+	if q.{{ .Model.Name }}.afterCreate != nil {
+		for _, r := range results {
+			if err := q.{{ .Model.Name }}.afterCreate(ctx, r); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return results, nil
 }

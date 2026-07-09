@@ -275,13 +275,24 @@ func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, record
 		}
 		rowMaps[i] = input.ToRowMap()
 	}
-	return executeCreateManyAndReturn(ctx, q, rowMaps, "Category", CategoryColOrder, selects, omits,
+	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "Category", CategoryColOrder, selects, omits,
 		q.selectCategoryCols,
 		q.loadCategoryRelations,
 		(*Category).ScanFields,
 		(*CategorySelect).hasAnyRelation,
 		idCol,
 	)
+	if err != nil {
+		return nil, err
+	}
+	if q.Category.afterCreate != nil {
+		for _, r := range results {
+			if err := q.Category.afterCreate(ctx, r); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return results, nil
 }
 func (d *CategoryDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Category, CategorySelect, CategoryOmit] {
 	return &FindUniqueBuilder[Category, CategorySelect, CategoryOmit]{

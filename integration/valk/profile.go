@@ -309,13 +309,24 @@ func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records
 		}
 		rowMaps[i] = input.ToRowMap()
 	}
-	return executeCreateManyAndReturn(ctx, q, rowMaps, "Profile", ProfileColOrder, selects, omits,
+	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "Profile", ProfileColOrder, selects, omits,
 		q.selectProfileCols,
 		q.loadProfileRelations,
 		(*Profile).ScanFields,
 		(*ProfileSelect).hasAnyRelation,
 		idCol,
 	)
+	if err != nil {
+		return nil, err
+	}
+	if q.Profile.afterCreate != nil {
+		for _, r := range results {
+			if err := q.Profile.afterCreate(ctx, r); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return results, nil
 }
 func (d *ProfileDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit] {
 	return &FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit]{

@@ -440,13 +440,24 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records
 		}
 		rowMaps[i] = input.ToRowMap()
 	}
-	return executeCreateManyAndReturn(ctx, q, rowMaps, "Comment", CommentColOrder, selects, omits,
+	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "Comment", CommentColOrder, selects, omits,
 		q.selectCommentCols,
 		q.loadCommentRelations,
 		(*Comment).ScanFields,
 		(*CommentSelect).hasAnyRelation,
 		idCol,
 	)
+	if err != nil {
+		return nil, err
+	}
+	if q.Comment.afterCreate != nil {
+		for _, r := range results {
+			if err := q.Comment.afterCreate(ctx, r); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return results, nil
 }
 func (d *CommentDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Comment, CommentSelect, CommentOmit] {
 	return &FindUniqueBuilder[Comment, CommentSelect, CommentOmit]{

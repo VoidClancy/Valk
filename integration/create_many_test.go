@@ -7,6 +7,7 @@ import (
 	"integration/valk"
 	"integration/valk/post"
 	"integration/valk/user"
+	"strings"
 	"testing"
 )
 
@@ -99,6 +100,65 @@ func TestCreateMany_Hooks(t *testing.T) {
 		client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count)
 		if count != 0 {
 			t.Fatalf("expected 0 rows after aborted CreateMany, got %d", count)
+		}
+	})
+
+	t.Run("AfterCreate hook fires during CreateManyAndReturn", func(t *testing.T) {
+		client, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		var afterCalled bool
+		var gotRole valk.UserRoleType
+		client.User.AfterCreate(func(ctx context.Context, user *valk.User) error {
+			afterCalled = true
+			gotRole = user.Role
+			return nil
+		})
+
+		users, err := client.User.CreateManyAndReturn(
+			user.Record(user.Email.Set("after@example.com"), user.PhoneNum.Set("+500000000")),
+		).Exec(ctx)
+
+		if err != nil {
+			t.Fatalf("CreateManyAndReturn failed: %v", err)
+		}
+		if len(users) != 1 {
+			t.Fatalf("expected 1 user, got %d", len(users))
+		}
+		if !afterCalled {
+			t.Fatal("expected AfterCreate hook to be called")
+		}
+		if gotRole != users[0].Role {
+			t.Errorf("AfterCreate received role %v, expected %v", gotRole, users[0].Role)
+		}
+	})
+
+	t.Run("AfterCreate hook error aborts CreateManyAndReturn", func(t *testing.T) {
+		client, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		client.User.AfterCreate(func(ctx context.Context, user *valk.User) error {
+			return fmt.Errorf("after hook rejected")
+		})
+
+		var count int
+		client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count)
+		prevCount := count
+
+		_, err := client.User.CreateManyAndReturn(
+			user.Record(user.Email.Set("aftershoot@example.com"), user.PhoneNum.Set("+600000000")),
+		).Exec(ctx)
+
+		if err == nil {
+			t.Fatal("expected error from AfterCreate rejection, got nil")
+		}
+		if !strings.Contains(err.Error(), "after hook rejected") {
+			t.Errorf("expected 'after hook rejected' in error, got %v", err)
+		}
+
+		client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count)
+		if count != prevCount+1 {
+			t.Fatalf("expected %d rows (insert still committed), got %d", prevCount+1, count)
 		}
 	})
 }

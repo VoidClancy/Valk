@@ -421,13 +421,24 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []
 		}
 		rowMaps[i] = input.ToRowMap()
 	}
-	return executeCreateManyAndReturn(ctx, q, rowMaps, "User", UserColOrder, selects, omits,
+	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "User", UserColOrder, selects, omits,
 		q.selectUserCols,
 		q.loadUserRelations,
 		(*User).ScanFields,
 		(*UserSelect).hasAnyRelation,
 		idCol,
 	)
+	if err != nil {
+		return nil, err
+	}
+	if q.User.afterCreate != nil {
+		for _, r := range results {
+			if err := q.User.afterCreate(ctx, r); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return results, nil
 }
 func (d *UserDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[User, UserSelect, UserOmit] {
 	return &FindUniqueBuilder[User, UserSelect, UserOmit]{
