@@ -313,100 +313,25 @@ func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(records ...RecordInput) 
 }
 
 func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	if len(records) == 0 {
-		return 0, nil
-	}
-	for i, rec := range records {
-		if err := validate{{ .Model.Name }}Create(rec.Assignments); err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := {{ lowercase .Model.Name }}RecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "{{ .Model.EffectiveTableName }}", rowMaps, {{ .Model.Name }}ColOrder, nil)
-		res, err := q.exec(ctx, query, vals...)
-		if err != nil {
-			return 0, err
-		}
-		return res.RowsAffected()
-	}
-
-	var count int64
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			_, err := txQ.execute{{ .Model.Name }}Create(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			count++
-		}
-		return nil
-	})
-	return count, err
+	return executeCreateMany(ctx, q, records, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder,
+		validate{{ .Model.Name }}Create,
+		{{ lowercase .Model.Name }}RecordsToRowMaps,
+		func(ctx context.Context, assignments []FieldAssignment) (*{{ .Model.Name }}, error) {
+			return q.execute{{ .Model.Name }}Create(ctx, assignments, nil, nil)
+		},
+	)
 }
 
 func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Context, records []RecordInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
-	if len(records) == 0 {
-		return nil, nil
-	}
-	for i, rec := range records {
-		if err := validate{{ .Model.Name }}Create(rec.Assignments); err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	hasRelations := selects.hasAnyRelation()
-	returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := {{ lowercase .Model.Name }}RecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "{{ .Model.EffectiveTableName }}", rowMaps, {{ .Model.Name }}ColOrder, returningCols)
-		recordsOut := make([]*{{ .Model.Name }}, 0)
-		err := q.transaction(ctx, func(txQ *Queries) error {
-			rows, err := txQ.query(ctx, query, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-			for rows.Next() {
-				var record {{ .Model.Name }}
-				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &record)
-			}
-			if err := rows.Err(); err != nil {
-				return err
-			}
-			if hasRelations {
-				return txQ.load{{ .Model.Name }}Relations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		return recordsOut, nil
-	}
-
-	recordsOut := make([]*{{ .Model.Name }}, 0)
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			res, err := txQ.execute{{ .Model.Name }}Create(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, res)
-		}
-
-		if hasRelations {
-			return txQ.load{{ .Model.Name }}Relations(ctx, recordsOut, selects)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return recordsOut, nil
+	return executeCreateManyAndReturn(ctx, q, records, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, selects, omits,
+		validate{{ .Model.Name }}Create,
+		{{ lowercase .Model.Name }}RecordsToRowMaps,
+		q.select{{ .Model.Name }}Cols,
+		q.load{{ .Model.Name }}Relations,
+		(*{{ .Model.Name }}).ScanFields,
+		func(ctx context.Context, assignments []FieldAssignment) (*{{ .Model.Name }}, error) {
+			return q.execute{{ .Model.Name }}Create(ctx, assignments, nil, nil)
+		},
+		(*{{ .Model.Name }}Select).hasAnyRelation,
+	)
 }

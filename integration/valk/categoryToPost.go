@@ -248,102 +248,27 @@ func (d *CategoryToPostDelegate) CreateManyAndReturn(records ...RecordInput) *Cr
 }
 
 func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	if len(records) == 0 {
-		return 0, nil
-	}
-	for i, rec := range records {
-		if err := validateCategoryToPostCreate(rec.Assignments); err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := categoryToPostRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "CategoryToPost", rowMaps, CategoryToPostColOrder, nil)
-		res, err := q.exec(ctx, query, vals...)
-		if err != nil {
-			return 0, err
-		}
-		return res.RowsAffected()
-	}
-
-	var count int64
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			_, err := txQ.executeCategoryToPostCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			count++
-		}
-		return nil
-	})
-	return count, err
+	return executeCreateMany(ctx, q, records, "CategoryToPost", CategoryToPostColOrder,
+		validateCategoryToPostCreate,
+		categoryToPostRecordsToRowMaps,
+		func(ctx context.Context, assignments []FieldAssignment) (*CategoryToPost, error) {
+			return q.executeCategoryToPostCreate(ctx, assignments, nil, nil)
+		},
+	)
 }
 
 func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
-	if len(records) == 0 {
-		return nil, nil
-	}
-	for i, rec := range records {
-		if err := validateCategoryToPostCreate(rec.Assignments); err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	hasRelations := selects.hasAnyRelation()
-	returningCols := q.selectCategoryToPostCols(selects, omits)
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := categoryToPostRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "CategoryToPost", rowMaps, CategoryToPostColOrder, returningCols)
-		recordsOut := make([]*CategoryToPost, 0)
-		err := q.transaction(ctx, func(txQ *Queries) error {
-			rows, err := txQ.query(ctx, query, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-			for rows.Next() {
-				var record CategoryToPost
-				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &record)
-			}
-			if err := rows.Err(); err != nil {
-				return err
-			}
-			if hasRelations {
-				return txQ.loadCategoryToPostRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		return recordsOut, nil
-	}
-
-	recordsOut := make([]*CategoryToPost, 0)
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			res, err := txQ.executeCategoryToPostCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, res)
-		}
-
-		if hasRelations {
-			return txQ.loadCategoryToPostRelations(ctx, recordsOut, selects)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return recordsOut, nil
+	return executeCreateManyAndReturn(ctx, q, records, "CategoryToPost", CategoryToPostColOrder, selects, omits,
+		validateCategoryToPostCreate,
+		categoryToPostRecordsToRowMaps,
+		q.selectCategoryToPostCols,
+		q.loadCategoryToPostRelations,
+		(*CategoryToPost).ScanFields,
+		func(ctx context.Context, assignments []FieldAssignment) (*CategoryToPost, error) {
+			return q.executeCategoryToPostCreate(ctx, assignments, nil, nil)
+		},
+		(*CategoryToPostSelect).hasAnyRelation,
+	)
 }
 func (d *CategoryToPostDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
 	return &FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
