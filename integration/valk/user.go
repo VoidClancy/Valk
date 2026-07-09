@@ -274,7 +274,7 @@ func (s *UserCreate) ToRowMap() map[string]any {
 	if s.Id != nil {
 		m["id"] = *s.Id
 	} else {
-		m["id"] = generateUUID()
+		m["id"] = generateCUID()
 	}
 	m["email"] = s.Email
 	m["phoneNum"] = s.PhoneNum
@@ -313,7 +313,7 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 		vals = append(vals, *input.Id)
 	} else {
 		cols = append(cols, "id")
-		vals = append(vals, generateUUID())
+		vals = append(vals, generateCUID())
 	}
 	cols = append(cols, "email")
 	vals = append(vals, input.Email)

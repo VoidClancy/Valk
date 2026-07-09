@@ -157,7 +157,7 @@ type Queries struct {
 	dialect  Dialect
 	// User provides CRUD operations for User.
 	//
-	//   id           string   default: uuid()
+	//   id           string   default: cuid()
 	//   email        string   required
 	//   phoneNum     string   required
 	//   password     string   optional
