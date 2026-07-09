@@ -64,9 +64,10 @@ type CommentOmit struct {
 }
 
 type CommentDelegate struct {
-	client       *Queries
-	beforeCreate func(context.Context, *CommentCreate) error
-	afterCreate  func(context.Context, *Comment) error
+	client          *Queries
+	beforeCreate    func(context.Context, *CommentCreate) error
+	afterCreate     func(context.Context, *Comment) error
+	afterCreateMany func(context.Context, []CommentCreate, int64) error
 }
 
 func (d *CommentDelegate) BeforeCreate(hook func(context.Context, *CommentCreate) error) {
@@ -75,6 +76,10 @@ func (d *CommentDelegate) BeforeCreate(hook func(context.Context, *CommentCreate
 
 func (d *CommentDelegate) AfterCreate(hook func(context.Context, *Comment) error) {
 	d.afterCreate = hook
+}
+
+func (d *CommentDelegate) AfterCreateMany(hook func(context.Context, []CommentCreate, int64) error) {
+	d.afterCreateMany = hook
 }
 
 func (m *Comment) ScanFields(cols []string) []any {
@@ -410,6 +415,7 @@ func (d *CommentDelegate) CreateManyAndReturn(records ...RecordInput) *CreateMan
 
 func (q *Queries) executeCommentCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
+	inputs := make([]CommentCreate, len(records))
 	for i, rec := range records {
 		if err := validateCommentCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -421,8 +427,18 @@ func (q *Queries) executeCommentCreateMany(ctx context.Context, records []Record
 			}
 		}
 		rowMaps[i] = input.ToRowMap()
+		inputs[i] = input
 	}
-	return executeCreateMany(ctx, q, rowMaps, "Comment", CommentColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "Comment", CommentColOrder)
+	if err != nil {
+		return 0, err
+	}
+	if q.Comment.afterCreateMany != nil {
+		if err := q.Comment.afterCreateMany(ctx, inputs, count); err != nil {
+			return 0, err
+		}
+	}
+	return count, nil
 }
 
 func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {

@@ -54,9 +54,10 @@ type PostOmit struct {
 }
 
 type PostDelegate struct {
-	client       *Queries
-	beforeCreate func(context.Context, *PostCreate) error
-	afterCreate  func(context.Context, *Post) error
+	client          *Queries
+	beforeCreate    func(context.Context, *PostCreate) error
+	afterCreate     func(context.Context, *Post) error
+	afterCreateMany func(context.Context, []PostCreate, int64) error
 }
 
 func (d *PostDelegate) BeforeCreate(hook func(context.Context, *PostCreate) error) {
@@ -65,6 +66,10 @@ func (d *PostDelegate) BeforeCreate(hook func(context.Context, *PostCreate) erro
 
 func (d *PostDelegate) AfterCreate(hook func(context.Context, *Post) error) {
 	d.afterCreate = hook
+}
+
+func (d *PostDelegate) AfterCreateMany(hook func(context.Context, []PostCreate, int64) error) {
+	d.afterCreateMany = hook
 }
 
 func (m *Post) ScanFields(cols []string) []any {
@@ -337,6 +342,7 @@ func (d *PostDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAn
 
 func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
+	inputs := make([]PostCreate, len(records))
 	for i, rec := range records {
 		if err := validatePostCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -348,8 +354,18 @@ func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInp
 			}
 		}
 		rowMaps[i] = input.ToRowMap()
+		inputs[i] = input
 	}
-	return executeCreateMany(ctx, q, rowMaps, "Post", PostColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "Post", PostColOrder)
+	if err != nil {
+		return 0, err
+	}
+	if q.Post.afterCreateMany != nil {
+		if err := q.Post.afterCreateMany(ctx, inputs, count); err != nil {
+			return 0, err
+		}
+	}
+	return count, nil
 }
 
 func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *PostSelect, omits *PostOmit) ([]*Post, error) {

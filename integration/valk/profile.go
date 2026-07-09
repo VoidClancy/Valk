@@ -40,9 +40,10 @@ type ProfileOmit struct {
 }
 
 type ProfileDelegate struct {
-	client       *Queries
-	beforeCreate func(context.Context, *ProfileCreate) error
-	afterCreate  func(context.Context, *Profile) error
+	client          *Queries
+	beforeCreate    func(context.Context, *ProfileCreate) error
+	afterCreate     func(context.Context, *Profile) error
+	afterCreateMany func(context.Context, []ProfileCreate, int64) error
 }
 
 func (d *ProfileDelegate) BeforeCreate(hook func(context.Context, *ProfileCreate) error) {
@@ -51,6 +52,10 @@ func (d *ProfileDelegate) BeforeCreate(hook func(context.Context, *ProfileCreate
 
 func (d *ProfileDelegate) AfterCreate(hook func(context.Context, *Profile) error) {
 	d.afterCreate = hook
+}
+
+func (d *ProfileDelegate) AfterCreateMany(hook func(context.Context, []ProfileCreate, int64) error) {
+	d.afterCreateMany = hook
 }
 
 func (m *Profile) ScanFields(cols []string) []any {
@@ -279,6 +284,7 @@ func (d *ProfileDelegate) CreateManyAndReturn(records ...RecordInput) *CreateMan
 
 func (q *Queries) executeProfileCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
+	inputs := make([]ProfileCreate, len(records))
 	for i, rec := range records {
 		if err := validateProfileCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -290,8 +296,18 @@ func (q *Queries) executeProfileCreateMany(ctx context.Context, records []Record
 			}
 		}
 		rowMaps[i] = input.ToRowMap()
+		inputs[i] = input
 	}
-	return executeCreateMany(ctx, q, rowMaps, "Profile", ProfileColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "Profile", ProfileColOrder)
+	if err != nil {
+		return 0, err
+	}
+	if q.Profile.afterCreateMany != nil {
+		if err := q.Profile.afterCreateMany(ctx, inputs, count); err != nil {
+			return 0, err
+		}
+	}
+	return count, nil
 }
 
 func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {

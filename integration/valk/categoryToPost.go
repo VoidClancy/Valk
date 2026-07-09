@@ -39,9 +39,10 @@ type CategoryToPostOmit struct {
 }
 
 type CategoryToPostDelegate struct {
-	client       *Queries
-	beforeCreate func(context.Context, *CategoryToPostCreate) error
-	afterCreate  func(context.Context, *CategoryToPost) error
+	client          *Queries
+	beforeCreate    func(context.Context, *CategoryToPostCreate) error
+	afterCreate     func(context.Context, *CategoryToPost) error
+	afterCreateMany func(context.Context, []CategoryToPostCreate, int64) error
 }
 
 func (d *CategoryToPostDelegate) BeforeCreate(hook func(context.Context, *CategoryToPostCreate) error) {
@@ -50,6 +51,10 @@ func (d *CategoryToPostDelegate) BeforeCreate(hook func(context.Context, *Catego
 
 func (d *CategoryToPostDelegate) AfterCreate(hook func(context.Context, *CategoryToPost) error) {
 	d.afterCreate = hook
+}
+
+func (d *CategoryToPostDelegate) AfterCreateMany(hook func(context.Context, []CategoryToPostCreate, int64) error) {
+	d.afterCreateMany = hook
 }
 
 func (m *CategoryToPost) ScanFields(cols []string) []any {
@@ -244,6 +249,7 @@ func (d *CategoryToPostDelegate) CreateManyAndReturn(records ...RecordInput) *Cr
 
 func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
+	inputs := make([]CategoryToPostCreate, len(records))
 	for i, rec := range records {
 		if err := validateCategoryToPostCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -255,8 +261,18 @@ func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records [
 			}
 		}
 		rowMaps[i] = input.ToRowMap()
+		inputs[i] = input
 	}
-	return executeCreateMany(ctx, q, rowMaps, "CategoryToPost", CategoryToPostColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "CategoryToPost", CategoryToPostColOrder)
+	if err != nil {
+		return 0, err
+	}
+	if q.CategoryToPost.afterCreateMany != nil {
+		if err := q.CategoryToPost.afterCreateMany(ctx, inputs, count); err != nil {
+			return 0, err
+		}
+	}
+	return count, nil
 }
 
 func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {

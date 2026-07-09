@@ -68,9 +68,10 @@ type UserOmit struct {
 }
 
 type UserDelegate struct {
-	client       *Queries
-	beforeCreate func(context.Context, *UserCreate) error
-	afterCreate  func(context.Context, *User) error
+	client          *Queries
+	beforeCreate    func(context.Context, *UserCreate) error
+	afterCreate     func(context.Context, *User) error
+	afterCreateMany func(context.Context, []UserCreate, int64) error
 }
 
 func (d *UserDelegate) BeforeCreate(hook func(context.Context, *UserCreate) error) {
@@ -79,6 +80,10 @@ func (d *UserDelegate) BeforeCreate(hook func(context.Context, *UserCreate) erro
 
 func (d *UserDelegate) AfterCreate(hook func(context.Context, *User) error) {
 	d.afterCreate = hook
+}
+
+func (d *UserDelegate) AfterCreateMany(hook func(context.Context, []UserCreate, int64) error) {
+	d.afterCreateMany = hook
 }
 
 func (m *User) ScanFields(cols []string) []any {
@@ -391,6 +396,7 @@ func (d *UserDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAn
 
 func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
+	inputs := make([]UserCreate, len(records))
 	for i, rec := range records {
 		if err := validateUserCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -402,8 +408,18 @@ func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInp
 			}
 		}
 		rowMaps[i] = input.ToRowMap()
+		inputs[i] = input
 	}
-	return executeCreateMany(ctx, q, rowMaps, "User", UserColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "User", UserColOrder)
+	if err != nil {
+		return 0, err
+	}
+	if q.User.afterCreateMany != nil {
+		if err := q.User.afterCreateMany(ctx, inputs, count); err != nil {
+			return 0, err
+		}
+	}
+	return count, nil
 }
 
 func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit) ([]*User, error) {
