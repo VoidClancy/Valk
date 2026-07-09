@@ -161,6 +161,81 @@ func TestCreateMany_Hooks(t *testing.T) {
 			t.Fatalf("expected %d rows (insert still committed), got %d", prevCount+1, count)
 		}
 	})
+
+	t.Run("AfterCreateMany hook receives structs and count", func(t *testing.T) {
+		client, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		var gotUsers []valk.UserCreate
+		var gotCount int64
+		client.User.AfterCreateMany(func(ctx context.Context, users []valk.UserCreate, count int64) error {
+			gotUsers = users
+			gotCount = count
+			return nil
+		})
+
+		count, err := client.User.CreateMany(
+			user.Record(
+				user.Email.Set("bulk1@example.com"),
+				user.PhoneNum.Set("+700000001"),
+			),
+			user.Record(
+				user.Email.Set("bulk2@example.com"),
+				user.PhoneNum.Set("+700000002"),
+			),
+		).Exec(ctx)
+
+		if err != nil {
+			t.Fatalf("CreateMany failed: %v", err)
+		}
+		if count != 2 {
+			t.Fatalf("expected count 2, got %d", count)
+		}
+		if gotCount != 2 {
+			t.Fatalf("expected hook count 2, got %d", gotCount)
+		}
+		if len(gotUsers) != 2 {
+			t.Fatalf("expected 2 users in hook, got %d", len(gotUsers))
+		}
+		if gotUsers[0].Email != "bulk1@example.com" {
+			t.Errorf("expected email 'bulk1@example.com', got %q", gotUsers[0].Email)
+		}
+		if gotUsers[1].Email != "bulk2@example.com" {
+			t.Errorf("expected email 'bulk2@example.com', got %q", gotUsers[1].Email)
+		}
+	})
+
+	t.Run("AfterCreateMany hook error does not rollback inserts", func(t *testing.T) {
+		client, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		client.User.AfterCreateMany(func(ctx context.Context, users []valk.UserCreate, count int64) error {
+			return fmt.Errorf("after create many rejected")
+		})
+
+		_, err := client.User.CreateMany(
+			user.Record(
+				user.Email.Set("ghost@example.com"),
+				user.PhoneNum.Set("+800000000"),
+			),
+		).Exec(ctx)
+
+		if err == nil {
+			t.Fatal("expected error from AfterCreateMany rejection, got nil")
+		}
+		if !strings.Contains(err.Error(), "after create many rejected") {
+			t.Errorf("expected 'after create many rejected' in error, got %v", err)
+		}
+
+		var count int
+		client.Raw().QueryRowContext(ctx, query(
+			`SELECT count(*) FROM "User" WHERE email = 'ghost@example.com'`,
+			`SELECT count(*) FROM "User" WHERE email = 'ghost@example.com'`,
+		)).Scan(&count)
+		if count != 1 {
+			t.Fatalf("expected row to still exist (insert committed before hook), got %d", count)
+		}
+	})
 }
 
 func TestCreateMany(t *testing.T) {

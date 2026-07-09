@@ -36,9 +36,10 @@ type CategoryOmit struct {
 }
 
 type CategoryDelegate struct {
-	client       *Queries
-	beforeCreate func(context.Context, *CategoryCreate) error
-	afterCreate  func(context.Context, *Category) error
+	client          *Queries
+	beforeCreate    func(context.Context, *CategoryCreate) error
+	afterCreate     func(context.Context, *Category) error
+	afterCreateMany func(context.Context, []CategoryCreate, int64) error
 }
 
 func (d *CategoryDelegate) BeforeCreate(hook func(context.Context, *CategoryCreate) error) {
@@ -47,6 +48,10 @@ func (d *CategoryDelegate) BeforeCreate(hook func(context.Context, *CategoryCrea
 
 func (d *CategoryDelegate) AfterCreate(hook func(context.Context, *Category) error) {
 	d.afterCreate = hook
+}
+
+func (d *CategoryDelegate) AfterCreateMany(hook func(context.Context, []CategoryCreate, int64) error) {
+	d.afterCreateMany = hook
 }
 
 func (m *Category) ScanFields(cols []string) []any {
@@ -245,6 +250,7 @@ func (d *CategoryDelegate) CreateManyAndReturn(records ...RecordInput) *CreateMa
 
 func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
+	inputs := make([]CategoryCreate, len(records))
 	for i, rec := range records {
 		if err := validateCategoryCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -256,8 +262,18 @@ func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []Recor
 			}
 		}
 		rowMaps[i] = input.ToRowMap()
+		inputs[i] = input
 	}
-	return executeCreateMany(ctx, q, rowMaps, "Category", CategoryColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "Category", CategoryColOrder)
+	if err != nil {
+		return 0, err
+	}
+	if q.Category.afterCreateMany != nil {
+		if err := q.Category.afterCreateMany(ctx, inputs, count); err != nil {
+			return 0, err
+		}
+	}
+	return count, nil
 }
 
 func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {

@@ -26,16 +26,23 @@ type SeedData struct {
 }
 
 func seed(db *valk.DB, ctx context.Context) *SeedData {
+
 	db.User.BeforeCreate(func(ctx context.Context, user *valk.UserCreate) error {
-
 		user.Role = new(valk.UserRole.Admin)
+		return nil
+	})
 
+	db.User.AfterCreateMany(func(ctx context.Context, users []valk.UserCreate, count int64) error {
+		var emails []string
+		for _, u := range users {
+			emails = append(emails, u.Email)
+		}
+		fmt.Printf("AfterCreateMany: %d users created (emails: %v)\n", count, emails)
 		return nil
 	})
 
 	db.User.AfterCreate(func(ctx context.Context, user *valk.User) error {
-		fmt.Println("CREATED USER WITH ID: ", user.Id)
-		fmt.Println("USER ROLE: ", user.Role)
+		fmt.Printf("AfterCreate: user %s (role=%s)\n", user.Email, user.Role)
 		return nil
 	})
 
@@ -53,22 +60,22 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 	if err != nil {
 		log.Fatalf("failed to create users: %v", err)
 	}
+	fmt.Printf("CreateManyAndReturn: %d users returned with auto-generated IDs\n", len(users))
 
-	for _, u := range users {
-
-		fmt.Println("USER ROLE: ", u.Role)
-	}
-
-	_, err = db.User.CreateMany(
+	if _, err := db.User.CreateMany(
 		user.Record(
 			user.Email.Set("test"),
+			user.PhoneNum.Set("555-test"),
 			user.Password.Set("passwd"),
 		),
 		user.Record(
 			user.Email.Set("again"),
+			user.PhoneNum.Set("555-again"),
 			user.Password.Set("123456"),
 		),
-	).Exec(ctx)
+	).Exec(ctx); err != nil {
+		log.Fatalf("failed to CreateMany: %v", err)
+	}
 	referrer, err := db.User.Create(
 		user.Email.Set("referrer@example.com"),
 		user.PhoneNum.Set("555-0001"),

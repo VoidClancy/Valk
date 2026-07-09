@@ -342,6 +342,7 @@ func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(records ...RecordInput) 
 
 func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, records []RecordInput) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
+	inputs := make([]{{ .Model.Name }}Create, len(records))
 	for i, rec := range records {
 		if err := validate{{ .Model.Name }}Create(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -353,8 +354,18 @@ func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, record
 			}
 		}
 		rowMaps[i] = input.ToRowMap()
+		inputs[i] = input
 	}
-	return executeCreateMany(ctx, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder)
+	if err != nil {
+		return 0, err
+	}
+	if q.{{ .Model.Name }}.afterCreateMany != nil {
+		if err := q.{{ .Model.Name }}.afterCreateMany(ctx, inputs, count); err != nil {
+			return 0, err
+		}
+	}
+	return count, nil
 }
 
 func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Context, records []RecordInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {

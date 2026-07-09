@@ -240,16 +240,22 @@ func (q *Queries) initDelegates() {
 func (q *Queries) copyHooksFrom(other *Queries) {
 	q.User.beforeCreate = other.User.beforeCreate
 	q.User.afterCreate = other.User.afterCreate
+	q.User.afterCreateMany = other.User.afterCreateMany
 	q.Profile.beforeCreate = other.Profile.beforeCreate
 	q.Profile.afterCreate = other.Profile.afterCreate
+	q.Profile.afterCreateMany = other.Profile.afterCreateMany
 	q.Post.beforeCreate = other.Post.beforeCreate
 	q.Post.afterCreate = other.Post.afterCreate
+	q.Post.afterCreateMany = other.Post.afterCreateMany
 	q.Comment.beforeCreate = other.Comment.beforeCreate
 	q.Comment.afterCreate = other.Comment.afterCreate
+	q.Comment.afterCreateMany = other.Comment.afterCreateMany
 	q.Category.beforeCreate = other.Category.beforeCreate
 	q.Category.afterCreate = other.Category.afterCreate
+	q.Category.afterCreateMany = other.Category.afterCreateMany
 	q.CategoryToPost.beforeCreate = other.CategoryToPost.beforeCreate
 	q.CategoryToPost.afterCreate = other.CategoryToPost.afterCreate
+	q.CategoryToPost.afterCreateMany = other.CategoryToPost.afterCreateMany
 }
 
 // Close closes the database connection.
