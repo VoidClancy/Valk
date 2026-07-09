@@ -279,102 +279,27 @@ func (d *ProfileDelegate) CreateManyAndReturn(records ...RecordInput) *CreateMan
 }
 
 func (q *Queries) executeProfileCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	if len(records) == 0 {
-		return 0, nil
-	}
-	for i, rec := range records {
-		if err := validateProfileCreate(rec.Assignments); err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := profileRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "Profile", rowMaps, ProfileColOrder, nil)
-		res, err := q.exec(ctx, query, vals...)
-		if err != nil {
-			return 0, err
-		}
-		return res.RowsAffected()
-	}
-
-	var count int64
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			_, err := txQ.executeProfileCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			count++
-		}
-		return nil
-	})
-	return count, err
+	return executeCreateMany(ctx, q, records, "Profile", ProfileColOrder,
+		validateProfileCreate,
+		profileRecordsToRowMaps,
+		func(ctx context.Context, assignments []FieldAssignment) (*Profile, error) {
+			return q.executeProfileCreate(ctx, assignments, nil, nil)
+		},
+	)
 }
 
 func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
-	if len(records) == 0 {
-		return nil, nil
-	}
-	for i, rec := range records {
-		if err := validateProfileCreate(rec.Assignments); err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	hasRelations := selects.hasAnyRelation()
-	returningCols := q.selectProfileCols(selects, omits)
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := profileRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "Profile", rowMaps, ProfileColOrder, returningCols)
-		recordsOut := make([]*Profile, 0)
-		err := q.transaction(ctx, func(txQ *Queries) error {
-			rows, err := txQ.query(ctx, query, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-			for rows.Next() {
-				var record Profile
-				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &record)
-			}
-			if err := rows.Err(); err != nil {
-				return err
-			}
-			if hasRelations {
-				return txQ.loadProfileRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		return recordsOut, nil
-	}
-
-	recordsOut := make([]*Profile, 0)
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			res, err := txQ.executeProfileCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, res)
-		}
-
-		if hasRelations {
-			return txQ.loadProfileRelations(ctx, recordsOut, selects)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return recordsOut, nil
+	return executeCreateManyAndReturn(ctx, q, records, "Profile", ProfileColOrder, selects, omits,
+		validateProfileCreate,
+		profileRecordsToRowMaps,
+		q.selectProfileCols,
+		q.loadProfileRelations,
+		(*Profile).ScanFields,
+		func(ctx context.Context, assignments []FieldAssignment) (*Profile, error) {
+			return q.executeProfileCreate(ctx, assignments, nil, nil)
+		},
+		(*ProfileSelect).hasAnyRelation,
+	)
 }
 func (d *ProfileDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit] {
 	return &FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit]{

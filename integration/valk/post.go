@@ -333,102 +333,27 @@ func (d *PostDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAn
 }
 
 func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	if len(records) == 0 {
-		return 0, nil
-	}
-	for i, rec := range records {
-		if err := validatePostCreate(rec.Assignments); err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := postRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "Post", rowMaps, PostColOrder, nil)
-		res, err := q.exec(ctx, query, vals...)
-		if err != nil {
-			return 0, err
-		}
-		return res.RowsAffected()
-	}
-
-	var count int64
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			_, err := txQ.executePostCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			count++
-		}
-		return nil
-	})
-	return count, err
+	return executeCreateMany(ctx, q, records, "Post", PostColOrder,
+		validatePostCreate,
+		postRecordsToRowMaps,
+		func(ctx context.Context, assignments []FieldAssignment) (*Post, error) {
+			return q.executePostCreate(ctx, assignments, nil, nil)
+		},
+	)
 }
 
 func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
-	if len(records) == 0 {
-		return nil, nil
-	}
-	for i, rec := range records {
-		if err := validatePostCreate(rec.Assignments); err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	hasRelations := selects.hasAnyRelation()
-	returningCols := q.selectPostCols(selects, omits)
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := postRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "Post", rowMaps, PostColOrder, returningCols)
-		recordsOut := make([]*Post, 0)
-		err := q.transaction(ctx, func(txQ *Queries) error {
-			rows, err := txQ.query(ctx, query, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-			for rows.Next() {
-				var record Post
-				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &record)
-			}
-			if err := rows.Err(); err != nil {
-				return err
-			}
-			if hasRelations {
-				return txQ.loadPostRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		return recordsOut, nil
-	}
-
-	recordsOut := make([]*Post, 0)
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			res, err := txQ.executePostCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, res)
-		}
-
-		if hasRelations {
-			return txQ.loadPostRelations(ctx, recordsOut, selects)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return recordsOut, nil
+	return executeCreateManyAndReturn(ctx, q, records, "Post", PostColOrder, selects, omits,
+		validatePostCreate,
+		postRecordsToRowMaps,
+		q.selectPostCols,
+		q.loadPostRelations,
+		(*Post).ScanFields,
+		func(ctx context.Context, assignments []FieldAssignment) (*Post, error) {
+			return q.executePostCreate(ctx, assignments, nil, nil)
+		},
+		(*PostSelect).hasAnyRelation,
+	)
 }
 func (d *PostDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Post, PostSelect, PostOmit] {
 	return &FindUniqueBuilder[Post, PostSelect, PostOmit]{

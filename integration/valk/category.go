@@ -249,102 +249,27 @@ func (d *CategoryDelegate) CreateManyAndReturn(records ...RecordInput) *CreateMa
 }
 
 func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	if len(records) == 0 {
-		return 0, nil
-	}
-	for i, rec := range records {
-		if err := validateCategoryCreate(rec.Assignments); err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := categoryRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "Category", rowMaps, CategoryColOrder, nil)
-		res, err := q.exec(ctx, query, vals...)
-		if err != nil {
-			return 0, err
-		}
-		return res.RowsAffected()
-	}
-
-	var count int64
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			_, err := txQ.executeCategoryCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			count++
-		}
-		return nil
-	})
-	return count, err
+	return executeCreateMany(ctx, q, records, "Category", CategoryColOrder,
+		validateCategoryCreate,
+		categoryRecordsToRowMaps,
+		func(ctx context.Context, assignments []FieldAssignment) (*Category, error) {
+			return q.executeCategoryCreate(ctx, assignments, nil, nil)
+		},
+	)
 }
 
 func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
-	if len(records) == 0 {
-		return nil, nil
-	}
-	for i, rec := range records {
-		if err := validateCategoryCreate(rec.Assignments); err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	hasRelations := selects.hasAnyRelation()
-	returningCols := q.selectCategoryCols(selects, omits)
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := categoryRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "Category", rowMaps, CategoryColOrder, returningCols)
-		recordsOut := make([]*Category, 0)
-		err := q.transaction(ctx, func(txQ *Queries) error {
-			rows, err := txQ.query(ctx, query, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-			for rows.Next() {
-				var record Category
-				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &record)
-			}
-			if err := rows.Err(); err != nil {
-				return err
-			}
-			if hasRelations {
-				return txQ.loadCategoryRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		return recordsOut, nil
-	}
-
-	recordsOut := make([]*Category, 0)
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			res, err := txQ.executeCategoryCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, res)
-		}
-
-		if hasRelations {
-			return txQ.loadCategoryRelations(ctx, recordsOut, selects)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return recordsOut, nil
+	return executeCreateManyAndReturn(ctx, q, records, "Category", CategoryColOrder, selects, omits,
+		validateCategoryCreate,
+		categoryRecordsToRowMaps,
+		q.selectCategoryCols,
+		q.loadCategoryRelations,
+		(*Category).ScanFields,
+		func(ctx context.Context, assignments []FieldAssignment) (*Category, error) {
+			return q.executeCategoryCreate(ctx, assignments, nil, nil)
+		},
+		(*CategorySelect).hasAnyRelation,
+	)
 }
 func (d *CategoryDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Category, CategorySelect, CategoryOmit] {
 	return &FindUniqueBuilder[Category, CategorySelect, CategoryOmit]{

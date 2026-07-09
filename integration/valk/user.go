@@ -381,102 +381,27 @@ func (d *UserDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAn
 }
 
 func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	if len(records) == 0 {
-		return 0, nil
-	}
-	for i, rec := range records {
-		if err := validateUserCreate(rec.Assignments); err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := userRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "User", rowMaps, UserColOrder, nil)
-		res, err := q.exec(ctx, query, vals...)
-		if err != nil {
-			return 0, err
-		}
-		return res.RowsAffected()
-	}
-
-	var count int64
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			_, err := txQ.executeUserCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			count++
-		}
-		return nil
-	})
-	return count, err
+	return executeCreateMany(ctx, q, records, "User", UserColOrder,
+		validateUserCreate,
+		userRecordsToRowMaps,
+		func(ctx context.Context, assignments []FieldAssignment) (*User, error) {
+			return q.executeUserCreate(ctx, assignments, nil, nil)
+		},
+	)
 }
 
 func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit) ([]*User, error) {
-	if len(records) == 0 {
-		return nil, nil
-	}
-	for i, rec := range records {
-		if err := validateUserCreate(rec.Assignments); err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	hasRelations := selects.hasAnyRelation()
-	returningCols := q.selectUserCols(selects, omits)
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := userRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "User", rowMaps, UserColOrder, returningCols)
-		recordsOut := make([]*User, 0)
-		err := q.transaction(ctx, func(txQ *Queries) error {
-			rows, err := txQ.query(ctx, query, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-			for rows.Next() {
-				var record User
-				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &record)
-			}
-			if err := rows.Err(); err != nil {
-				return err
-			}
-			if hasRelations {
-				return txQ.loadUserRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		return recordsOut, nil
-	}
-
-	recordsOut := make([]*User, 0)
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			res, err := txQ.executeUserCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, res)
-		}
-
-		if hasRelations {
-			return txQ.loadUserRelations(ctx, recordsOut, selects)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return recordsOut, nil
+	return executeCreateManyAndReturn(ctx, q, records, "User", UserColOrder, selects, omits,
+		validateUserCreate,
+		userRecordsToRowMaps,
+		q.selectUserCols,
+		q.loadUserRelations,
+		(*User).ScanFields,
+		func(ctx context.Context, assignments []FieldAssignment) (*User, error) {
+			return q.executeUserCreate(ctx, assignments, nil, nil)
+		},
+		(*UserSelect).hasAnyRelation,
+	)
 }
 func (d *UserDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[User, UserSelect, UserOmit] {
 	return &FindUniqueBuilder[User, UserSelect, UserOmit]{

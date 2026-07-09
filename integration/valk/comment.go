@@ -405,102 +405,27 @@ func (d *CommentDelegate) CreateManyAndReturn(records ...RecordInput) *CreateMan
 }
 
 func (q *Queries) executeCommentCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	if len(records) == 0 {
-		return 0, nil
-	}
-	for i, rec := range records {
-		if err := validateCommentCreate(rec.Assignments); err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := commentRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "Comment", rowMaps, CommentColOrder, nil)
-		res, err := q.exec(ctx, query, vals...)
-		if err != nil {
-			return 0, err
-		}
-		return res.RowsAffected()
-	}
-
-	var count int64
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			_, err := txQ.executeCommentCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			count++
-		}
-		return nil
-	})
-	return count, err
+	return executeCreateMany(ctx, q, records, "Comment", CommentColOrder,
+		validateCommentCreate,
+		commentRecordsToRowMaps,
+		func(ctx context.Context, assignments []FieldAssignment) (*Comment, error) {
+			return q.executeCommentCreate(ctx, assignments, nil, nil)
+		},
+	)
 }
 
 func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
-	if len(records) == 0 {
-		return nil, nil
-	}
-	for i, rec := range records {
-		if err := validateCommentCreate(rec.Assignments); err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-	}
-
-	hasRelations := selects.hasAnyRelation()
-	returningCols := q.selectCommentCols(selects, omits)
-
-	if q.dialect.SupportsBulkInsert() {
-		rowMaps := commentRecordsToRowMaps(records)
-		query, vals := buildBulkInsertSQL(q.dialect, "Comment", rowMaps, CommentColOrder, returningCols)
-		recordsOut := make([]*Comment, 0)
-		err := q.transaction(ctx, func(txQ *Queries) error {
-			rows, err := txQ.query(ctx, query, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-			for rows.Next() {
-				var record Comment
-				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &record)
-			}
-			if err := rows.Err(); err != nil {
-				return err
-			}
-			if hasRelations {
-				return txQ.loadCommentRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		return recordsOut, nil
-	}
-
-	recordsOut := make([]*Comment, 0)
-	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			res, err := txQ.executeCommentCreate(ctx, rec.Assignments, nil, nil)
-			if err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, res)
-		}
-
-		if hasRelations {
-			return txQ.loadCommentRelations(ctx, recordsOut, selects)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return recordsOut, nil
+	return executeCreateManyAndReturn(ctx, q, records, "Comment", CommentColOrder, selects, omits,
+		validateCommentCreate,
+		commentRecordsToRowMaps,
+		q.selectCommentCols,
+		q.loadCommentRelations,
+		(*Comment).ScanFields,
+		func(ctx context.Context, assignments []FieldAssignment) (*Comment, error) {
+			return q.executeCommentCreate(ctx, assignments, nil, nil)
+		},
+		(*CommentSelect).hasAnyRelation,
+	)
 }
 func (d *CommentDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Comment, CommentSelect, CommentOmit] {
 	return &FindUniqueBuilder[Comment, CommentSelect, CommentOmit]{
