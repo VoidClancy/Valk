@@ -90,3 +90,12 @@ func (e *ValidationError) HasErrors() bool {
 	return len(e.Errors) > 0
 }
 
+type FieldAssignment struct {
+	Col string
+	Val any
+}
+
+type RecordInput struct {
+	Assignments []FieldAssignment
+}
+

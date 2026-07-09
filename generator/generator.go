@@ -129,6 +129,7 @@ func GenerateClient(sch schema.Schema, pkgName string, parentImportPath string, 
 			}
 			return false
 		},
+		"trimPrefix":    strings.TrimPrefix,
 		"hasStringField": func(m *schema.Model) bool {
 			for _, sf := range m.ScalarFields {
 				if sf.GoType == "string" || strings.Contains(sf.GoType, "string") {

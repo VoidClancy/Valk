@@ -16,7 +16,7 @@ type Profile struct {
 	User   *User   `json:"user,omitempty"`
 }
 
-// ProfileCreate represents the input structure for creation
+// ProfileCreate is used for hooks only — the Create API uses FieldAssignment
 type ProfileCreate struct {
 	Id     *string `json:"id"`
 	Bio    *string `json:"bio"`
@@ -98,33 +98,6 @@ func (q *Queries) selectProfileCols(selects *ProfileSelect, omits *ProfileOmit, 
 	return cols
 }
 
-func (input ProfileCreate) Validate() error {
-	errs := &ValidationError{}
-	if input.Id != nil {
-		val := *input.Id
-		if strings.Contains(val, "\x00") {
-			errs.Add("id", val, "safety", "string cannot contain null bytes")
-		}
-		if !utf8.ValidString(val) {
-			errs.Add("id", val, "safety", "string must be valid UTF-8")
-		}
-	}
-	if input.UserId == "" {
-		errs.Add("userId", input.UserId, "required", "field UserId is required")
-	}
-	if strings.Contains(input.UserId, "\x00") {
-		errs.Add("userId", input.UserId, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(input.UserId) {
-		errs.Add("userId", input.UserId, "safety", "string must be valid UTF-8")
-	}
-
-	if errs.HasErrors() {
-		return *errs
-	}
-	return nil
-}
-
 var ProfileColOrder = []string{
 	"id",
 	"bio",
@@ -138,24 +111,89 @@ func (s *ProfileSelect) hasAnyRelation() bool {
 	return s.User != nil
 }
 
-func (d *ProfileDelegate) Create(input ProfileCreate) *CreateBuilder[Profile, ProfileCreate, ProfileSelect, ProfileOmit] {
-	return &CreateBuilder[Profile, ProfileCreate, ProfileSelect, ProfileOmit]{
-		client:   d.client,
-		input:    input,
-		execFunc: d.client.executeProfileCreate,
+func (d *ProfileDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[Profile, ProfileSelect, ProfileOmit] {
+	return &CreateBuilder[Profile, ProfileSelect, ProfileOmit]{
+		client:      d.client,
+		assignments: assignments,
+		execFunc:    d.client.executeProfileCreate,
 	}
 }
 
-func (q *Queries) executeProfileCreate(ctx context.Context, input ProfileCreate, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+func validateProfileCreate(assignments []FieldAssignment) error {
+	errs := &ValidationError{}
+
+	provided := make(map[string]bool)
+	for _, a := range assignments {
+		provided[a.Col] = true
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				if strings.Contains(v, "\x00") {
+					errs.Add("id", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("id", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "bio":
+		case "userId":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("userId", v, "required", "field userId is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("userId", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("userId", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		}
+	}
+	if !provided["userId"] {
+		errs.Add("userId", "", "required", "field UserId is required")
+	}
+
+	if errs.HasErrors() {
+		return *errs
+	}
+	return nil
+}
+
+func assignmentsToProfileCreate(assignments []FieldAssignment) ProfileCreate {
+	var input ProfileCreate
+	for _, a := range assignments {
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				input.Id = &v
+			}
+		case "bio":
+			if v, ok := a.Val.(string); ok {
+				input.Bio = &v
+			}
+		case "userId":
+			if v, ok := a.Val.(string); ok {
+				input.UserId = v
+			}
+		}
+	}
+	return input
+}
+
+func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	input := assignmentsToProfileCreate(assignments)
+
 	if q.Profile.beforeCreate != nil {
 		if err := q.Profile.beforeCreate(ctx, &input); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := input.Validate(); err != nil {
+	if err := validateProfileCreate(assignments); err != nil {
 		return nil, err
 	}
+
 	var cols []string
 	var vals []any
 	if input.Id != nil {
@@ -209,51 +247,49 @@ func (q *Queries) executeProfileCreate(ctx context.Context, input ProfileCreate,
 	return res, nil
 }
 
-func (q *Queries) ProfileInputToMap(input ProfileCreate) map[string]any {
-	m := make(map[string]any)
-	if input.Id != nil {
-		m["id"] = *input.Id
-	} else {
-		m["id"] = generateCUID()
+func profileRecordsToRowMaps(records []RecordInput) []map[string]any {
+	rowMaps := make([]map[string]any, len(records))
+	for i, rec := range records {
+		m := make(map[string]any, len(rec.Assignments))
+		for _, a := range rec.Assignments {
+			m[a.Col] = a.Val
+		}
+		if _, ok := m["id"]; !ok {
+			m["id"] = generateCUID()
+		}
+		rowMaps[i] = m
 	}
-	if input.Bio != nil {
-		m["bio"] = *input.Bio
-	}
-	m["userId"] = input.UserId
-	return m
+	return rowMaps
 }
 
-func (d *ProfileDelegate) CreateMany(inputs []ProfileCreate) *CreateManyBuilder[Profile, ProfileCreate] {
-	return &CreateManyBuilder[Profile, ProfileCreate]{
+func (d *ProfileDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Profile] {
+	return &CreateManyBuilder[Profile]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executeProfileCreateMany,
 	}
 }
 
-func (d *ProfileDelegate) CreateManyAndReturn(inputs []ProfileCreate) *CreateManyAndReturnBuilder[Profile, ProfileCreate, ProfileSelect, ProfileOmit] {
-	return &CreateManyAndReturnBuilder[Profile, ProfileCreate, ProfileSelect, ProfileOmit]{
+func (d *ProfileDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit] {
+	return &CreateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executeProfileCreateManyAndReturn,
 	}
 }
 
-func (q *Queries) executeProfileCreateMany(ctx context.Context, inputs []ProfileCreate) (int64, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executeProfileCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+	if len(records) == 0 {
 		return 0, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validateProfileCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.ProfileInputToMap(input)
-		}
+		rowMaps := profileRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "Profile", rowMaps, ProfileColOrder, nil)
 		res, err := q.exec(ctx, query, vals...)
 		if err != nil {
@@ -264,8 +300,8 @@ func (q *Queries) executeProfileCreateMany(ctx context.Context, inputs []Profile
 
 	var count int64
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			_, err := txQ.executeProfileCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			_, err := txQ.executeProfileCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -276,12 +312,12 @@ func (q *Queries) executeProfileCreateMany(ctx context.Context, inputs []Profile
 	return count, err
 }
 
-func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, inputs []ProfileCreate, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
+	if len(records) == 0 {
 		return nil, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validateProfileCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
@@ -290,12 +326,9 @@ func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, inputs 
 	returningCols := q.selectProfileCols(selects, omits)
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.ProfileInputToMap(input)
-		}
+		rowMaps := profileRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "Profile", rowMaps, ProfileColOrder, returningCols)
-		records := make([]*Profile, 0)
+		recordsOut := make([]*Profile, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -307,42 +340,41 @@ func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, inputs 
 				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
 					return err
 				}
-				records = append(records, &record)
+				recordsOut = append(recordsOut, &record)
 			}
 			if err := rows.Err(); err != nil {
 				return err
 			}
 			if hasRelations {
-				return txQ.loadProfileRelations(ctx, records, selects)
+				return txQ.loadProfileRelations(ctx, recordsOut, selects)
 			}
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		return records, nil
+		return recordsOut, nil
 	}
 
-	// Fallback to loop inside transaction
-	records := make([]*Profile, 0)
+	recordsOut := make([]*Profile, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			res, err := txQ.executeProfileCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			res, err := txQ.executeProfileCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
-			records = append(records, res)
+			recordsOut = append(recordsOut, res)
 		}
 
 		if hasRelations {
-			return txQ.loadProfileRelations(ctx, records, selects)
+			return txQ.loadProfileRelations(ctx, recordsOut, selects)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return records, nil
+	return recordsOut, nil
 }
 func (d *ProfileDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit] {
 	return &FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit]{

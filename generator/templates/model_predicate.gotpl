@@ -28,7 +28,9 @@ func (p UniquePredicate) Validate() error {
 
 type Select = {{ .ParentPackageName }}.{{ .Model.Name }}Select
 type Omit = {{ .ParentPackageName }}.{{ .Model.Name }}Omit
-type Create = {{ .ParentPackageName }}.{{ .Model.Name }}Create
+func Record(assignments ...{{ .ParentPackageName }}.FieldAssignment) {{ .ParentPackageName }}.RecordInput {
+	return {{ .ParentPackageName }}.RecordInput{Assignments: assignments}
+}
 
 func And(preds ...{{ .ParentPackageName }}.Predicate) {{ .ParentPackageName }}.Predicate {
 	return {{ .ParentPackageName }}.And(preds...)

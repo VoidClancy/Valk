@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"integration/valk"
+	"integration/valk/post"
+	"integration/valk/user"
 	"testing"
 )
 
@@ -14,20 +16,11 @@ func TestCreateMany(t *testing.T) {
 	defer cleanup()
 
 	t.Run("CreateMany returns correct count", func(t *testing.T) {
-		count, err := client.User.CreateMany([]valk.UserCreate{
-			{
-				Email:    "bulk1@example.com",
-				PhoneNum: "+111",
-			},
-			{
-				Email:    "bulk2@example.com",
-				PhoneNum: "+222",
-			},
-			{
-				Email:    "bulk3@example.com",
-				PhoneNum: "+333",
-			},
-		}).Exec(ctx)
+		count, err := client.User.CreateMany(
+			user.Record(user.Email.Set("bulk1@example.com"), user.PhoneNum.Set("+111")),
+			user.Record(user.Email.Set("bulk2@example.com"), user.PhoneNum.Set("+222")),
+			user.Record(user.Email.Set("bulk3@example.com"), user.PhoneNum.Set("+333")),
+		).Exec(ctx)
 
 		if err != nil {
 			t.Fatalf("CreateMany failed: %v", err)
@@ -48,24 +41,18 @@ func TestCreateMany(t *testing.T) {
 	})
 
 	t.Run("CreateManyAndReturn works and supports Select", func(t *testing.T) {
-		author, err := client.User.Create(valk.UserCreate{
-			Email:    "author@example.com",
-			PhoneNum: "+444",
-		}).Exec(ctx)
+		author, err := client.User.Create(
+			user.Email.Set("author@example.com"),
+			user.PhoneNum.Set("+444"),
+		).Exec(ctx)
 		if err != nil {
 			t.Fatalf("failed to create author: %v", err)
 		}
 
-		posts, err := client.Post.CreateManyAndReturn([]valk.PostCreate{
-			{
-				Title:    "Post One",
-				AuthorId: author.Id,
-			},
-			{
-				Title:    "Post Two",
-				AuthorId: author.Id,
-			},
-		}).Select(valk.PostSelect{
+		posts, err := client.Post.CreateManyAndReturn(
+			post.Record(post.Title.Set("Post One"), post.AuthorId.Set(author.Id)),
+			post.Record(post.Title.Set("Post Two"), post.AuthorId.Set(author.Id)),
+		).Select(valk.PostSelect{
 			Id:    true,
 			Title: true,
 			Author: &valk.UserSelect{

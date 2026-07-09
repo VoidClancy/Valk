@@ -16,7 +16,7 @@ type CategoryToPost struct {
 	Category   *Category `json:"category,omitempty"`
 }
 
-// CategoryToPostCreate represents the input structure for creation
+// CategoryToPostCreate is used for hooks only — the Create API uses FieldAssignment
 type CategoryToPostCreate struct {
 	PostId     string `json:"postId"`
 	CategoryId int32  `json:"categoryId"`
@@ -93,24 +93,6 @@ func (q *Queries) selectCategoryToPostCols(selects *CategoryToPostSelect, omits 
 	return cols
 }
 
-func (input CategoryToPostCreate) Validate() error {
-	errs := &ValidationError{}
-	if input.PostId == "" {
-		errs.Add("postId", input.PostId, "required", "field PostId is required")
-	}
-	if strings.Contains(input.PostId, "\x00") {
-		errs.Add("postId", input.PostId, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(input.PostId) {
-		errs.Add("postId", input.PostId, "safety", "string must be valid UTF-8")
-	}
-
-	if errs.HasErrors() {
-		return *errs
-	}
-	return nil
-}
-
 var CategoryToPostColOrder = []string{
 	"postId",
 	"categoryId",
@@ -123,24 +105,76 @@ func (s *CategoryToPostSelect) hasAnyRelation() bool {
 	return s.Post != nil || s.Category != nil
 }
 
-func (d *CategoryToPostDelegate) Create(input CategoryToPostCreate) *CreateBuilder[CategoryToPost, CategoryToPostCreate, CategoryToPostSelect, CategoryToPostOmit] {
-	return &CreateBuilder[CategoryToPost, CategoryToPostCreate, CategoryToPostSelect, CategoryToPostOmit]{
-		client:   d.client,
-		input:    input,
-		execFunc: d.client.executeCategoryToPostCreate,
+func (d *CategoryToPostDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+	return &CreateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
+		client:      d.client,
+		assignments: assignments,
+		execFunc:    d.client.executeCategoryToPostCreate,
 	}
 }
 
-func (q *Queries) executeCategoryToPostCreate(ctx context.Context, input CategoryToPostCreate, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+func validateCategoryToPostCreate(assignments []FieldAssignment) error {
+	errs := &ValidationError{}
+
+	provided := make(map[string]bool)
+	for _, a := range assignments {
+		provided[a.Col] = true
+		switch a.Col {
+		case "postId":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("postId", v, "required", "field postId is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("postId", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("postId", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "categoryId":
+		}
+	}
+	if !provided["postId"] {
+		errs.Add("postId", "", "required", "field PostId is required")
+	}
+
+	if errs.HasErrors() {
+		return *errs
+	}
+	return nil
+}
+
+func assignmentsToCategoryToPostCreate(assignments []FieldAssignment) CategoryToPostCreate {
+	var input CategoryToPostCreate
+	for _, a := range assignments {
+		switch a.Col {
+		case "postId":
+			if v, ok := a.Val.(string); ok {
+				input.PostId = v
+			}
+		case "categoryId":
+			if v, ok := a.Val.(int32); ok {
+				input.CategoryId = v
+			}
+		}
+	}
+	return input
+}
+
+func (q *Queries) executeCategoryToPostCreate(ctx context.Context, assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	input := assignmentsToCategoryToPostCreate(assignments)
+
 	if q.CategoryToPost.beforeCreate != nil {
 		if err := q.CategoryToPost.beforeCreate(ctx, &input); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := input.Validate(); err != nil {
+	if err := validateCategoryToPostCreate(assignments); err != nil {
 		return nil, err
 	}
+
 	var cols []string
 	var vals []any
 	cols = append(cols, "postId")
@@ -185,44 +219,46 @@ func (q *Queries) executeCategoryToPostCreate(ctx context.Context, input Categor
 	return res, nil
 }
 
-func (q *Queries) CategoryToPostInputToMap(input CategoryToPostCreate) map[string]any {
-	m := make(map[string]any)
-	m["postId"] = input.PostId
-	m["categoryId"] = input.CategoryId
-	return m
+func categoryToPostRecordsToRowMaps(records []RecordInput) []map[string]any {
+	rowMaps := make([]map[string]any, len(records))
+	for i, rec := range records {
+		m := make(map[string]any, len(rec.Assignments))
+		for _, a := range rec.Assignments {
+			m[a.Col] = a.Val
+		}
+		rowMaps[i] = m
+	}
+	return rowMaps
 }
 
-func (d *CategoryToPostDelegate) CreateMany(inputs []CategoryToPostCreate) *CreateManyBuilder[CategoryToPost, CategoryToPostCreate] {
-	return &CreateManyBuilder[CategoryToPost, CategoryToPostCreate]{
+func (d *CategoryToPostDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[CategoryToPost] {
+	return &CreateManyBuilder[CategoryToPost]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executeCategoryToPostCreateMany,
 	}
 }
 
-func (d *CategoryToPostDelegate) CreateManyAndReturn(inputs []CategoryToPostCreate) *CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostCreate, CategoryToPostSelect, CategoryToPostOmit] {
-	return &CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostCreate, CategoryToPostSelect, CategoryToPostOmit]{
+func (d *CategoryToPostDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+	return &CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executeCategoryToPostCreateManyAndReturn,
 	}
 }
 
-func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, inputs []CategoryToPostCreate) (int64, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+	if len(records) == 0 {
 		return 0, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validateCategoryToPostCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.CategoryToPostInputToMap(input)
-		}
+		rowMaps := categoryToPostRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "CategoryToPost", rowMaps, CategoryToPostColOrder, nil)
 		res, err := q.exec(ctx, query, vals...)
 		if err != nil {
@@ -233,8 +269,8 @@ func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, inputs []
 
 	var count int64
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			_, err := txQ.executeCategoryToPostCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			_, err := txQ.executeCategoryToPostCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -245,12 +281,12 @@ func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, inputs []
 	return count, err
 }
 
-func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, inputs []CategoryToPostCreate, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
+	if len(records) == 0 {
 		return nil, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validateCategoryToPostCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
@@ -259,12 +295,9 @@ func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, 
 	returningCols := q.selectCategoryToPostCols(selects, omits)
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.CategoryToPostInputToMap(input)
-		}
+		rowMaps := categoryToPostRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "CategoryToPost", rowMaps, CategoryToPostColOrder, returningCols)
-		records := make([]*CategoryToPost, 0)
+		recordsOut := make([]*CategoryToPost, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -276,42 +309,41 @@ func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, 
 				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
 					return err
 				}
-				records = append(records, &record)
+				recordsOut = append(recordsOut, &record)
 			}
 			if err := rows.Err(); err != nil {
 				return err
 			}
 			if hasRelations {
-				return txQ.loadCategoryToPostRelations(ctx, records, selects)
+				return txQ.loadCategoryToPostRelations(ctx, recordsOut, selects)
 			}
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		return records, nil
+		return recordsOut, nil
 	}
 
-	// Fallback to loop inside transaction
-	records := make([]*CategoryToPost, 0)
+	recordsOut := make([]*CategoryToPost, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			res, err := txQ.executeCategoryToPostCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			res, err := txQ.executeCategoryToPostCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
-			records = append(records, res)
+			recordsOut = append(recordsOut, res)
 		}
 
 		if hasRelations {
-			return txQ.loadCategoryToPostRelations(ctx, records, selects)
+			return txQ.loadCategoryToPostRelations(ctx, recordsOut, selects)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return records, nil
+	return recordsOut, nil
 }
 func (d *CategoryToPostDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
 	return &FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{

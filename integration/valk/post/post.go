@@ -20,7 +20,10 @@ func (p UniquePredicate) Validate() error {
 
 type Select = valk.PostSelect
 type Omit = valk.PostOmit
-type Create = valk.PostCreate
+
+func Record(assignments ...valk.FieldAssignment) valk.RecordInput {
+	return valk.RecordInput{Assignments: assignments}
+}
 
 func And(preds ...valk.Predicate) valk.Predicate {
 	return valk.And(preds...)

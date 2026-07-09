@@ -51,13 +51,13 @@ func TestGenerateClient_NativeDBConstraints(t *testing.T) {
 		t.Fatal("expected item.go in outputs")
 	}
 
-	// Verify length checks are generated
-	if !strings.Contains(itemCode, "utf8.RuneCountInString(input.Code) > 8") {
+	// Verify length checks are generated in validate function
+	if !strings.Contains(itemCode, `utf8.RuneCountInString(v) > 8`) {
 		t.Errorf("expected generated code to contain VarChar limit check, got:\n%s", itemCode)
 	}
 
-	// Verify SmallInt range checks are generated
-	if !strings.Contains(itemCode, "input.Count < -32768 || input.Count > 32767") {
+	// Verify SmallInt range checks are generated in validate function
+	if !strings.Contains(itemCode, "v < -32768 || v > 32767") {
 		t.Errorf("expected generated code to contain SmallInt limit check, got:\n%s", itemCode)
 	}
 }

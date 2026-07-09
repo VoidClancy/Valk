@@ -23,7 +23,7 @@ type Comment struct {
 	Author   *User            `json:"author,omitempty"`
 }
 
-// CommentCreate represents the input structure for creation
+// CommentCreate is used for hooks only — the Create API uses FieldAssignment
 type CommentCreate struct {
 	Id       *string          `json:"id"`
 	Textify  int32            `json:"textify"`
@@ -142,60 +142,6 @@ func (q *Queries) selectCommentCols(selects *CommentSelect, omits *CommentOmit, 
 	return cols
 }
 
-func (input CommentCreate) Validate() error {
-	errs := &ValidationError{}
-	if input.Id != nil {
-		val := *input.Id
-		if strings.Contains(val, "\x00") {
-			errs.Add("id", val, "safety", "string cannot contain null bytes")
-		}
-		if !utf8.ValidString(val) {
-			errs.Add("id", val, "safety", "string must be valid UTF-8")
-		}
-	}
-	if input.Dummy3 == "" {
-		errs.Add("dummy3", input.Dummy3, "required", "field Dummy3 is required")
-	}
-	if strings.Contains(input.Dummy3, "\x00") {
-		errs.Add("dummy3", input.Dummy3, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(input.Dummy3) {
-		errs.Add("dummy3", input.Dummy3, "safety", "string must be valid UTF-8")
-	}
-	if input.Dummy2 == "" {
-		errs.Add("dummy2", input.Dummy2, "required", "field Dummy2 is required")
-	}
-	if strings.Contains(input.Dummy2, "\x00") {
-		errs.Add("dummy2", input.Dummy2, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(input.Dummy2) {
-		errs.Add("dummy2", input.Dummy2, "safety", "string must be valid UTF-8")
-	}
-	if input.PostId == "" {
-		errs.Add("postId", input.PostId, "required", "field PostId is required")
-	}
-	if strings.Contains(input.PostId, "\x00") {
-		errs.Add("postId", input.PostId, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(input.PostId) {
-		errs.Add("postId", input.PostId, "safety", "string must be valid UTF-8")
-	}
-	if input.AuthorId == "" {
-		errs.Add("authorId", input.AuthorId, "required", "field AuthorId is required")
-	}
-	if strings.Contains(input.AuthorId, "\x00") {
-		errs.Add("authorId", input.AuthorId, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(input.AuthorId) {
-		errs.Add("authorId", input.AuthorId, "safety", "string must be valid UTF-8")
-	}
-
-	if errs.HasErrors() {
-		return *errs
-	}
-	return nil
-}
-
 var CommentColOrder = []string{
 	"id",
 	"textify",
@@ -214,24 +160,156 @@ func (s *CommentSelect) hasAnyRelation() bool {
 	return s.Post != nil || s.Author != nil
 }
 
-func (d *CommentDelegate) Create(input CommentCreate) *CreateBuilder[Comment, CommentCreate, CommentSelect, CommentOmit] {
-	return &CreateBuilder[Comment, CommentCreate, CommentSelect, CommentOmit]{
-		client:   d.client,
-		input:    input,
-		execFunc: d.client.executeCommentCreate,
+func (d *CommentDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[Comment, CommentSelect, CommentOmit] {
+	return &CreateBuilder[Comment, CommentSelect, CommentOmit]{
+		client:      d.client,
+		assignments: assignments,
+		execFunc:    d.client.executeCommentCreate,
 	}
 }
 
-func (q *Queries) executeCommentCreate(ctx context.Context, input CommentCreate, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+func validateCommentCreate(assignments []FieldAssignment) error {
+	errs := &ValidationError{}
+
+	provided := make(map[string]bool)
+	for _, a := range assignments {
+		provided[a.Col] = true
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				if strings.Contains(v, "\x00") {
+					errs.Add("id", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("id", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "textify":
+		case "dummy3":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("dummy3", v, "required", "field dummy3 is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("dummy3", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("dummy3", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "dummy1":
+		case "dummy2":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("dummy2", v, "required", "field dummy2 is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("dummy2", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("dummy2", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "postId":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("postId", v, "required", "field postId is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("postId", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("postId", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "authorId":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("authorId", v, "required", "field authorId is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("authorId", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("authorId", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "meta":
+		}
+	}
+	if !provided["dummy3"] {
+		errs.Add("dummy3", "", "required", "field Dummy3 is required")
+	}
+	if !provided["dummy2"] {
+		errs.Add("dummy2", "", "required", "field Dummy2 is required")
+	}
+	if !provided["postId"] {
+		errs.Add("postId", "", "required", "field PostId is required")
+	}
+	if !provided["authorId"] {
+		errs.Add("authorId", "", "required", "field AuthorId is required")
+	}
+
+	if errs.HasErrors() {
+		return *errs
+	}
+	return nil
+}
+
+func assignmentsToCommentCreate(assignments []FieldAssignment) CommentCreate {
+	var input CommentCreate
+	for _, a := range assignments {
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				input.Id = &v
+			}
+		case "textify":
+			if v, ok := a.Val.(int32); ok {
+				input.Textify = v
+			}
+		case "dummy3":
+			if v, ok := a.Val.(string); ok {
+				input.Dummy3 = v
+			}
+		case "dummy1":
+			if v, ok := a.Val.(int32); ok {
+				input.Dummy1 = v
+			}
+		case "dummy2":
+			if v, ok := a.Val.(string); ok {
+				input.Dummy2 = v
+			}
+		case "postId":
+			if v, ok := a.Val.(string); ok {
+				input.PostId = v
+			}
+		case "authorId":
+			if v, ok := a.Val.(string); ok {
+				input.AuthorId = v
+			}
+		case "meta":
+			if v, ok := a.Val.(json.RawMessage); ok {
+				input.Meta = &v
+			}
+		}
+	}
+	return input
+}
+
+func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	input := assignmentsToCommentCreate(assignments)
+
 	if q.Comment.beforeCreate != nil {
 		if err := q.Comment.beforeCreate(ctx, &input); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := input.Validate(); err != nil {
+	if err := validateCommentCreate(assignments); err != nil {
 		return nil, err
 	}
+
 	var cols []string
 	var vals []any
 	if input.Id != nil {
@@ -295,56 +373,49 @@ func (q *Queries) executeCommentCreate(ctx context.Context, input CommentCreate,
 	return res, nil
 }
 
-func (q *Queries) CommentInputToMap(input CommentCreate) map[string]any {
-	m := make(map[string]any)
-	if input.Id != nil {
-		m["id"] = *input.Id
-	} else {
-		m["id"] = generateCUID()
+func commentRecordsToRowMaps(records []RecordInput) []map[string]any {
+	rowMaps := make([]map[string]any, len(records))
+	for i, rec := range records {
+		m := make(map[string]any, len(rec.Assignments))
+		for _, a := range rec.Assignments {
+			m[a.Col] = a.Val
+		}
+		if _, ok := m["id"]; !ok {
+			m["id"] = generateCUID()
+		}
+		rowMaps[i] = m
 	}
-	m["textify"] = input.Textify
-	m["dummy3"] = input.Dummy3
-	m["dummy1"] = input.Dummy1
-	m["dummy2"] = input.Dummy2
-	m["postId"] = input.PostId
-	m["authorId"] = input.AuthorId
-	if input.Meta != nil {
-		m["meta"] = *input.Meta
-	}
-	return m
+	return rowMaps
 }
 
-func (d *CommentDelegate) CreateMany(inputs []CommentCreate) *CreateManyBuilder[Comment, CommentCreate] {
-	return &CreateManyBuilder[Comment, CommentCreate]{
+func (d *CommentDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Comment] {
+	return &CreateManyBuilder[Comment]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executeCommentCreateMany,
 	}
 }
 
-func (d *CommentDelegate) CreateManyAndReturn(inputs []CommentCreate) *CreateManyAndReturnBuilder[Comment, CommentCreate, CommentSelect, CommentOmit] {
-	return &CreateManyAndReturnBuilder[Comment, CommentCreate, CommentSelect, CommentOmit]{
+func (d *CommentDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit] {
+	return &CreateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executeCommentCreateManyAndReturn,
 	}
 }
 
-func (q *Queries) executeCommentCreateMany(ctx context.Context, inputs []CommentCreate) (int64, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executeCommentCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+	if len(records) == 0 {
 		return 0, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validateCommentCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.CommentInputToMap(input)
-		}
+		rowMaps := commentRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "Comment", rowMaps, CommentColOrder, nil)
 		res, err := q.exec(ctx, query, vals...)
 		if err != nil {
@@ -355,8 +426,8 @@ func (q *Queries) executeCommentCreateMany(ctx context.Context, inputs []Comment
 
 	var count int64
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			_, err := txQ.executeCommentCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			_, err := txQ.executeCommentCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -367,12 +438,12 @@ func (q *Queries) executeCommentCreateMany(ctx context.Context, inputs []Comment
 	return count, err
 }
 
-func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, inputs []CommentCreate, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
+	if len(records) == 0 {
 		return nil, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validateCommentCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
@@ -381,12 +452,9 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, inputs 
 	returningCols := q.selectCommentCols(selects, omits)
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.CommentInputToMap(input)
-		}
+		rowMaps := commentRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "Comment", rowMaps, CommentColOrder, returningCols)
-		records := make([]*Comment, 0)
+		recordsOut := make([]*Comment, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -398,42 +466,41 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, inputs 
 				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
 					return err
 				}
-				records = append(records, &record)
+				recordsOut = append(recordsOut, &record)
 			}
 			if err := rows.Err(); err != nil {
 				return err
 			}
 			if hasRelations {
-				return txQ.loadCommentRelations(ctx, records, selects)
+				return txQ.loadCommentRelations(ctx, recordsOut, selects)
 			}
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		return records, nil
+		return recordsOut, nil
 	}
 
-	// Fallback to loop inside transaction
-	records := make([]*Comment, 0)
+	recordsOut := make([]*Comment, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			res, err := txQ.executeCommentCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			res, err := txQ.executeCommentCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
-			records = append(records, res)
+			recordsOut = append(recordsOut, res)
 		}
 
 		if hasRelations {
-			return txQ.loadCommentRelations(ctx, records, selects)
+			return txQ.loadCommentRelations(ctx, recordsOut, selects)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return records, nil
+	return recordsOut, nil
 }
 func (d *CommentDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Comment, CommentSelect, CommentOmit] {
 	return &FindUniqueBuilder[Comment, CommentSelect, CommentOmit]{

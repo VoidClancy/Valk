@@ -83,20 +83,40 @@ func (e *ValidationError) HasErrors() bool {
 	return len(e.Errors) > 0
 }
 
+type FieldAssignment struct {
+	Col string
+	Val any
+}
+
+type RecordInput struct {
+	Assignments []FieldAssignment
+}
+
 type UserRoleType string
 
 const (
-	UserRoleTypeAdmin   UserRoleType = "ADMIN"
+	// Admin maps to "ADMIN"
+	UserRoleTypeAdmin UserRoleType = "ADMIN"
+	// Student maps to "student"
 	UserRoleTypeStudent UserRoleType = "student"
+	// Teacher maps to "TEACHER"
 	UserRoleTypeTeacher UserRoleType = "TEACHER"
 )
 
 type userRoleNamespace struct {
-	Admin   UserRoleType
+	// Admin maps to "ADMIN"
+	Admin UserRoleType
+	// Student maps to "student"
 	Student UserRoleType
+	// Teacher maps to "TEACHER"
 	Teacher UserRoleType
 }
 
+// UserRole enum values:
+//
+//	ADMIN   ADMIN
+//	STUDENT student
+//	TEACHER TEACHER
 var UserRole = userRoleNamespace{
 	Admin:   UserRoleTypeAdmin,
 	Student: UserRoleTypeStudent,
@@ -132,14 +152,53 @@ type DBTX interface {
 }
 
 type Queries struct {
-	db             DBTX
-	provider       string
-	dialect        Dialect
-	User           *UserDelegate
-	Profile        *ProfileDelegate
-	Post           *PostDelegate
-	Comment        *CommentDelegate
-	Category       *CategoryDelegate
+	db       DBTX
+	provider string
+	dialect  Dialect
+	// User provides CRUD operations for User.
+	//
+	//   id           string   default: cuid()
+	//   email        string   required
+	//   phoneNum     string   required
+	//   password     string   optional
+	//   role         UserRole default: STUDENT
+	//   roleOptional UserRole optional
+	//   referredById string   optional
+	User *UserDelegate
+	// Profile provides CRUD operations for Profile.
+	//
+	//   id     string default: cuid()
+	//   bio    string optional
+	//   userId string required
+	Profile *ProfileDelegate
+	// Post provides CRUD operations for Post.
+	//
+	//   id        string default: cuid()
+	//   title     string required
+	//   content   string optional
+	//   published bool   default: false
+	//   authorId  string required
+	Post *PostDelegate
+	// Comment provides CRUD operations for Comment.
+	//
+	//   id       string          default: cuid()
+	//   textify  int32           required
+	//   dummy3   string          required
+	//   dummy1   int32           required
+	//   dummy2   string          required
+	//   postId   string          required
+	//   authorId string          required
+	//   meta     json.RawMessage optional
+	Comment *CommentDelegate
+	// Category provides CRUD operations for Category.
+	//
+	//   id   int32  default: autoincrement()
+	//   name string required
+	Category *CategoryDelegate
+	// CategoryToPost provides CRUD operations for CategoryToPost.
+	//
+	//   postId     string required
+	//   categoryId int32  required
 	CategoryToPost *CategoryToPostDelegate
 	UserRole       userRoleNamespace
 }
@@ -411,6 +470,10 @@ type Field[T any] struct {
 	Column string
 }
 
+func (f Field[T]) Set(val T) FieldAssignment {
+	return FieldAssignment{Col: f.Column, Val: val}
+}
+
 func (f Field[T]) EQ(val T) Predicate {
 	return StandardPredicate{
 		Data: PredicateData{
@@ -501,6 +564,10 @@ func (f Field[T]) IsNotNull() Predicate {
 
 type UniqueField[T any] struct {
 	Column string
+}
+
+func (f UniqueField[T]) Set(val T) FieldAssignment {
+	return FieldAssignment{Col: f.Column, Val: val}
 }
 
 type UniqueFieldPredicate struct {
@@ -608,6 +675,10 @@ func (f UniqueField[T]) IsNotNull() Predicate {
 
 type StringField struct {
 	Column string
+}
+
+func (f StringField) Set(val string) FieldAssignment {
+	return FieldAssignment{Col: f.Column, Val: val}
 }
 
 func (f StringField) EQ(val string) Predicate {
@@ -720,6 +791,10 @@ func (f StringField) IsNotNull() Predicate {
 
 type StringUniqueField struct {
 	Column string
+}
+
+func (f StringUniqueField) Set(val string) FieldAssignment {
+	return FieldAssignment{Col: f.Column, Val: val}
 }
 
 func (f StringUniqueField) EQ(val string) UniquePredicate {
@@ -1064,86 +1139,86 @@ func (db *DB) Transaction(ctx context.Context, fn func(tx *Tx) error) error {
 	return tx.Commit()
 }
 
-type CreateBuilder[M any, I any, S any, O any] struct {
-	client   *Queries
-	input    I
-	execFunc func(ctx context.Context, input I, s *S, o *O) (*M, error)
+type CreateBuilder[M any, S any, O any] struct {
+	client      *Queries
+	assignments []FieldAssignment
+	execFunc    func(ctx context.Context, assignments []FieldAssignment, s *S, o *O) (*M, error)
 }
 
-func (b *CreateBuilder[M, I, S, O]) Select(s S) *CreateSelectBuilder[M, I, S, O] {
-	return &CreateSelectBuilder[M, I, S, O]{builder: b, selects: s}
+func (b *CreateBuilder[M, S, O]) Select(s S) *CreateSelectBuilder[M, S, O] {
+	return &CreateSelectBuilder[M, S, O]{builder: b, selects: s}
 }
 
-func (b *CreateBuilder[M, I, S, O]) Omit(o O) *CreateOmitBuilder[M, I, S, O] {
-	return &CreateOmitBuilder[M, I, S, O]{builder: b, omits: o}
+func (b *CreateBuilder[M, S, O]) Omit(o O) *CreateOmitBuilder[M, S, O] {
+	return &CreateOmitBuilder[M, S, O]{builder: b, omits: o}
 }
 
-func (b *CreateBuilder[M, I, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.execFunc(ctx, b.input, nil, nil)
+func (b *CreateBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.execFunc(ctx, b.assignments, nil, nil)
 }
 
-type CreateSelectBuilder[M any, I any, S any, O any] struct {
-	builder *CreateBuilder[M, I, S, O]
+type CreateSelectBuilder[M any, S any, O any] struct {
+	builder *CreateBuilder[M, S, O]
 	selects S
 }
 
-func (b *CreateSelectBuilder[M, I, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.input, &b.selects, nil)
+func (b *CreateSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.assignments, &b.selects, nil)
 }
 
-type CreateOmitBuilder[M any, I any, S any, O any] struct {
-	builder *CreateBuilder[M, I, S, O]
+type CreateOmitBuilder[M any, S any, O any] struct {
+	builder *CreateBuilder[M, S, O]
 	omits   O
 }
 
-func (b *CreateOmitBuilder[M, I, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.input, nil, &b.omits)
+func (b *CreateOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.builder.execFunc(ctx, b.builder.assignments, nil, &b.omits)
 }
 
-type CreateManyBuilder[M any, I any] struct {
+type CreateManyBuilder[M any] struct {
 	client   *Queries
-	inputs   []I
-	execFunc func(ctx context.Context, inputs []I) (int64, error)
+	records  []RecordInput
+	execFunc func(ctx context.Context, records []RecordInput) (int64, error)
 }
 
-func (b *CreateManyBuilder[M, I]) Exec(ctx context.Context) (int64, error) {
-	return b.execFunc(ctx, b.inputs)
+func (b *CreateManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
+	return b.execFunc(ctx, b.records)
 }
 
-type CreateManyAndReturnBuilder[M any, I any, S any, O any] struct {
+type CreateManyAndReturnBuilder[M any, S any, O any] struct {
 	client   *Queries
-	inputs   []I
-	execFunc func(ctx context.Context, inputs []I, s *S, o *O) ([]*M, error)
+	records  []RecordInput
+	execFunc func(ctx context.Context, records []RecordInput, s *S, o *O) ([]*M, error)
 }
 
-func (b *CreateManyAndReturnBuilder[M, I, S, O]) Select(s S) *CreateManyAndReturnSelectBuilder[M, I, S, O] {
-	return &CreateManyAndReturnSelectBuilder[M, I, S, O]{builder: b, selects: s}
+func (b *CreateManyAndReturnBuilder[M, S, O]) Select(s S) *CreateManyAndReturnSelectBuilder[M, S, O] {
+	return &CreateManyAndReturnSelectBuilder[M, S, O]{builder: b, selects: s}
 }
 
-func (b *CreateManyAndReturnBuilder[M, I, S, O]) Omit(o O) *CreateManyAndReturnOmitBuilder[M, I, S, O] {
-	return &CreateManyAndReturnOmitBuilder[M, I, S, O]{builder: b, omits: o}
+func (b *CreateManyAndReturnBuilder[M, S, O]) Omit(o O) *CreateManyAndReturnOmitBuilder[M, S, O] {
+	return &CreateManyAndReturnOmitBuilder[M, S, O]{builder: b, omits: o}
 }
 
-func (b *CreateManyAndReturnBuilder[M, I, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.execFunc(ctx, b.inputs, nil, nil)
+func (b *CreateManyAndReturnBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.execFunc(ctx, b.records, nil, nil)
 }
 
-type CreateManyAndReturnSelectBuilder[M any, I any, S any, O any] struct {
-	builder *CreateManyAndReturnBuilder[M, I, S, O]
+type CreateManyAndReturnSelectBuilder[M any, S any, O any] struct {
+	builder *CreateManyAndReturnBuilder[M, S, O]
 	selects S
 }
 
-func (b *CreateManyAndReturnSelectBuilder[M, I, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.builder.execFunc(ctx, b.builder.inputs, &b.selects, nil)
+func (b *CreateManyAndReturnSelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.builder.execFunc(ctx, b.builder.records, &b.selects, nil)
 }
 
-type CreateManyAndReturnOmitBuilder[M any, I any, S any, O any] struct {
-	builder *CreateManyAndReturnBuilder[M, I, S, O]
+type CreateManyAndReturnOmitBuilder[M any, S any, O any] struct {
+	builder *CreateManyAndReturnBuilder[M, S, O]
 	omits   O
 }
 
-func (b *CreateManyAndReturnOmitBuilder[M, I, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.builder.execFunc(ctx, b.builder.inputs, nil, &b.omits)
+func (b *CreateManyAndReturnOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.builder.execFunc(ctx, b.builder.records, nil, &b.omits)
 }
 
 func executeInsert[M any](
