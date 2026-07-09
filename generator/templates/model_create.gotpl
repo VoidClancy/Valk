@@ -316,7 +316,7 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 	}
 
 	if q.{{ .Model.Name }}.afterCreate != nil {
-		if err := q.{{ .Model.Name }}.afterCreate(ctx, res); err != nil {
+		if err := q.{{ .Model.Name }}.afterCreate(ctx, []*{{ .Model.Name }}{res}); err != nil {
 			return nil, err
 		}
 	}
@@ -394,10 +394,8 @@ func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Contex
 		return nil, err
 	}
 	if q.{{ .Model.Name }}.afterCreate != nil {
-		for _, r := range results {
-			if err := q.{{ .Model.Name }}.afterCreate(ctx, r); err != nil {
-				return nil, err
-			}
+		if err := q.{{ .Model.Name }}.afterCreate(ctx, results); err != nil {
+			return nil, err
 		}
 	}
 	return results, nil

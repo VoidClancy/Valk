@@ -70,7 +70,7 @@ type UserOmit struct {
 type UserDelegate struct {
 	client          *Queries
 	beforeCreate    func(context.Context, *UserCreate) error
-	afterCreate     func(context.Context, *User) error
+	afterCreate     func(context.Context, []*User) error
 	afterCreateMany func(context.Context, []UserCreate, int64) error
 }
 
@@ -78,7 +78,7 @@ func (d *UserDelegate) BeforeCreate(hook func(context.Context, *UserCreate) erro
 	d.beforeCreate = hook
 }
 
-func (d *UserDelegate) AfterCreate(hook func(context.Context, *User) error) {
+func (d *UserDelegate) AfterCreate(hook func(context.Context, []*User) error) {
 	d.afterCreate = hook
 }
 
@@ -370,7 +370,7 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 	}
 
 	if q.User.afterCreate != nil {
-		if err := q.User.afterCreate(ctx, res); err != nil {
+		if err := q.User.afterCreate(ctx, []*User{res}); err != nil {
 			return nil, err
 		}
 	}
@@ -448,10 +448,8 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []
 		return nil, err
 	}
 	if q.User.afterCreate != nil {
-		for _, r := range results {
-			if err := q.User.afterCreate(ctx, r); err != nil {
-				return nil, err
-			}
+		if err := q.User.afterCreate(ctx, results); err != nil {
+			return nil, err
 		}
 	}
 	return results, nil

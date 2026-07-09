@@ -32,17 +32,18 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 		return nil
 	})
 
-	db.User.AfterCreateMany(func(ctx context.Context, users []valk.UserCreate, count int64) error {
+	db.User.AfterCreateMany(func(ctx context.Context, usersInput []valk.UserCreate, count int64) error {
 		var emails []string
-		for _, u := range users {
+		for _, u := range usersInput {
 			emails = append(emails, u.Email)
 		}
 		fmt.Printf("AfterCreateMany: %d users created (emails: %v)\n", count, emails)
 		return nil
 	})
-
-	db.User.AfterCreate(func(ctx context.Context, user *valk.User) error {
-		fmt.Printf("AfterCreate: user %s (role=%s)\n", user.Email, user.Role)
+	db.User.AfterCreate(func(ctx context.Context, users []*valk.User) error {
+		for _, u := range users {
+			fmt.Printf("AfterCreate: user %s (role=%s)\n", u.Email, u.Role)
+		}
 		return nil
 	})
 

@@ -459,9 +459,11 @@ func TestCreate_Hooks(t *testing.T) {
 	})
 
 	var afterCalled bool
-	db.User.AfterCreate(func(ctx context.Context, u *valk.User) error {
-		if u.Email == "hook@example.com" {
-			afterCalled = true
+	db.User.AfterCreate(func(ctx context.Context, users []*valk.User) error {
+		for _, u := range users {
+			if u.Email == "hook@example.com" {
+				afterCalled = true
+			}
 		}
 		return nil
 	})

@@ -109,9 +109,11 @@ func TestCreateMany_Hooks(t *testing.T) {
 
 		var afterCalled bool
 		var gotRole valk.UserRoleType
-		client.User.AfterCreate(func(ctx context.Context, user *valk.User) error {
+		client.User.AfterCreate(func(ctx context.Context, users []*valk.User) error {
 			afterCalled = true
-			gotRole = user.Role
+			if len(users) > 0 {
+				gotRole = users[0].Role
+			}
 			return nil
 		})
 
@@ -137,7 +139,7 @@ func TestCreateMany_Hooks(t *testing.T) {
 		client, cleanup := setupTestDB(t)
 		defer cleanup()
 
-		client.User.AfterCreate(func(ctx context.Context, user *valk.User) error {
+		client.User.AfterCreate(func(ctx context.Context, users []*valk.User) error {
 			return fmt.Errorf("after hook rejected")
 		})
 

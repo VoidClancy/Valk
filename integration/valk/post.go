@@ -56,7 +56,7 @@ type PostOmit struct {
 type PostDelegate struct {
 	client          *Queries
 	beforeCreate    func(context.Context, *PostCreate) error
-	afterCreate     func(context.Context, *Post) error
+	afterCreate     func(context.Context, []*Post) error
 	afterCreateMany func(context.Context, []PostCreate, int64) error
 }
 
@@ -64,7 +64,7 @@ func (d *PostDelegate) BeforeCreate(hook func(context.Context, *PostCreate) erro
 	d.beforeCreate = hook
 }
 
-func (d *PostDelegate) AfterCreate(hook func(context.Context, *Post) error) {
+func (d *PostDelegate) AfterCreate(hook func(context.Context, []*Post) error) {
 	d.afterCreate = hook
 }
 
@@ -316,7 +316,7 @@ func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssi
 	}
 
 	if q.Post.afterCreate != nil {
-		if err := q.Post.afterCreate(ctx, res); err != nil {
+		if err := q.Post.afterCreate(ctx, []*Post{res}); err != nil {
 			return nil, err
 		}
 	}
@@ -394,10 +394,8 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []
 		return nil, err
 	}
 	if q.Post.afterCreate != nil {
-		for _, r := range results {
-			if err := q.Post.afterCreate(ctx, r); err != nil {
-				return nil, err
-			}
+		if err := q.Post.afterCreate(ctx, results); err != nil {
+			return nil, err
 		}
 	}
 	return results, nil
