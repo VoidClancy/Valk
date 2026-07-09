@@ -35,16 +35,13 @@ func TestCreateMany_Hooks(t *testing.T) {
 		if count != 2 {
 			t.Fatalf("expected count 2, got %d", count)
 		}
+		usr, err := client.User.FindUnique(user.Email.EQ("hooked@example.com")).Exec(ctx)
 
-		var phone string
-		err = client.Raw().QueryRowContext(ctx,
-			`SELECT phoneNum FROM "User" WHERE email = 'hooked@example.com'`,
-		).Scan(&phone)
 		if err != nil {
 			t.Fatalf("query failed: %v", err)
 		}
-		if phone != "+188888888" {
-			t.Errorf("expected PhoneNum to be mutated to '+188888888', got %q", phone)
+		if usr.PhoneNum != "+188888888" {
+			t.Errorf("expected PhoneNum to be mutated to '+188888888', got %q", usr.PhoneNum)
 		}
 	})
 
