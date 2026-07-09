@@ -269,6 +269,30 @@ func assignmentsToUserCreate(assignments []FieldAssignment) UserCreate {
 	return input
 }
 
+func (s *UserCreate) ToRowMap() map[string]any {
+	m := make(map[string]any, 7)
+	if s.Id != nil {
+		m["id"] = *s.Id
+	} else {
+		m["id"] = generateUUID()
+	}
+	m["email"] = s.Email
+	m["phoneNum"] = s.PhoneNum
+	if s.Password != nil {
+		m["password"] = *s.Password
+	}
+	if s.Role != nil {
+		m["role"] = *s.Role
+	}
+	if s.RoleOptional != nil {
+		m["roleOptional"] = *s.RoleOptional
+	}
+	if s.ReferredById != nil {
+		m["referredById"] = *s.ReferredById
+	}
+	return m
+}
+
 func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error) {
 	input := assignmentsToUserCreate(assignments)
 
@@ -289,7 +313,7 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 		vals = append(vals, *input.Id)
 	} else {
 		cols = append(cols, "id")
-		vals = append(vals, generateCUID())
+		vals = append(vals, generateUUID())
 	}
 	cols = append(cols, "email")
 	vals = append(vals, input.Email)
@@ -349,21 +373,6 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 	return res, nil
 }
 
-func userRecordsToRowMaps(records []RecordInput) []map[string]any {
-	rowMaps := make([]map[string]any, len(records))
-	for i, rec := range records {
-		m := make(map[string]any, len(rec.Assignments))
-		for _, a := range rec.Assignments {
-			m[a.Col] = a.Val
-		}
-		if _, ok := m["id"]; !ok {
-			m["id"] = generateCUID()
-		}
-		rowMaps[i] = m
-	}
-	return rowMaps
-}
-
 func (d *UserDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[User] {
 	return &CreateManyBuilder[User]{
 		client:   d.client,
@@ -381,26 +390,43 @@ func (d *UserDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAn
 }
 
 func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	return executeCreateMany(ctx, q, records, "User", UserColOrder,
-		validateUserCreate,
-		userRecordsToRowMaps,
-		func(ctx context.Context, assignments []FieldAssignment) (*User, error) {
-			return q.executeUserCreate(ctx, assignments, nil, nil)
-		},
-	)
+	rowMaps := make([]map[string]any, len(records))
+	for i, rec := range records {
+		if err := validateUserCreate(rec.Assignments); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+		input := assignmentsToUserCreate(rec.Assignments)
+		if q.User.beforeCreate != nil {
+			if err := q.User.beforeCreate(ctx, &input); err != nil {
+				return 0, err
+			}
+		}
+		rowMaps[i] = input.ToRowMap()
+	}
+	return executeCreateMany(ctx, q, rowMaps, "User", UserColOrder)
 }
 
 func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit) ([]*User, error) {
-	return executeCreateManyAndReturn(ctx, q, records, "User", UserColOrder, selects, omits,
-		validateUserCreate,
-		userRecordsToRowMaps,
+	rowMaps := make([]map[string]any, len(records))
+	idCol := "id"
+	for i, rec := range records {
+		if err := validateUserCreate(rec.Assignments); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+		input := assignmentsToUserCreate(rec.Assignments)
+		if q.User.beforeCreate != nil {
+			if err := q.User.beforeCreate(ctx, &input); err != nil {
+				return nil, err
+			}
+		}
+		rowMaps[i] = input.ToRowMap()
+	}
+	return executeCreateManyAndReturn(ctx, q, rowMaps, "User", UserColOrder, selects, omits,
 		q.selectUserCols,
 		q.loadUserRelations,
 		(*User).ScanFields,
-		func(ctx context.Context, assignments []FieldAssignment) (*User, error) {
-			return q.executeUserCreate(ctx, assignments, nil, nil)
-		},
 		(*UserSelect).hasAnyRelation,
+		idCol,
 	)
 }
 func (d *UserDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[User, UserSelect, UserOmit] {

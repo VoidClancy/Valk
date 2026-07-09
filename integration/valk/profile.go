@@ -181,6 +181,20 @@ func assignmentsToProfileCreate(assignments []FieldAssignment) ProfileCreate {
 	return input
 }
 
+func (s *ProfileCreate) ToRowMap() map[string]any {
+	m := make(map[string]any, 3)
+	if s.Id != nil {
+		m["id"] = *s.Id
+	} else {
+		m["id"] = generateCUID()
+	}
+	if s.Bio != nil {
+		m["bio"] = *s.Bio
+	}
+	m["userId"] = s.UserId
+	return m
+}
+
 func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
 	input := assignmentsToProfileCreate(assignments)
 
@@ -247,21 +261,6 @@ func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldA
 	return res, nil
 }
 
-func profileRecordsToRowMaps(records []RecordInput) []map[string]any {
-	rowMaps := make([]map[string]any, len(records))
-	for i, rec := range records {
-		m := make(map[string]any, len(rec.Assignments))
-		for _, a := range rec.Assignments {
-			m[a.Col] = a.Val
-		}
-		if _, ok := m["id"]; !ok {
-			m["id"] = generateCUID()
-		}
-		rowMaps[i] = m
-	}
-	return rowMaps
-}
-
 func (d *ProfileDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Profile] {
 	return &CreateManyBuilder[Profile]{
 		client:   d.client,
@@ -279,26 +278,43 @@ func (d *ProfileDelegate) CreateManyAndReturn(records ...RecordInput) *CreateMan
 }
 
 func (q *Queries) executeProfileCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	return executeCreateMany(ctx, q, records, "Profile", ProfileColOrder,
-		validateProfileCreate,
-		profileRecordsToRowMaps,
-		func(ctx context.Context, assignments []FieldAssignment) (*Profile, error) {
-			return q.executeProfileCreate(ctx, assignments, nil, nil)
-		},
-	)
+	rowMaps := make([]map[string]any, len(records))
+	for i, rec := range records {
+		if err := validateProfileCreate(rec.Assignments); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+		input := assignmentsToProfileCreate(rec.Assignments)
+		if q.Profile.beforeCreate != nil {
+			if err := q.Profile.beforeCreate(ctx, &input); err != nil {
+				return 0, err
+			}
+		}
+		rowMaps[i] = input.ToRowMap()
+	}
+	return executeCreateMany(ctx, q, rowMaps, "Profile", ProfileColOrder)
 }
 
 func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
-	return executeCreateManyAndReturn(ctx, q, records, "Profile", ProfileColOrder, selects, omits,
-		validateProfileCreate,
-		profileRecordsToRowMaps,
+	rowMaps := make([]map[string]any, len(records))
+	idCol := "id"
+	for i, rec := range records {
+		if err := validateProfileCreate(rec.Assignments); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+		input := assignmentsToProfileCreate(rec.Assignments)
+		if q.Profile.beforeCreate != nil {
+			if err := q.Profile.beforeCreate(ctx, &input); err != nil {
+				return nil, err
+			}
+		}
+		rowMaps[i] = input.ToRowMap()
+	}
+	return executeCreateManyAndReturn(ctx, q, rowMaps, "Profile", ProfileColOrder, selects, omits,
 		q.selectProfileCols,
 		q.loadProfileRelations,
 		(*Profile).ScanFields,
-		func(ctx context.Context, assignments []FieldAssignment) (*Profile, error) {
-			return q.executeProfileCreate(ctx, assignments, nil, nil)
-		},
 		(*ProfileSelect).hasAnyRelation,
+		idCol,
 	)
 }
 func (d *ProfileDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit] {

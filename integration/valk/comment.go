@@ -297,6 +297,25 @@ func assignmentsToCommentCreate(assignments []FieldAssignment) CommentCreate {
 	return input
 }
 
+func (s *CommentCreate) ToRowMap() map[string]any {
+	m := make(map[string]any, 8)
+	if s.Id != nil {
+		m["id"] = *s.Id
+	} else {
+		m["id"] = generateCUID()
+	}
+	m["textify"] = s.Textify
+	m["dummy3"] = s.Dummy3
+	m["dummy1"] = s.Dummy1
+	m["dummy2"] = s.Dummy2
+	m["postId"] = s.PostId
+	m["authorId"] = s.AuthorId
+	if s.Meta != nil {
+		m["meta"] = *s.Meta
+	}
+	return m
+}
+
 func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
 	input := assignmentsToCommentCreate(assignments)
 
@@ -373,21 +392,6 @@ func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldA
 	return res, nil
 }
 
-func commentRecordsToRowMaps(records []RecordInput) []map[string]any {
-	rowMaps := make([]map[string]any, len(records))
-	for i, rec := range records {
-		m := make(map[string]any, len(rec.Assignments))
-		for _, a := range rec.Assignments {
-			m[a.Col] = a.Val
-		}
-		if _, ok := m["id"]; !ok {
-			m["id"] = generateCUID()
-		}
-		rowMaps[i] = m
-	}
-	return rowMaps
-}
-
 func (d *CommentDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Comment] {
 	return &CreateManyBuilder[Comment]{
 		client:   d.client,
@@ -405,26 +409,43 @@ func (d *CommentDelegate) CreateManyAndReturn(records ...RecordInput) *CreateMan
 }
 
 func (q *Queries) executeCommentCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	return executeCreateMany(ctx, q, records, "Comment", CommentColOrder,
-		validateCommentCreate,
-		commentRecordsToRowMaps,
-		func(ctx context.Context, assignments []FieldAssignment) (*Comment, error) {
-			return q.executeCommentCreate(ctx, assignments, nil, nil)
-		},
-	)
+	rowMaps := make([]map[string]any, len(records))
+	for i, rec := range records {
+		if err := validateCommentCreate(rec.Assignments); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+		input := assignmentsToCommentCreate(rec.Assignments)
+		if q.Comment.beforeCreate != nil {
+			if err := q.Comment.beforeCreate(ctx, &input); err != nil {
+				return 0, err
+			}
+		}
+		rowMaps[i] = input.ToRowMap()
+	}
+	return executeCreateMany(ctx, q, rowMaps, "Comment", CommentColOrder)
 }
 
 func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
-	return executeCreateManyAndReturn(ctx, q, records, "Comment", CommentColOrder, selects, omits,
-		validateCommentCreate,
-		commentRecordsToRowMaps,
+	rowMaps := make([]map[string]any, len(records))
+	idCol := "id"
+	for i, rec := range records {
+		if err := validateCommentCreate(rec.Assignments); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+		input := assignmentsToCommentCreate(rec.Assignments)
+		if q.Comment.beforeCreate != nil {
+			if err := q.Comment.beforeCreate(ctx, &input); err != nil {
+				return nil, err
+			}
+		}
+		rowMaps[i] = input.ToRowMap()
+	}
+	return executeCreateManyAndReturn(ctx, q, rowMaps, "Comment", CommentColOrder, selects, omits,
 		q.selectCommentCols,
 		q.loadCommentRelations,
 		(*Comment).ScanFields,
-		func(ctx context.Context, assignments []FieldAssignment) (*Comment, error) {
-			return q.executeCommentCreate(ctx, assignments, nil, nil)
-		},
 		(*CommentSelect).hasAnyRelation,
+		idCol,
 	)
 }
 func (d *CommentDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Comment, CommentSelect, CommentOmit] {
