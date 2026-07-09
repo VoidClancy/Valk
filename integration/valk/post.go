@@ -229,6 +229,24 @@ func assignmentsToPostCreate(assignments []FieldAssignment) PostCreate {
 	return input
 }
 
+func (s *PostCreate) ToRowMap() map[string]any {
+	m := make(map[string]any, 5)
+	if s.Id != nil {
+		m["id"] = *s.Id
+	} else {
+		m["id"] = generateCUID()
+	}
+	m["title"] = s.Title
+	if s.Content != nil {
+		m["content"] = *s.Content
+	}
+	if s.Published != nil {
+		m["published"] = *s.Published
+	}
+	m["authorId"] = s.AuthorId
+	return m
+}
+
 func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error) {
 	input := assignmentsToPostCreate(assignments)
 
@@ -301,21 +319,6 @@ func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssi
 	return res, nil
 }
 
-func postRecordsToRowMaps(records []RecordInput) []map[string]any {
-	rowMaps := make([]map[string]any, len(records))
-	for i, rec := range records {
-		m := make(map[string]any, len(rec.Assignments))
-		for _, a := range rec.Assignments {
-			m[a.Col] = a.Val
-		}
-		if _, ok := m["id"]; !ok {
-			m["id"] = generateCUID()
-		}
-		rowMaps[i] = m
-	}
-	return rowMaps
-}
-
 func (d *PostDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Post] {
 	return &CreateManyBuilder[Post]{
 		client:   d.client,
@@ -333,27 +336,55 @@ func (d *PostDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAn
 }
 
 func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	return executeCreateMany(ctx, q, records, "Post", PostColOrder,
-		validatePostCreate,
-		postRecordsToRowMaps,
-		func(ctx context.Context, assignments []FieldAssignment) (*Post, error) {
-			return q.executePostCreate(ctx, assignments, nil, nil)
-		},
-	)
+	rowMaps := make([]map[string]any, len(records))
+	for i, rec := range records {
+		if err := validatePostCreate(rec.Assignments); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+		input := assignmentsToPostCreate(rec.Assignments)
+		if q.Post.beforeCreate != nil {
+			if err := q.Post.beforeCreate(ctx, &input); err != nil {
+				return 0, err
+			}
+		}
+		rowMaps[i] = input.ToRowMap()
+	}
+	return executeCreateMany(ctx, q, rowMaps, "Post", PostColOrder)
 }
 
 func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
-	return executeCreateManyAndReturn(ctx, q, records, "Post", PostColOrder, selects, omits,
-		validatePostCreate,
-		postRecordsToRowMaps,
+	rowMaps := make([]map[string]any, len(records))
+	idCol := "id"
+	for i, rec := range records {
+		if err := validatePostCreate(rec.Assignments); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+		input := assignmentsToPostCreate(rec.Assignments)
+		if q.Post.beforeCreate != nil {
+			if err := q.Post.beforeCreate(ctx, &input); err != nil {
+				return nil, err
+			}
+		}
+		rowMaps[i] = input.ToRowMap()
+	}
+	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "Post", PostColOrder, selects, omits,
 		q.selectPostCols,
 		q.loadPostRelations,
 		(*Post).ScanFields,
-		func(ctx context.Context, assignments []FieldAssignment) (*Post, error) {
-			return q.executePostCreate(ctx, assignments, nil, nil)
-		},
 		(*PostSelect).hasAnyRelation,
+		idCol,
 	)
+	if err != nil {
+		return nil, err
+	}
+	if q.Post.afterCreate != nil {
+		for _, r := range results {
+			if err := q.Post.afterCreate(ctx, r); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return results, nil
 }
 func (d *PostDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Post, PostSelect, PostOmit] {
 	return &FindUniqueBuilder[Post, PostSelect, PostOmit]{

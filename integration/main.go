@@ -27,10 +27,15 @@ type SeedData struct {
 
 func seed(db *valk.DB, ctx context.Context) *SeedData {
 	db.User.BeforeCreate(func(ctx context.Context, user *valk.UserCreate) error {
-		if user.Email == "referrer@example.com" {
-			user.Role = new(valk.UserRole.Admin)
-			fmt.Println(user.Role)
-		}
+
+		user.Role = new(valk.UserRole.Admin)
+
+		return nil
+	})
+
+	db.User.AfterCreate(func(ctx context.Context, user *valk.User) error {
+		fmt.Println("CREATED USER WITH ID: ", user.Id)
+		fmt.Println("USER ROLE: ", user.Role)
 		return nil
 	})
 
@@ -44,9 +49,14 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 		))
 	}
 
-	_, err := db.User.CreateMany(usersToCreate...).Exec(ctx)
+	users, err := db.User.CreateManyAndReturn(usersToCreate...).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create users: %v", err)
+	}
+
+	for _, u := range users {
+
+		fmt.Println("USER ROLE: ", u.Role)
 	}
 
 	_, err = db.User.CreateMany(

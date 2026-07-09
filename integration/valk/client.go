@@ -1318,27 +1318,18 @@ func executeInsert[M any](
 	return &res, nil
 }
 
-func executeCreateMany[M any](
+func executeCreateMany(
 	ctx context.Context,
 	q *Queries,
-	records []RecordInput,
+	rowMaps []map[string]any,
 	tableName string,
 	colOrder []string,
-	validateFn func([]FieldAssignment) error,
-	rowMapFn func([]RecordInput) []map[string]any,
-	singleCreateFn func(context.Context, []FieldAssignment) (*M, error),
 ) (int64, error) {
-	if len(records) == 0 {
+	if len(rowMaps) == 0 {
 		return 0, nil
-	}
-	for i, rec := range records {
-		if err := validateFn(rec.Assignments); err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
 	}
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := rowMapFn(records)
 		query, vals := buildBulkInsertSQL(q.dialect, tableName, rowMaps, colOrder, nil)
 		res, err := q.exec(ctx, query, vals...)
 		if err != nil {
@@ -1349,8 +1340,9 @@ func executeCreateMany[M any](
 
 	var count int64
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			_, err := singleCreateFn(ctx, rec.Assignments)
+		for _, rowMap := range rowMaps {
+			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, []map[string]any{rowMap}, colOrder, nil)
+			_, err := txQ.exec(ctx, query, vals...)
 			if err != nil {
 				return err
 			}
@@ -1364,33 +1356,25 @@ func executeCreateMany[M any](
 func executeCreateManyAndReturn[M any, S any, O any](
 	ctx context.Context,
 	q *Queries,
-	records []RecordInput,
+	rowMaps []map[string]any,
 	tableName string,
 	colOrder []string,
 	selects *S,
 	omits *O,
-	validateFn func([]FieldAssignment) error,
-	rowMapFn func([]RecordInput) []map[string]any,
 	selectColsFn func(*S, *O, ...string) []string,
 	loadRelationsFn func(context.Context, []*M, *S) error,
 	scanFunc func(*M, []string) []any,
-	singleCreateFn func(context.Context, []FieldAssignment) (*M, error),
 	hasRelationsFn func(*S) bool,
+	idCol string,
 ) ([]*M, error) {
-	if len(records) == 0 {
+	if len(rowMaps) == 0 {
 		return nil, nil
-	}
-	for i, rec := range records {
-		if err := validateFn(rec.Assignments); err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
 	}
 
 	hasRelations := selects != nil && hasRelationsFn(selects)
 	returningCols := selectColsFn(selects, omits)
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := rowMapFn(records)
 		query, vals := buildBulkInsertSQL(q.dialect, tableName, rowMaps, colOrder, returningCols)
 		recordsOut := make([]*M, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
@@ -1422,8 +1406,9 @@ func executeCreateManyAndReturn[M any, S any, O any](
 
 	recordsOut := make([]*M, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rec := range records {
-			res, err := singleCreateFn(ctx, rec.Assignments)
+		for _, rowMap := range rowMaps {
+			cols, vals := mapToColsVals(rowMap, colOrder)
+			res, err := executeInsert(ctx, txQ, tableName, cols, vals, returningCols, idCol, scanFunc)
 			if err != nil {
 				return err
 			}

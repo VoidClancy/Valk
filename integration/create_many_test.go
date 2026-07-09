@@ -7,8 +7,161 @@ import (
 	"integration/valk"
 	"integration/valk/post"
 	"integration/valk/user"
+	"strings"
 	"testing"
 )
+
+func TestCreateMany_Hooks(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("BeforeCreate hook mutates input during CreateMany", func(t *testing.T) {
+		client, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		client.User.BeforeCreate(func(ctx context.Context, input *valk.UserCreate) error {
+			if input.Email == "hooked@example.com" {
+				input.PhoneNum = "+188888888"
+			}
+			return nil
+		})
+
+		count, err := client.User.CreateMany(
+			user.Record(user.Email.Set("hooked@example.com"), user.PhoneNum.Set("+100000000")),
+			user.Record(user.Email.Set("normal@example.com"), user.PhoneNum.Set("+200000000")),
+		).Exec(ctx)
+
+		if err != nil {
+			t.Fatalf("CreateMany failed: %v", err)
+		}
+		if count != 2 {
+			t.Fatalf("expected count 2, got %d", count)
+		}
+		usr, err := client.User.FindUnique(user.Email.EQ("hooked@example.com")).Exec(ctx)
+
+		if err != nil {
+			t.Fatalf("query failed: %v", err)
+		}
+		if usr.PhoneNum != "+188888888" {
+			t.Errorf("expected PhoneNum to be mutated to '+188888888', got %q", usr.PhoneNum)
+		}
+	})
+
+	t.Run("BeforeCreate hook mutates input during CreateManyAndReturn", func(t *testing.T) {
+		client, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		client.User.BeforeCreate(func(ctx context.Context, input *valk.UserCreate) error {
+			if input.Email == "hooked@example.com" {
+				input.PhoneNum = "+188888888"
+			}
+			return nil
+		})
+
+		users, err := client.User.CreateManyAndReturn(
+			user.Record(user.Email.Set("hooked@example.com"), user.PhoneNum.Set("+100000001")),
+			user.Record(user.Email.Set("normal@example.com"), user.PhoneNum.Set("+200000001")),
+		).Exec(ctx)
+
+		if err != nil {
+			t.Fatalf("CreateManyAndReturn failed: %v", err)
+		}
+		if len(users) != 2 {
+			t.Fatalf("expected 2 users, got %d", len(users))
+		}
+
+		for _, u := range users {
+			if u.Email == "hooked@example.com" && u.PhoneNum != "+188888888" {
+				t.Errorf("expected hooked user PhoneNum to be '+188888888', got %q", u.PhoneNum)
+			}
+		}
+	})
+
+	t.Run("BeforeCreate hook error aborts CreateMany", func(t *testing.T) {
+		client, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		client.User.BeforeCreate(func(ctx context.Context, input *valk.UserCreate) error {
+			if input.Email == "reject@example.com" {
+				return fmt.Errorf("hook rejected: %s", input.Email)
+			}
+			return nil
+		})
+
+		_, err := client.User.CreateMany(
+			user.Record(user.Email.Set("good@example.com"), user.PhoneNum.Set("+300000000")),
+			user.Record(user.Email.Set("reject@example.com"), user.PhoneNum.Set("+300000001")),
+		).Exec(ctx)
+
+		if err == nil {
+			t.Fatal("expected error from hook rejection, got nil")
+		}
+
+		var count int
+		client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count)
+		if count != 0 {
+			t.Fatalf("expected 0 rows after aborted CreateMany, got %d", count)
+		}
+	})
+
+	t.Run("AfterCreate hook fires during CreateManyAndReturn", func(t *testing.T) {
+		client, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		var afterCalled bool
+		var gotRole valk.UserRoleType
+		client.User.AfterCreate(func(ctx context.Context, user *valk.User) error {
+			afterCalled = true
+			gotRole = user.Role
+			return nil
+		})
+
+		users, err := client.User.CreateManyAndReturn(
+			user.Record(user.Email.Set("after@example.com"), user.PhoneNum.Set("+500000000")),
+		).Exec(ctx)
+
+		if err != nil {
+			t.Fatalf("CreateManyAndReturn failed: %v", err)
+		}
+		if len(users) != 1 {
+			t.Fatalf("expected 1 user, got %d", len(users))
+		}
+		if !afterCalled {
+			t.Fatal("expected AfterCreate hook to be called")
+		}
+		if gotRole != users[0].Role {
+			t.Errorf("AfterCreate received role %v, expected %v", gotRole, users[0].Role)
+		}
+	})
+
+	t.Run("AfterCreate hook error aborts CreateManyAndReturn", func(t *testing.T) {
+		client, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		client.User.AfterCreate(func(ctx context.Context, user *valk.User) error {
+			return fmt.Errorf("after hook rejected")
+		})
+
+		var count int
+		client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count)
+		prevCount := count
+
+		_, err := client.User.CreateManyAndReturn(
+			user.Record(user.Email.Set("aftershoot@example.com"), user.PhoneNum.Set("+600000000")),
+		).Exec(ctx)
+
+		if err == nil {
+			t.Fatal("expected error from AfterCreate rejection, got nil")
+		}
+		if !strings.Contains(err.Error(), "after hook rejected") {
+			t.Errorf("expected 'after hook rejected' in error, got %v", err)
+		}
+
+		client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count)
+		if count != prevCount+1 {
+			t.Fatalf("expected %d rows (insert still committed), got %d", prevCount+1, count)
+		}
+	})
+}
 
 func TestCreateMany(t *testing.T) {
 	ctx := context.Background()

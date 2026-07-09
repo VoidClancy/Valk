@@ -148,6 +148,64 @@ func assignmentsTo{{ .Model.Name }}Create(assignments []FieldAssignment) {{ .Mod
 	return input
 }
 
+func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
+	m := make(map[string]any, {{ len .Model.ScalarFields }})
+	{{- range $field := .Model.ScalarFields }}
+	{{- $col := $field.EffectiveColName }}
+	{{- $fieldName := capitalize $field.Name }}
+	{{- if $field.EnumRef }}
+		{{- if $field.IsArray }}
+	if s.{{ $fieldName }} != nil {
+		m["{{ $col }}"] = s.{{ $fieldName }}
+	}
+		{{- else }}
+	if s.{{ $fieldName }} != nil {
+		m["{{ $col }}"] = *s.{{ $fieldName }}
+	}
+		{{- end }}
+	{{- else if $field.IsArray }}
+	if s.{{ $fieldName }} != nil {
+		m["{{ $col }}"] = s.{{ $fieldName }}
+	}
+	{{- else }}
+		{{- if and $field.Default (eq $field.Default.Kind.String "Func") }}
+			{{- if eq $field.Default.FuncName "autoincrement" }}
+	if s.{{ $fieldName }} != nil {
+		m["{{ $col }}"] = *s.{{ $fieldName }}
+	}
+			{{- else }}
+	if s.{{ $fieldName }} != nil {
+		m["{{ $col }}"] = *s.{{ $fieldName }}
+	} else {
+				{{- if eq $field.Default.FuncName "cuid" }}
+		m["{{ $col }}"] = generateCUID()
+				{{- else if eq $field.Default.FuncName "uuid" }}
+		m["{{ $col }}"] = generateUUID()
+				{{- else if eq $field.Default.FuncName "now" }}
+		m["{{ $col }}"] = time.Now()
+				{{- end }}
+	}
+			{{- end }}
+		{{- else if or $field.Optional (ne $field.Default nil) }}
+	if s.{{ $fieldName }} != nil {
+		m["{{ $col }}"] = *s.{{ $fieldName }}
+	}
+		{{- else }}
+			{{- if and $field.IsID (eq $field.GoType "string") }}
+	if s.{{ $fieldName }} != "" {
+		m["{{ $col }}"] = s.{{ $fieldName }}
+	} else {
+		m["{{ $col }}"] = generateCUID()
+	}
+			{{- else }}
+	m["{{ $col }}"] = s.{{ $fieldName }}
+			{{- end }}
+		{{- end }}
+	{{- end }}
+	{{- end }}
+	return m
+}
+
 func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
 	input := assignmentsTo{{ .Model.Name }}Create(assignments)
 
@@ -266,36 +324,6 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 	return res, nil
 }
 
-func {{ lowercase .Model.Name }}RecordsToRowMaps(records []RecordInput) []map[string]any {
-	rowMaps := make([]map[string]any, len(records))
-	for i, rec := range records {
-		m := make(map[string]any, len(rec.Assignments))
-		for _, a := range rec.Assignments {
-			m[a.Col] = a.Val
-		}
-		{{- range $field := .Model.ScalarFields }}
-		{{- $col := $field.EffectiveColName }}
-		{{- if and $field.Default (eq $field.Default.Kind.String "Func") }}
-		if _, ok := m["{{ $col }}"]; !ok {
-			{{- if eq $field.Default.FuncName "cuid" }}
-			m["{{ $col }}"] = generateCUID()
-			{{- else if eq $field.Default.FuncName "uuid" }}
-			m["{{ $col }}"] = generateUUID()
-			{{- else if eq $field.Default.FuncName "now" }}
-			m["{{ $col }}"] = time.Now()
-			{{- end }}
-		}
-		{{- else if and $field.IsID (eq $field.GoType "string") }}
-		if _, ok := m["{{ $col }}"]; !ok {
-			m["{{ $col }}"] = generateCUID()
-		}
-		{{- end }}
-		{{- end }}
-		rowMaps[i] = m
-	}
-	return rowMaps
-}
-
 func (d *{{ .Model.Name }}Delegate) CreateMany(records ...RecordInput) *CreateManyBuilder[{{ .Model.Name }}] {
 	return &CreateManyBuilder[{{ .Model.Name }}]{
 		client:   d.client,
@@ -313,25 +341,53 @@ func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(records ...RecordInput) 
 }
 
 func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, records []RecordInput) (int64, error) {
-	return executeCreateMany(ctx, q, records, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder,
-		validate{{ .Model.Name }}Create,
-		{{ lowercase .Model.Name }}RecordsToRowMaps,
-		func(ctx context.Context, assignments []FieldAssignment) (*{{ .Model.Name }}, error) {
-			return q.execute{{ .Model.Name }}Create(ctx, assignments, nil, nil)
-		},
-	)
+	rowMaps := make([]map[string]any, len(records))
+	for i, rec := range records {
+		if err := validate{{ .Model.Name }}Create(rec.Assignments); err != nil {
+			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+		input := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
+		if q.{{ .Model.Name }}.beforeCreate != nil {
+			if err := q.{{ .Model.Name }}.beforeCreate(ctx, &input); err != nil {
+				return 0, err
+			}
+		}
+		rowMaps[i] = input.ToRowMap()
+	}
+	return executeCreateMany(ctx, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder)
 }
 
 func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Context, records []RecordInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
-	return executeCreateManyAndReturn(ctx, q, records, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, selects, omits,
-		validate{{ .Model.Name }}Create,
-		{{ lowercase .Model.Name }}RecordsToRowMaps,
+	rowMaps := make([]map[string]any, len(records))
+	idCol := "{{ range $field := .Model.ScalarFields }}{{ if $field.IsID }}{{ $field.EffectiveColName }}{{ end }}{{ end }}"
+	for i, rec := range records {
+		if err := validate{{ .Model.Name }}Create(rec.Assignments); err != nil {
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
+		}
+		input := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
+		if q.{{ .Model.Name }}.beforeCreate != nil {
+			if err := q.{{ .Model.Name }}.beforeCreate(ctx, &input); err != nil {
+				return nil, err
+			}
+		}
+		rowMaps[i] = input.ToRowMap()
+	}
+	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, selects, omits,
 		q.select{{ .Model.Name }}Cols,
 		q.load{{ .Model.Name }}Relations,
 		(*{{ .Model.Name }}).ScanFields,
-		func(ctx context.Context, assignments []FieldAssignment) (*{{ .Model.Name }}, error) {
-			return q.execute{{ .Model.Name }}Create(ctx, assignments, nil, nil)
-		},
 		(*{{ .Model.Name }}Select).hasAnyRelation,
+		idCol,
 	)
+	if err != nil {
+		return nil, err
+	}
+	if q.{{ .Model.Name }}.afterCreate != nil {
+		for _, r := range results {
+			if err := q.{{ .Model.Name }}.afterCreate(ctx, r); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return results, nil
 }
