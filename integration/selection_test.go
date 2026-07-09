@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"integration/valk"
+	"integration/valk/comment"
+	"integration/valk/post"
+	"integration/valk/profile"
+	"integration/valk/user"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -15,43 +19,43 @@ func TestRelationLoadChildHoldsFK(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valk.UserCreate{
-		Email:    "parent@example.com",
-		PhoneNum: "+111111111",
-	}).Exec(ctx)
+	u, err := db.User.Create(
+		user.Email.Set("parent@example.com"),
+		user.PhoneNum.Set("+111111111"),
+	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	_, err = db.Post.Create(valk.PostCreate{
-		Title:    "Post 1",
-		Content:  new("Content 1"),
-		AuthorId: u.Id,
-	}).Exec(ctx)
+	_, err = db.Post.Create(
+		post.Title.Set("Post 1"),
+		post.Content.Set("Content 1"),
+		post.AuthorId.Set(u.Id),
+	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create post 1: %v", err)
 	}
-	_, err = db.Post.Create(valk.PostCreate{
-		Title:    "Post 2",
-		Content:  new("Content 2"),
-		AuthorId: u.Id,
-	}).Exec(ctx)
+	_, err = db.Post.Create(
+		post.Title.Set("Post 2"),
+		post.Content.Set("Content 2"),
+		post.AuthorId.Set(u.Id),
+	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create post 2: %v", err)
 	}
 
-	_, err = db.Profile.Create(valk.ProfileCreate{
-		Bio:    new("My bio"),
-		UserId: u.Id,
-	}).Exec(ctx)
+	_, err = db.Profile.Create(
+		profile.Bio.Set("My bio"),
+		profile.UserId.Set(u.Id),
+	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
-	u2, err := db.User.Create(valk.UserCreate{
-		Email:    "parent2@example.com",
-		PhoneNum: "+222222222",
-	}).Select(valk.UserSelect{
+	u2, err := db.User.Create(
+		user.Email.Set("parent2@example.com"),
+		user.PhoneNum.Set("+222222222"),
+	).Select(valk.UserSelect{
 		Id:    true,
 		Email: true,
 		Posts: &valk.PostSelect{
@@ -83,18 +87,18 @@ func TestRelationLoadParentHoldsFK(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valk.UserCreate{
-		Email:    "author@example.com",
-		PhoneNum: "+222222222",
-	}).Exec(ctx)
+	u, err := db.User.Create(
+		user.Email.Set("author@example.com"),
+		user.PhoneNum.Set("+222222222"),
+	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	p, err := db.Post.Create(valk.PostCreate{
-		Title:    "My Post",
-		AuthorId: u.Id,
-	}).Select(valk.PostSelect{
+	p, err := db.Post.Create(
+		post.Title.Set("My Post"),
+		post.AuthorId.Set(u.Id),
+	).Select(valk.PostSelect{
 		Id:       true,
 		Title:    true,
 		AuthorId: true,
@@ -129,19 +133,19 @@ func TestRelationLoadSelfRelation(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	referrer, err := db.User.Create(valk.UserCreate{
-		Email:    "referrer@example.com",
-		PhoneNum: "+333333333",
-	}).Exec(ctx)
+	referrer, err := db.User.Create(
+		user.Email.Set("referrer@example.com"),
+		user.PhoneNum.Set("+333333333"),
+	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create referrer: %v", err)
 	}
 
-	referred, err := db.User.Create(valk.UserCreate{
-		Email:        "referred@example.com",
-		PhoneNum:     "+444444444",
-		ReferredById: &referrer.Id,
-	}).Select(valk.UserSelect{
+	referred, err := db.User.Create(
+		user.Email.Set("referred@example.com"),
+		user.PhoneNum.Set("+444444444"),
+		user.ReferredById.Set(referrer.Id),
+	).Select(valk.UserSelect{
 		Id:           true,
 		Email:        true,
 		ReferredById: true,
@@ -173,38 +177,38 @@ func TestRelationLoadDeepNesting(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valk.UserCreate{
-		Email:    "deep@example.com",
-		PhoneNum: "+555555555",
-	}).Exec(ctx)
+	u, err := db.User.Create(
+		user.Email.Set("deep@example.com"),
+		user.PhoneNum.Set("+555555555"),
+	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	p, err := db.Post.Create(valk.PostCreate{
-		Title:    "Deep Post",
-		AuthorId: u.Id,
-	}).Exec(ctx)
+	p, err := db.Post.Create(
+		post.Title.Set("Deep Post"),
+		post.AuthorId.Set(u.Id),
+	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create post: %v", err)
 	}
 
-	_, err = db.Comment.Create(valk.CommentCreate{
-		Textify:  42,
-		Dummy3:   "d3",
-		Dummy1:   1,
-		Dummy2:   "d2",
-		PostId:   p.Id,
-		AuthorId: u.Id,
-	}).Exec(ctx)
+	_, err = db.Comment.Create(
+		comment.Textify.Set(42),
+		comment.Dummy3.Set("d3"),
+		comment.Dummy1.Set(1),
+		comment.Dummy2.Set("d2"),
+		comment.PostId.Set(p.Id),
+		comment.AuthorId.Set(u.Id),
+	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create comment: %v", err)
 	}
 
-	p2, err := db.Post.Create(valk.PostCreate{
-		Title:    "Another Post",
-		AuthorId: u.Id,
-	}).Select(valk.PostSelect{
+	p2, err := db.Post.Create(
+		post.Title.Set("Another Post"),
+		post.AuthorId.Set(u.Id),
+	).Select(valk.PostSelect{
 		Id:    true,
 		Title: true,
 		Author: &valk.UserSelect{

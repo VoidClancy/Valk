@@ -3,16 +3,24 @@ type {{ $enum.Name }}Type string
 
 const (
 	{{- range $val := $enum.ValueMap }}
+	// {{ capitalize $val.Name }} maps to "{{ $val.DBName }}"
 	{{ $enum.Name }}Type{{ capitalize $val.Name }} {{ $enum.Name }}Type = "{{ $val.DBName }}"
 	{{- end }}
 )
 
 type {{ lowercase $enum.Name }}Namespace struct {
 	{{- range $val := $enum.ValueMap }}
+	// {{ capitalize $val.Name }} maps to "{{ $val.DBName }}"
 	{{ capitalize $val.Name }} {{ $enum.Name }}Type
 	{{- end }}
 }
 
+// {{ $enum.Name }} enum values:
+//
+{{- $maxVal := 0 }}{{ range $v := $enum.ValueMap }}{{ if gt (len $v.Name) $maxVal }}{{ $maxVal = len $v.Name }}{{ end }}{{ end }}
+{{- range $v := $enum.ValueMap }}
+//   {{ printf "%-*s" $maxVal $v.Name }} {{ $v.DBName }}
+{{- end }}
 var {{ $enum.Name }} = {{ lowercase $enum.Name }}Namespace{
 	{{- range $val := $enum.ValueMap }}
 	{{ capitalize $val.Name }}: {{ $enum.Name }}Type{{ capitalize $val.Name }},

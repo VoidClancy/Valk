@@ -24,7 +24,7 @@ type User struct {
 	Referrals    []*User       `json:"referrals,omitempty"`
 }
 
-// UserCreate represents the input structure for creation
+// UserCreate is used for hooks only — the Create API uses FieldAssignment
 type UserCreate struct {
 	Id           *string       `json:"id"`
 	Email        string        `json:"email"`
@@ -142,52 +142,6 @@ func (q *Queries) selectUserCols(selects *UserSelect, omits *UserOmit, forceCols
 	return cols
 }
 
-func (input UserCreate) Validate() error {
-	errs := &ValidationError{}
-	if input.Id != nil {
-		val := *input.Id
-		if strings.Contains(val, "\x00") {
-			errs.Add("id", val, "safety", "string cannot contain null bytes")
-		}
-		if !utf8.ValidString(val) {
-			errs.Add("id", val, "safety", "string must be valid UTF-8")
-		}
-	}
-	if input.Email == "" {
-		errs.Add("email", input.Email, "required", "field Email is required")
-	}
-	if strings.Contains(input.Email, "\x00") {
-		errs.Add("email", input.Email, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(input.Email) {
-		errs.Add("email", input.Email, "safety", "string must be valid UTF-8")
-	}
-	if input.PhoneNum == "" {
-		errs.Add("phoneNum", input.PhoneNum, "required", "field PhoneNum is required")
-	}
-	if strings.Contains(input.PhoneNum, "\x00") {
-		errs.Add("phoneNum", input.PhoneNum, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(input.PhoneNum) {
-		errs.Add("phoneNum", input.PhoneNum, "safety", "string must be valid UTF-8")
-	}
-	if input.Role != nil {
-		if !input.Role.IsValid() {
-			errs.Add("role", *input.Role, "enum", fmt.Sprintf("invalid enum value %q for field Role", *input.Role))
-		}
-	}
-	if input.RoleOptional != nil {
-		if !input.RoleOptional.IsValid() {
-			errs.Add("roleOptional", *input.RoleOptional, "enum", fmt.Sprintf("invalid enum value %q for field RoleOptional", *input.RoleOptional))
-		}
-	}
-
-	if errs.HasErrors() {
-		return *errs
-	}
-	return nil
-}
-
 var UserColOrder = []string{
 	"id",
 	"email",
@@ -205,24 +159,129 @@ func (s *UserSelect) hasAnyRelation() bool {
 	return s.Profile != nil || s.Posts != nil || s.Comments != nil || s.ReferredBy != nil || s.Referrals != nil
 }
 
-func (d *UserDelegate) Create(input UserCreate) *CreateBuilder[User, UserCreate, UserSelect, UserOmit] {
-	return &CreateBuilder[User, UserCreate, UserSelect, UserOmit]{
-		client:   d.client,
-		input:    input,
-		execFunc: d.client.executeUserCreate,
+func (d *UserDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[User, UserSelect, UserOmit] {
+	return &CreateBuilder[User, UserSelect, UserOmit]{
+		client:      d.client,
+		assignments: assignments,
+		execFunc:    d.client.executeUserCreate,
 	}
 }
 
-func (q *Queries) executeUserCreate(ctx context.Context, input UserCreate, selects *UserSelect, omits *UserOmit) (*User, error) {
+func validateUserCreate(assignments []FieldAssignment) error {
+	errs := &ValidationError{}
+
+	provided := make(map[string]bool)
+	for _, a := range assignments {
+		provided[a.Col] = true
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				if strings.Contains(v, "\x00") {
+					errs.Add("id", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("id", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "email":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("email", v, "required", "field email is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("email", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("email", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "phoneNum":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("phoneNum", v, "required", "field phoneNum is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("phoneNum", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("phoneNum", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "password":
+		case "role":
+			if v, ok := a.Val.(UserRoleType); ok && !v.IsValid() {
+				errs.Add("role", v, "enum", fmt.Sprintf("invalid enum value %q for field role", v))
+			}
+		case "roleOptional":
+			if v, ok := a.Val.(UserRoleType); ok && !v.IsValid() {
+				errs.Add("roleOptional", v, "enum", fmt.Sprintf("invalid enum value %q for field roleOptional", v))
+			}
+		case "referredById":
+		}
+	}
+	if !provided["email"] {
+		errs.Add("email", "", "required", "field Email is required")
+	}
+	if !provided["phoneNum"] {
+		errs.Add("phoneNum", "", "required", "field PhoneNum is required")
+	}
+
+	if errs.HasErrors() {
+		return *errs
+	}
+	return nil
+}
+
+func assignmentsToUserCreate(assignments []FieldAssignment) UserCreate {
+	var input UserCreate
+	for _, a := range assignments {
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				input.Id = &v
+			}
+		case "email":
+			if v, ok := a.Val.(string); ok {
+				input.Email = v
+			}
+		case "phoneNum":
+			if v, ok := a.Val.(string); ok {
+				input.PhoneNum = v
+			}
+		case "password":
+			if v, ok := a.Val.(string); ok {
+				input.Password = &v
+			}
+		case "role":
+			if v, ok := a.Val.(UserRoleType); ok {
+				input.Role = &v
+			}
+		case "roleOptional":
+			if v, ok := a.Val.(UserRoleType); ok {
+				input.RoleOptional = &v
+			}
+		case "referredById":
+			if v, ok := a.Val.(string); ok {
+				input.ReferredById = &v
+			}
+		}
+	}
+	return input
+}
+
+func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error) {
+	input := assignmentsToUserCreate(assignments)
+
 	if q.User.beforeCreate != nil {
 		if err := q.User.beforeCreate(ctx, &input); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := input.Validate(); err != nil {
+	if err := validateUserCreate(assignments); err != nil {
 		return nil, err
 	}
+
 	var cols []string
 	var vals []any
 	if input.Id != nil {
@@ -290,61 +349,49 @@ func (q *Queries) executeUserCreate(ctx context.Context, input UserCreate, selec
 	return res, nil
 }
 
-func (q *Queries) UserInputToMap(input UserCreate) map[string]any {
-	m := make(map[string]any)
-	if input.Id != nil {
-		m["id"] = *input.Id
-	} else {
-		m["id"] = generateCUID()
+func userRecordsToRowMaps(records []RecordInput) []map[string]any {
+	rowMaps := make([]map[string]any, len(records))
+	for i, rec := range records {
+		m := make(map[string]any, len(rec.Assignments))
+		for _, a := range rec.Assignments {
+			m[a.Col] = a.Val
+		}
+		if _, ok := m["id"]; !ok {
+			m["id"] = generateCUID()
+		}
+		rowMaps[i] = m
 	}
-	m["email"] = input.Email
-	m["phoneNum"] = input.PhoneNum
-	if input.Password != nil {
-		m["password"] = *input.Password
-	}
-	if input.Role != nil {
-		m["role"] = *input.Role
-	}
-	if input.RoleOptional != nil {
-		m["roleOptional"] = *input.RoleOptional
-	}
-	if input.ReferredById != nil {
-		m["referredById"] = *input.ReferredById
-	}
-	return m
+	return rowMaps
 }
 
-func (d *UserDelegate) CreateMany(inputs []UserCreate) *CreateManyBuilder[User, UserCreate] {
-	return &CreateManyBuilder[User, UserCreate]{
+func (d *UserDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[User] {
+	return &CreateManyBuilder[User]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executeUserCreateMany,
 	}
 }
 
-func (d *UserDelegate) CreateManyAndReturn(inputs []UserCreate) *CreateManyAndReturnBuilder[User, UserCreate, UserSelect, UserOmit] {
-	return &CreateManyAndReturnBuilder[User, UserCreate, UserSelect, UserOmit]{
+func (d *UserDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[User, UserSelect, UserOmit] {
+	return &CreateManyAndReturnBuilder[User, UserSelect, UserOmit]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executeUserCreateManyAndReturn,
 	}
 }
 
-func (q *Queries) executeUserCreateMany(ctx context.Context, inputs []UserCreate) (int64, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+	if len(records) == 0 {
 		return 0, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validateUserCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.UserInputToMap(input)
-		}
+		rowMaps := userRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "User", rowMaps, UserColOrder, nil)
 		res, err := q.exec(ctx, query, vals...)
 		if err != nil {
@@ -355,8 +402,8 @@ func (q *Queries) executeUserCreateMany(ctx context.Context, inputs []UserCreate
 
 	var count int64
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			_, err := txQ.executeUserCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			_, err := txQ.executeUserCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -367,12 +414,12 @@ func (q *Queries) executeUserCreateMany(ctx context.Context, inputs []UserCreate
 	return count, err
 }
 
-func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, inputs []UserCreate, selects *UserSelect, omits *UserOmit) ([]*User, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit) ([]*User, error) {
+	if len(records) == 0 {
 		return nil, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validateUserCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
@@ -381,12 +428,9 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, inputs []U
 	returningCols := q.selectUserCols(selects, omits)
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.UserInputToMap(input)
-		}
+		rowMaps := userRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "User", rowMaps, UserColOrder, returningCols)
-		records := make([]*User, 0)
+		recordsOut := make([]*User, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -398,42 +442,41 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, inputs []U
 				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
 					return err
 				}
-				records = append(records, &record)
+				recordsOut = append(recordsOut, &record)
 			}
 			if err := rows.Err(); err != nil {
 				return err
 			}
 			if hasRelations {
-				return txQ.loadUserRelations(ctx, records, selects)
+				return txQ.loadUserRelations(ctx, recordsOut, selects)
 			}
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		return records, nil
+		return recordsOut, nil
 	}
 
-	// Fallback to loop inside transaction
-	records := make([]*User, 0)
+	recordsOut := make([]*User, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			res, err := txQ.executeUserCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			res, err := txQ.executeUserCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
-			records = append(records, res)
+			recordsOut = append(recordsOut, res)
 		}
 
 		if hasRelations {
-			return txQ.loadUserRelations(ctx, records, selects)
+			return txQ.loadUserRelations(ctx, recordsOut, selects)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return records, nil
+	return recordsOut, nil
 }
 func (d *UserDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[User, UserSelect, UserOmit] {
 	return &FindUniqueBuilder[User, UserSelect, UserOmit]{

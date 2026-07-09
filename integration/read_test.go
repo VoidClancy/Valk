@@ -18,10 +18,7 @@ func TestFindUniqueWithNoFieldsSet(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{
-		Email:    "onlyuser@example.com",
-		PhoneNum: "000",
-	}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("onlyuser@example.com"), user.PhoneNum.Set("000")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -37,11 +34,11 @@ func TestFindUniqueConflictingCompoundFields(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{Email: "a@example.com", PhoneNum: "111"}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("a@example.com"), user.PhoneNum.Set("111")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed a failed: %v", err)
 	}
-	_, err = db.User.Create(valk.UserCreate{Email: "b@example.com", PhoneNum: "222"}).Exec(ctx)
+	_, err = db.User.Create(user.Email.Set("b@example.com"), user.PhoneNum.Set("222")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed b failed: %v", err)
 	}
@@ -60,7 +57,7 @@ func TestSelectWithNoFieldsSet(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{Email: "empty_select@example.com", PhoneNum: "333"}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("empty_select@example.com"), user.PhoneNum.Set("333")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -79,7 +76,7 @@ func TestOmitAllFields(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{Email: "omit_all@example.com", PhoneNum: "334"}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("omit_all@example.com"), user.PhoneNum.Set("334")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -104,7 +101,7 @@ func TestOmitIdFieldStillAllowsFilterById(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(valk.UserCreate{Email: "omit_id@example.com", PhoneNum: "335"}).Exec(ctx)
+	u, err := db.User.Create(user.Email.Set("omit_id@example.com"), user.PhoneNum.Set("335")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -126,7 +123,7 @@ func TestRelationLoadWithNoRelatedRows(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{Email: "noposts@example.com", PhoneNum: "444"}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("noposts@example.com"), user.PhoneNum.Set("444")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -151,11 +148,11 @@ func TestFindUniqueRelationLoad(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	author, err := db.User.Create(valk.UserCreate{Email: "unique_rel@example.com", PhoneNum: "445"}).Exec(ctx)
+	author, err := db.User.Create(user.Email.Set("unique_rel@example.com"), user.PhoneNum.Set("445")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed author failed: %v", err)
 	}
-	_, err = db.Post.Create(valk.PostCreate{Title: "Unique Rel Post", AuthorId: author.Id}).Exec(ctx)
+	_, err = db.Post.Create(post.Title.Set("Unique Rel Post"), post.AuthorId.Set(author.Id)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed post failed: %v", err)
 	}
@@ -177,11 +174,11 @@ func TestFindFirstRelationLoad(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	author, err := db.User.Create(valk.UserCreate{Email: "first_rel@example.com", PhoneNum: "446"}).Exec(ctx)
+	author, err := db.User.Create(user.Email.Set("first_rel@example.com"), user.PhoneNum.Set("446")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed author failed: %v", err)
 	}
-	_, err = db.Post.Create(valk.PostCreate{Title: "First Rel Post", AuthorId: author.Id}).Exec(ctx)
+	_, err = db.Post.Create(post.Title.Set("First Rel Post"), post.AuthorId.Set(author.Id)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed post failed: %v", err)
 	}
@@ -230,12 +227,12 @@ func TestDuplicateUniqueCreateFails(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{Email: "dup@example.com", PhoneNum: "555"}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("dup@example.com"), user.PhoneNum.Set("555")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("first create failed: %v", err)
 	}
 
-	_, err = db.User.Create(valk.UserCreate{Email: "dup@example.com", PhoneNum: "556"}).Exec(ctx)
+	_, err = db.User.Create(user.Email.Set("dup@example.com"), user.PhoneNum.Set("556")).Exec(ctx)
 	if err == nil {
 		t.Error("expected a unique constraint violation on duplicate email, got nil error")
 	}
@@ -256,10 +253,7 @@ func TestConcurrentDuplicateCreateOnlyOneSucceeds(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := db.User.Create(valk.UserCreate{
-				Email:    "race@example.com",
-				PhoneNum: "race-phone",
-			}).Exec(ctx)
+			_, err := db.User.Create(user.Email.Set("race@example.com"), user.PhoneNum.Set("race-phone")).Exec(ctx)
 			mu.Lock()
 			defer mu.Unlock()
 			if err == nil {
@@ -281,11 +275,11 @@ func TestWhitespacePaddedEmailNotTreatedAsDuplicate(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{Email: "dup2@example.com", PhoneNum: "601"}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("dup2@example.com"), user.PhoneNum.Set("601")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("first create failed: %v", err)
 	}
-	_, err = db.User.Create(valk.UserCreate{Email: " dup2@example.com", PhoneNum: "602"}).Exec(ctx)
+	_, err = db.User.Create(user.Email.Set(" dup2@example.com"), user.PhoneNum.Set("602")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("expected leading-whitespace email to be treated as a distinct value, create failed: %v", err)
 	}
@@ -304,7 +298,7 @@ func TestEmailCaseSensitivity(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{Email: "CaseTest@Example.com", PhoneNum: "603"}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("CaseTest@Example.com"), user.PhoneNum.Set("603")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -339,7 +333,7 @@ func TestVeryLongEmailValue(t *testing.T) {
 
 	longEmail := strings.Repeat("a", 5000) + "@example.com"
 
-	_, err := db.User.Create(valk.UserCreate{Email: longEmail, PhoneNum: "999"}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set(longEmail), user.PhoneNum.Set("999")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("create with a very long email failed: %v", err)
 	}
@@ -362,10 +356,7 @@ func TestCreateWithEmptyStringEmail(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{
-		Email:    "",
-		PhoneNum: "800",
-	}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set(""), user.PhoneNum.Set("800")).Exec(ctx)
 	if err != nil {
 		return
 	}
@@ -385,19 +376,12 @@ func TestOptionalEnumNullVsValueFilter(t *testing.T) {
 	ctx := context.Background()
 
 	adminRole := valk.UserRole.Admin
-	_, err := db.User.Create(valk.UserCreate{
-		Email:        "role_set@example.com",
-		PhoneNum:     "700",
-		RoleOptional: &adminRole,
-	}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("role_set@example.com"), user.PhoneNum.Set("700"), user.RoleOptional.Set(adminRole)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
 
-	_, err = db.User.Create(valk.UserCreate{
-		Email:    "role_unset@example.com",
-		PhoneNum: "701",
-	}).Exec(ctx)
+	_, err = db.User.Create(user.Email.Set("role_unset@example.com"), user.PhoneNum.Set("701")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -424,7 +408,7 @@ func TestSQLInjectionVariants(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{Email: "injection_target@example.com", PhoneNum: "900"}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("injection_target@example.com"), user.PhoneNum.Set("900")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -476,11 +460,11 @@ func TestCompoundUniqueWithOneFieldMatchingWrongRow(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{Email: "compound_a@example.com", PhoneNum: "701a"}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("compound_a@example.com"), user.PhoneNum.Set("701a")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed a failed: %v", err)
 	}
-	_, err = db.User.Create(valk.UserCreate{Email: "compound_b@example.com", PhoneNum: "701b"}).Exec(ctx)
+	_, err = db.User.Create(user.Email.Set("compound_b@example.com"), user.PhoneNum.Set("701b")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed b failed: %v", err)
 	}
@@ -499,10 +483,7 @@ func TestCompoundUniqueConstraintEdgeCases(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(valk.UserCreate{
-		Email:    "compound_edge@example.com",
-		PhoneNum: "800a",
-	}).Exec(ctx)
+	_, err := db.User.Create(user.Email.Set("compound_edge@example.com"), user.PhoneNum.Set("800a")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -563,32 +544,26 @@ func TestJsonField(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(user.Create{
-		Email:    "json_test_user@example.com",
-		PhoneNum: "555-json",
-	}).Exec(ctx)
+	u, err := db.User.Create(user.Email.Set("json_test_user@example.com"),
+		user.PhoneNum.Set("555-json")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	p, err := db.Post.Create(post.Create{
-		Title:    "JSON Post",
-		AuthorId: u.Id,
-	}).Exec(ctx)
+	p, err := db.Post.Create(post.Title.Set("JSON Post"),
+		post.AuthorId.Set(u.Id)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create post: %v", err)
 	}
 
 	metaVal := json.RawMessage(`{"tags":["valkyrie","orm"],"version":1}`)
-	c, err := db.Comment.Create(valk.CommentCreate{
-		Textify:  1,
-		Dummy3:   "dummy3",
-		Dummy1:   10,
-		Dummy2:   "dummy2",
-		PostId:   p.Id,
-		AuthorId: u.Id,
-		Meta:     &metaVal,
-	}).Exec(ctx)
+	c, err := db.Comment.Create(comment.Textify.Set(1),
+		comment.Dummy3.Set("dummy3"),
+		comment.Dummy1.Set(10),
+		comment.Dummy2.Set("dummy2"),
+		comment.PostId.Set(p.Id),
+		comment.AuthorId.Set(u.Id),
+		comment.Meta.Set(metaVal)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create comment with JSON: %v", err)
 	}

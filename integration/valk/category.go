@@ -15,7 +15,7 @@ type Category struct {
 	Posts []*CategoryToPost `json:"posts,omitempty"`
 }
 
-// CategoryCreate represents the input structure for creation
+// CategoryCreate is used for hooks only — the Create API uses FieldAssignment
 type CategoryCreate struct {
 	Id   *int32 `json:"id"`
 	Name string `json:"name"`
@@ -90,24 +90,6 @@ func (q *Queries) selectCategoryCols(selects *CategorySelect, omits *CategoryOmi
 	return cols
 }
 
-func (input CategoryCreate) Validate() error {
-	errs := &ValidationError{}
-	if input.Name == "" {
-		errs.Add("name", input.Name, "required", "field Name is required")
-	}
-	if strings.Contains(input.Name, "\x00") {
-		errs.Add("name", input.Name, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(input.Name) {
-		errs.Add("name", input.Name, "safety", "string must be valid UTF-8")
-	}
-
-	if errs.HasErrors() {
-		return *errs
-	}
-	return nil
-}
-
 var CategoryColOrder = []string{
 	"id",
 	"name",
@@ -120,31 +102,81 @@ func (s *CategorySelect) hasAnyRelation() bool {
 	return s.Posts != nil
 }
 
-func (d *CategoryDelegate) Create(input CategoryCreate) *CreateBuilder[Category, CategoryCreate, CategorySelect, CategoryOmit] {
-	return &CreateBuilder[Category, CategoryCreate, CategorySelect, CategoryOmit]{
-		client:   d.client,
-		input:    input,
-		execFunc: d.client.executeCategoryCreate,
+func (d *CategoryDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[Category, CategorySelect, CategoryOmit] {
+	return &CreateBuilder[Category, CategorySelect, CategoryOmit]{
+		client:      d.client,
+		assignments: assignments,
+		execFunc:    d.client.executeCategoryCreate,
 	}
 }
 
-func (q *Queries) executeCategoryCreate(ctx context.Context, input CategoryCreate, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+func validateCategoryCreate(assignments []FieldAssignment) error {
+	errs := &ValidationError{}
+
+	provided := make(map[string]bool)
+	for _, a := range assignments {
+		provided[a.Col] = true
+		switch a.Col {
+		case "id":
+		case "name":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("name", v, "required", "field name is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("name", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("name", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		}
+	}
+	if !provided["name"] {
+		errs.Add("name", "", "required", "field Name is required")
+	}
+
+	if errs.HasErrors() {
+		return *errs
+	}
+	return nil
+}
+
+func assignmentsToCategoryCreate(assignments []FieldAssignment) CategoryCreate {
+	var input CategoryCreate
+	for _, a := range assignments {
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(int32); ok {
+				input.Id = &v
+			}
+		case "name":
+			if v, ok := a.Val.(string); ok {
+				input.Name = v
+			}
+		}
+	}
+	return input
+}
+
+func (q *Queries) executeCategoryCreate(ctx context.Context, assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+	input := assignmentsToCategoryCreate(assignments)
+
 	if q.Category.beforeCreate != nil {
 		if err := q.Category.beforeCreate(ctx, &input); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := input.Validate(); err != nil {
+	if err := validateCategoryCreate(assignments); err != nil {
 		return nil, err
 	}
+
 	var cols []string
 	var vals []any
 	if input.Id != nil {
 		cols = append(cols, "id")
 		vals = append(vals, *input.Id)
-	} else {
-		cols = append(cols, "id")
 	}
 	cols = append(cols, "name")
 	vals = append(vals, input.Name)
@@ -186,47 +218,48 @@ func (q *Queries) executeCategoryCreate(ctx context.Context, input CategoryCreat
 	return res, nil
 }
 
-func (q *Queries) CategoryInputToMap(input CategoryCreate) map[string]any {
-	m := make(map[string]any)
-	if input.Id != nil {
-		m["id"] = *input.Id
-	} else {
+func categoryRecordsToRowMaps(records []RecordInput) []map[string]any {
+	rowMaps := make([]map[string]any, len(records))
+	for i, rec := range records {
+		m := make(map[string]any, len(rec.Assignments))
+		for _, a := range rec.Assignments {
+			m[a.Col] = a.Val
+		}
+		if _, ok := m["id"]; !ok {
+		}
+		rowMaps[i] = m
 	}
-	m["name"] = input.Name
-	return m
+	return rowMaps
 }
 
-func (d *CategoryDelegate) CreateMany(inputs []CategoryCreate) *CreateManyBuilder[Category, CategoryCreate] {
-	return &CreateManyBuilder[Category, CategoryCreate]{
+func (d *CategoryDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Category] {
+	return &CreateManyBuilder[Category]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executeCategoryCreateMany,
 	}
 }
 
-func (d *CategoryDelegate) CreateManyAndReturn(inputs []CategoryCreate) *CreateManyAndReturnBuilder[Category, CategoryCreate, CategorySelect, CategoryOmit] {
-	return &CreateManyAndReturnBuilder[Category, CategoryCreate, CategorySelect, CategoryOmit]{
+func (d *CategoryDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[Category, CategorySelect, CategoryOmit] {
+	return &CreateManyAndReturnBuilder[Category, CategorySelect, CategoryOmit]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executeCategoryCreateManyAndReturn,
 	}
 }
 
-func (q *Queries) executeCategoryCreateMany(ctx context.Context, inputs []CategoryCreate) (int64, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+	if len(records) == 0 {
 		return 0, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validateCategoryCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.CategoryInputToMap(input)
-		}
+		rowMaps := categoryRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "Category", rowMaps, CategoryColOrder, nil)
 		res, err := q.exec(ctx, query, vals...)
 		if err != nil {
@@ -237,8 +270,8 @@ func (q *Queries) executeCategoryCreateMany(ctx context.Context, inputs []Catego
 
 	var count int64
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			_, err := txQ.executeCategoryCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			_, err := txQ.executeCategoryCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -249,12 +282,12 @@ func (q *Queries) executeCategoryCreateMany(ctx context.Context, inputs []Catego
 	return count, err
 }
 
-func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, inputs []CategoryCreate, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
+	if len(records) == 0 {
 		return nil, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validateCategoryCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
@@ -263,12 +296,9 @@ func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, inputs
 	returningCols := q.selectCategoryCols(selects, omits)
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.CategoryInputToMap(input)
-		}
+		rowMaps := categoryRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "Category", rowMaps, CategoryColOrder, returningCols)
-		records := make([]*Category, 0)
+		recordsOut := make([]*Category, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -280,42 +310,41 @@ func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, inputs
 				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
 					return err
 				}
-				records = append(records, &record)
+				recordsOut = append(recordsOut, &record)
 			}
 			if err := rows.Err(); err != nil {
 				return err
 			}
 			if hasRelations {
-				return txQ.loadCategoryRelations(ctx, records, selects)
+				return txQ.loadCategoryRelations(ctx, recordsOut, selects)
 			}
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		return records, nil
+		return recordsOut, nil
 	}
 
-	// Fallback to loop inside transaction
-	records := make([]*Category, 0)
+	recordsOut := make([]*Category, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			res, err := txQ.executeCategoryCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			res, err := txQ.executeCategoryCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
-			records = append(records, res)
+			recordsOut = append(recordsOut, res)
 		}
 
 		if hasRelations {
-			return txQ.loadCategoryRelations(ctx, records, selects)
+			return txQ.loadCategoryRelations(ctx, recordsOut, selects)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return records, nil
+	return recordsOut, nil
 }
 func (d *CategoryDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Category, CategorySelect, CategoryOmit] {
 	return &FindUniqueBuilder[Category, CategorySelect, CategoryOmit]{

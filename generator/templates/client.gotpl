@@ -33,6 +33,18 @@ type Queries struct {
 	provider string
 	dialect  Dialect
 	{{- range $model := .Schema.Models }}
+	// {{ $model.Name }} provides CRUD operations for {{ $model.Name }}.
+	//
+	{{- $maxName := 0 }}{{ $maxType := 0 }}
+	{{- range $f := $model.ScalarFields }}
+		{{- if gt (len $f.Name) $maxName }}{{ $maxName = len $f.Name }}{{ end }}
+		{{- $t := "" }}{{ if $f.EnumRef }}{{ $t = $f.EnumRef.Name }}{{ else }}{{ $t = trimPrefix $f.GoType "*" }}{{ end }}
+		{{- if gt (len $t) $maxType }}{{ $maxType = len $t }}{{ end }}
+	{{- end }}
+	{{- range $field := $model.ScalarFields }}
+		{{- $typeStr := "" }}{{ if $field.EnumRef }}{{ $typeStr = $field.EnumRef.Name }}{{ else }}{{ $typeStr = trimPrefix $field.GoType "*" }}{{ end }}
+	//   {{ printf "%-*s" $maxName $field.Name }} {{ printf "%-*s" $maxType $typeStr }} {{ if and (eq $field.Default nil) (not $field.Optional) }}required{{ else if $field.Optional }}optional{{ else if $field.Default }}default: {{ $field.Default.Value }}{{ end }}
+	{{- end }}
 	{{ $model.Name }} *{{ $model.Name }}Delegate
 	{{- end }}
 	{{- range $enum := .Schema.Enums }}
@@ -370,6 +382,10 @@ type Field[T any] struct {
 	Column string
 }
 
+func (f Field[T]) Set(val T) FieldAssignment {
+	return FieldAssignment{Col: f.Column, Val: val}
+}
+
 func (f Field[T]) EQ(val T) Predicate {
 	return StandardPredicate{
 		Data: PredicateData{
@@ -460,6 +476,10 @@ func (f Field[T]) IsNotNull() Predicate {
 
 type UniqueField[T any] struct {
 	Column string
+}
+
+func (f UniqueField[T]) Set(val T) FieldAssignment {
+	return FieldAssignment{Col: f.Column, Val: val}
 }
 
 type UniqueFieldPredicate struct {
@@ -567,6 +587,10 @@ func (f UniqueField[T]) IsNotNull() Predicate {
 
 type StringField struct {
 	Column string
+}
+
+func (f StringField) Set(val string) FieldAssignment {
+	return FieldAssignment{Col: f.Column, Val: val}
 }
 
 func (f StringField) EQ(val string) Predicate {
@@ -679,6 +703,10 @@ func (f StringField) IsNotNull() Predicate {
 
 type StringUniqueField struct {
 	Column string
+}
+
+func (f StringUniqueField) Set(val string) FieldAssignment {
+	return FieldAssignment{Col: f.Column, Val: val}
 }
 
 func (f StringUniqueField) EQ(val string) UniquePredicate {

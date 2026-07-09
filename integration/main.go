@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"integration/valk"
 	"integration/valk/category"
@@ -27,88 +26,117 @@ type SeedData struct {
 }
 
 func seed(db *valk.DB, ctx context.Context) *SeedData {
-	db.User.BeforeCreate(func(ctx context.Context, uc *user.Create) error {
-		return errors.New("AAAAAAAAH")
+	db.User.BeforeCreate(func(ctx context.Context, user *valk.UserCreate) error {
+		if user.Email == "referrer@example.com" {
+			user.Role = new(valk.UserRole.Admin)
+			fmt.Println(user.Role)
+		}
+		return nil
 	})
 
-	referrer, err := db.User.Create(user.Create{
-		Email:    "referrer@example.com",
-		PhoneNum: "555-0001",
-		Password: new("pass123"),
-		Role:     &valk.UserRole.Admin,
-	}).Exec(ctx)
+	var usersToCreate []valk.RecordInput
+
+	for i := range 20 {
+		usersToCreate = append(usersToCreate, user.Record(
+			user.Email.Set(fmt.Sprintf("email-%d", i)),
+			user.PhoneNum.Set(fmt.Sprintf("555-%d", i)),
+			user.Password.Set(fmt.Sprintf("password-%d", i)),
+		))
+	}
+
+	_, err := db.User.CreateMany(usersToCreate...).Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create users: %v", err)
+	}
+
+	_, err = db.User.CreateMany(
+		user.Record(
+			user.Email.Set("test"),
+			user.Password.Set("passwd"),
+		),
+		user.Record(
+			user.Email.Set("again"),
+			user.Password.Set("123456"),
+		),
+	).Exec(ctx)
+	referrer, err := db.User.Create(
+		user.Email.Set("referrer@example.com"),
+		user.PhoneNum.Set("555-0001"),
+		user.Password.Set("pass123"),
+		user.Role.Set(valk.UserRole.Student),
+	).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create referrer: %v", err)
 	}
 
-	referred, err := db.User.Create(user.Create{
-		Email:        "referred@example.com",
-		PhoneNum:     "555-0002",
-		Password:     new("pass456"),
-		Role:         &valk.UserRole.Student,
-		ReferredById: &referrer.Id,
-	}).Exec(ctx)
+	referred, err := db.User.Create(
+		user.Email.Set("referred@example.com"),
+		user.PhoneNum.Set("555-0002"),
+		user.Password.Set("pass456"),
+		user.Role.Set(valk.UserRole.Student),
+		user.ReferredById.Set(referrer.Id),
+	).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create referred: %v", err)
 	}
 
-	prof, err := db.Profile.Create(profile.Create{
-		Bio:    new("BLEH"),
-		UserId: referred.Id,
-	}).Exec(ctx)
+	prof, err := db.Profile.Create(
+		profile.Bio.Set("BLEH"),
+		profile.UserId.Set(referred.Id),
+	).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create profile: %v", err)
 	}
 	_ = prof
 
-	p, err := db.Post.Create(post.Create{
-		Title:    "Valkyrie ORM Deep Dive",
-		Content:  new("skrrrt"),
-		AuthorId: referred.Id,
-	}).Exec(ctx)
+	p, err := db.Post.Create(
+		post.Title.Set("Valkyrie ORM Deep Dive"),
+		post.Content.Set("skrrrt"),
+		post.AuthorId.Set(referred.Id),
+	).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create post: %v", err)
 	}
 
-	cat, err := db.Category.Create(category.Create{
-		Name: "Programming",
-	}).Exec(ctx)
+	cat, err := db.Category.Create(
+		category.Name.Set("Programming"),
+	).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create category: %v", err)
 	}
 
-	_, err = db.CategoryToPost.Create(categoryToPost.Create{
-		PostId:     p.Id,
-		CategoryId: cat.Id,
-	}).Exec(ctx)
+	_, err = db.CategoryToPost.Create(
+		categoryToPost.PostId.Set(p.Id),
+		categoryToPost.CategoryId.Set(cat.Id),
+	).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create CategoryToPost: %v", err)
 	}
 
 	meta1 := json.RawMessage(`{"rating":5,"verified":true}`)
-	_, err = db.Comment.Create(comment.Create{
-		Textify:  100,
-		Dummy3:   "dummy_val_1",
-		Dummy1:   42,
-		Dummy2:   "dummy_val_2",
-		PostId:   p.Id,
-		AuthorId: referrer.Id,
-		Meta:     &meta1,
-	}).Exec(ctx)
+	_, err = db.Comment.Create(
+		comment.Textify.Set(100),
+		comment.Dummy3.Set("dummy_val_1"),
+		comment.Dummy1.Set(42),
+		comment.Dummy2.Set("dummy_val_2"),
+		comment.PostId.Set(p.Id),
+		comment.AuthorId.Set(referrer.Id),
+		comment.Meta.Set(meta1),
+	).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create comment 1: %v", err)
 	}
 
 	meta2 := json.RawMessage(`{"rating":4,"verified":false}`)
-	_, err = db.Comment.Create(comment.Create{
-		Textify:  200,
-		Dummy3:   "dummy_val_3",
-		Dummy1:   84,
-		Dummy2:   "dummy_val_4",
-		PostId:   p.Id,
-		AuthorId: referred.Id,
-		Meta:     &meta2,
-	}).Exec(ctx)
+	_, err = db.Comment.Create(
+		comment.Textify.Set(200),
+		comment.Dummy3.Set("dummy_val_3"),
+		comment.Dummy1.Set(84),
+		comment.Dummy2.Set("dummy_val_4"),
+		comment.PostId.Set(p.Id),
+		comment.AuthorId.Set(referred.Id),
+		comment.Meta.Set(meta2),
+	).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create comment 2: %v", err)
 	}
@@ -249,19 +277,19 @@ func runManualTransaction(db *valk.DB, ctx context.Context) {
 	defer tx.Rollback()
 
 	fmt.Println("Manual Transaction: started successfully")
-	author, err := tx.User.Create(user.Create{
-		Email:    "clancySizer@gmail.com",
-		PhoneNum: "+1234567890",
-	}).Exec(ctx)
+	author, err := tx.User.Create(
+		user.Email.Set("clancySizer@gmail.com"),
+		user.PhoneNum.Set("+1234567890"),
+	).Exec(ctx)
 	if err != nil {
 		fmt.Printf("failed to create user: %+v", err)
 		return
 	}
 
-	postWithAuthor, err := tx.Post.Create(post.Create{
-		Title:    "A Post",
-		AuthorId: author.Id,
-	}).Select(post.Select{
+	postWithAuthor, err := tx.Post.Create(
+		post.Title.Set("A Post"),
+		post.AuthorId.Set(author.Id),
+	).Select(post.Select{
 		Id:    true,
 		Title: true,
 		Author: &user.Select{
@@ -287,18 +315,18 @@ func runBlockBasedTransaction(db *valk.DB, ctx context.Context) {
 	err := db.Transaction(ctx, func(tx *valk.Tx) error {
 		fmt.Println("Block-based Transaction: started successfully")
 
-		author, err := tx.User.Create(user.Create{
-			Email:    "clancySizer@gmail.com",
-			PhoneNum: "+1234567890",
-		}).Exec(ctx)
+		author, err := tx.User.Create(
+			user.Email.Set("clancySizer@gmail.com"),
+			user.PhoneNum.Set("+1234567890"),
+		).Exec(ctx)
 		if err != nil {
 			return err
 		}
 
-		postWithAuthor, err := tx.Post.Create(post.Create{
-			Title:    "A Post",
-			AuthorId: author.Id,
-		}).Select(post.Select{
+		postWithAuthor, err := tx.Post.Create(
+			post.Title.Set("A Post"),
+			post.AuthorId.Set(author.Id),
+		).Select(post.Select{
 			Id:    true,
 			Title: true,
 			Author: &user.Select{

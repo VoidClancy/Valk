@@ -20,7 +20,7 @@ type Post struct {
 	Categories []*CategoryToPost `json:"categories,omitempty"`
 }
 
-// PostCreate represents the input structure for creation
+// PostCreate is used for hooks only — the Create API uses FieldAssignment
 type PostCreate struct {
 	Id        *string `json:"id"`
 	Title     string  `json:"title"`
@@ -120,42 +120,6 @@ func (q *Queries) selectPostCols(selects *PostSelect, omits *PostOmit, forceCols
 	return cols
 }
 
-func (input PostCreate) Validate() error {
-	errs := &ValidationError{}
-	if input.Id != nil {
-		val := *input.Id
-		if strings.Contains(val, "\x00") {
-			errs.Add("id", val, "safety", "string cannot contain null bytes")
-		}
-		if !utf8.ValidString(val) {
-			errs.Add("id", val, "safety", "string must be valid UTF-8")
-		}
-	}
-	if input.Title == "" {
-		errs.Add("title", input.Title, "required", "field Title is required")
-	}
-	if strings.Contains(input.Title, "\x00") {
-		errs.Add("title", input.Title, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(input.Title) {
-		errs.Add("title", input.Title, "safety", "string must be valid UTF-8")
-	}
-	if input.AuthorId == "" {
-		errs.Add("authorId", input.AuthorId, "required", "field AuthorId is required")
-	}
-	if strings.Contains(input.AuthorId, "\x00") {
-		errs.Add("authorId", input.AuthorId, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(input.AuthorId) {
-		errs.Add("authorId", input.AuthorId, "safety", "string must be valid UTF-8")
-	}
-
-	if errs.HasErrors() {
-		return *errs
-	}
-	return nil
-}
-
 var PostColOrder = []string{
 	"id",
 	"title",
@@ -171,24 +135,113 @@ func (s *PostSelect) hasAnyRelation() bool {
 	return s.Author != nil || s.Comments != nil || s.Categories != nil
 }
 
-func (d *PostDelegate) Create(input PostCreate) *CreateBuilder[Post, PostCreate, PostSelect, PostOmit] {
-	return &CreateBuilder[Post, PostCreate, PostSelect, PostOmit]{
-		client:   d.client,
-		input:    input,
-		execFunc: d.client.executePostCreate,
+func (d *PostDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[Post, PostSelect, PostOmit] {
+	return &CreateBuilder[Post, PostSelect, PostOmit]{
+		client:      d.client,
+		assignments: assignments,
+		execFunc:    d.client.executePostCreate,
 	}
 }
 
-func (q *Queries) executePostCreate(ctx context.Context, input PostCreate, selects *PostSelect, omits *PostOmit) (*Post, error) {
+func validatePostCreate(assignments []FieldAssignment) error {
+	errs := &ValidationError{}
+
+	provided := make(map[string]bool)
+	for _, a := range assignments {
+		provided[a.Col] = true
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				if strings.Contains(v, "\x00") {
+					errs.Add("id", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("id", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "title":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("title", v, "required", "field title is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("title", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("title", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		case "content":
+		case "published":
+		case "authorId":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("authorId", v, "required", "field authorId is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("authorId", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("authorId", v, "safety", "string must be valid UTF-8")
+				}
+			}
+		}
+	}
+	if !provided["title"] {
+		errs.Add("title", "", "required", "field Title is required")
+	}
+	if !provided["authorId"] {
+		errs.Add("authorId", "", "required", "field AuthorId is required")
+	}
+
+	if errs.HasErrors() {
+		return *errs
+	}
+	return nil
+}
+
+func assignmentsToPostCreate(assignments []FieldAssignment) PostCreate {
+	var input PostCreate
+	for _, a := range assignments {
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				input.Id = &v
+			}
+		case "title":
+			if v, ok := a.Val.(string); ok {
+				input.Title = v
+			}
+		case "content":
+			if v, ok := a.Val.(string); ok {
+				input.Content = &v
+			}
+		case "published":
+			if v, ok := a.Val.(bool); ok {
+				input.Published = &v
+			}
+		case "authorId":
+			if v, ok := a.Val.(string); ok {
+				input.AuthorId = v
+			}
+		}
+	}
+	return input
+}
+
+func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	input := assignmentsToPostCreate(assignments)
+
 	if q.Post.beforeCreate != nil {
 		if err := q.Post.beforeCreate(ctx, &input); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := input.Validate(); err != nil {
+	if err := validatePostCreate(assignments); err != nil {
 		return nil, err
 	}
+
 	var cols []string
 	var vals []any
 	if input.Id != nil {
@@ -248,55 +301,49 @@ func (q *Queries) executePostCreate(ctx context.Context, input PostCreate, selec
 	return res, nil
 }
 
-func (q *Queries) PostInputToMap(input PostCreate) map[string]any {
-	m := make(map[string]any)
-	if input.Id != nil {
-		m["id"] = *input.Id
-	} else {
-		m["id"] = generateCUID()
+func postRecordsToRowMaps(records []RecordInput) []map[string]any {
+	rowMaps := make([]map[string]any, len(records))
+	for i, rec := range records {
+		m := make(map[string]any, len(rec.Assignments))
+		for _, a := range rec.Assignments {
+			m[a.Col] = a.Val
+		}
+		if _, ok := m["id"]; !ok {
+			m["id"] = generateCUID()
+		}
+		rowMaps[i] = m
 	}
-	m["title"] = input.Title
-	if input.Content != nil {
-		m["content"] = *input.Content
-	}
-	if input.Published != nil {
-		m["published"] = *input.Published
-	}
-	m["authorId"] = input.AuthorId
-	return m
+	return rowMaps
 }
 
-func (d *PostDelegate) CreateMany(inputs []PostCreate) *CreateManyBuilder[Post, PostCreate] {
-	return &CreateManyBuilder[Post, PostCreate]{
+func (d *PostDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Post] {
+	return &CreateManyBuilder[Post]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executePostCreateMany,
 	}
 }
 
-func (d *PostDelegate) CreateManyAndReturn(inputs []PostCreate) *CreateManyAndReturnBuilder[Post, PostCreate, PostSelect, PostOmit] {
-	return &CreateManyAndReturnBuilder[Post, PostCreate, PostSelect, PostOmit]{
+func (d *PostDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[Post, PostSelect, PostOmit] {
+	return &CreateManyAndReturnBuilder[Post, PostSelect, PostOmit]{
 		client:   d.client,
-		inputs:   inputs,
+		records:  records,
 		execFunc: d.client.executePostCreateManyAndReturn,
 	}
 }
 
-func (q *Queries) executePostCreateMany(ctx context.Context, inputs []PostCreate) (int64, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+	if len(records) == 0 {
 		return 0, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validatePostCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.PostInputToMap(input)
-		}
+		rowMaps := postRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "Post", rowMaps, PostColOrder, nil)
 		res, err := q.exec(ctx, query, vals...)
 		if err != nil {
@@ -307,8 +354,8 @@ func (q *Queries) executePostCreateMany(ctx context.Context, inputs []PostCreate
 
 	var count int64
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			_, err := txQ.executePostCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			_, err := txQ.executePostCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -319,12 +366,12 @@ func (q *Queries) executePostCreateMany(ctx context.Context, inputs []PostCreate
 	return count, err
 }
 
-func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, inputs []PostCreate, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
-	if len(inputs) == 0 {
+func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
+	if len(records) == 0 {
 		return nil, nil
 	}
-	for i, input := range inputs {
-		if err := input.Validate(); err != nil {
+	for i, rec := range records {
+		if err := validatePostCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 	}
@@ -333,12 +380,9 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, inputs []P
 	returningCols := q.selectPostCols(selects, omits)
 
 	if q.dialect.SupportsBulkInsert() {
-		rowMaps := make([]map[string]any, len(inputs))
-		for i, input := range inputs {
-			rowMaps[i] = q.PostInputToMap(input)
-		}
+		rowMaps := postRecordsToRowMaps(records)
 		query, vals := buildBulkInsertSQL(q.dialect, "Post", rowMaps, PostColOrder, returningCols)
-		records := make([]*Post, 0)
+		recordsOut := make([]*Post, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			rows, err := txQ.query(ctx, query, vals...)
 			if err != nil {
@@ -350,42 +394,41 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, inputs []P
 				if err := rows.Scan(record.ScanFields(returningCols)...); err != nil {
 					return err
 				}
-				records = append(records, &record)
+				recordsOut = append(recordsOut, &record)
 			}
 			if err := rows.Err(); err != nil {
 				return err
 			}
 			if hasRelations {
-				return txQ.loadPostRelations(ctx, records, selects)
+				return txQ.loadPostRelations(ctx, recordsOut, selects)
 			}
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		return records, nil
+		return recordsOut, nil
 	}
 
-	// Fallback to loop inside transaction
-	records := make([]*Post, 0)
+	recordsOut := make([]*Post, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, input := range inputs {
-			res, err := txQ.executePostCreate(ctx, input, nil, nil)
+		for _, rec := range records {
+			res, err := txQ.executePostCreate(ctx, rec.Assignments, nil, nil)
 			if err != nil {
 				return err
 			}
-			records = append(records, res)
+			recordsOut = append(recordsOut, res)
 		}
 
 		if hasRelations {
-			return txQ.loadPostRelations(ctx, records, selects)
+			return txQ.loadPostRelations(ctx, recordsOut, selects)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return records, nil
+	return recordsOut, nil
 }
 func (d *PostDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Post, PostSelect, PostOmit] {
 	return &FindUniqueBuilder[Post, PostSelect, PostOmit]{
