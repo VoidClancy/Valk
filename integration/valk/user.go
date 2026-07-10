@@ -213,6 +213,9 @@ func validateUserCreate(assignments []FieldAssignment) error {
 				}
 			}
 		case "password":
+			if _, ok := a.Val.(string); !ok {
+				errs.Add("password", a.Val, "type", "field password must be of type string")
+			}
 		case "role":
 			if v, ok := a.Val.(UserRoleType); ok && !v.IsValid() {
 				errs.Add("role", v, "enum", fmt.Sprintf("invalid enum value %q for field role", v))
@@ -222,6 +225,9 @@ func validateUserCreate(assignments []FieldAssignment) error {
 				errs.Add("roleOptional", v, "enum", fmt.Sprintf("invalid enum value %q for field roleOptional", v))
 			}
 		case "referredById":
+			if _, ok := a.Val.(string); !ok {
+				errs.Add("referredById", a.Val, "type", "field referredById must be of type string")
+			}
 		}
 	}
 	if !provided["email"] {

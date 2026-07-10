@@ -167,9 +167,10 @@ type Queries struct {
 	User *UserDelegate
 	// Profile provides CRUD operations for Profile.
 	//
-	//   id     string default: cuid()
-	//   bio    string optional
-	//   userId string required
+	//   id        string    default: cuid()
+	//   bio       string    optional
+	//   userId    string    required
+	//   createdAt time.Time default: now()
 	Profile *ProfileDelegate
 	// Post provides CRUD operations for Post.
 	//

@@ -3,6 +3,7 @@ package profile
 import (
 	"fmt"
 	"integration/valk"
+	"time"
 )
 
 type UniquePredicate struct {
@@ -42,3 +43,5 @@ var Id = valk.StringUniqueField{Column: "id"}
 var Bio = valk.StringField{Column: "bio"}
 
 var UserId = valk.StringUniqueField{Column: "userId"}
+
+var CreatedAt = valk.Field[time.Time]{Column: "createdAt"}

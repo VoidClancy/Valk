@@ -19,6 +19,7 @@ CREATE TABLE `Profile` (
   `id` text NOT NULL,
   `bio` text NULL,
   `userId` text NOT NULL,
+  `createdAt` timestamp NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   PRIMARY KEY (`id`),
   CONSTRAINT `Profile_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User` (`id`) ON UPDATE NO ACTION ON DELETE CASCADE
 );

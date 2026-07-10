@@ -11,6 +11,7 @@ import (
 	"integration/valk/post"
 	"integration/valk/profile"
 	"integration/valk/user"
+	"time"
 
 	"log"
 
@@ -101,11 +102,34 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 	prof, err := db.Profile.Create(
 		profile.Bio.Set("BLEH"),
 		profile.UserId.Set(referred.Id),
+		profile.CreatedAt.Set(time.Now()),
 	).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create profile: %v", err)
 	}
-	_ = prof
+	fmt.Println("PROFILE:")
+	printJSON(prof)
+
+	categoryTest, err := db.Category.Create(
+		category.Name.Set("TEST"),
+	).Exec(ctx)
+
+	if err != nil {
+		log.Fatalf("failed to create category: %v", err)
+	}
+	fmt.Println("CATEGORY:")
+	printJSON(categoryTest)
+
+	AnothercategoryTest, err := db.Category.Create(
+		category.Id.Set(24),
+		category.Name.Set("TEST2"),
+	).Exec(ctx)
+
+	if err != nil {
+		log.Fatalf("failed to create category: %v", err)
+	}
+	fmt.Println("CATEGORY2:")
+	printJSON(AnothercategoryTest)
 
 	p, err := db.Post.Create(
 		post.Title.Set("Valkyrie ORM Deep Dive"),
@@ -274,7 +298,7 @@ func main() {
 }
 
 func openConn() *valk.DB {
-	db, err := valk.Open("sqlite", "file::memory:?_pragma=foreign_keys(1)")
+	db, err := valk.Open("sqlite", "file::memory:?_pragma=foreign_keys(1)&_time_format=sqlite")
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)
 	}

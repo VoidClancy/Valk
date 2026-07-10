@@ -177,7 +177,13 @@ func validatePostCreate(assignments []FieldAssignment) error {
 				}
 			}
 		case "content":
+			if _, ok := a.Val.(string); !ok {
+				errs.Add("content", a.Val, "type", "field content must be of type string")
+			}
 		case "published":
+			if _, ok := a.Val.(bool); !ok {
+				errs.Add("published", a.Val, "type", "field published must be of type bool")
+			}
 		case "authorId":
 			if v, ok := a.Val.(string); ok {
 				if v == "" {
