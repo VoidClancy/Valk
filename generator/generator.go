@@ -80,82 +80,37 @@ func ResolveImportPath(clientDir string) (string, error) {
 }
 
 func GenerateClient(sch schema.Schema, pkgName string, parentImportPath string, embedPath string, defaultDiskPath string, defaultLogs []string) (map[string]string, error) {
-	tmpl := template.New("").Funcs(template.FuncMap{
-		"capitalize":    capitalize,
-		"lowercase":     lowercase,
-		"fkForRelation": fkForRelation,
-		"fieldPredType": func(f *schema.ScalarField, parentPkg string) string {
-			if f.EnumRef != nil {
-				if f.IsArray {
-					return "[]" + parentPkg + "." + f.EnumRef.Name + "Type"
-				}
-				return parentPkg + "." + f.EnumRef.Name + "Type"
-			}
-			t := f.GoType
-			if f.Optional {
-				t = strings.TrimPrefix(t, "*")
-			}
-			return t
-		},
-		"hasLog": func(level string) bool {
-			for _, l := range defaultLogs {
-				if l == "all" || l == level {
-					return true
-				}
-			}
-			return false
-		},
-		"hasAnyLog": func() bool {
-			for _, l := range defaultLogs {
-				if l != "none" {
-					return true
-				}
-			}
-			return false
-		},
-		"hasJsonField": func(m *schema.Model) bool {
-			for _, sf := range m.ScalarFields {
-				if sf.Type == "Json" || strings.Contains(sf.GoType, "json.RawMessage") {
-					return true
-				}
-			}
-			return false
-		},
-		"hasTimeField": func(m *schema.Model) bool {
-			for _, sf := range m.ScalarFields {
-				if sf.Type == "DateTime" || strings.Contains(sf.GoType, "time.Time") {
-					return true
-				}
-			}
-			return false
-		},
-		"trimPrefix":    strings.TrimPrefix,
-		"isKnownDefaultFunc": func(funcName string) bool {
-			switch funcName {
-			case "autoincrement", "cuid", "uuid", "now":
+	hasLog := func(level string) bool {
+		for _, l := range defaultLogs {
+			if l == "all" || l == level {
 				return true
 			}
-			return false
-		},
-		"defaultFuncCall": func(funcName string) string {
-			switch funcName {
-			case "cuid":
-				return "generateCUID()"
-			case "uuid":
-				return "generateUUID()"
-			case "now":
-				return "time.Now()"
+		}
+		return false
+	}
+
+	hasAnyLog := func() bool {
+		for _, l := range defaultLogs {
+			if l != "none" {
+				return true
 			}
-			return ""
-		},
-		"hasStringField": func(m *schema.Model) bool {
-			for _, sf := range m.ScalarFields {
-				if sf.GoType == "string" || strings.Contains(sf.GoType, "string") {
-					return true
-				}
-			}
-			return false
-		},
+		}
+		return false
+	}
+
+	tmpl := template.New("").Funcs(template.FuncMap{
+		"capitalize":         capitalize,
+		"lowercase":          lowercase,
+		"fkForRelation":      fkForRelation,
+		"fieldPredType":      fieldPredType,
+		"hasLog":             hasLog,
+		"hasAnyLog":          hasAnyLog,
+		"hasJsonField":       hasJsonField,
+		"hasTimeField":       hasTimeField,
+		"trimPrefix":         strings.TrimPrefix,
+		"isKnownDefaultFunc": isKnownDefaultFunc,
+		"defaultFuncCall":    defaultFuncCall,
+		"hasStringField":     hasStringField,
 	})
 	tmpl, err := tmpl.ParseFS(templatesFS, "templates/*.gotpl")
 	if err != nil {
