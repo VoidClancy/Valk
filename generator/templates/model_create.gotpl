@@ -81,6 +81,10 @@ func validate{{ .Model.Name }}Create(assignments []FieldAssignment) error {
 				errs.Add("{{ $field.Name }}", v, "range", "value is out of range for TinyInt (-128 to 127)")
 			}
 			{{- end }}
+			{{- else }}
+			if _, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); !ok {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ trimPrefix $field.GoType "*" }}")
+			}
 			{{- end }}
 			{{- else }}
 			if _, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); !ok {
@@ -104,6 +108,12 @@ func validate{{ .Model.Name }}Create(assignments []FieldAssignment) error {
 		{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
 	if !provided["{{ $col }}"] {
 		errs.Add("{{ $field.Name }}", "", "required", "field {{ $fieldName }} is required")
+	}
+		{{- end }}
+	{{- else }}
+		{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
+	if !provided["{{ $col }}"] {
+		errs.Add("{{ $field.Name }}", nil, "required", "field {{ $fieldName }} is required")
 	}
 		{{- end }}
 	{{- end }}

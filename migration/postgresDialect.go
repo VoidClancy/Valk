@@ -49,9 +49,13 @@ func (d PostgresDialect) GetSQLDefault(dv *schema.DefaultValue, pslType string) 
 		switch dv.FuncName {
 		case "now":
 			return "CURRENT_TIMESTAMP"
-		case "uuid":
+		case "uuid", "uuid(4)", "uuid(7)":
 			return "gen_random_uuid()"
-		case "cuid":
+		case "cuid", "cuid(1)", "cuid(2)":
+			return ""
+		case "ulid":
+			return ""
+		case "nanoid":
 			return ""
 		}
 

@@ -138,10 +138,16 @@ func validateCategoryToPostCreate(assignments []FieldAssignment) error {
 				}
 			}
 		case "categoryId":
+			if _, ok := a.Val.(int32); !ok {
+				errs.Add("categoryId", a.Val, "type", "field categoryId must be of type int32")
+			}
 		}
 	}
 	if !provided["postId"] {
 		errs.Add("postId", "", "required", "field PostId is required")
+	}
+	if !provided["categoryId"] {
+		errs.Add("categoryId", nil, "required", "field CategoryId is required")
 	}
 
 	if errs.HasErrors() {

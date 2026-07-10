@@ -190,6 +190,9 @@ func validateCommentCreate(assignments []FieldAssignment) error {
 				}
 			}
 		case "textify":
+			if _, ok := a.Val.(int32); !ok {
+				errs.Add("textify", a.Val, "type", "field textify must be of type int32")
+			}
 		case "dummy3":
 			if v, ok := a.Val.(string); ok {
 				if v == "" {
@@ -203,6 +206,9 @@ func validateCommentCreate(assignments []FieldAssignment) error {
 				}
 			}
 		case "dummy1":
+			if _, ok := a.Val.(int32); !ok {
+				errs.Add("dummy1", a.Val, "type", "field dummy1 must be of type int32")
+			}
 		case "dummy2":
 			if v, ok := a.Val.(string); ok {
 				if v == "" {
@@ -245,8 +251,14 @@ func validateCommentCreate(assignments []FieldAssignment) error {
 			}
 		}
 	}
+	if !provided["textify"] {
+		errs.Add("textify", nil, "required", "field Textify is required")
+	}
 	if !provided["dummy3"] {
 		errs.Add("dummy3", "", "required", "field Dummy3 is required")
+	}
+	if !provided["dummy1"] {
+		errs.Add("dummy1", nil, "required", "field Dummy1 is required")
 	}
 	if !provided["dummy2"] {
 		errs.Add("dummy2", "", "required", "field Dummy2 is required")

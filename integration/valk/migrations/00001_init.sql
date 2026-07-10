@@ -58,6 +58,59 @@ CREATE TABLE `CategoryToPost` (
   CONSTRAINT `CategoryToPost_postId_fkey` FOREIGN KEY (`postId`) REFERENCES `Post` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION,
   CONSTRAINT `CategoryToPost_categoryId_fkey` FOREIGN KEY (`categoryId`) REFERENCES `Category` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION
 );
+CREATE TABLE `DefaultsTest` (
+  `uuid4` text NOT NULL,
+  `uuid7` text NOT NULL,
+  `uuidNoArgs` text NOT NULL,
+  `cuid1` text NOT NULL,
+  `cuid2` text NOT NULL,
+  `cuidNoArgs` text NOT NULL,
+  `ulid` text NOT NULL,
+  `nanoid` text NOT NULL,
+  `now` timestamp NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  PRIMARY KEY (`uuid4`)
+);
+CREATE TABLE `AllFieldsSoFar` (
+  `id` integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+  `stringReq` text NOT NULL,
+  `stringOpt` text NULL,
+  `stringDefault` text NOT NULL DEFAULT ('default'),
+  `stringVarchar` text NOT NULL,
+  `stringChar` text NOT NULL,
+  `cuidDefault` text NOT NULL,
+  `cuid1Default` text NOT NULL,
+  `cuid2Default` text NOT NULL,
+  `uuidDefault` text NOT NULL,
+  `uuid4Default` text NOT NULL,
+  `uuid7Default` text NOT NULL,
+  `ulidDefault` text NOT NULL,
+  `nanoidDefault` text NOT NULL,
+  `uuidDb` text NOT NULL,
+  `intReq` integer NOT NULL,
+  `intOpt` integer NULL,
+  `intDefault` integer NOT NULL DEFAULT (42),
+  `smallInt` integer NOT NULL,
+  `tinyInt` integer NOT NULL,
+  `bigIntReq` integer NOT NULL,
+  `bigIntOpt` integer NULL,
+  `floatReq` real NOT NULL,
+  `floatOpt` real NULL,
+  `decimalReq` real NOT NULL,
+  `decimalOpt` real NULL,
+  `decimalPrecise` real NOT NULL,
+  `boolReq` integer NOT NULL,
+  `boolOpt` integer NULL,
+  `boolDefault` integer NOT NULL DEFAULT (FALSE),
+  `dateTimeReq` timestamp NOT NULL,
+  `dateTimeOpt` timestamp NULL,
+  `dateTimeDefault` timestamp NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  `updatedAt` timestamp NOT NULL,
+  `dateTimeTz` timestamp NOT NULL,
+  `jsonReq` blob NOT NULL,
+  `jsonOpt` blob NULL,
+  `bytesReq` blob NOT NULL,
+  `bytesOpt` blob NULL
+);
 
 -- +goose Down
 PRAGMA foreign_keys = off;
@@ -67,4 +120,6 @@ DROP TABLE `Post`;
 DROP TABLE `Comment`;
 DROP TABLE `Category`;
 DROP TABLE `CategoryToPost`;
+DROP TABLE `DefaultsTest`;
+DROP TABLE `AllFieldsSoFar`;
 PRAGMA foreign_keys = on;

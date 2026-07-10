@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
 	"github.com/voidclancy/valk/schema"
 
 	"ariga.io/atlas/sql/migrate"
@@ -52,9 +53,13 @@ func (SqliteDialect) GetSQLDefault(dv *schema.DefaultValue, pslType string) stri
 		switch dv.FuncName {
 		case "now":
 			return "CURRENT_TIMESTAMP"
-		case "uuid":
+		case "uuid", "uuid(4)", "uuid(7)":
 			return ""
-		case "cuid":
+		case "cuid", "cuid(1)", "cuid(2)":
+			return ""
+		case "ulid":
+			return ""
+		case "nanoid":
 			return ""
 		}
 

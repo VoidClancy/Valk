@@ -20,6 +20,7 @@ var _ = time.Time{}
 var _ = json.RawMessage{}
 var _ = strings.Join
 var _ = uuid.New
+var _ = uuid.NewV7
 var _ = rand.Read
 var _ = strconv.AppendUint
 
@@ -43,6 +44,66 @@ func generateCUID() string {
 
 func generateUUID() string {
 	return uuid.New().String()
+}
+
+func generateUUID7() string {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return uuid.New().String()
+	}
+	return id.String()
+}
+
+func generateCUID2() string {
+	now := uint64(time.Now().UnixMilli())
+	b := make([]byte, 12)
+	_, _ = rand.Read(b)
+	buf := make([]byte, 0, 34)
+	buf = strconv.AppendUint(buf, now, 36)
+	const chars = "0123456789abcdefghijklmnopqrstuvwxyz"
+	for _, v := range b {
+		buf = append(buf, chars[v&0x1f])
+		buf = append(buf, chars[(v>>5)&0x1f])
+	}
+	return string(buf)
+}
+
+func generateULID() string {
+	now := uint64(time.Now().UnixMilli())
+	b := make([]byte, 10)
+	_, _ = rand.Read(b)
+	bits := make([]byte, 16)
+	bits[0] = byte(now >> 40)
+	bits[1] = byte(now >> 32)
+	bits[2] = byte(now >> 24)
+	bits[3] = byte(now >> 16)
+	bits[4] = byte(now >> 8)
+	bits[5] = byte(now)
+	copy(bits[6:], b)
+
+	const crockford = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+	var buf [26]byte
+	for i := 25; i >= 0; i-- {
+		bitOff := i * 5
+		byteIdx := bitOff / 8
+		byteOff := uint(bitOff % 8)
+		val := uint16(bits[byteIdx]) >> byteOff
+		if byteIdx+1 < 16 {
+			val |= uint16(bits[byteIdx+1]) << (8 - byteOff)
+		}
+		buf[i] = crockford[val&0x1f]
+	}
+	return string(buf[:])
+}
+
+func generateNanoID() string {
+	const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-"
+	b := make([]byte, 21)
+	_, _ = rand.Read(b)
+	for i := range b {
+		b[i] = alphabet[b[i]&0x3f]
+	}
+	return string(b)
 }
 
 // FieldError represents a single validation failure on a specific field.
@@ -201,6 +262,60 @@ type Queries struct {
 	//   postId     string required
 	//   categoryId int32  required
 	CategoryToPost *CategoryToPostDelegate
+	// DefaultsTest provides CRUD operations for DefaultsTest.
+	//
+	//   uuid4      string    default: uuid()
+	//   uuid7      string    default: uuid()
+	//   uuidNoArgs string    default: uuid()
+	//   cuid1      string    default: cuid()
+	//   cuid2      string    default: cuid()
+	//   cuidNoArgs string    default: cuid()
+	//   ulid       string    default: ulid()
+	//   nanoid     string    default: nanoid()
+	//   now        time.Time default: now()
+	DefaultsTest *DefaultsTestDelegate
+	// AllFieldsSoFar provides CRUD operations for AllFieldsSoFar.
+	//
+	//   id              int32           default: autoincrement()
+	//   stringReq       string          required
+	//   stringOpt       string          optional
+	//   stringDefault   string          default: default
+	//   stringVarchar   string          required
+	//   stringChar      string          required
+	//   cuidDefault     string          default: cuid()
+	//   cuid1Default    string          default: cuid()
+	//   cuid2Default    string          default: cuid()
+	//   uuidDefault     string          default: uuid()
+	//   uuid4Default    string          default: uuid()
+	//   uuid7Default    string          default: uuid()
+	//   ulidDefault     string          default: ulid()
+	//   nanoidDefault   string          default: nanoid()
+	//   uuidDb          string          required
+	//   intReq          int32           required
+	//   intOpt          int32           optional
+	//   intDefault      int32           default: 42
+	//   smallInt        int32           required
+	//   tinyInt         int32           required
+	//   bigIntReq       int64           required
+	//   bigIntOpt       int64           optional
+	//   floatReq        float64         required
+	//   floatOpt        float64         optional
+	//   decimalReq      string          required
+	//   decimalOpt      string          optional
+	//   decimalPrecise  string          required
+	//   boolReq         bool            required
+	//   boolOpt         bool            optional
+	//   boolDefault     bool            default: false
+	//   dateTimeReq     time.Time       required
+	//   dateTimeOpt     time.Time       optional
+	//   dateTimeDefault time.Time       default: now()
+	//   updatedAt       time.Time       required
+	//   dateTimeTz      time.Time       required
+	//   jsonReq         json.RawMessage required
+	//   jsonOpt         json.RawMessage optional
+	//   bytesReq        []byte          required
+	//   bytesOpt        []byte          optional
+	AllFieldsSoFar *AllFieldsSoFarDelegate
 	UserRole       userRoleNamespace
 }
 
@@ -236,6 +351,8 @@ func (q *Queries) initDelegates() {
 	q.Comment = &CommentDelegate{client: q}
 	q.Category = &CategoryDelegate{client: q}
 	q.CategoryToPost = &CategoryToPostDelegate{client: q}
+	q.DefaultsTest = &DefaultsTestDelegate{client: q}
+	q.AllFieldsSoFar = &AllFieldsSoFarDelegate{client: q}
 }
 
 func (q *Queries) copyHooksFrom(other *Queries) {
@@ -257,6 +374,12 @@ func (q *Queries) copyHooksFrom(other *Queries) {
 	q.CategoryToPost.beforeCreate = other.CategoryToPost.beforeCreate
 	q.CategoryToPost.afterCreate = other.CategoryToPost.afterCreate
 	q.CategoryToPost.afterCreateMany = other.CategoryToPost.afterCreateMany
+	q.DefaultsTest.beforeCreate = other.DefaultsTest.beforeCreate
+	q.DefaultsTest.afterCreate = other.DefaultsTest.afterCreate
+	q.DefaultsTest.afterCreateMany = other.DefaultsTest.afterCreateMany
+	q.AllFieldsSoFar.beforeCreate = other.AllFieldsSoFar.beforeCreate
+	q.AllFieldsSoFar.afterCreate = other.AllFieldsSoFar.afterCreate
+	q.AllFieldsSoFar.afterCreateMany = other.AllFieldsSoFar.afterCreateMany
 }
 
 // Close closes the database connection.
