@@ -130,6 +130,24 @@ func GenerateClient(sch schema.Schema, pkgName string, parentImportPath string, 
 			return false
 		},
 		"trimPrefix":    strings.TrimPrefix,
+		"isKnownDefaultFunc": func(funcName string) bool {
+			switch funcName {
+			case "autoincrement", "cuid", "uuid", "now":
+				return true
+			}
+			return false
+		},
+		"defaultFuncCall": func(funcName string) string {
+			switch funcName {
+			case "cuid":
+				return "generateCUID()"
+			case "uuid":
+				return "generateUUID()"
+			case "now":
+				return "time.Now()"
+			}
+			return ""
+		},
 		"hasStringField": func(m *schema.Model) bool {
 			for _, sf := range m.ScalarFields {
 				if sf.GoType == "string" || strings.Contains(sf.GoType, "string") {

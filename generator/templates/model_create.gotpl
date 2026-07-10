@@ -82,6 +82,10 @@ func validate{{ .Model.Name }}Create(assignments []FieldAssignment) error {
 			}
 			{{- end }}
 			{{- end }}
+			{{- else }}
+			if _, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); !ok {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ trimPrefix $field.GoType "*" }}")
+			}
 			{{- end }}
 		{{- end }}
 		}
@@ -173,17 +177,15 @@ func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
 	if s.{{ $fieldName }} != nil {
 		m["{{ $col }}"] = *s.{{ $fieldName }}
 	}
-			{{- else }}
+			{{- else if $field.Default.FuncName | isKnownDefaultFunc }}
 	if s.{{ $fieldName }} != nil {
 		m["{{ $col }}"] = *s.{{ $fieldName }}
 	} else {
-				{{- if eq $field.Default.FuncName "cuid" }}
-		m["{{ $col }}"] = generateCUID()
-				{{- else if eq $field.Default.FuncName "uuid" }}
-		m["{{ $col }}"] = generateUUID()
-				{{- else if eq $field.Default.FuncName "now" }}
-		m["{{ $col }}"] = time.Now()
-				{{- end }}
+		m["{{ $col }}"] = {{ defaultFuncCall $field.Default.FuncName }}
+	}
+			{{- else }}
+	if s.{{ $fieldName }} != nil {
+		m["{{ $col }}"] = *s.{{ $fieldName }}
 	}
 			{{- end }}
 		{{- else if or $field.Optional (ne $field.Default nil) }}
@@ -250,19 +252,18 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 						cols = append(cols, "{{ $col }}")
 						vals = append(vals, *input.{{ $fieldName }})
 					}
-					{{- else }}
+					{{- else if $field.Default.FuncName | isKnownDefaultFunc }}
 					if input.{{ $fieldName }} != nil {
 						cols = append(cols, "{{ $col }}")
 						vals = append(vals, *input.{{ $fieldName }})
 					} else {
 						cols = append(cols, "{{ $col }}")
-						{{- if eq $field.Default.FuncName "cuid" }}
-							vals = append(vals, generateCUID())
-						{{- else if eq $field.Default.FuncName "uuid" }}
-							vals = append(vals, generateUUID())
-						{{- else if eq $field.Default.FuncName "now" }}
-							vals = append(vals, time.Now())
-						{{- end }}
+						vals = append(vals, {{ defaultFuncCall $field.Default.FuncName }})
+					}
+					{{- else }}
+					if input.{{ $fieldName }} != nil {
+						cols = append(cols, "{{ $col }}")
+						vals = append(vals, *input.{{ $fieldName }})
 					}
 					{{- end }}
 				{{- else if or $field.Optional (ne $field.Default nil) }}

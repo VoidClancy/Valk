@@ -5,38 +5,43 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
 // Profile represents the database model
 type Profile struct {
-	Id     string  `db:"id" json:"id"`
-	Bio    *string `db:"bio" json:"bio,omitempty"`
-	UserId string  `db:"userId" json:"userId"`
-	User   *User   `json:"user,omitempty"`
+	Id        string    `db:"id" json:"id"`
+	Bio       *string   `db:"bio" json:"bio,omitempty"`
+	UserId    string    `db:"userId" json:"userId"`
+	CreatedAt time.Time `db:"createdAt" json:"createdAt"`
+	User      *User     `json:"user,omitempty"`
 }
 
 // ProfileCreate is used for hooks only — the Create API uses FieldAssignment
 type ProfileCreate struct {
-	Id     *string `json:"id"`
-	Bio    *string `json:"bio"`
-	UserId string  `json:"userId"`
+	Id        *string    `json:"id"`
+	Bio       *string    `json:"bio"`
+	UserId    string     `json:"userId"`
+	CreatedAt *time.Time `json:"createdAt"`
 }
 
 // ProfileSelect specifies which fields to include
 type ProfileSelect struct {
-	Id     bool        `json:"id"`
-	Bio    bool        `json:"bio"`
-	UserId bool        `json:"userId"`
-	User   *UserSelect `json:"user,omitempty"`
+	Id        bool        `json:"id"`
+	Bio       bool        `json:"bio"`
+	UserId    bool        `json:"userId"`
+	CreatedAt bool        `json:"createdAt"`
+	User      *UserSelect `json:"user,omitempty"`
 }
 
 // ProfileOmit specifies which fields to exclude
 type ProfileOmit struct {
-	Id     bool      `json:"id"`
-	Bio    bool      `json:"bio"`
-	UserId bool      `json:"userId"`
-	User   *UserOmit `json:"user,omitempty"`
+	Id        bool      `json:"id"`
+	Bio       bool      `json:"bio"`
+	UserId    bool      `json:"userId"`
+	CreatedAt bool      `json:"createdAt"`
+	User      *UserOmit `json:"user,omitempty"`
 }
 
 type ProfileDelegate struct {
@@ -68,6 +73,8 @@ func (m *Profile) ScanFields(cols []string) []any {
 			targets[i] = &m.Bio
 		case "userId":
 			targets[i] = &m.UserId
+		case "createdAt":
+			targets[i] = &m.CreatedAt
 		}
 	}
 	return targets
@@ -77,6 +84,7 @@ var profileDefaultCols = []string{
 	"id",
 	"bio",
 	"userId",
+	"createdAt",
 }
 
 func (q *Queries) selectProfileCols(selects *ProfileSelect, omits *ProfileOmit, forceCols ...string) []string {
@@ -84,12 +92,13 @@ func (q *Queries) selectProfileCols(selects *ProfileSelect, omits *ProfileOmit, 
 		return profileDefaultCols
 	}
 
-	anySelected := selects != nil && (selects.Id || selects.Bio || selects.UserId || selects.User != nil)
+	anySelected := selects != nil && (selects.Id || selects.Bio || selects.UserId || selects.CreatedAt || selects.User != nil)
 
 	specs := []colSpec{
 		{"id", selects != nil && selects.Id, omits != nil && omits.Id, selects != nil && selects.hasAnyRelation()},
 		{"bio", selects != nil && selects.Bio, omits != nil && omits.Bio, false},
 		{"userId", selects != nil && selects.UserId, omits != nil && omits.UserId, selects != nil && selects.User != nil},
+		{"createdAt", selects != nil && selects.CreatedAt, omits != nil && omits.CreatedAt, false},
 	}
 
 	cols := computeCols(specs, selects != nil, anySelected)
@@ -107,6 +116,7 @@ var ProfileColOrder = []string{
 	"id",
 	"bio",
 	"userId",
+	"createdAt",
 }
 
 func (s *ProfileSelect) hasAnyRelation() bool {
@@ -141,6 +151,9 @@ func validateProfileCreate(assignments []FieldAssignment) error {
 				}
 			}
 		case "bio":
+			if _, ok := a.Val.(string); !ok {
+				errs.Add("bio", a.Val, "type", "field bio must be of type string")
+			}
 		case "userId":
 			if v, ok := a.Val.(string); ok {
 				if v == "" {
@@ -152,6 +165,10 @@ func validateProfileCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("userId", v, "safety", "string must be valid UTF-8")
 				}
+			}
+		case "createdAt":
+			if _, ok := a.Val.(time.Time); !ok {
+				errs.Add("createdAt", a.Val, "type", "field createdAt must be of type time.Time")
 			}
 		}
 	}
@@ -181,13 +198,17 @@ func assignmentsToProfileCreate(assignments []FieldAssignment) ProfileCreate {
 			if v, ok := a.Val.(string); ok {
 				input.UserId = v
 			}
+		case "createdAt":
+			if v, ok := a.Val.(time.Time); ok {
+				input.CreatedAt = &v
+			}
 		}
 	}
 	return input
 }
 
 func (s *ProfileCreate) ToRowMap() map[string]any {
-	m := make(map[string]any, 3)
+	m := make(map[string]any, 4)
 	if s.Id != nil {
 		m["id"] = *s.Id
 	} else {
@@ -197,6 +218,11 @@ func (s *ProfileCreate) ToRowMap() map[string]any {
 		m["bio"] = *s.Bio
 	}
 	m["userId"] = s.UserId
+	if s.CreatedAt != nil {
+		m["createdAt"] = *s.CreatedAt
+	} else {
+		m["createdAt"] = time.Now()
+	}
 	return m
 }
 
@@ -228,6 +254,13 @@ func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldA
 	}
 	cols = append(cols, "userId")
 	vals = append(vals, input.UserId)
+	if input.CreatedAt != nil {
+		cols = append(cols, "createdAt")
+		vals = append(vals, *input.CreatedAt)
+	} else {
+		cols = append(cols, "createdAt")
+		vals = append(vals, time.Now())
+	}
 
 	returningCols := q.selectProfileCols(selects, omits)
 

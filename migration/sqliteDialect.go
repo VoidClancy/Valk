@@ -19,8 +19,10 @@ func (SqliteDialect) QuoteIdent(name string) string {
 func (SqliteDialect) GetSQLType(sf *schema.ScalarField) string {
 	sqlType := strings.ToUpper(sf.SQLType)
 	switch sqlType {
-	case "VARCHAR", "TEXT", "UUID", "TIMESTAMP":
+	case "VARCHAR", "TEXT", "UUID":
 		return "TEXT"
+	case "TIMESTAMP":
+		return "TIMESTAMP"
 	case "INTEGER", "BIGINT", "BOOLEAN":
 		return "INTEGER"
 	case "DOUBLE PRECISION", "NUMERIC":

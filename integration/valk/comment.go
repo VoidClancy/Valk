@@ -240,6 +240,9 @@ func validateCommentCreate(assignments []FieldAssignment) error {
 				}
 			}
 		case "meta":
+			if _, ok := a.Val.(json.RawMessage); !ok {
+				errs.Add("meta", a.Val, "type", "field meta must be of type json.RawMessage")
+			}
 		}
 	}
 	if !provided["dummy3"] {
