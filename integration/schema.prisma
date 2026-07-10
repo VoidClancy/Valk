@@ -74,3 +74,77 @@ model CategoryToPost {
 
     @@id([postId, categoryId])
 }
+
+model DefaultsTest {
+    uuid4      String   @id @default(uuid(4))
+    uuid7      String   @default(uuid(7))
+    uuidNoArgs String   @default(uuid())
+    cuid1      String   @default(cuid(1))
+    cuid2      String   @default(cuid(2))
+    cuidNoArgs String   @default(cuid())
+    ulid       String   @default(ulid())
+    nanoid     String   @default(nanoid())
+    now        DateTime @default(now())
+}
+
+model AllFieldsSoFar {
+    id Int @id @default(autoincrement())
+
+    // String
+    stringReq     String
+    stringOpt     String?
+    stringDefault String  @default("default")
+    stringVarchar String
+    stringChar    String
+
+    // Default function variants
+    cuidDefault   String @default(cuid())
+    cuid1Default  String @default(cuid(1))
+    cuid2Default  String @default(cuid(2))
+    uuidDefault   String @default(uuid())
+    uuid4Default  String @default(uuid(4))
+    uuid7Default  String @default(uuid(7))
+    ulidDefault   String @default(ulid())
+    nanoidDefault String @default(nanoid())
+    uuidDb        String
+
+    // Int
+    intReq     Int
+    intOpt     Int?
+    intDefault Int  @default(42)
+    smallInt   Int
+    tinyInt    Int
+
+    // BigInt
+    bigIntReq BigInt
+    bigIntOpt BigInt?
+
+    // Float
+    floatReq Float
+    floatOpt Float?
+
+    // Decimal
+    decimalReq     Decimal
+    decimalOpt     Decimal?
+    decimalPrecise Decimal
+
+    // Boolean
+    boolReq     Boolean
+    boolOpt     Boolean?
+    boolDefault Boolean  @default(false)
+
+    // DateTime
+    dateTimeReq     DateTime
+    dateTimeOpt     DateTime?
+    dateTimeDefault DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+    dateTimeTz      DateTime
+
+    // Json
+    jsonReq Json
+    jsonOpt Json?
+
+    // Bytes
+    bytesReq Bytes
+    bytesOpt Bytes?
+}

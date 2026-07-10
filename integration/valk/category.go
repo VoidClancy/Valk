@@ -123,6 +123,9 @@ func validateCategoryCreate(assignments []FieldAssignment) error {
 		provided[a.Col] = true
 		switch a.Col {
 		case "id":
+			if _, ok := a.Val.(int32); !ok {
+				errs.Add("id", a.Val, "type", "field id must be of type int32")
+			}
 		case "name":
 			if v, ok := a.Val.(string); ok {
 				if v == "" {

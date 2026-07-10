@@ -6,6 +6,19 @@ import (
 	"github.com/voidclancy/valk/schema"
 )
 
+var DEFAULT_FUNCS = map[string]string{
+	"autoincrement": "",
+	"cuid":          "generateCUID()",
+	"cuid(1)":       "generateCUID()",
+	"cuid(2)":       "generateCUID2()",
+	"uuid":          "generateUUID()",
+	"uuid(4)":       "generateUUID()",
+	"uuid(7)":       "generateUUID7()",
+	"ulid":          "generateULID()",
+	"nanoid":        "generateNanoID()",
+	"now":           "time.Now()",
+}
+
 func capitalize(s string) string {
 	if s == "" {
 		return ""
@@ -69,22 +82,12 @@ func hasTimeField(m *schema.Model) bool {
 	return false
 }
 func isKnownDefaultFunc(funcName string) bool {
-	switch funcName {
-	case "autoincrement", "cuid", "uuid", "now":
-		return true
-	}
-	return false
+	_, ok := DEFAULT_FUNCS[funcName]
+	return ok
 }
+
 func defaultFuncCall(funcName string) string {
-	switch funcName {
-	case "cuid":
-		return "generateCUID()"
-	case "uuid":
-		return "generateUUID()"
-	case "now":
-		return "time.Now()"
-	}
-	return ""
+	return DEFAULT_FUNCS[funcName]
 }
 func hasStringField(m *schema.Model) bool {
 	for _, sf := range m.ScalarFields {

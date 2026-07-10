@@ -2,6 +2,8 @@ package schema
 
 import (
 	"fmt"
+	"strings"
+
 	providers "github.com/voidclancy/valk/dbProviders"
 )
 
@@ -281,12 +283,19 @@ func (r *Resolver) resolveDefaultValue(a Attribute, enum *Enum) *DefaultValue {
 			}
 			return nil
 		}
-		funcCallStr := v.Scalar + "()"
+		funcName := v.Scalar
+		if len(v.Args) > 0 {
+			var argStrs []string
+			for _, a := range v.Args {
+				argStrs = append(argStrs, a.Value.Scalar)
+			}
+			funcName += "(" + strings.Join(argStrs, ",") + ")"
+		}
 		return &DefaultValue{
-			Value:    funcCallStr,
+			Value:    v.Scalar + "()",
 			Type:     "Func",
 			Kind:     DefaultFunc,
-			FuncName: v.Scalar,
+			FuncName: funcName,
 		}
 
 	case ValIdent:
