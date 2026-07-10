@@ -120,17 +120,6 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 	fmt.Println("CATEGORY:")
 	printJSON(categoryTest)
 
-	AnothercategoryTest, err := db.Category.Create(
-		category.Id.Set(24),
-		category.Name.Set("TEST2"),
-	).Exec(ctx)
-
-	if err != nil {
-		log.Fatalf("failed to create category: %v", err)
-	}
-	fmt.Println("CATEGORY2:")
-	printJSON(AnothercategoryTest)
-
 	p, err := db.Post.Create(
 		post.Title.Set("Valkyrie ORM Deep Dive"),
 		post.Content.Set("skrrrt"),
