@@ -15,9 +15,8 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: testuser
-          POSTGRES_PASSWORD: testpassword
           POSTGRES_DB: valk_test
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
         - 5432:5432
         options: >-
@@ -43,26 +42,27 @@ jobs:
     - name: Run SQLite Integration Tests
       run: |
         cp integration/schema.prisma integration/schema.prisma.bak
-        sed -i 's/provider = "postgres"/provider = "sqlite"/' integration/schema.prisma
-        sed -i -E 's/[[:space:]]*@db\.[A-Za-z]+(\([^)]*\))?//g' integration/schema.prisma
-        sed -i '/Unsupported/d' integration/schema.prisma
+        node integration/prepareSchema.js sqlite
         rm -f integration/valk/migrations/*.sql
         make integration-gen
         cd integration
-        go test -v ./...
+        ../bin/valk migrate -u "file:dev.db" init_sqlite
+        go test -tags sqlite -v ./...
         mv schema.prisma.bak schema.prisma
 
     - name: Run Postgres Integration Tests
       run: |
         PG_URL="${{ secrets.PG_DATABASE_URL }}"
         if [ -z "$PG_URL" ]; then
-          PG_URL="postgres://testuser:testpassword@localhost:5432/valk_test?sslmode=disable"
+          PG_URL="postgres://postgres@localhost:5432/valk_test?sslmode=disable"
         else
           PG_URL="${PG_URL/valkyrie_test/valk_test}"
         fi
-        sed -i 's/provider = "sqlite"/provider = "postgres"/' integration/schema.prisma
+        cp integration/schema.prisma integration/schema.prisma.bak
+        node integration/prepareSchema.js postgres
         rm -f integration/valk/migrations/*.sql
         make integration-gen
         cd integration
         ../bin/valk migrate -u "$PG_URL" init_pg
         PG_DATABASE_URL="$PG_URL" go test -v ./...
+        mv schema.prisma.bak schema.prisma

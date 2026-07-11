@@ -9,7 +9,6 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.12.3
 	github.com/pressly/goose/v3 v3.27.2
-	github.com/voidclancy/valk v0.0.0-00010101000000-000000000000
 	modernc.org/sqlite v1.53.0
 )
 
