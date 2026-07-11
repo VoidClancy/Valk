@@ -51,6 +51,14 @@ var StringVarchar = valk.StringField{Column: "stringVarchar"}
 
 var StringChar = valk.StringField{Column: "stringChar"}
 
+var BitVal = valk.StringField{Column: "bitVal"}
+
+var VarBitVal = valk.StringField{Column: "varBitVal"}
+
+var InetVal = valk.StringField{Column: "inetVal"}
+
+var XmlVal = valk.StringField{Column: "xmlVal"}
+
 var CuidDefault = valk.StringField{Column: "cuidDefault"}
 
 var Cuid1Default = valk.StringField{Column: "cuid1Default"}
@@ -75,9 +83,13 @@ var IntOpt = valk.Field[int32]{Column: "intOpt"}
 
 var IntDefault = valk.Field[int32]{Column: "intDefault"}
 
+var IntegerVal = valk.Field[int32]{Column: "integerVal"}
+
 var SmallInt = valk.Field[int32]{Column: "smallInt"}
 
 var TinyInt = valk.Field[int32]{Column: "tinyInt"}
+
+var OidVal = valk.Field[int32]{Column: "oidVal"}
 
 var BigIntReq = valk.Field[int64]{Column: "bigIntReq"}
 
@@ -87,11 +99,15 @@ var FloatReq = valk.Field[float64]{Column: "floatReq"}
 
 var FloatOpt = valk.Field[float64]{Column: "floatOpt"}
 
+var RealVal = valk.Field[float64]{Column: "realVal"}
+
 var DecimalReq = valk.Field[string]{Column: "decimalReq"}
 
 var DecimalOpt = valk.Field[string]{Column: "decimalOpt"}
 
 var DecimalPrecise = valk.Field[string]{Column: "decimalPrecise"}
+
+var MoneyVal = valk.Field[string]{Column: "moneyVal"}
 
 var BoolReq = valk.Field[bool]{Column: "boolReq"}
 
@@ -109,10 +125,24 @@ var UpdatedAt = valk.Field[time.Time]{Column: "updatedAt"}
 
 var DateTimeTz = valk.Field[time.Time]{Column: "dateTimeTz"}
 
+var TimestampVal = valk.Field[time.Time]{Column: "timestampVal"}
+
+var TimeVal = valk.Field[time.Time]{Column: "timeVal"}
+
+var TimetzVal = valk.Field[time.Time]{Column: "timetzVal"}
+
 var JsonReq = valk.Field[json.RawMessage]{Column: "jsonReq"}
 
 var JsonOpt = valk.Field[json.RawMessage]{Column: "jsonOpt"}
 
+var JsonVal = valk.Field[json.RawMessage]{Column: "jsonVal"}
+
 var BytesReq = valk.Field[[]byte]{Column: "bytesReq"}
 
 var BytesOpt = valk.Field[[]byte]{Column: "bytesOpt"}
+
+var HstoreField = valk.Field[map[string]*string]{Column: "hstoreField"}
+
+var LtreeField = valk.Field[string]{Column: "ltreeField"}
+
+var CitextField = valk.Field[string]{Column: "citextField"}

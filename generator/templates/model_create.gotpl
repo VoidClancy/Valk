@@ -42,13 +42,19 @@ func validate{{ .Model.Name }}Create(assignments []FieldAssignment) error {
 						errs.Add(fmt.Sprintf("{{ $field.Name }}[%d]", i), val, "enum", fmt.Sprintf("invalid enum value %q for field {{ $field.Name }}", val))
 					}
 				}
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type []{{ $enumType }}")
 			}
 			{{- else }}
-			if v, ok := a.Val.({{ $enumType }}); ok && !v.IsValid() {
-				errs.Add("{{ $field.Name }}", v, "enum", fmt.Sprintf("invalid enum value %q for field {{ $field.Name }}", v))
+			if v, ok := a.Val.({{ $enumType }}); ok {
+				if !v.IsValid() {
+					errs.Add("{{ $field.Name }}", v, "enum", fmt.Sprintf("invalid enum value %q for field {{ $field.Name }}", v))
+				}
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ $enumType }}")
 			}
 			{{- end }}
-			{{- else if eq $field.GoType "string" }}
+			{{- else if eq (trimPrefix $field.GoType "*") "string" }}
 			if v, ok := a.Val.(string); ok {
 				{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
 				if v == "" {
@@ -67,18 +73,50 @@ func validate{{ .Model.Name }}Create(assignments []FieldAssignment) error {
 				if utf8.RuneCountInString(v) > {{ $limit }} {
 					errs.Add("{{ $field.Name }}", v, "length", "string exceeds maximum length of {{ $limit }} characters")
 				}
+				{{- else if or (eq $field.NativeType.Name "Bit") (eq $field.NativeType.Name "VarBit") }}
+				if strings.IndexFunc(v, func(r rune) bool { return r != '0' && r != '1' }) >= 0 {
+					errs.Add("{{ $field.Name }}", v, "format", "bit string must contain only '0' and '1'")
+				}
+				{{- else if eq $field.NativeType.Name "Inet" }}
+				if net.ParseIP(v) == nil {
+					if _, _, err := net.ParseCIDR(v); err != nil {
+						errs.Add("{{ $field.Name }}", v, "format", "field {{ $field.Name }} must be a valid IP address")
+					}
+				}
 				{{- end }}
 				{{- end }}
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type string")
 			}
-			{{- else if or (eq $field.GoType "int32") (eq $field.GoType "int64") (eq $field.GoType "int") }}
+			{{- else if or (eq (trimPrefix $field.GoType "*") "int32") (eq (trimPrefix $field.GoType "*") "int64") (eq (trimPrefix $field.GoType "*") "int") }}
 			{{- if $field.NativeType }}
 			{{- if eq $field.NativeType.Name "SmallInt" }}
-			if v, ok := a.Val.({{ $field.GoType }}); ok && (v < -32768 || v > 32767) {
-				errs.Add("{{ $field.Name }}", v, "range", "value is out of range for SmallInt (-32768 to 32767)")
+			if v, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); ok {
+				if v < -32768 || v > 32767 {
+					errs.Add("{{ $field.Name }}", v, "range", "value is out of range for SmallInt (-32768 to 32767)")
+				}
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ trimPrefix $field.GoType "*" }}")
 			}
 			{{- else if eq $field.NativeType.Name "TinyInt" }}
-			if v, ok := a.Val.({{ $field.GoType }}); ok && (v < -128 || v > 127) {
-				errs.Add("{{ $field.Name }}", v, "range", "value is out of range for TinyInt (-128 to 127)")
+			if v, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); ok {
+				if v < -128 || v > 127 {
+					errs.Add("{{ $field.Name }}", v, "range", "value is out of range for TinyInt (-128 to 127)")
+				}
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ trimPrefix $field.GoType "*" }}")
+			}
+			{{- else if eq $field.NativeType.Name "Oid" }}
+			if v, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); ok {
+				if v < 0 {
+					errs.Add("{{ $field.Name }}", v, "range", "value is out of range for Oid (must be non-negative)")
+				}
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ trimPrefix $field.GoType "*" }}")
+			}
+			{{- else }}
+			if _, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); !ok {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ trimPrefix $field.GoType "*" }}")
 			}
 			{{- end }}
 			{{- else }}
@@ -86,7 +124,7 @@ func validate{{ .Model.Name }}Create(assignments []FieldAssignment) error {
 				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ trimPrefix $field.GoType "*" }}")
 			}
 			{{- end }}
-			{{- else }}
+			{{- else if ne (trimPrefix $field.GoType "*") "any" }}
 			if _, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); !ok {
 				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ trimPrefix $field.GoType "*" }}")
 			}
@@ -141,21 +179,25 @@ func assignmentsTo{{ .Model.Name }}Create(assignments []FieldAssignment) {{ .Mod
 					input.{{ capitalize $field.Name }} = &v
 				}
 				{{- end }}
-			{{- else if $field.IsArray }}
-				if v, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); ok {
-					input.{{ capitalize $field.Name }} = v
-				}
-			{{- else }}
-				{{- if or (ne $field.Default nil) $field.Optional }}
-				if v, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); ok {
-					input.{{ capitalize $field.Name }} = &v
-				}
-				{{- else }}
-				if v, ok := a.Val.({{ $field.GoType }}); ok {
-					input.{{ capitalize $field.Name }} = v
-				}
-				{{- end }}
-			{{- end }}
+		{{- else if and $field.IsArray (ne (trimPrefix $field.GoType "*") "any") }}
+			if v, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); ok {
+				input.{{ capitalize $field.Name }} = v
+			}
+		{{- else if $field.IsArray }}
+			input.{{ capitalize $field.Name }} = a.Val.([]any)
+		{{- else if and (or (ne $field.Default nil) $field.Optional) (ne (trimPrefix $field.GoType "*") "any") }}
+			if v, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); ok {
+				input.{{ capitalize $field.Name }} = &v
+			}
+		{{- else if or (ne $field.Default nil) $field.Optional }}
+			input.{{ capitalize $field.Name }} = &a.Val
+		{{- else if ne $field.GoType "any" }}
+			if v, ok := a.Val.({{ $field.GoType }}); ok {
+				input.{{ capitalize $field.Name }} = v
+			}
+		{{- else }}
+			input.{{ capitalize $field.Name }} = a.Val
+		{{- end }}
 		{{- end }}
 		}
 	}
@@ -185,22 +227,22 @@ func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
 		{{- if and $field.Default (eq $field.Default.Kind.String "Func") }}
 			{{- if eq $field.Default.FuncName "autoincrement" }}
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = *s.{{ $fieldName }}
+		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
 	}
 			{{- else if $field.Default.FuncName | isKnownDefaultFunc }}
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = *s.{{ $fieldName }}
+		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
 	} else {
 		m["{{ $col }}"] = {{ defaultFuncCall $field.Default.FuncName }}
 	}
 			{{- else }}
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = *s.{{ $fieldName }}
+		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
 	}
 			{{- end }}
 		{{- else if or $field.Optional (ne $field.Default nil) }}
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = *s.{{ $fieldName }}
+		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
 	}
 		{{- else }}
 			{{- if and $field.IsID (eq $field.GoType "string") }}
@@ -210,7 +252,7 @@ func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
 		m["{{ $col }}"] = generateCUID()
 	}
 			{{- else }}
-	m["{{ $col }}"] = s.{{ $fieldName }}
+	m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "s.%s" $fieldName) }}
 			{{- end }}
 		{{- end }}
 	{{- end }}
@@ -260,12 +302,12 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 					{{- if eq $field.Default.FuncName "autoincrement" }}
 					if input.{{ $fieldName }} != nil {
 						cols = append(cols, "{{ $col }}")
-						vals = append(vals, *input.{{ $fieldName }})
+						vals = append(vals, {{ hstoreExpr $field.GoType (printf "*input.%s" $fieldName) }})
 					}
 					{{- else if $field.Default.FuncName | isKnownDefaultFunc }}
 					if input.{{ $fieldName }} != nil {
 						cols = append(cols, "{{ $col }}")
-						vals = append(vals, *input.{{ $fieldName }})
+						vals = append(vals, {{ hstoreExpr $field.GoType (printf "*input.%s" $fieldName) }})
 					} else {
 						cols = append(cols, "{{ $col }}")
 						vals = append(vals, {{ defaultFuncCall $field.Default.FuncName }})
@@ -273,13 +315,13 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 					{{- else }}
 					if input.{{ $fieldName }} != nil {
 						cols = append(cols, "{{ $col }}")
-						vals = append(vals, *input.{{ $fieldName }})
+						vals = append(vals, {{ hstoreExpr $field.GoType (printf "*input.%s" $fieldName) }})
 					}
 					{{- end }}
 				{{- else if or $field.Optional (ne $field.Default nil) }}
 					if input.{{ $fieldName }} != nil {
 						cols = append(cols, "{{ $col }}")
-						vals = append(vals, *input.{{ $fieldName }})
+						vals = append(vals, {{ hstoreExpr $field.GoType (printf "*input.%s" $fieldName) }})
 					}
 				{{- else }}
 					{{- if and $field.IsID (eq $field.GoType "string") }}
@@ -291,7 +333,7 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 						}
 					{{- else }}
 						cols = append(cols, "{{ $col }}")
-						vals = append(vals, input.{{ $fieldName }})
+						vals = append(vals, {{ hstoreExpr $field.GoType (printf "input.%s" $fieldName) }})
 					{{- end }}
 				{{- end }}
 			{{- end }}

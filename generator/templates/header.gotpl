@@ -9,6 +9,9 @@ import (
 	"embed"
 	{{- end }}
 	"fmt"
+	{{- if hasHstoreAnywhere .Schema }}
+	"github.com/lib/pq/hstore"
+	{{- end }}
 	{{- if hasAnyLog }}
 	"log"
 	{{- end }}
@@ -112,6 +115,46 @@ func generateNanoID() string {
 	}
 	return string(b)
 }
+
+{{- if hasHstoreAnywhere .Schema }}
+func toHstore(m map[string]*string) hstore.Hstore {
+	result := hstore.Hstore{Map: make(map[string]sql.NullString, len(m))}
+	for k, v := range m {
+		if v == nil {
+			result.Map[k] = sql.NullString{Valid: false}
+		} else {
+			result.Map[k] = sql.NullString{String: *v, Valid: true}
+		}
+	}
+	return result
+}
+
+type hstoreScan struct {
+	p **map[string]*string
+}
+
+func (s hstoreScan) Scan(src any) error {
+	var h hstore.Hstore
+	if err := h.Scan(src); err != nil {
+		return err
+	}
+	if h.Map == nil {
+		*s.p = nil
+		return nil
+	}
+	m := make(map[string]*string, len(h.Map))
+	for k, v := range h.Map {
+		if v.Valid {
+			val := v.String
+			m[k] = &val
+		} else {
+			m[k] = nil
+		}
+	}
+	*s.p = &m
+	return nil
+}
+{{- end }}
 
 // FieldError represents a single validation failure on a specific field.
 type FieldError struct {

@@ -136,6 +136,8 @@ func validateCategoryToPostCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("postId", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("postId", a.Val, "type", "field postId must be of type string")
 			}
 		case "categoryId":
 			if _, ok := a.Val.(int32); !ok {

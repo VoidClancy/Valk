@@ -41,7 +41,16 @@ jobs:
       run: make test
 
     - name: Run SQLite Integration Tests
-      run: make integration-test
+      run: |
+        cp integration/schema.prisma integration/schema.prisma.bak
+        sed -i 's/provider = "postgres"/provider = "sqlite"/' integration/schema.prisma
+        sed -i -E 's/[[:space:]]*@db\.[A-Za-z]+(\([^)]*\))?//g' integration/schema.prisma
+        sed -i '/Unsupported/d' integration/schema.prisma
+        rm -f integration/valk/migrations/*.sql
+        make integration-gen
+        cd integration
+        go test -v ./...
+        mv schema.prisma.bak schema.prisma
 
     - name: Run Postgres Integration Tests
       run: |

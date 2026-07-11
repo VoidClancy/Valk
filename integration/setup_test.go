@@ -91,6 +91,8 @@ func setupTestDB(t *testing.T) (*valk.DB, func()) {
 		}
 	}
 
+	db.Raw().SetMaxOpenConns(80)
+
 	if err := db.RunMigrations(ctx); err != nil {
 		db.Close()
 		if t != nil {

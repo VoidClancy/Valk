@@ -188,6 +188,8 @@ func validateCommentCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("id", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
 		case "textify":
 			if _, ok := a.Val.(int32); !ok {
@@ -204,6 +206,8 @@ func validateCommentCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("dummy3", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("dummy3", a.Val, "type", "field dummy3 must be of type string")
 			}
 		case "dummy1":
 			if _, ok := a.Val.(int32); !ok {
@@ -220,6 +224,8 @@ func validateCommentCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("dummy2", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("dummy2", a.Val, "type", "field dummy2 must be of type string")
 			}
 		case "postId":
 			if v, ok := a.Val.(string); ok {
@@ -232,6 +238,8 @@ func validateCommentCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("postId", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("postId", a.Val, "type", "field postId must be of type string")
 			}
 		case "authorId":
 			if v, ok := a.Val.(string); ok {
@@ -244,6 +252,8 @@ func validateCommentCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("authorId", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("authorId", a.Val, "type", "field authorId must be of type string")
 			}
 		case "meta":
 			if _, ok := a.Val.(json.RawMessage); !ok {

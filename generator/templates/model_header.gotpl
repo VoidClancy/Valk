@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	{{- end }}
 	"fmt"
+	{{- if hasNetField .Model }}
+	"net"
+	{{- end }}
 	"slices"
 	{{- if hasStringField .Model }}
 	"strings"

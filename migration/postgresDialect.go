@@ -26,9 +26,9 @@ func (d PostgresDialect) GetSQLType(sf *schema.ScalarField) string {
 		return d.QuoteIdent(enumName)
 	}
 	if sf.NativeType != nil && len(sf.NativeType.Args) > 0 {
-		return fmt.Sprintf("%s(%s)", strings.ToUpper(sf.SQLType), strings.Join(sf.NativeType.Args, ", "))
+		return fmt.Sprintf("%s(%s)", strings.ToLower(sf.SQLType), strings.Join(sf.NativeType.Args, ", "))
 	}
-	return strings.ToUpper(sf.SQLType)
+	return strings.ToLower(sf.SQLType)
 }
 
 func (d PostgresDialect) GetSQLDefault(dv *schema.DefaultValue, pslType string) string {
@@ -50,7 +50,7 @@ func (d PostgresDialect) GetSQLDefault(dv *schema.DefaultValue, pslType string) 
 		case "now":
 			return "CURRENT_TIMESTAMP"
 		case "uuid", "uuid(4)", "uuid(7)":
-			return "gen_random_uuid()"
+			return ""
 		case "cuid", "cuid(1)", "cuid(2)":
 			return ""
 		case "ulid":
@@ -80,10 +80,10 @@ func (d PostgresDialect) GenerateEnum(enum *schema.Enum) string {
 }
 
 func (PostgresDialect) FormatAutoIncrement(sqlType string) (string, string) {
-	if sqlType == "BIGINT" {
-		return "BIGSERIAL", ""
+	if sqlType == "bigint" {
+		return "bigserial", ""
 	}
-	return "SERIAL", ""
+	return "serial", ""
 }
 
 func (d PostgresDialect) FormatSinglePK(tableName, colName string, isAutoInc bool) (string, string) {

@@ -7,6 +7,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/lib/pq/hstore"
 	"strconv"
 	"strings"
 	"time"
@@ -105,6 +106,43 @@ func generateNanoID() string {
 	}
 	return string(b)
 }
+func toHstore(m map[string]*string) hstore.Hstore {
+	result := hstore.Hstore{Map: make(map[string]sql.NullString, len(m))}
+	for k, v := range m {
+		if v == nil {
+			result.Map[k] = sql.NullString{Valid: false}
+		} else {
+			result.Map[k] = sql.NullString{String: *v, Valid: true}
+		}
+	}
+	return result
+}
+
+type hstoreScan struct {
+	p **map[string]*string
+}
+
+func (s hstoreScan) Scan(src any) error {
+	var h hstore.Hstore
+	if err := h.Scan(src); err != nil {
+		return err
+	}
+	if h.Map == nil {
+		*s.p = nil
+		return nil
+	}
+	m := make(map[string]*string, len(h.Map))
+	for k, v := range h.Map {
+		if v.Valid {
+			val := v.String
+			m[k] = &val
+		} else {
+			m[k] = nil
+		}
+	}
+	*s.p = &m
+	return nil
+}
 
 // FieldError represents a single validation failure on a specific field.
 type FieldError struct {
@@ -198,12 +236,12 @@ type Dialect interface {
 	SupportsReturning() bool
 	SupportsBulkInsert() bool
 }
-type sqliteDialect struct{}
+type postgresDialect struct{}
 
-func (sqliteDialect) Quote(ident string) string { return `"` + ident + `"` }
-func (sqliteDialect) BindVar(idx int) string    { return "?" }
-func (sqliteDialect) SupportsReturning() bool   { return true }
-func (sqliteDialect) SupportsBulkInsert() bool  { return false }
+func (postgresDialect) Quote(ident string) string { return `"` + ident + `"` }
+func (postgresDialect) BindVar(idx int) string    { return fmt.Sprintf("$%d", idx) }
+func (postgresDialect) SupportsReturning() bool   { return true }
+func (postgresDialect) SupportsBulkInsert() bool  { return true }
 
 type DBTX interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
@@ -276,45 +314,60 @@ type Queries struct {
 	DefaultsTest *DefaultsTestDelegate
 	// AllFieldsSoFar provides CRUD operations for AllFieldsSoFar.
 	//
-	//   id              int32           default: autoincrement()
-	//   stringReq       string          required
-	//   stringOpt       string          optional
-	//   stringDefault   string          default: default
-	//   stringVarchar   string          required
-	//   stringChar      string          required
-	//   cuidDefault     string          default: cuid()
-	//   cuid1Default    string          default: cuid()
-	//   cuid2Default    string          default: cuid()
-	//   uuidDefault     string          default: uuid()
-	//   uuid4Default    string          default: uuid()
-	//   uuid7Default    string          default: uuid()
-	//   ulidDefault     string          default: ulid()
-	//   nanoidDefault   string          default: nanoid()
-	//   uuidDb          string          required
-	//   intReq          int32           required
-	//   intOpt          int32           optional
-	//   intDefault      int32           default: 42
-	//   smallInt        int32           required
-	//   tinyInt         int32           required
-	//   bigIntReq       int64           required
-	//   bigIntOpt       int64           optional
-	//   floatReq        float64         required
-	//   floatOpt        float64         optional
-	//   decimalReq      string          required
-	//   decimalOpt      string          optional
-	//   decimalPrecise  string          required
-	//   boolReq         bool            required
-	//   boolOpt         bool            optional
-	//   boolDefault     bool            default: false
-	//   dateTimeReq     time.Time       required
-	//   dateTimeOpt     time.Time       optional
-	//   dateTimeDefault time.Time       default: now()
-	//   updatedAt       time.Time       required
-	//   dateTimeTz      time.Time       required
-	//   jsonReq         json.RawMessage required
-	//   jsonOpt         json.RawMessage optional
-	//   bytesReq        []byte          required
-	//   bytesOpt        []byte          optional
+	//   id              int32              default: autoincrement()
+	//   stringReq       string             required
+	//   stringOpt       string             optional
+	//   stringDefault   string             default: default
+	//   stringVarchar   string             required
+	//   stringChar      string             required
+	//   bitVal          string             required
+	//   varBitVal       string             required
+	//   inetVal         string             required
+	//   xmlVal          string             required
+	//   cuidDefault     string             default: cuid()
+	//   cuid1Default    string             default: cuid()
+	//   cuid2Default    string             default: cuid()
+	//   uuidDefault     string             default: uuid()
+	//   uuid4Default    string             default: uuid()
+	//   uuid7Default    string             default: uuid()
+	//   ulidDefault     string             default: ulid()
+	//   nanoidDefault   string             default: nanoid()
+	//   uuidDb          string             required
+	//   intReq          int32              required
+	//   intOpt          int32              optional
+	//   intDefault      int32              default: 42
+	//   integerVal      int32              required
+	//   smallInt        int32              required
+	//   tinyInt         int32              required
+	//   oidVal          int32              required
+	//   bigIntReq       int64              required
+	//   bigIntOpt       int64              optional
+	//   floatReq        float64            required
+	//   floatOpt        float64            optional
+	//   realVal         float64            required
+	//   decimalReq      string             required
+	//   decimalOpt      string             optional
+	//   decimalPrecise  string             required
+	//   moneyVal        string             required
+	//   boolReq         bool               required
+	//   boolOpt         bool               optional
+	//   boolDefault     bool               default: false
+	//   dateTimeReq     time.Time          required
+	//   dateTimeOpt     time.Time          optional
+	//   dateTimeDefault time.Time          default: now()
+	//   updatedAt       time.Time          required
+	//   dateTimeTz      time.Time          required
+	//   timestampVal    time.Time          required
+	//   timeVal         time.Time          required
+	//   timetzVal       time.Time          required
+	//   jsonReq         json.RawMessage    required
+	//   jsonOpt         json.RawMessage    optional
+	//   jsonVal         json.RawMessage    required
+	//   bytesReq        []byte             required
+	//   bytesOpt        []byte             optional
+	//   hstoreField     map[string]*string optional
+	//   ltreeField      string             required
+	//   citextField     string             optional
 	AllFieldsSoFar *AllFieldsSoFarDelegate
 	UserRole       userRoleNamespace
 }
@@ -334,7 +387,7 @@ func Open(provider, dataSourceName string) (*DB, error) {
 	q := &Queries{
 		db:       sqlDB,
 		provider: provider,
-		dialect:  sqliteDialect{},
+		dialect:  postgresDialect{},
 		UserRole: UserRole,
 	}
 	q.initDelegates()
