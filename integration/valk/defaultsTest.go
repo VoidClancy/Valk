@@ -191,6 +191,8 @@ func validateDefaultsTestCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("uuid4", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("uuid4", a.Val, "type", "field uuid4 must be of type string")
 			}
 		case "uuid7":
 			if v, ok := a.Val.(string); ok {
@@ -200,6 +202,8 @@ func validateDefaultsTestCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("uuid7", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("uuid7", a.Val, "type", "field uuid7 must be of type string")
 			}
 		case "uuidNoArgs":
 			if v, ok := a.Val.(string); ok {
@@ -209,6 +213,8 @@ func validateDefaultsTestCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("uuidNoArgs", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("uuidNoArgs", a.Val, "type", "field uuidNoArgs must be of type string")
 			}
 		case "cuid1":
 			if v, ok := a.Val.(string); ok {
@@ -218,6 +224,8 @@ func validateDefaultsTestCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("cuid1", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("cuid1", a.Val, "type", "field cuid1 must be of type string")
 			}
 		case "cuid2":
 			if v, ok := a.Val.(string); ok {
@@ -227,6 +235,8 @@ func validateDefaultsTestCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("cuid2", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("cuid2", a.Val, "type", "field cuid2 must be of type string")
 			}
 		case "cuidNoArgs":
 			if v, ok := a.Val.(string); ok {
@@ -236,6 +246,8 @@ func validateDefaultsTestCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("cuidNoArgs", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("cuidNoArgs", a.Val, "type", "field cuidNoArgs must be of type string")
 			}
 		case "ulid":
 			if v, ok := a.Val.(string); ok {
@@ -245,6 +257,8 @@ func validateDefaultsTestCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("ulid", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("ulid", a.Val, "type", "field ulid must be of type string")
 			}
 		case "nanoid":
 			if v, ok := a.Val.(string); ok {
@@ -254,6 +268,8 @@ func validateDefaultsTestCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("nanoid", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("nanoid", a.Val, "type", "field nanoid must be of type string")
 			}
 		case "now":
 			if _, ok := a.Val.(time.Time); !ok {

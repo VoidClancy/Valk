@@ -60,7 +60,11 @@ func (m *{{ .Model.Name }}) ScanFields(cols []string) []any {
 		switch col {
 		{{- range $field := .Model.ScalarFields }}
 		case "{{ $field.EffectiveColName }}":
+			{{- if eq (trimPrefix $field.GoType "*") "map[string]*string" }}
+			targets[i] = hstoreScan{p: &m.{{ capitalize $field.Name }}}
+			{{- else }}
 			targets[i] = &m.{{ capitalize $field.Name }}
+			{{- end }}
 		{{- end }}
 		}
 	}

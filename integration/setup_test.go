@@ -69,6 +69,13 @@ func setupTestDB(t *testing.T) (*valk.DB, func()) {
 				panic(err)
 			}
 		}
+		_, _ = resetDB.Exec(`
+			SELECT pg_terminate_backend(pid)
+			FROM pg_stat_activity
+			WHERE datname = current_database()
+			  AND pid <> pg_backend_pid()
+		`)
+		_, _ = resetDB.Exec("DROP EXTENSION IF EXISTS citext CASCADE; DROP EXTENSION IF EXISTS hstore CASCADE; DROP EXTENSION IF EXISTS ltree CASCADE;")
 		_, err = resetDB.Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
 		resetDB.Close()
 		if err != nil {
@@ -90,6 +97,8 @@ func setupTestDB(t *testing.T) (*valk.DB, func()) {
 			panic(err)
 		}
 	}
+
+	db.Raw().SetMaxOpenConns(80)
 
 	if err := db.RunMigrations(ctx); err != nil {
 		db.Close()

@@ -111,6 +111,10 @@ func GenerateClient(sch schema.Schema, pkgName string, parentImportPath string, 
 		"isKnownDefaultFunc": isKnownDefaultFunc,
 		"defaultFuncCall":    defaultFuncCall,
 		"hasStringField":     hasStringField,
+		"hasNetField":        hasNetField,
+		"hasHstoreField":     hasHstoreField,
+		"hasHstoreAnywhere":  hasHstoreAnywhere,
+		"hstoreExpr":         hstoreExpr,
 	})
 	tmpl, err := tmpl.ParseFS(templatesFS, "templates/*.gotpl")
 	if err != nil {

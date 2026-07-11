@@ -58,3 +58,6 @@ db-down:
 
 db-clean:
 	docker compose down -v
+	
+db-reset:
+	docker compose exec db psql -U postgres -d postgres -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"

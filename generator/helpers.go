@@ -97,3 +97,33 @@ func hasStringField(m *schema.Model) bool {
 	}
 	return false
 }
+func hasNetField(m *schema.Model) bool {
+	for _, sf := range m.ScalarFields {
+		if sf.NativeType != nil && sf.NativeType.Name == "Inet" {
+			return true
+		}
+	}
+	return false
+}
+func hasHstoreField(m *schema.Model) bool {
+	for _, sf := range m.ScalarFields {
+		if strings.TrimPrefix(sf.GoType, "*") == "map[string]*string" {
+			return true
+		}
+	}
+	return false
+}
+func hasHstoreAnywhere(sch schema.Schema) bool {
+	for _, m := range sch.Models {
+		if hasHstoreField(m) {
+			return true
+		}
+	}
+	return false
+}
+func hstoreExpr(goType string, expr string) string {
+	if strings.TrimPrefix(goType, "*") == "map[string]*string" {
+		return "toHstore(" + expr + ")"
+	}
+	return expr
+}

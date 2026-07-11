@@ -163,6 +163,8 @@ func validatePostCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("id", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
 		case "title":
 			if v, ok := a.Val.(string); ok {
@@ -175,9 +177,18 @@ func validatePostCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("title", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("title", a.Val, "type", "field title must be of type string")
 			}
 		case "content":
-			if _, ok := a.Val.(string); !ok {
+			if v, ok := a.Val.(string); ok {
+				if strings.Contains(v, "\x00") {
+					errs.Add("content", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("content", v, "safety", "string must be valid UTF-8")
+				}
+			} else {
 				errs.Add("content", a.Val, "type", "field content must be of type string")
 			}
 		case "published":
@@ -195,6 +206,8 @@ func validatePostCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("authorId", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("authorId", a.Val, "type", "field authorId must be of type string")
 			}
 		}
 	}

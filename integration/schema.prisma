@@ -1,5 +1,5 @@
 datasource db {
-    provider = "sqlite"
+    provider = "postgres"
 }
 
 enum UserRole {
@@ -94,8 +94,12 @@ model AllFieldsSoFar {
     stringReq     String
     stringOpt     String?
     stringDefault String  @default("default")
-    stringVarchar String
-    stringChar    String
+    stringVarchar String  @db.VarChar(255)
+    stringChar    String  @db.Char(10)
+    bitVal        String  @db.Bit(10)
+    varBitVal     String  @db.VarBit
+    inetVal       String  @db.Inet
+    xmlVal        String  @db.Xml
 
     // Default function variants
     cuidDefault   String @default(cuid())
@@ -106,14 +110,16 @@ model AllFieldsSoFar {
     uuid7Default  String @default(uuid(7))
     ulidDefault   String @default(ulid())
     nanoidDefault String @default(nanoid())
-    uuidDb        String
+    uuidDb        String @db.Uuid
 
     // Int
     intReq     Int
     intOpt     Int?
     intDefault Int  @default(42)
-    smallInt   Int
+    integerVal Int  @db.Integer
+    smallInt   Int  @db.SmallInt
     tinyInt    Int
+    oidVal     Int  @db.Oid
 
     // BigInt
     bigIntReq BigInt
@@ -122,11 +128,13 @@ model AllFieldsSoFar {
     // Float
     floatReq Float
     floatOpt Float?
+    realVal  Float  @db.Real
 
     // Decimal
     decimalReq     Decimal
     decimalOpt     Decimal?
-    decimalPrecise Decimal
+    decimalPrecise Decimal  @db.Decimal(10, 2)
+    moneyVal       Decimal  @db.Money
 
     // Boolean
     boolReq     Boolean
@@ -138,13 +146,28 @@ model AllFieldsSoFar {
     dateTimeOpt     DateTime?
     dateTimeDefault DateTime  @default(now())
     updatedAt       DateTime  @updatedAt
-    dateTimeTz      DateTime
+    dateTimeTz      DateTime  @db.Timestamptz
+    timestampVal    DateTime  @db.Timestamp(3)
+    timeVal         DateTime  @db.Time
+    timetzVal       DateTime  @db.Timetz
 
     // Json
     jsonReq Json
     jsonOpt Json?
+    jsonVal Json  @db.Json
 
     // Bytes
     bytesReq Bytes
     bytesOpt Bytes?
+
+    // Unsupported (extension-backed types)
+    hstoreField Unsupported("hstore")?
+    ltreeField  Unsupported("ltree")
+    citextField Unsupported("citext")?
+
+    // require postgis extension installation first
+    // geoField    Unsupported("geometry(Point, 4326)")?
+    // geoField2   Unsupported("geography")?
+    // requires vector extension installation first
+    // vectorField Unsupported("vector(1536)")?
 }

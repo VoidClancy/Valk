@@ -149,9 +149,18 @@ func validateProfileCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("id", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
 		case "bio":
-			if _, ok := a.Val.(string); !ok {
+			if v, ok := a.Val.(string); ok {
+				if strings.Contains(v, "\x00") {
+					errs.Add("bio", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("bio", v, "safety", "string must be valid UTF-8")
+				}
+			} else {
 				errs.Add("bio", a.Val, "type", "field bio must be of type string")
 			}
 		case "userId":
@@ -165,6 +174,8 @@ func validateProfileCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("userId", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("userId", a.Val, "type", "field userId must be of type string")
 			}
 		case "createdAt":
 			if _, ok := a.Val.(time.Time); !ok {

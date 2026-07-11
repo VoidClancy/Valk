@@ -226,8 +226,6 @@ func TestInitialMigration(t *testing.T) {
 		assertContains(t, up, `"users"`)
 		assertContains(t, up, `"biography"`)
 		assertContains(t, up, `"user_id"`)
-		assertContains(t, up, "gen_random_uuid()")
-
 		execOrFail(t, db, up)
 
 		// Test insert
@@ -247,8 +245,8 @@ func TestInitialMigration(t *testing.T) {
 			t.Errorf("expected active=true, name='Alice', got active=%t, name=%q", active, name)
 		}
 
-		// Verify UUID default
-		_, err = db.Exec(`INSERT INTO "Post" ("title") VALUES ('My first post')`)
+		// Verify UUID default (generated client-side, DB column has no default)
+		_, err = db.Exec(`INSERT INTO "Post" ("id", "title") VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'My first post')`)
 		if err != nil {
 			t.Fatalf("failed to insert post: %v", err)
 		}
@@ -257,8 +255,8 @@ func TestInitialMigration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to query inserted post: %v", err)
 		}
-		if len(pid) == 0 || title != "My first post" {
-			t.Errorf("expected non-empty uuid ID, got %q", pid)
+		if pid != "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" || title != "My first post" {
+			t.Errorf("expected uuid and title, got id=%q, title=%q", pid, title)
 		}
 	})
 }

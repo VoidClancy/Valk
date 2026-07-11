@@ -11,10 +11,13 @@ import (
 	"integration/valk/post"
 	"integration/valk/profile"
 	"integration/valk/user"
+	"os"
 	"time"
 
 	"log"
 
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"
 )
 
@@ -182,7 +185,13 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 }
 
 func main() {
-	db := openConn()
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	// db := openConn()
+	db := openPGConn()
 	defer db.Close()
 
 	rawDB := db.Raw()
@@ -288,6 +297,18 @@ func main() {
 
 func openConn() *valk.DB {
 	db, err := valk.Open("sqlite", "file::memory:?_pragma=foreign_keys(1)&_time_format=sqlite")
+
+	if err != nil {
+		log.Fatalf("failed to open db: %v", err)
+	}
+	return db
+}
+
+func openPGConn() *valk.DB {
+	pgUrl := os.Getenv("DATABASE_DIRECT_URL")
+	db, err := valk.Open("postgres", pgUrl)
+	_, err = db.Raw().Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
+
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)
 	}

@@ -339,7 +339,7 @@ func TestCreate_ConcurrentDuplicateEmail_ExactlyOneWins(t *testing.T) {
 	var successes int64
 	var failures int64
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
@@ -381,7 +381,7 @@ func TestCreate_ConcurrentUniqueIDs_NoCollision(t *testing.T) {
 	ids := make([]string, n)
 	errs := make([]error, n)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()

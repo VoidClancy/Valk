@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"slices"
 	"strings"
 	"time"
@@ -12,88 +13,118 @@ import (
 
 // AllFieldsSoFar represents the database model
 type AllFieldsSoFar struct {
-	Id              int32            `db:"id" json:"id"`
-	StringReq       string           `db:"stringReq" json:"stringReq"`
-	StringOpt       *string          `db:"stringOpt" json:"stringOpt,omitempty"`
-	StringDefault   string           `db:"stringDefault" json:"stringDefault"`
-	StringVarchar   string           `db:"stringVarchar" json:"stringVarchar"`
-	StringChar      string           `db:"stringChar" json:"stringChar"`
-	CuidDefault     string           `db:"cuidDefault" json:"cuidDefault"`
-	Cuid1Default    string           `db:"cuid1Default" json:"cuid1Default"`
-	Cuid2Default    string           `db:"cuid2Default" json:"cuid2Default"`
-	UuidDefault     string           `db:"uuidDefault" json:"uuidDefault"`
-	Uuid4Default    string           `db:"uuid4Default" json:"uuid4Default"`
-	Uuid7Default    string           `db:"uuid7Default" json:"uuid7Default"`
-	UlidDefault     string           `db:"ulidDefault" json:"ulidDefault"`
-	NanoidDefault   string           `db:"nanoidDefault" json:"nanoidDefault"`
-	UuidDb          string           `db:"uuidDb" json:"uuidDb"`
-	IntReq          int32            `db:"intReq" json:"intReq"`
-	IntOpt          *int32           `db:"intOpt" json:"intOpt,omitempty"`
-	IntDefault      int32            `db:"intDefault" json:"intDefault"`
-	SmallInt        int32            `db:"smallInt" json:"smallInt"`
-	TinyInt         int32            `db:"tinyInt" json:"tinyInt"`
-	BigIntReq       int64            `db:"bigIntReq" json:"bigIntReq"`
-	BigIntOpt       *int64           `db:"bigIntOpt" json:"bigIntOpt,omitempty"`
-	FloatReq        float64          `db:"floatReq" json:"floatReq"`
-	FloatOpt        *float64         `db:"floatOpt" json:"floatOpt,omitempty"`
-	DecimalReq      string           `db:"decimalReq" json:"decimalReq"`
-	DecimalOpt      *string          `db:"decimalOpt" json:"decimalOpt,omitempty"`
-	DecimalPrecise  string           `db:"decimalPrecise" json:"decimalPrecise"`
-	BoolReq         bool             `db:"boolReq" json:"boolReq"`
-	BoolOpt         *bool            `db:"boolOpt" json:"boolOpt,omitempty"`
-	BoolDefault     bool             `db:"boolDefault" json:"boolDefault"`
-	DateTimeReq     time.Time        `db:"dateTimeReq" json:"dateTimeReq"`
-	DateTimeOpt     *time.Time       `db:"dateTimeOpt" json:"dateTimeOpt,omitempty"`
-	DateTimeDefault time.Time        `db:"dateTimeDefault" json:"dateTimeDefault"`
-	UpdatedAt       time.Time        `db:"updatedAt" json:"updatedAt"`
-	DateTimeTz      time.Time        `db:"dateTimeTz" json:"dateTimeTz"`
-	JsonReq         json.RawMessage  `db:"jsonReq" json:"jsonReq"`
-	JsonOpt         *json.RawMessage `db:"jsonOpt" json:"jsonOpt,omitempty"`
-	BytesReq        []byte           `db:"bytesReq" json:"bytesReq"`
-	BytesOpt        *[]byte          `db:"bytesOpt" json:"bytesOpt,omitempty"`
+	Id              int32               `db:"id" json:"id"`
+	StringReq       string              `db:"stringReq" json:"stringReq"`
+	StringOpt       *string             `db:"stringOpt" json:"stringOpt,omitempty"`
+	StringDefault   string              `db:"stringDefault" json:"stringDefault"`
+	StringVarchar   string              `db:"stringVarchar" json:"stringVarchar"`
+	StringChar      string              `db:"stringChar" json:"stringChar"`
+	BitVal          string              `db:"bitVal" json:"bitVal"`
+	VarBitVal       string              `db:"varBitVal" json:"varBitVal"`
+	InetVal         string              `db:"inetVal" json:"inetVal"`
+	XmlVal          string              `db:"xmlVal" json:"xmlVal"`
+	CuidDefault     string              `db:"cuidDefault" json:"cuidDefault"`
+	Cuid1Default    string              `db:"cuid1Default" json:"cuid1Default"`
+	Cuid2Default    string              `db:"cuid2Default" json:"cuid2Default"`
+	UuidDefault     string              `db:"uuidDefault" json:"uuidDefault"`
+	Uuid4Default    string              `db:"uuid4Default" json:"uuid4Default"`
+	Uuid7Default    string              `db:"uuid7Default" json:"uuid7Default"`
+	UlidDefault     string              `db:"ulidDefault" json:"ulidDefault"`
+	NanoidDefault   string              `db:"nanoidDefault" json:"nanoidDefault"`
+	UuidDb          string              `db:"uuidDb" json:"uuidDb"`
+	IntReq          int32               `db:"intReq" json:"intReq"`
+	IntOpt          *int32              `db:"intOpt" json:"intOpt,omitempty"`
+	IntDefault      int32               `db:"intDefault" json:"intDefault"`
+	IntegerVal      int32               `db:"integerVal" json:"integerVal"`
+	SmallInt        int32               `db:"smallInt" json:"smallInt"`
+	TinyInt         int32               `db:"tinyInt" json:"tinyInt"`
+	OidVal          int32               `db:"oidVal" json:"oidVal"`
+	BigIntReq       int64               `db:"bigIntReq" json:"bigIntReq"`
+	BigIntOpt       *int64              `db:"bigIntOpt" json:"bigIntOpt,omitempty"`
+	FloatReq        float64             `db:"floatReq" json:"floatReq"`
+	FloatOpt        *float64            `db:"floatOpt" json:"floatOpt,omitempty"`
+	RealVal         float64             `db:"realVal" json:"realVal"`
+	DecimalReq      string              `db:"decimalReq" json:"decimalReq"`
+	DecimalOpt      *string             `db:"decimalOpt" json:"decimalOpt,omitempty"`
+	DecimalPrecise  string              `db:"decimalPrecise" json:"decimalPrecise"`
+	MoneyVal        string              `db:"moneyVal" json:"moneyVal"`
+	BoolReq         bool                `db:"boolReq" json:"boolReq"`
+	BoolOpt         *bool               `db:"boolOpt" json:"boolOpt,omitempty"`
+	BoolDefault     bool                `db:"boolDefault" json:"boolDefault"`
+	DateTimeReq     time.Time           `db:"dateTimeReq" json:"dateTimeReq"`
+	DateTimeOpt     *time.Time          `db:"dateTimeOpt" json:"dateTimeOpt,omitempty"`
+	DateTimeDefault time.Time           `db:"dateTimeDefault" json:"dateTimeDefault"`
+	UpdatedAt       time.Time           `db:"updatedAt" json:"updatedAt"`
+	DateTimeTz      time.Time           `db:"dateTimeTz" json:"dateTimeTz"`
+	TimestampVal    time.Time           `db:"timestampVal" json:"timestampVal"`
+	TimeVal         time.Time           `db:"timeVal" json:"timeVal"`
+	TimetzVal       time.Time           `db:"timetzVal" json:"timetzVal"`
+	JsonReq         json.RawMessage     `db:"jsonReq" json:"jsonReq"`
+	JsonOpt         *json.RawMessage    `db:"jsonOpt" json:"jsonOpt,omitempty"`
+	JsonVal         json.RawMessage     `db:"jsonVal" json:"jsonVal"`
+	BytesReq        []byte              `db:"bytesReq" json:"bytesReq"`
+	BytesOpt        *[]byte             `db:"bytesOpt" json:"bytesOpt,omitempty"`
+	HstoreField     *map[string]*string `db:"hstoreField" json:"hstoreField,omitempty"`
+	LtreeField      string              `db:"ltreeField" json:"ltreeField"`
+	CitextField     *string             `db:"citextField" json:"citextField,omitempty"`
 }
 
 // AllFieldsSoFarCreate is used for hooks only — the Create API uses FieldAssignment
 type AllFieldsSoFarCreate struct {
-	Id              *int32           `json:"id"`
-	StringReq       string           `json:"stringReq"`
-	StringOpt       *string          `json:"stringOpt"`
-	StringDefault   *string          `json:"stringDefault"`
-	StringVarchar   string           `json:"stringVarchar"`
-	StringChar      string           `json:"stringChar"`
-	CuidDefault     *string          `json:"cuidDefault"`
-	Cuid1Default    *string          `json:"cuid1Default"`
-	Cuid2Default    *string          `json:"cuid2Default"`
-	UuidDefault     *string          `json:"uuidDefault"`
-	Uuid4Default    *string          `json:"uuid4Default"`
-	Uuid7Default    *string          `json:"uuid7Default"`
-	UlidDefault     *string          `json:"ulidDefault"`
-	NanoidDefault   *string          `json:"nanoidDefault"`
-	UuidDb          string           `json:"uuidDb"`
-	IntReq          int32            `json:"intReq"`
-	IntOpt          *int32           `json:"intOpt"`
-	IntDefault      *int32           `json:"intDefault"`
-	SmallInt        int32            `json:"smallInt"`
-	TinyInt         int32            `json:"tinyInt"`
-	BigIntReq       int64            `json:"bigIntReq"`
-	BigIntOpt       *int64           `json:"bigIntOpt"`
-	FloatReq        float64          `json:"floatReq"`
-	FloatOpt        *float64         `json:"floatOpt"`
-	DecimalReq      string           `json:"decimalReq"`
-	DecimalOpt      *string          `json:"decimalOpt"`
-	DecimalPrecise  string           `json:"decimalPrecise"`
-	BoolReq         bool             `json:"boolReq"`
-	BoolOpt         *bool            `json:"boolOpt"`
-	BoolDefault     *bool            `json:"boolDefault"`
-	DateTimeReq     time.Time        `json:"dateTimeReq"`
-	DateTimeOpt     *time.Time       `json:"dateTimeOpt"`
-	DateTimeDefault *time.Time       `json:"dateTimeDefault"`
-	UpdatedAt       time.Time        `json:"updatedAt"`
-	DateTimeTz      time.Time        `json:"dateTimeTz"`
-	JsonReq         json.RawMessage  `json:"jsonReq"`
-	JsonOpt         *json.RawMessage `json:"jsonOpt"`
-	BytesReq        []byte           `json:"bytesReq"`
-	BytesOpt        *[]byte          `json:"bytesOpt"`
+	Id              *int32              `json:"id"`
+	StringReq       string              `json:"stringReq"`
+	StringOpt       *string             `json:"stringOpt"`
+	StringDefault   *string             `json:"stringDefault"`
+	StringVarchar   string              `json:"stringVarchar"`
+	StringChar      string              `json:"stringChar"`
+	BitVal          string              `json:"bitVal"`
+	VarBitVal       string              `json:"varBitVal"`
+	InetVal         string              `json:"inetVal"`
+	XmlVal          string              `json:"xmlVal"`
+	CuidDefault     *string             `json:"cuidDefault"`
+	Cuid1Default    *string             `json:"cuid1Default"`
+	Cuid2Default    *string             `json:"cuid2Default"`
+	UuidDefault     *string             `json:"uuidDefault"`
+	Uuid4Default    *string             `json:"uuid4Default"`
+	Uuid7Default    *string             `json:"uuid7Default"`
+	UlidDefault     *string             `json:"ulidDefault"`
+	NanoidDefault   *string             `json:"nanoidDefault"`
+	UuidDb          string              `json:"uuidDb"`
+	IntReq          int32               `json:"intReq"`
+	IntOpt          *int32              `json:"intOpt"`
+	IntDefault      *int32              `json:"intDefault"`
+	IntegerVal      int32               `json:"integerVal"`
+	SmallInt        int32               `json:"smallInt"`
+	TinyInt         int32               `json:"tinyInt"`
+	OidVal          int32               `json:"oidVal"`
+	BigIntReq       int64               `json:"bigIntReq"`
+	BigIntOpt       *int64              `json:"bigIntOpt"`
+	FloatReq        float64             `json:"floatReq"`
+	FloatOpt        *float64            `json:"floatOpt"`
+	RealVal         float64             `json:"realVal"`
+	DecimalReq      string              `json:"decimalReq"`
+	DecimalOpt      *string             `json:"decimalOpt"`
+	DecimalPrecise  string              `json:"decimalPrecise"`
+	MoneyVal        string              `json:"moneyVal"`
+	BoolReq         bool                `json:"boolReq"`
+	BoolOpt         *bool               `json:"boolOpt"`
+	BoolDefault     *bool               `json:"boolDefault"`
+	DateTimeReq     time.Time           `json:"dateTimeReq"`
+	DateTimeOpt     *time.Time          `json:"dateTimeOpt"`
+	DateTimeDefault *time.Time          `json:"dateTimeDefault"`
+	UpdatedAt       time.Time           `json:"updatedAt"`
+	DateTimeTz      time.Time           `json:"dateTimeTz"`
+	TimestampVal    time.Time           `json:"timestampVal"`
+	TimeVal         time.Time           `json:"timeVal"`
+	TimetzVal       time.Time           `json:"timetzVal"`
+	JsonReq         json.RawMessage     `json:"jsonReq"`
+	JsonOpt         *json.RawMessage    `json:"jsonOpt"`
+	JsonVal         json.RawMessage     `json:"jsonVal"`
+	BytesReq        []byte              `json:"bytesReq"`
+	BytesOpt        *[]byte             `json:"bytesOpt"`
+	HstoreField     *map[string]*string `json:"hstoreField"`
+	LtreeField      string              `json:"ltreeField"`
+	CitextField     *string             `json:"citextField"`
 }
 
 // AllFieldsSoFarSelect specifies which fields to include
@@ -104,6 +135,10 @@ type AllFieldsSoFarSelect struct {
 	StringDefault   bool `json:"stringDefault"`
 	StringVarchar   bool `json:"stringVarchar"`
 	StringChar      bool `json:"stringChar"`
+	BitVal          bool `json:"bitVal"`
+	VarBitVal       bool `json:"varBitVal"`
+	InetVal         bool `json:"inetVal"`
+	XmlVal          bool `json:"xmlVal"`
 	CuidDefault     bool `json:"cuidDefault"`
 	Cuid1Default    bool `json:"cuid1Default"`
 	Cuid2Default    bool `json:"cuid2Default"`
@@ -116,15 +151,19 @@ type AllFieldsSoFarSelect struct {
 	IntReq          bool `json:"intReq"`
 	IntOpt          bool `json:"intOpt"`
 	IntDefault      bool `json:"intDefault"`
+	IntegerVal      bool `json:"integerVal"`
 	SmallInt        bool `json:"smallInt"`
 	TinyInt         bool `json:"tinyInt"`
+	OidVal          bool `json:"oidVal"`
 	BigIntReq       bool `json:"bigIntReq"`
 	BigIntOpt       bool `json:"bigIntOpt"`
 	FloatReq        bool `json:"floatReq"`
 	FloatOpt        bool `json:"floatOpt"`
+	RealVal         bool `json:"realVal"`
 	DecimalReq      bool `json:"decimalReq"`
 	DecimalOpt      bool `json:"decimalOpt"`
 	DecimalPrecise  bool `json:"decimalPrecise"`
+	MoneyVal        bool `json:"moneyVal"`
 	BoolReq         bool `json:"boolReq"`
 	BoolOpt         bool `json:"boolOpt"`
 	BoolDefault     bool `json:"boolDefault"`
@@ -133,10 +172,17 @@ type AllFieldsSoFarSelect struct {
 	DateTimeDefault bool `json:"dateTimeDefault"`
 	UpdatedAt       bool `json:"updatedAt"`
 	DateTimeTz      bool `json:"dateTimeTz"`
+	TimestampVal    bool `json:"timestampVal"`
+	TimeVal         bool `json:"timeVal"`
+	TimetzVal       bool `json:"timetzVal"`
 	JsonReq         bool `json:"jsonReq"`
 	JsonOpt         bool `json:"jsonOpt"`
+	JsonVal         bool `json:"jsonVal"`
 	BytesReq        bool `json:"bytesReq"`
 	BytesOpt        bool `json:"bytesOpt"`
+	HstoreField     bool `json:"hstoreField"`
+	LtreeField      bool `json:"ltreeField"`
+	CitextField     bool `json:"citextField"`
 }
 
 // AllFieldsSoFarOmit specifies which fields to exclude
@@ -147,6 +193,10 @@ type AllFieldsSoFarOmit struct {
 	StringDefault   bool `json:"stringDefault"`
 	StringVarchar   bool `json:"stringVarchar"`
 	StringChar      bool `json:"stringChar"`
+	BitVal          bool `json:"bitVal"`
+	VarBitVal       bool `json:"varBitVal"`
+	InetVal         bool `json:"inetVal"`
+	XmlVal          bool `json:"xmlVal"`
 	CuidDefault     bool `json:"cuidDefault"`
 	Cuid1Default    bool `json:"cuid1Default"`
 	Cuid2Default    bool `json:"cuid2Default"`
@@ -159,15 +209,19 @@ type AllFieldsSoFarOmit struct {
 	IntReq          bool `json:"intReq"`
 	IntOpt          bool `json:"intOpt"`
 	IntDefault      bool `json:"intDefault"`
+	IntegerVal      bool `json:"integerVal"`
 	SmallInt        bool `json:"smallInt"`
 	TinyInt         bool `json:"tinyInt"`
+	OidVal          bool `json:"oidVal"`
 	BigIntReq       bool `json:"bigIntReq"`
 	BigIntOpt       bool `json:"bigIntOpt"`
 	FloatReq        bool `json:"floatReq"`
 	FloatOpt        bool `json:"floatOpt"`
+	RealVal         bool `json:"realVal"`
 	DecimalReq      bool `json:"decimalReq"`
 	DecimalOpt      bool `json:"decimalOpt"`
 	DecimalPrecise  bool `json:"decimalPrecise"`
+	MoneyVal        bool `json:"moneyVal"`
 	BoolReq         bool `json:"boolReq"`
 	BoolOpt         bool `json:"boolOpt"`
 	BoolDefault     bool `json:"boolDefault"`
@@ -176,10 +230,17 @@ type AllFieldsSoFarOmit struct {
 	DateTimeDefault bool `json:"dateTimeDefault"`
 	UpdatedAt       bool `json:"updatedAt"`
 	DateTimeTz      bool `json:"dateTimeTz"`
+	TimestampVal    bool `json:"timestampVal"`
+	TimeVal         bool `json:"timeVal"`
+	TimetzVal       bool `json:"timetzVal"`
 	JsonReq         bool `json:"jsonReq"`
 	JsonOpt         bool `json:"jsonOpt"`
+	JsonVal         bool `json:"jsonVal"`
 	BytesReq        bool `json:"bytesReq"`
 	BytesOpt        bool `json:"bytesOpt"`
+	HstoreField     bool `json:"hstoreField"`
+	LtreeField      bool `json:"ltreeField"`
+	CitextField     bool `json:"citextField"`
 }
 
 type AllFieldsSoFarDelegate struct {
@@ -217,6 +278,14 @@ func (m *AllFieldsSoFar) ScanFields(cols []string) []any {
 			targets[i] = &m.StringVarchar
 		case "stringChar":
 			targets[i] = &m.StringChar
+		case "bitVal":
+			targets[i] = &m.BitVal
+		case "varBitVal":
+			targets[i] = &m.VarBitVal
+		case "inetVal":
+			targets[i] = &m.InetVal
+		case "xmlVal":
+			targets[i] = &m.XmlVal
 		case "cuidDefault":
 			targets[i] = &m.CuidDefault
 		case "cuid1Default":
@@ -241,10 +310,14 @@ func (m *AllFieldsSoFar) ScanFields(cols []string) []any {
 			targets[i] = &m.IntOpt
 		case "intDefault":
 			targets[i] = &m.IntDefault
+		case "integerVal":
+			targets[i] = &m.IntegerVal
 		case "smallInt":
 			targets[i] = &m.SmallInt
 		case "tinyInt":
 			targets[i] = &m.TinyInt
+		case "oidVal":
+			targets[i] = &m.OidVal
 		case "bigIntReq":
 			targets[i] = &m.BigIntReq
 		case "bigIntOpt":
@@ -253,12 +326,16 @@ func (m *AllFieldsSoFar) ScanFields(cols []string) []any {
 			targets[i] = &m.FloatReq
 		case "floatOpt":
 			targets[i] = &m.FloatOpt
+		case "realVal":
+			targets[i] = &m.RealVal
 		case "decimalReq":
 			targets[i] = &m.DecimalReq
 		case "decimalOpt":
 			targets[i] = &m.DecimalOpt
 		case "decimalPrecise":
 			targets[i] = &m.DecimalPrecise
+		case "moneyVal":
+			targets[i] = &m.MoneyVal
 		case "boolReq":
 			targets[i] = &m.BoolReq
 		case "boolOpt":
@@ -275,14 +352,28 @@ func (m *AllFieldsSoFar) ScanFields(cols []string) []any {
 			targets[i] = &m.UpdatedAt
 		case "dateTimeTz":
 			targets[i] = &m.DateTimeTz
+		case "timestampVal":
+			targets[i] = &m.TimestampVal
+		case "timeVal":
+			targets[i] = &m.TimeVal
+		case "timetzVal":
+			targets[i] = &m.TimetzVal
 		case "jsonReq":
 			targets[i] = &m.JsonReq
 		case "jsonOpt":
 			targets[i] = &m.JsonOpt
+		case "jsonVal":
+			targets[i] = &m.JsonVal
 		case "bytesReq":
 			targets[i] = &m.BytesReq
 		case "bytesOpt":
 			targets[i] = &m.BytesOpt
+		case "hstoreField":
+			targets[i] = hstoreScan{p: &m.HstoreField}
+		case "ltreeField":
+			targets[i] = &m.LtreeField
+		case "citextField":
+			targets[i] = &m.CitextField
 		}
 	}
 	return targets
@@ -295,6 +386,10 @@ var allFieldsSoFarDefaultCols = []string{
 	"stringDefault",
 	"stringVarchar",
 	"stringChar",
+	"bitVal",
+	"varBitVal",
+	"inetVal",
+	"xmlVal",
 	"cuidDefault",
 	"cuid1Default",
 	"cuid2Default",
@@ -307,15 +402,19 @@ var allFieldsSoFarDefaultCols = []string{
 	"intReq",
 	"intOpt",
 	"intDefault",
+	"integerVal",
 	"smallInt",
 	"tinyInt",
+	"oidVal",
 	"bigIntReq",
 	"bigIntOpt",
 	"floatReq",
 	"floatOpt",
+	"realVal",
 	"decimalReq",
 	"decimalOpt",
 	"decimalPrecise",
+	"moneyVal",
 	"boolReq",
 	"boolOpt",
 	"boolDefault",
@@ -324,10 +423,17 @@ var allFieldsSoFarDefaultCols = []string{
 	"dateTimeDefault",
 	"updatedAt",
 	"dateTimeTz",
+	"timestampVal",
+	"timeVal",
+	"timetzVal",
 	"jsonReq",
 	"jsonOpt",
+	"jsonVal",
 	"bytesReq",
 	"bytesOpt",
+	"hstoreField",
+	"ltreeField",
+	"citextField",
 }
 
 func (q *Queries) selectAllFieldsSoFarCols(selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, forceCols ...string) []string {
@@ -335,7 +441,7 @@ func (q *Queries) selectAllFieldsSoFarCols(selects *AllFieldsSoFarSelect, omits 
 		return allFieldsSoFarDefaultCols
 	}
 
-	anySelected := selects != nil && (selects.Id || selects.StringReq || selects.StringOpt || selects.StringDefault || selects.StringVarchar || selects.StringChar || selects.CuidDefault || selects.Cuid1Default || selects.Cuid2Default || selects.UuidDefault || selects.Uuid4Default || selects.Uuid7Default || selects.UlidDefault || selects.NanoidDefault || selects.UuidDb || selects.IntReq || selects.IntOpt || selects.IntDefault || selects.SmallInt || selects.TinyInt || selects.BigIntReq || selects.BigIntOpt || selects.FloatReq || selects.FloatOpt || selects.DecimalReq || selects.DecimalOpt || selects.DecimalPrecise || selects.BoolReq || selects.BoolOpt || selects.BoolDefault || selects.DateTimeReq || selects.DateTimeOpt || selects.DateTimeDefault || selects.UpdatedAt || selects.DateTimeTz || selects.JsonReq || selects.JsonOpt || selects.BytesReq || selects.BytesOpt)
+	anySelected := selects != nil && (selects.Id || selects.StringReq || selects.StringOpt || selects.StringDefault || selects.StringVarchar || selects.StringChar || selects.BitVal || selects.VarBitVal || selects.InetVal || selects.XmlVal || selects.CuidDefault || selects.Cuid1Default || selects.Cuid2Default || selects.UuidDefault || selects.Uuid4Default || selects.Uuid7Default || selects.UlidDefault || selects.NanoidDefault || selects.UuidDb || selects.IntReq || selects.IntOpt || selects.IntDefault || selects.IntegerVal || selects.SmallInt || selects.TinyInt || selects.OidVal || selects.BigIntReq || selects.BigIntOpt || selects.FloatReq || selects.FloatOpt || selects.RealVal || selects.DecimalReq || selects.DecimalOpt || selects.DecimalPrecise || selects.MoneyVal || selects.BoolReq || selects.BoolOpt || selects.BoolDefault || selects.DateTimeReq || selects.DateTimeOpt || selects.DateTimeDefault || selects.UpdatedAt || selects.DateTimeTz || selects.TimestampVal || selects.TimeVal || selects.TimetzVal || selects.JsonReq || selects.JsonOpt || selects.JsonVal || selects.BytesReq || selects.BytesOpt || selects.HstoreField || selects.LtreeField || selects.CitextField)
 
 	specs := []colSpec{
 		{"id", selects != nil && selects.Id, omits != nil && omits.Id, selects != nil && selects.hasAnyRelation()},
@@ -344,6 +450,10 @@ func (q *Queries) selectAllFieldsSoFarCols(selects *AllFieldsSoFarSelect, omits 
 		{"stringDefault", selects != nil && selects.StringDefault, omits != nil && omits.StringDefault, false},
 		{"stringVarchar", selects != nil && selects.StringVarchar, omits != nil && omits.StringVarchar, false},
 		{"stringChar", selects != nil && selects.StringChar, omits != nil && omits.StringChar, false},
+		{"bitVal", selects != nil && selects.BitVal, omits != nil && omits.BitVal, false},
+		{"varBitVal", selects != nil && selects.VarBitVal, omits != nil && omits.VarBitVal, false},
+		{"inetVal", selects != nil && selects.InetVal, omits != nil && omits.InetVal, false},
+		{"xmlVal", selects != nil && selects.XmlVal, omits != nil && omits.XmlVal, false},
 		{"cuidDefault", selects != nil && selects.CuidDefault, omits != nil && omits.CuidDefault, false},
 		{"cuid1Default", selects != nil && selects.Cuid1Default, omits != nil && omits.Cuid1Default, false},
 		{"cuid2Default", selects != nil && selects.Cuid2Default, omits != nil && omits.Cuid2Default, false},
@@ -356,15 +466,19 @@ func (q *Queries) selectAllFieldsSoFarCols(selects *AllFieldsSoFarSelect, omits 
 		{"intReq", selects != nil && selects.IntReq, omits != nil && omits.IntReq, false},
 		{"intOpt", selects != nil && selects.IntOpt, omits != nil && omits.IntOpt, false},
 		{"intDefault", selects != nil && selects.IntDefault, omits != nil && omits.IntDefault, false},
+		{"integerVal", selects != nil && selects.IntegerVal, omits != nil && omits.IntegerVal, false},
 		{"smallInt", selects != nil && selects.SmallInt, omits != nil && omits.SmallInt, false},
 		{"tinyInt", selects != nil && selects.TinyInt, omits != nil && omits.TinyInt, false},
+		{"oidVal", selects != nil && selects.OidVal, omits != nil && omits.OidVal, false},
 		{"bigIntReq", selects != nil && selects.BigIntReq, omits != nil && omits.BigIntReq, false},
 		{"bigIntOpt", selects != nil && selects.BigIntOpt, omits != nil && omits.BigIntOpt, false},
 		{"floatReq", selects != nil && selects.FloatReq, omits != nil && omits.FloatReq, false},
 		{"floatOpt", selects != nil && selects.FloatOpt, omits != nil && omits.FloatOpt, false},
+		{"realVal", selects != nil && selects.RealVal, omits != nil && omits.RealVal, false},
 		{"decimalReq", selects != nil && selects.DecimalReq, omits != nil && omits.DecimalReq, false},
 		{"decimalOpt", selects != nil && selects.DecimalOpt, omits != nil && omits.DecimalOpt, false},
 		{"decimalPrecise", selects != nil && selects.DecimalPrecise, omits != nil && omits.DecimalPrecise, false},
+		{"moneyVal", selects != nil && selects.MoneyVal, omits != nil && omits.MoneyVal, false},
 		{"boolReq", selects != nil && selects.BoolReq, omits != nil && omits.BoolReq, false},
 		{"boolOpt", selects != nil && selects.BoolOpt, omits != nil && omits.BoolOpt, false},
 		{"boolDefault", selects != nil && selects.BoolDefault, omits != nil && omits.BoolDefault, false},
@@ -373,10 +487,17 @@ func (q *Queries) selectAllFieldsSoFarCols(selects *AllFieldsSoFarSelect, omits 
 		{"dateTimeDefault", selects != nil && selects.DateTimeDefault, omits != nil && omits.DateTimeDefault, false},
 		{"updatedAt", selects != nil && selects.UpdatedAt, omits != nil && omits.UpdatedAt, false},
 		{"dateTimeTz", selects != nil && selects.DateTimeTz, omits != nil && omits.DateTimeTz, false},
+		{"timestampVal", selects != nil && selects.TimestampVal, omits != nil && omits.TimestampVal, false},
+		{"timeVal", selects != nil && selects.TimeVal, omits != nil && omits.TimeVal, false},
+		{"timetzVal", selects != nil && selects.TimetzVal, omits != nil && omits.TimetzVal, false},
 		{"jsonReq", selects != nil && selects.JsonReq, omits != nil && omits.JsonReq, false},
 		{"jsonOpt", selects != nil && selects.JsonOpt, omits != nil && omits.JsonOpt, false},
+		{"jsonVal", selects != nil && selects.JsonVal, omits != nil && omits.JsonVal, false},
 		{"bytesReq", selects != nil && selects.BytesReq, omits != nil && omits.BytesReq, false},
 		{"bytesOpt", selects != nil && selects.BytesOpt, omits != nil && omits.BytesOpt, false},
+		{"hstoreField", selects != nil && selects.HstoreField, omits != nil && omits.HstoreField, false},
+		{"ltreeField", selects != nil && selects.LtreeField, omits != nil && omits.LtreeField, false},
+		{"citextField", selects != nil && selects.CitextField, omits != nil && omits.CitextField, false},
 	}
 
 	cols := computeCols(specs, selects != nil, anySelected)
@@ -397,6 +518,10 @@ var AllFieldsSoFarColOrder = []string{
 	"stringDefault",
 	"stringVarchar",
 	"stringChar",
+	"bitVal",
+	"varBitVal",
+	"inetVal",
+	"xmlVal",
 	"cuidDefault",
 	"cuid1Default",
 	"cuid2Default",
@@ -409,15 +534,19 @@ var AllFieldsSoFarColOrder = []string{
 	"intReq",
 	"intOpt",
 	"intDefault",
+	"integerVal",
 	"smallInt",
 	"tinyInt",
+	"oidVal",
 	"bigIntReq",
 	"bigIntOpt",
 	"floatReq",
 	"floatOpt",
+	"realVal",
 	"decimalReq",
 	"decimalOpt",
 	"decimalPrecise",
+	"moneyVal",
 	"boolReq",
 	"boolOpt",
 	"boolDefault",
@@ -426,10 +555,17 @@ var AllFieldsSoFarColOrder = []string{
 	"dateTimeDefault",
 	"updatedAt",
 	"dateTimeTz",
+	"timestampVal",
+	"timeVal",
+	"timetzVal",
 	"jsonReq",
 	"jsonOpt",
+	"jsonVal",
 	"bytesReq",
 	"bytesOpt",
+	"hstoreField",
+	"ltreeField",
+	"citextField",
 }
 
 func (s *AllFieldsSoFarSelect) hasAnyRelation() bool {
@@ -469,9 +605,18 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("stringReq", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("stringReq", a.Val, "type", "field stringReq must be of type string")
 			}
 		case "stringOpt":
-			if _, ok := a.Val.(string); !ok {
+			if v, ok := a.Val.(string); ok {
+				if strings.Contains(v, "\x00") {
+					errs.Add("stringOpt", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("stringOpt", v, "safety", "string must be valid UTF-8")
+				}
+			} else {
 				errs.Add("stringOpt", a.Val, "type", "field stringOpt must be of type string")
 			}
 		case "stringDefault":
@@ -482,6 +627,8 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("stringDefault", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("stringDefault", a.Val, "type", "field stringDefault must be of type string")
 			}
 		case "stringVarchar":
 			if v, ok := a.Val.(string); ok {
@@ -494,6 +641,11 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("stringVarchar", v, "safety", "string must be valid UTF-8")
 				}
+				if utf8.RuneCountInString(v) > 255 {
+					errs.Add("stringVarchar", v, "length", "string exceeds maximum length of 255 characters")
+				}
+			} else {
+				errs.Add("stringVarchar", a.Val, "type", "field stringVarchar must be of type string")
 			}
 		case "stringChar":
 			if v, ok := a.Val.(string); ok {
@@ -506,6 +658,78 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("stringChar", v, "safety", "string must be valid UTF-8")
 				}
+				if utf8.RuneCountInString(v) > 10 {
+					errs.Add("stringChar", v, "length", "string exceeds maximum length of 10 characters")
+				}
+			} else {
+				errs.Add("stringChar", a.Val, "type", "field stringChar must be of type string")
+			}
+		case "bitVal":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("bitVal", v, "required", "field bitVal is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("bitVal", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("bitVal", v, "safety", "string must be valid UTF-8")
+				}
+				if strings.IndexFunc(v, func(r rune) bool { return r != '0' && r != '1' }) >= 0 {
+					errs.Add("bitVal", v, "format", "bit string must contain only '0' and '1'")
+				}
+			} else {
+				errs.Add("bitVal", a.Val, "type", "field bitVal must be of type string")
+			}
+		case "varBitVal":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("varBitVal", v, "required", "field varBitVal is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("varBitVal", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("varBitVal", v, "safety", "string must be valid UTF-8")
+				}
+				if strings.IndexFunc(v, func(r rune) bool { return r != '0' && r != '1' }) >= 0 {
+					errs.Add("varBitVal", v, "format", "bit string must contain only '0' and '1'")
+				}
+			} else {
+				errs.Add("varBitVal", a.Val, "type", "field varBitVal must be of type string")
+			}
+		case "inetVal":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("inetVal", v, "required", "field inetVal is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("inetVal", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("inetVal", v, "safety", "string must be valid UTF-8")
+				}
+				if net.ParseIP(v) == nil {
+					if _, _, err := net.ParseCIDR(v); err != nil {
+						errs.Add("inetVal", v, "format", "field inetVal must be a valid IP address")
+					}
+				}
+			} else {
+				errs.Add("inetVal", a.Val, "type", "field inetVal must be of type string")
+			}
+		case "xmlVal":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("xmlVal", v, "required", "field xmlVal is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("xmlVal", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("xmlVal", v, "safety", "string must be valid UTF-8")
+				}
+			} else {
+				errs.Add("xmlVal", a.Val, "type", "field xmlVal must be of type string")
 			}
 		case "cuidDefault":
 			if v, ok := a.Val.(string); ok {
@@ -515,6 +739,8 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("cuidDefault", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("cuidDefault", a.Val, "type", "field cuidDefault must be of type string")
 			}
 		case "cuid1Default":
 			if v, ok := a.Val.(string); ok {
@@ -524,6 +750,8 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("cuid1Default", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("cuid1Default", a.Val, "type", "field cuid1Default must be of type string")
 			}
 		case "cuid2Default":
 			if v, ok := a.Val.(string); ok {
@@ -533,6 +761,8 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("cuid2Default", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("cuid2Default", a.Val, "type", "field cuid2Default must be of type string")
 			}
 		case "uuidDefault":
 			if v, ok := a.Val.(string); ok {
@@ -542,6 +772,8 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("uuidDefault", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("uuidDefault", a.Val, "type", "field uuidDefault must be of type string")
 			}
 		case "uuid4Default":
 			if v, ok := a.Val.(string); ok {
@@ -551,6 +783,8 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("uuid4Default", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("uuid4Default", a.Val, "type", "field uuid4Default must be of type string")
 			}
 		case "uuid7Default":
 			if v, ok := a.Val.(string); ok {
@@ -560,6 +794,8 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("uuid7Default", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("uuid7Default", a.Val, "type", "field uuid7Default must be of type string")
 			}
 		case "ulidDefault":
 			if v, ok := a.Val.(string); ok {
@@ -569,6 +805,8 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("ulidDefault", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("ulidDefault", a.Val, "type", "field ulidDefault must be of type string")
 			}
 		case "nanoidDefault":
 			if v, ok := a.Val.(string); ok {
@@ -578,6 +816,8 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("nanoidDefault", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("nanoidDefault", a.Val, "type", "field nanoidDefault must be of type string")
 			}
 		case "uuidDb":
 			if v, ok := a.Val.(string); ok {
@@ -590,6 +830,8 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("uuidDb", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("uuidDb", a.Val, "type", "field uuidDb must be of type string")
 			}
 		case "intReq":
 			if _, ok := a.Val.(int32); !ok {
@@ -603,13 +845,29 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 			if _, ok := a.Val.(int32); !ok {
 				errs.Add("intDefault", a.Val, "type", "field intDefault must be of type int32")
 			}
-		case "smallInt":
+		case "integerVal":
 			if _, ok := a.Val.(int32); !ok {
+				errs.Add("integerVal", a.Val, "type", "field integerVal must be of type int32")
+			}
+		case "smallInt":
+			if v, ok := a.Val.(int32); ok {
+				if v < -32768 || v > 32767 {
+					errs.Add("smallInt", v, "range", "value is out of range for SmallInt (-32768 to 32767)")
+				}
+			} else {
 				errs.Add("smallInt", a.Val, "type", "field smallInt must be of type int32")
 			}
 		case "tinyInt":
 			if _, ok := a.Val.(int32); !ok {
 				errs.Add("tinyInt", a.Val, "type", "field tinyInt must be of type int32")
+			}
+		case "oidVal":
+			if v, ok := a.Val.(int32); ok {
+				if v < 0 {
+					errs.Add("oidVal", v, "range", "value is out of range for Oid (must be non-negative)")
+				}
+			} else {
+				errs.Add("oidVal", a.Val, "type", "field oidVal must be of type int32")
 			}
 		case "bigIntReq":
 			if _, ok := a.Val.(int64); !ok {
@@ -627,6 +885,10 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 			if _, ok := a.Val.(float64); !ok {
 				errs.Add("floatOpt", a.Val, "type", "field floatOpt must be of type float64")
 			}
+		case "realVal":
+			if _, ok := a.Val.(float64); !ok {
+				errs.Add("realVal", a.Val, "type", "field realVal must be of type float64")
+			}
 		case "decimalReq":
 			if v, ok := a.Val.(string); ok {
 				if v == "" {
@@ -638,9 +900,18 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("decimalReq", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("decimalReq", a.Val, "type", "field decimalReq must be of type string")
 			}
 		case "decimalOpt":
-			if _, ok := a.Val.(string); !ok {
+			if v, ok := a.Val.(string); ok {
+				if strings.Contains(v, "\x00") {
+					errs.Add("decimalOpt", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("decimalOpt", v, "safety", "string must be valid UTF-8")
+				}
+			} else {
 				errs.Add("decimalOpt", a.Val, "type", "field decimalOpt must be of type string")
 			}
 		case "decimalPrecise":
@@ -654,6 +925,22 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("decimalPrecise", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("decimalPrecise", a.Val, "type", "field decimalPrecise must be of type string")
+			}
+		case "moneyVal":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("moneyVal", v, "required", "field moneyVal is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("moneyVal", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("moneyVal", v, "safety", "string must be valid UTF-8")
+				}
+			} else {
+				errs.Add("moneyVal", a.Val, "type", "field moneyVal must be of type string")
 			}
 		case "boolReq":
 			if _, ok := a.Val.(bool); !ok {
@@ -687,6 +974,18 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 			if _, ok := a.Val.(time.Time); !ok {
 				errs.Add("dateTimeTz", a.Val, "type", "field dateTimeTz must be of type time.Time")
 			}
+		case "timestampVal":
+			if _, ok := a.Val.(time.Time); !ok {
+				errs.Add("timestampVal", a.Val, "type", "field timestampVal must be of type time.Time")
+			}
+		case "timeVal":
+			if _, ok := a.Val.(time.Time); !ok {
+				errs.Add("timeVal", a.Val, "type", "field timeVal must be of type time.Time")
+			}
+		case "timetzVal":
+			if _, ok := a.Val.(time.Time); !ok {
+				errs.Add("timetzVal", a.Val, "type", "field timetzVal must be of type time.Time")
+			}
 		case "jsonReq":
 			if _, ok := a.Val.(json.RawMessage); !ok {
 				errs.Add("jsonReq", a.Val, "type", "field jsonReq must be of type json.RawMessage")
@@ -695,6 +994,10 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 			if _, ok := a.Val.(json.RawMessage); !ok {
 				errs.Add("jsonOpt", a.Val, "type", "field jsonOpt must be of type json.RawMessage")
 			}
+		case "jsonVal":
+			if _, ok := a.Val.(json.RawMessage); !ok {
+				errs.Add("jsonVal", a.Val, "type", "field jsonVal must be of type json.RawMessage")
+			}
 		case "bytesReq":
 			if _, ok := a.Val.([]byte); !ok {
 				errs.Add("bytesReq", a.Val, "type", "field bytesReq must be of type []byte")
@@ -702,6 +1005,35 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 		case "bytesOpt":
 			if _, ok := a.Val.([]byte); !ok {
 				errs.Add("bytesOpt", a.Val, "type", "field bytesOpt must be of type []byte")
+			}
+		case "hstoreField":
+			if _, ok := a.Val.(map[string]*string); !ok {
+				errs.Add("hstoreField", a.Val, "type", "field hstoreField must be of type map[string]*string")
+			}
+		case "ltreeField":
+			if v, ok := a.Val.(string); ok {
+				if v == "" {
+					errs.Add("ltreeField", v, "required", "field ltreeField is required")
+				}
+				if strings.Contains(v, "\x00") {
+					errs.Add("ltreeField", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("ltreeField", v, "safety", "string must be valid UTF-8")
+				}
+			} else {
+				errs.Add("ltreeField", a.Val, "type", "field ltreeField must be of type string")
+			}
+		case "citextField":
+			if v, ok := a.Val.(string); ok {
+				if strings.Contains(v, "\x00") {
+					errs.Add("citextField", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("citextField", v, "safety", "string must be valid UTF-8")
+				}
+			} else {
+				errs.Add("citextField", a.Val, "type", "field citextField must be of type string")
 			}
 		}
 	}
@@ -714,11 +1046,26 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 	if !provided["stringChar"] {
 		errs.Add("stringChar", "", "required", "field StringChar is required")
 	}
+	if !provided["bitVal"] {
+		errs.Add("bitVal", "", "required", "field BitVal is required")
+	}
+	if !provided["varBitVal"] {
+		errs.Add("varBitVal", "", "required", "field VarBitVal is required")
+	}
+	if !provided["inetVal"] {
+		errs.Add("inetVal", "", "required", "field InetVal is required")
+	}
+	if !provided["xmlVal"] {
+		errs.Add("xmlVal", "", "required", "field XmlVal is required")
+	}
 	if !provided["uuidDb"] {
 		errs.Add("uuidDb", "", "required", "field UuidDb is required")
 	}
 	if !provided["intReq"] {
 		errs.Add("intReq", nil, "required", "field IntReq is required")
+	}
+	if !provided["integerVal"] {
+		errs.Add("integerVal", nil, "required", "field IntegerVal is required")
 	}
 	if !provided["smallInt"] {
 		errs.Add("smallInt", nil, "required", "field SmallInt is required")
@@ -726,17 +1073,26 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 	if !provided["tinyInt"] {
 		errs.Add("tinyInt", nil, "required", "field TinyInt is required")
 	}
+	if !provided["oidVal"] {
+		errs.Add("oidVal", nil, "required", "field OidVal is required")
+	}
 	if !provided["bigIntReq"] {
 		errs.Add("bigIntReq", nil, "required", "field BigIntReq is required")
 	}
 	if !provided["floatReq"] {
 		errs.Add("floatReq", nil, "required", "field FloatReq is required")
 	}
+	if !provided["realVal"] {
+		errs.Add("realVal", nil, "required", "field RealVal is required")
+	}
 	if !provided["decimalReq"] {
 		errs.Add("decimalReq", "", "required", "field DecimalReq is required")
 	}
 	if !provided["decimalPrecise"] {
 		errs.Add("decimalPrecise", "", "required", "field DecimalPrecise is required")
+	}
+	if !provided["moneyVal"] {
+		errs.Add("moneyVal", "", "required", "field MoneyVal is required")
 	}
 	if !provided["boolReq"] {
 		errs.Add("boolReq", nil, "required", "field BoolReq is required")
@@ -750,11 +1106,26 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 	if !provided["dateTimeTz"] {
 		errs.Add("dateTimeTz", nil, "required", "field DateTimeTz is required")
 	}
+	if !provided["timestampVal"] {
+		errs.Add("timestampVal", nil, "required", "field TimestampVal is required")
+	}
+	if !provided["timeVal"] {
+		errs.Add("timeVal", nil, "required", "field TimeVal is required")
+	}
+	if !provided["timetzVal"] {
+		errs.Add("timetzVal", nil, "required", "field TimetzVal is required")
+	}
 	if !provided["jsonReq"] {
 		errs.Add("jsonReq", nil, "required", "field JsonReq is required")
 	}
+	if !provided["jsonVal"] {
+		errs.Add("jsonVal", nil, "required", "field JsonVal is required")
+	}
 	if !provided["bytesReq"] {
 		errs.Add("bytesReq", nil, "required", "field BytesReq is required")
+	}
+	if !provided["ltreeField"] {
+		errs.Add("ltreeField", "", "required", "field LtreeField is required")
 	}
 
 	if errs.HasErrors() {
@@ -790,6 +1161,22 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) AllFieldsS
 		case "stringChar":
 			if v, ok := a.Val.(string); ok {
 				input.StringChar = v
+			}
+		case "bitVal":
+			if v, ok := a.Val.(string); ok {
+				input.BitVal = v
+			}
+		case "varBitVal":
+			if v, ok := a.Val.(string); ok {
+				input.VarBitVal = v
+			}
+		case "inetVal":
+			if v, ok := a.Val.(string); ok {
+				input.InetVal = v
+			}
+		case "xmlVal":
+			if v, ok := a.Val.(string); ok {
+				input.XmlVal = v
 			}
 		case "cuidDefault":
 			if v, ok := a.Val.(string); ok {
@@ -839,6 +1226,10 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) AllFieldsS
 			if v, ok := a.Val.(int32); ok {
 				input.IntDefault = &v
 			}
+		case "integerVal":
+			if v, ok := a.Val.(int32); ok {
+				input.IntegerVal = v
+			}
 		case "smallInt":
 			if v, ok := a.Val.(int32); ok {
 				input.SmallInt = v
@@ -846,6 +1237,10 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) AllFieldsS
 		case "tinyInt":
 			if v, ok := a.Val.(int32); ok {
 				input.TinyInt = v
+			}
+		case "oidVal":
+			if v, ok := a.Val.(int32); ok {
+				input.OidVal = v
 			}
 		case "bigIntReq":
 			if v, ok := a.Val.(int64); ok {
@@ -863,6 +1258,10 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) AllFieldsS
 			if v, ok := a.Val.(float64); ok {
 				input.FloatOpt = &v
 			}
+		case "realVal":
+			if v, ok := a.Val.(float64); ok {
+				input.RealVal = v
+			}
 		case "decimalReq":
 			if v, ok := a.Val.(string); ok {
 				input.DecimalReq = v
@@ -874,6 +1273,10 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) AllFieldsS
 		case "decimalPrecise":
 			if v, ok := a.Val.(string); ok {
 				input.DecimalPrecise = v
+			}
+		case "moneyVal":
+			if v, ok := a.Val.(string); ok {
+				input.MoneyVal = v
 			}
 		case "boolReq":
 			if v, ok := a.Val.(bool); ok {
@@ -907,6 +1310,18 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) AllFieldsS
 			if v, ok := a.Val.(time.Time); ok {
 				input.DateTimeTz = v
 			}
+		case "timestampVal":
+			if v, ok := a.Val.(time.Time); ok {
+				input.TimestampVal = v
+			}
+		case "timeVal":
+			if v, ok := a.Val.(time.Time); ok {
+				input.TimeVal = v
+			}
+		case "timetzVal":
+			if v, ok := a.Val.(time.Time); ok {
+				input.TimetzVal = v
+			}
 		case "jsonReq":
 			if v, ok := a.Val.(json.RawMessage); ok {
 				input.JsonReq = v
@@ -914,6 +1329,10 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) AllFieldsS
 		case "jsonOpt":
 			if v, ok := a.Val.(json.RawMessage); ok {
 				input.JsonOpt = &v
+			}
+		case "jsonVal":
+			if v, ok := a.Val.(json.RawMessage); ok {
+				input.JsonVal = v
 			}
 		case "bytesReq":
 			if v, ok := a.Val.([]byte); ok {
@@ -923,13 +1342,25 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) AllFieldsS
 			if v, ok := a.Val.([]byte); ok {
 				input.BytesOpt = &v
 			}
+		case "hstoreField":
+			if v, ok := a.Val.(map[string]*string); ok {
+				input.HstoreField = &v
+			}
+		case "ltreeField":
+			if v, ok := a.Val.(string); ok {
+				input.LtreeField = v
+			}
+		case "citextField":
+			if v, ok := a.Val.(string); ok {
+				input.CitextField = &v
+			}
 		}
 	}
 	return input
 }
 
 func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
-	m := make(map[string]any, 39)
+	m := make(map[string]any, 54)
 	if s.Id != nil {
 		m["id"] = *s.Id
 	}
@@ -942,6 +1373,10 @@ func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
 	}
 	m["stringVarchar"] = s.StringVarchar
 	m["stringChar"] = s.StringChar
+	m["bitVal"] = s.BitVal
+	m["varBitVal"] = s.VarBitVal
+	m["inetVal"] = s.InetVal
+	m["xmlVal"] = s.XmlVal
 	if s.CuidDefault != nil {
 		m["cuidDefault"] = *s.CuidDefault
 	} else {
@@ -990,8 +1425,10 @@ func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
 	if s.IntDefault != nil {
 		m["intDefault"] = *s.IntDefault
 	}
+	m["integerVal"] = s.IntegerVal
 	m["smallInt"] = s.SmallInt
 	m["tinyInt"] = s.TinyInt
+	m["oidVal"] = s.OidVal
 	m["bigIntReq"] = s.BigIntReq
 	if s.BigIntOpt != nil {
 		m["bigIntOpt"] = *s.BigIntOpt
@@ -1000,11 +1437,13 @@ func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
 	if s.FloatOpt != nil {
 		m["floatOpt"] = *s.FloatOpt
 	}
+	m["realVal"] = s.RealVal
 	m["decimalReq"] = s.DecimalReq
 	if s.DecimalOpt != nil {
 		m["decimalOpt"] = *s.DecimalOpt
 	}
 	m["decimalPrecise"] = s.DecimalPrecise
+	m["moneyVal"] = s.MoneyVal
 	m["boolReq"] = s.BoolReq
 	if s.BoolOpt != nil {
 		m["boolOpt"] = *s.BoolOpt
@@ -1023,13 +1462,24 @@ func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
 	}
 	m["updatedAt"] = s.UpdatedAt
 	m["dateTimeTz"] = s.DateTimeTz
+	m["timestampVal"] = s.TimestampVal
+	m["timeVal"] = s.TimeVal
+	m["timetzVal"] = s.TimetzVal
 	m["jsonReq"] = s.JsonReq
 	if s.JsonOpt != nil {
 		m["jsonOpt"] = *s.JsonOpt
 	}
+	m["jsonVal"] = s.JsonVal
 	m["bytesReq"] = s.BytesReq
 	if s.BytesOpt != nil {
 		m["bytesOpt"] = *s.BytesOpt
+	}
+	if s.HstoreField != nil {
+		m["hstoreField"] = toHstore(*s.HstoreField)
+	}
+	m["ltreeField"] = s.LtreeField
+	if s.CitextField != nil {
+		m["citextField"] = *s.CitextField
 	}
 	return m
 }
@@ -1067,6 +1517,14 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 	vals = append(vals, input.StringVarchar)
 	cols = append(cols, "stringChar")
 	vals = append(vals, input.StringChar)
+	cols = append(cols, "bitVal")
+	vals = append(vals, input.BitVal)
+	cols = append(cols, "varBitVal")
+	vals = append(vals, input.VarBitVal)
+	cols = append(cols, "inetVal")
+	vals = append(vals, input.InetVal)
+	cols = append(cols, "xmlVal")
+	vals = append(vals, input.XmlVal)
 	if input.CuidDefault != nil {
 		cols = append(cols, "cuidDefault")
 		vals = append(vals, *input.CuidDefault)
@@ -1135,10 +1593,14 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 		cols = append(cols, "intDefault")
 		vals = append(vals, *input.IntDefault)
 	}
+	cols = append(cols, "integerVal")
+	vals = append(vals, input.IntegerVal)
 	cols = append(cols, "smallInt")
 	vals = append(vals, input.SmallInt)
 	cols = append(cols, "tinyInt")
 	vals = append(vals, input.TinyInt)
+	cols = append(cols, "oidVal")
+	vals = append(vals, input.OidVal)
 	cols = append(cols, "bigIntReq")
 	vals = append(vals, input.BigIntReq)
 	if input.BigIntOpt != nil {
@@ -1151,6 +1613,8 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 		cols = append(cols, "floatOpt")
 		vals = append(vals, *input.FloatOpt)
 	}
+	cols = append(cols, "realVal")
+	vals = append(vals, input.RealVal)
 	cols = append(cols, "decimalReq")
 	vals = append(vals, input.DecimalReq)
 	if input.DecimalOpt != nil {
@@ -1159,6 +1623,8 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 	}
 	cols = append(cols, "decimalPrecise")
 	vals = append(vals, input.DecimalPrecise)
+	cols = append(cols, "moneyVal")
+	vals = append(vals, input.MoneyVal)
 	cols = append(cols, "boolReq")
 	vals = append(vals, input.BoolReq)
 	if input.BoolOpt != nil {
@@ -1186,17 +1652,35 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 	vals = append(vals, input.UpdatedAt)
 	cols = append(cols, "dateTimeTz")
 	vals = append(vals, input.DateTimeTz)
+	cols = append(cols, "timestampVal")
+	vals = append(vals, input.TimestampVal)
+	cols = append(cols, "timeVal")
+	vals = append(vals, input.TimeVal)
+	cols = append(cols, "timetzVal")
+	vals = append(vals, input.TimetzVal)
 	cols = append(cols, "jsonReq")
 	vals = append(vals, input.JsonReq)
 	if input.JsonOpt != nil {
 		cols = append(cols, "jsonOpt")
 		vals = append(vals, *input.JsonOpt)
 	}
+	cols = append(cols, "jsonVal")
+	vals = append(vals, input.JsonVal)
 	cols = append(cols, "bytesReq")
 	vals = append(vals, input.BytesReq)
 	if input.BytesOpt != nil {
 		cols = append(cols, "bytesOpt")
 		vals = append(vals, *input.BytesOpt)
+	}
+	if input.HstoreField != nil {
+		cols = append(cols, "hstoreField")
+		vals = append(vals, toHstore(*input.HstoreField))
+	}
+	cols = append(cols, "ltreeField")
+	vals = append(vals, input.LtreeField)
+	if input.CitextField != nil {
+		cols = append(cols, "citextField")
+		vals = append(vals, *input.CitextField)
 	}
 
 	returningCols := q.selectAllFieldsSoFarCols(selects, omits)

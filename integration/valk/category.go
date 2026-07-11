@@ -137,6 +137,8 @@ func validateCategoryCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("name", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("name", a.Val, "type", "field name must be of type string")
 			}
 		}
 	}

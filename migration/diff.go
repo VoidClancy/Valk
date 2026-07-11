@@ -61,6 +61,7 @@ func DiffAndPlan(db *sql.DB, provider providers.DbProvider, targetSchema *vs.Sch
 		return "", "", err
 	}
 
+	upSQL = injectRequiredExtensions(upSQL, targetSchema)
 	return upSQL, downSQL, nil
 }
 
@@ -136,4 +137,44 @@ func (p *diffPlanner) planDirection(from, to *schema.Schema, direction string, a
 		stmts = SortMigrationStatements(stmts)
 	}
 	return strings.Join(stmts, "\n"), nil
+}
+
+func injectRequiredExtensions(upSQL string, targetSchema *vs.Schema) string {
+	if upSQL == "" {
+		return ""
+	}
+	needed := make(map[string]string)
+	for _, model := range targetSchema.Models {
+		for _, sf := range model.ScalarFields {
+			switch {
+			case sf.SQLType == "hstore":
+				needed["hstore"] = "hstore"
+			case sf.SQLType == "ltree":
+				needed["ltree"] = "ltree"
+			case sf.SQLType == "citext":
+				needed["citext"] = "citext"
+			case sf.NativeType != nil && sf.NativeType.Name == "Citext":
+				needed["citext"] = "citext"
+			case strings.HasPrefix(sf.SQLType, "geometry") || strings.HasPrefix(sf.SQLType, "geography"):
+				needed["postgis"] = "postgis"
+			case strings.HasPrefix(sf.SQLType, "vector"):
+				needed["vector"] = "vector"
+			}
+		}
+	}
+	if len(needed) == 0 {
+		return upSQL
+	}
+	var prelude strings.Builder
+	for _, ext := range []string{"citext", "hstore", "ltree", "postgis", "vector"} {
+		if needed[ext] != "" {
+			fmt.Fprintf(&prelude, "CREATE EXTENSION IF NOT EXISTS %s;\n", ext)
+		}
+	}
+	prelude.WriteByte('\n')
+	extBlock := prelude.String()
+	if strings.Contains(upSQL, extBlock) {
+		return upSQL
+	}
+	return extBlock + upSQL
 }

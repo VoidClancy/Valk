@@ -187,6 +187,8 @@ func validateUserCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("id", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
 		case "email":
 			if v, ok := a.Val.(string); ok {
@@ -199,6 +201,8 @@ func validateUserCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("email", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("email", a.Val, "type", "field email must be of type string")
 			}
 		case "phoneNum":
 			if v, ok := a.Val.(string); ok {
@@ -211,21 +215,45 @@ func validateUserCreate(assignments []FieldAssignment) error {
 				if !utf8.ValidString(v) {
 					errs.Add("phoneNum", v, "safety", "string must be valid UTF-8")
 				}
+			} else {
+				errs.Add("phoneNum", a.Val, "type", "field phoneNum must be of type string")
 			}
 		case "password":
-			if _, ok := a.Val.(string); !ok {
+			if v, ok := a.Val.(string); ok {
+				if strings.Contains(v, "\x00") {
+					errs.Add("password", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("password", v, "safety", "string must be valid UTF-8")
+				}
+			} else {
 				errs.Add("password", a.Val, "type", "field password must be of type string")
 			}
 		case "role":
-			if v, ok := a.Val.(UserRoleType); ok && !v.IsValid() {
-				errs.Add("role", v, "enum", fmt.Sprintf("invalid enum value %q for field role", v))
+			if v, ok := a.Val.(UserRoleType); ok {
+				if !v.IsValid() {
+					errs.Add("role", v, "enum", fmt.Sprintf("invalid enum value %q for field role", v))
+				}
+			} else {
+				errs.Add("role", a.Val, "type", "field role must be of type UserRoleType")
 			}
 		case "roleOptional":
-			if v, ok := a.Val.(UserRoleType); ok && !v.IsValid() {
-				errs.Add("roleOptional", v, "enum", fmt.Sprintf("invalid enum value %q for field roleOptional", v))
+			if v, ok := a.Val.(UserRoleType); ok {
+				if !v.IsValid() {
+					errs.Add("roleOptional", v, "enum", fmt.Sprintf("invalid enum value %q for field roleOptional", v))
+				}
+			} else {
+				errs.Add("roleOptional", a.Val, "type", "field roleOptional must be of type UserRoleType")
 			}
 		case "referredById":
-			if _, ok := a.Val.(string); !ok {
+			if v, ok := a.Val.(string); ok {
+				if strings.Contains(v, "\x00") {
+					errs.Add("referredById", v, "safety", "string cannot contain null bytes")
+				}
+				if !utf8.ValidString(v) {
+					errs.Add("referredById", v, "safety", "string must be valid UTF-8")
+				}
+			} else {
 				errs.Add("referredById", a.Val, "type", "field referredById must be of type string")
 			}
 		}
