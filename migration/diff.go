@@ -146,18 +146,18 @@ func injectRequiredExtensions(upSQL string, targetSchema *vs.Schema) string {
 	needed := make(map[string]string)
 	for _, model := range targetSchema.Models {
 		for _, sf := range model.ScalarFields {
-			switch {
-			case sf.SQLType == "hstore":
-				needed["hstore"] = "hstore"
-			case sf.SQLType == "ltree":
-				needed["ltree"] = "ltree"
-			case sf.SQLType == "citext":
-				needed["citext"] = "citext"
-			case sf.NativeType != nil && sf.NativeType.Name == "Citext":
-				needed["citext"] = "citext"
-			case strings.HasPrefix(sf.SQLType, "geometry") || strings.HasPrefix(sf.SQLType, "geography"):
+			for _, spec := range vs.NativeTypes {
+				if (sf.NativeType != nil && strings.EqualFold(sf.NativeType.Name, spec.PrismaName)) || 
+				   strings.EqualFold(sf.SQLType, spec.SQLType) {
+					if spec.Extension != "" {
+						needed[spec.Extension] = spec.Extension
+					}
+				}
+			}
+			lowerSql := strings.ToLower(sf.SQLType)
+			if strings.HasPrefix(lowerSql, "geometry") || strings.HasPrefix(lowerSql, "geography") {
 				needed["postgis"] = "postgis"
-			case strings.HasPrefix(sf.SQLType, "vector"):
+			} else if strings.HasPrefix(lowerSql, "vector") {
 				needed["vector"] = "vector"
 			}
 		}

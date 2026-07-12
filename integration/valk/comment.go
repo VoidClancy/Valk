@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
-	"strings"
-	"unicode/utf8"
 )
 
 // Comment represents the database model
@@ -182,76 +180,43 @@ func validateCommentCreate(assignments []FieldAssignment) error {
 		switch a.Col {
 		case "id":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("id", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("id", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "id", v, false, 0, false, false)
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
 		case "textify":
-			if _, ok := a.Val.(int32); !ok {
+			if v, ok := a.Val.(int32); ok {
+				ValidateInt32(errs, "textify", v, "")
+			} else {
 				errs.Add("textify", a.Val, "type", "field textify must be of type int32")
 			}
 		case "dummy3":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("dummy3", v, "required", "field dummy3 is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("dummy3", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("dummy3", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "dummy3", v, true, 0, false, false)
 			} else {
 				errs.Add("dummy3", a.Val, "type", "field dummy3 must be of type string")
 			}
 		case "dummy1":
-			if _, ok := a.Val.(int32); !ok {
+			if v, ok := a.Val.(int32); ok {
+				ValidateInt32(errs, "dummy1", v, "")
+			} else {
 				errs.Add("dummy1", a.Val, "type", "field dummy1 must be of type int32")
 			}
 		case "dummy2":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("dummy2", v, "required", "field dummy2 is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("dummy2", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("dummy2", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "dummy2", v, true, 0, false, false)
 			} else {
 				errs.Add("dummy2", a.Val, "type", "field dummy2 must be of type string")
 			}
 		case "postId":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("postId", v, "required", "field postId is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("postId", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("postId", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "postId", v, true, 0, false, false)
 			} else {
 				errs.Add("postId", a.Val, "type", "field postId must be of type string")
 			}
 		case "authorId":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("authorId", v, "required", "field authorId is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("authorId", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("authorId", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "authorId", v, true, 0, false, false)
 			} else {
 				errs.Add("authorId", a.Val, "type", "field authorId must be of type string")
 			}
@@ -359,30 +324,14 @@ func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldA
 		return nil, err
 	}
 
+	rowMap := input.ToRowMap()
 	var cols []string
 	var vals []any
-	if input.Id != nil {
-		cols = append(cols, "id")
-		vals = append(vals, *input.Id)
-	} else {
-		cols = append(cols, "id")
-		vals = append(vals, generateCUID())
-	}
-	cols = append(cols, "textify")
-	vals = append(vals, input.Textify)
-	cols = append(cols, "dummy3")
-	vals = append(vals, input.Dummy3)
-	cols = append(cols, "dummy1")
-	vals = append(vals, input.Dummy1)
-	cols = append(cols, "dummy2")
-	vals = append(vals, input.Dummy2)
-	cols = append(cols, "postId")
-	vals = append(vals, input.PostId)
-	cols = append(cols, "authorId")
-	vals = append(vals, input.AuthorId)
-	if input.Meta != nil {
-		cols = append(cols, "meta")
-		vals = append(vals, *input.Meta)
+	for _, col := range CommentColOrder {
+		if val, ok := rowMap[col]; ok {
+			cols = append(cols, col)
+			vals = append(vals, val)
+		}
 	}
 
 	returningCols := q.selectCommentCols(selects, omits)

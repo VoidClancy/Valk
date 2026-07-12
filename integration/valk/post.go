@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
-	"unicode/utf8"
 )
 
 // Post represents the database model
@@ -157,37 +155,19 @@ func validatePostCreate(assignments []FieldAssignment) error {
 		switch a.Col {
 		case "id":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("id", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("id", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "id", v, false, 0, false, false)
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
 		case "title":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("title", v, "required", "field title is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("title", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("title", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "title", v, true, 0, false, false)
 			} else {
 				errs.Add("title", a.Val, "type", "field title must be of type string")
 			}
 		case "content":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("content", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("content", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "content", v, false, 0, false, false)
 			} else {
 				errs.Add("content", a.Val, "type", "field content must be of type string")
 			}
@@ -197,15 +177,7 @@ func validatePostCreate(assignments []FieldAssignment) error {
 			}
 		case "authorId":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("authorId", v, "required", "field authorId is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("authorId", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("authorId", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "authorId", v, true, 0, false, false)
 			} else {
 				errs.Add("authorId", a.Val, "type", "field authorId must be of type string")
 			}
@@ -284,27 +256,15 @@ func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssi
 		return nil, err
 	}
 
+	rowMap := input.ToRowMap()
 	var cols []string
 	var vals []any
-	if input.Id != nil {
-		cols = append(cols, "id")
-		vals = append(vals, *input.Id)
-	} else {
-		cols = append(cols, "id")
-		vals = append(vals, generateCUID())
+	for _, col := range PostColOrder {
+		if val, ok := rowMap[col]; ok {
+			cols = append(cols, col)
+			vals = append(vals, val)
+		}
 	}
-	cols = append(cols, "title")
-	vals = append(vals, input.Title)
-	if input.Content != nil {
-		cols = append(cols, "content")
-		vals = append(vals, *input.Content)
-	}
-	if input.Published != nil {
-		cols = append(cols, "published")
-		vals = append(vals, *input.Published)
-	}
-	cols = append(cols, "authorId")
-	vals = append(vals, input.AuthorId)
 
 	returningCols := q.selectPostCols(selects, omits)
 

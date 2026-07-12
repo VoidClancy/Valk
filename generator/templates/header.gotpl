@@ -2,41 +2,63 @@ package {{ .PackageName }}
 
 import (
 	"context"
+	{{- if or .NeedCUID .NeedCUID2 .NeedULID .NeedNanoID }}
 	"crypto/rand"
+	{{- end }}
 	"database/sql"
 	"encoding/json"
 	{{- if .EmbedPath }}
 	"embed"
 	{{- end }}
 	"fmt"
-	{{- if hasHstoreAnywhere .Schema }}
-	"github.com/lib/pq/hstore"
-	{{- end }}
 	{{- if hasAnyLog }}
 	"log"
 	{{- end }}
+	{{- if hasNetAnywhere .Schema }}
+	"net"
+	{{- end }}
+	{{- if or .NeedCUID .NeedCUID2 .NeedULID }}
 	"strconv"
+	{{- end }}
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"github.com/google/uuid"
+	{{- if hasHstoreAnywhere .Schema }}
+	"github.com/lib/pq/hstore"
+	{{- end }}
 	"github.com/pressly/goose/v3"
+
+	{{- if or .NeedUUID .NeedUUID7 }}
+	"github.com/google/uuid"
+	{{- end }}
 )
 
 var _ = time.Time{}
+{{- if hasHstoreAnywhere .Schema }}
+var _ = hstore.Hstore{}
+{{- end }}
+{{- if hasNetAnywhere .Schema }}
+var _ = net.ParseIP
+{{- end }}
 var _ = json.RawMessage{}
 var _ = strings.Join
+{{- if or .NeedUUID .NeedUUID7 }}
 var _ = uuid.New
-var _ = uuid.NewV7
+{{- end }}
+{{- if or .NeedCUID .NeedCUID2 .NeedULID .NeedNanoID }}
 var _ = rand.Read
+{{- end }}
+{{- if or .NeedCUID .NeedCUID2 .NeedULID }}
 var _ = strconv.AppendUint
+{{- end }}
 
 {{- if .EmbedPath }}
 //go:embed {{ .EmbedPath }}
 var migrationsFS embed.FS
 {{- end }}
 
+{{- if .NeedCUID }}
 func generateCUID() string {
 	now := uint64(time.Now().UnixMilli())
 	b := make([]byte, 8)
@@ -51,11 +73,15 @@ func generateCUID() string {
 	}
 	return string(buf)
 }
+{{- end }}
 
+{{- if .NeedUUID }}
 func generateUUID() string {
 	return uuid.New().String()
 }
+{{- end }}
 
+{{- if .NeedUUID7 }}
 func generateUUID7() string {
 	id, err := uuid.NewV7()
 	if err != nil {
@@ -63,7 +89,9 @@ func generateUUID7() string {
 	}
 	return id.String()
 }
+{{- end }}
 
+{{- if .NeedCUID2 }}
 func generateCUID2() string {
 	now := uint64(time.Now().UnixMilli())
 	b := make([]byte, 12)
@@ -77,7 +105,9 @@ func generateCUID2() string {
 	}
 	return string(buf)
 }
+{{- end }}
 
+{{- if .NeedULID }}
 func generateULID() string {
 	now := uint64(time.Now().UnixMilli())
 	b := make([]byte, 10)
@@ -105,7 +135,9 @@ func generateULID() string {
 	}
 	return string(buf[:])
 }
+{{- end }}
 
+{{- if .NeedNanoID }}
 func generateNanoID() string {
 	const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-"
 	b := make([]byte, 21)
@@ -115,91 +147,4 @@ func generateNanoID() string {
 	}
 	return string(b)
 }
-
-{{- if hasHstoreAnywhere .Schema }}
-func toHstore(m map[string]*string) hstore.Hstore {
-	result := hstore.Hstore{Map: make(map[string]sql.NullString, len(m))}
-	for k, v := range m {
-		if v == nil {
-			result.Map[k] = sql.NullString{Valid: false}
-		} else {
-			result.Map[k] = sql.NullString{String: *v, Valid: true}
-		}
-	}
-	return result
-}
-
-type hstoreScan struct {
-	p **map[string]*string
-}
-
-func (s hstoreScan) Scan(src any) error {
-	var h hstore.Hstore
-	if err := h.Scan(src); err != nil {
-		return err
-	}
-	if h.Map == nil {
-		*s.p = nil
-		return nil
-	}
-	m := make(map[string]*string, len(h.Map))
-	for k, v := range h.Map {
-		if v.Valid {
-			val := v.String
-			m[k] = &val
-		} else {
-			m[k] = nil
-		}
-	}
-	*s.p = &m
-	return nil
-}
 {{- end }}
-
-// FieldError represents a single validation failure on a specific field.
-type FieldError struct {
-	Field string
-	Value any
-	Rule  string
-	Msg   string
-}
-
-func (e FieldError) Error() string {
-	return fmt.Sprintf("field %s: %s (value: %v, rule: %s)", e.Field, e.Msg, e.Value, e.Rule)
-}
-
-// ValidationError collects multiple validation errors during an operation.
-type ValidationError struct {
-	Errors []FieldError
-}
-
-func (e ValidationError) Error() string {
-	var msgs []string
-	for _, err := range e.Errors {
-		msgs = append(msgs, err.Error())
-	}
-	return fmt.Sprintf("validation failed: %s", strings.Join(msgs, "; "))
-}
-
-func (e *ValidationError) Add(field string, value any, rule string, msg string) {
-	e.Errors = append(e.Errors, FieldError{
-		Field: field,
-		Value: value,
-		Rule:  rule,
-		Msg:   msg,
-	})
-}
-
-func (e *ValidationError) HasErrors() bool {
-	return len(e.Errors) > 0
-}
-
-type FieldAssignment struct {
-	Col string
-	Val any
-}
-
-type RecordInput struct {
-	Assignments []FieldAssignment
-}
-

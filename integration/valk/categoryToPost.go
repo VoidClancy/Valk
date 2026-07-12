@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
-	"unicode/utf8"
 )
 
 // CategoryToPost represents the database model
@@ -127,20 +125,14 @@ func validateCategoryToPostCreate(assignments []FieldAssignment) error {
 		switch a.Col {
 		case "postId":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("postId", v, "required", "field postId is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("postId", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("postId", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "postId", v, true, 0, false, false)
 			} else {
 				errs.Add("postId", a.Val, "type", "field postId must be of type string")
 			}
 		case "categoryId":
-			if _, ok := a.Val.(int32); !ok {
+			if v, ok := a.Val.(int32); ok {
+				ValidateInt32(errs, "categoryId", v, "")
+			} else {
 				errs.Add("categoryId", a.Val, "type", "field categoryId must be of type int32")
 			}
 		}
@@ -195,12 +187,15 @@ func (q *Queries) executeCategoryToPostCreate(ctx context.Context, assignments [
 		return nil, err
 	}
 
+	rowMap := input.ToRowMap()
 	var cols []string
 	var vals []any
-	cols = append(cols, "postId")
-	vals = append(vals, input.PostId)
-	cols = append(cols, "categoryId")
-	vals = append(vals, input.CategoryId)
+	for _, col := range CategoryToPostColOrder {
+		if val, ok := rowMap[col]; ok {
+			cols = append(cols, col)
+			vals = append(vals, val)
+		}
+	}
 
 	returningCols := q.selectCategoryToPostCols(selects, omits)
 

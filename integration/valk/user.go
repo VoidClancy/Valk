@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
-	"unicode/utf8"
 )
 
 // User represents the database model
@@ -181,51 +179,25 @@ func validateUserCreate(assignments []FieldAssignment) error {
 		switch a.Col {
 		case "id":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("id", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("id", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "id", v, false, 0, false, false)
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
 		case "email":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("email", v, "required", "field email is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("email", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("email", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "email", v, true, 0, false, false)
 			} else {
 				errs.Add("email", a.Val, "type", "field email must be of type string")
 			}
 		case "phoneNum":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("phoneNum", v, "required", "field phoneNum is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("phoneNum", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("phoneNum", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "phoneNum", v, true, 0, false, false)
 			} else {
 				errs.Add("phoneNum", a.Val, "type", "field phoneNum must be of type string")
 			}
 		case "password":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("password", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("password", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "password", v, false, 0, false, false)
 			} else {
 				errs.Add("password", a.Val, "type", "field password must be of type string")
 			}
@@ -247,12 +219,7 @@ func validateUserCreate(assignments []FieldAssignment) error {
 			}
 		case "referredById":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("referredById", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("referredById", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "referredById", v, false, 0, false, false)
 			} else {
 				errs.Add("referredById", a.Val, "type", "field referredById must be of type string")
 			}
@@ -345,34 +312,14 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 		return nil, err
 	}
 
+	rowMap := input.ToRowMap()
 	var cols []string
 	var vals []any
-	if input.Id != nil {
-		cols = append(cols, "id")
-		vals = append(vals, *input.Id)
-	} else {
-		cols = append(cols, "id")
-		vals = append(vals, generateCUID())
-	}
-	cols = append(cols, "email")
-	vals = append(vals, input.Email)
-	cols = append(cols, "phoneNum")
-	vals = append(vals, input.PhoneNum)
-	if input.Password != nil {
-		cols = append(cols, "password")
-		vals = append(vals, *input.Password)
-	}
-	if input.Role != nil {
-		cols = append(cols, "role")
-		vals = append(vals, *input.Role)
-	}
-	if input.RoleOptional != nil {
-		cols = append(cols, "roleOptional")
-		vals = append(vals, *input.RoleOptional)
-	}
-	if input.ReferredById != nil {
-		cols = append(cols, "referredById")
-		vals = append(vals, *input.ReferredById)
+	for _, col := range UserColOrder {
+		if val, ok := rowMap[col]; ok {
+			cols = append(cols, col)
+			vals = append(vals, val)
+		}
 	}
 
 	returningCols := q.selectUserCols(selects, omits)

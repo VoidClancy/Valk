@@ -11,8 +11,6 @@ import (
 	"{{ .ParentImportPath }}"
 )
 
-
-
 type UniquePredicate struct {
 	{{ .ParentPackageName }}.StandardPredicate
 }

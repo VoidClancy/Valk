@@ -1,4 +1,4 @@
-.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check vet integration-gen integration-test bench race lint
+.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check vet integration-gen integration-test bench race lint test-sqlite test-pg test-dbs
 
 bi: build install
 
@@ -61,3 +61,20 @@ db-clean:
 	
 db-reset:
 	docker compose exec db psql -U postgres -d postgres -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+ 
+test-sqlite: bi test
+	node integration/prepareSchema.js sqlite
+	cd integration && ../bin/valk -g
+	rm -f integration/valk/migrations/*.sql
+	rm -f integration/dev.db
+	cd integration && DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/valk -m init
+	cd integration && go test -tags sqlite -v ./...
+
+test-pg: bi db-reset test
+	node integration/prepareSchema.js postgres
+	cd integration && ../bin/valk -g
+	rm -f integration/valk/migrations/*.sql
+	cd integration && DATABASE_URL="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" DATABASE_DIRECT_URL="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" ../bin/valk -m init
+	cd integration && go test -v ./...
+
+test-dbs: test-sqlite test-pg

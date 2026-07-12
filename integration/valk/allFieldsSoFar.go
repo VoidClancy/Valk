@@ -4,11 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"slices"
-	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 // AllFieldsSoFar represents the database model
@@ -369,7 +366,7 @@ func (m *AllFieldsSoFar) ScanFields(cols []string) []any {
 		case "bytesOpt":
 			targets[i] = &m.BytesOpt
 		case "hstoreField":
-			targets[i] = hstoreScan{p: &m.HstoreField}
+			targets[i] = HstoreScan{P: &m.HstoreField}
 		case "ltreeField":
 			targets[i] = &m.LtreeField
 		case "citextField":
@@ -591,290 +588,171 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 		provided[a.Col] = true
 		switch a.Col {
 		case "id":
-			if _, ok := a.Val.(int32); !ok {
+			if v, ok := a.Val.(int32); ok {
+				ValidateInt32(errs, "id", v, "")
+			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type int32")
 			}
 		case "stringReq":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("stringReq", v, "required", "field stringReq is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("stringReq", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("stringReq", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "stringReq", v, true, 0, false, false)
 			} else {
 				errs.Add("stringReq", a.Val, "type", "field stringReq must be of type string")
 			}
 		case "stringOpt":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("stringOpt", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("stringOpt", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "stringOpt", v, false, 0, false, false)
 			} else {
 				errs.Add("stringOpt", a.Val, "type", "field stringOpt must be of type string")
 			}
 		case "stringDefault":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("stringDefault", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("stringDefault", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "stringDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("stringDefault", a.Val, "type", "field stringDefault must be of type string")
 			}
 		case "stringVarchar":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("stringVarchar", v, "required", "field stringVarchar is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("stringVarchar", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("stringVarchar", v, "safety", "string must be valid UTF-8")
-				}
-				if utf8.RuneCountInString(v) > 255 {
-					errs.Add("stringVarchar", v, "length", "string exceeds maximum length of 255 characters")
-				}
+				ValidateString(errs, "stringVarchar", v, true, 255, false, false)
 			} else {
 				errs.Add("stringVarchar", a.Val, "type", "field stringVarchar must be of type string")
 			}
 		case "stringChar":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("stringChar", v, "required", "field stringChar is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("stringChar", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("stringChar", v, "safety", "string must be valid UTF-8")
-				}
-				if utf8.RuneCountInString(v) > 10 {
-					errs.Add("stringChar", v, "length", "string exceeds maximum length of 10 characters")
-				}
+				ValidateString(errs, "stringChar", v, true, 10, false, false)
 			} else {
 				errs.Add("stringChar", a.Val, "type", "field stringChar must be of type string")
 			}
 		case "bitVal":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("bitVal", v, "required", "field bitVal is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("bitVal", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("bitVal", v, "safety", "string must be valid UTF-8")
-				}
-				if strings.IndexFunc(v, func(r rune) bool { return r != '0' && r != '1' }) >= 0 {
-					errs.Add("bitVal", v, "format", "bit string must contain only '0' and '1'")
-				}
+				ValidateString(errs, "bitVal", v, true, 0, true, false)
 			} else {
 				errs.Add("bitVal", a.Val, "type", "field bitVal must be of type string")
 			}
 		case "varBitVal":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("varBitVal", v, "required", "field varBitVal is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("varBitVal", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("varBitVal", v, "safety", "string must be valid UTF-8")
-				}
-				if strings.IndexFunc(v, func(r rune) bool { return r != '0' && r != '1' }) >= 0 {
-					errs.Add("varBitVal", v, "format", "bit string must contain only '0' and '1'")
-				}
+				ValidateString(errs, "varBitVal", v, true, 0, true, false)
 			} else {
 				errs.Add("varBitVal", a.Val, "type", "field varBitVal must be of type string")
 			}
 		case "inetVal":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("inetVal", v, "required", "field inetVal is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("inetVal", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("inetVal", v, "safety", "string must be valid UTF-8")
-				}
-				if net.ParseIP(v) == nil {
-					if _, _, err := net.ParseCIDR(v); err != nil {
-						errs.Add("inetVal", v, "format", "field inetVal must be a valid IP address")
-					}
-				}
+				ValidateString(errs, "inetVal", v, true, 0, false, true)
 			} else {
 				errs.Add("inetVal", a.Val, "type", "field inetVal must be of type string")
 			}
 		case "xmlVal":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("xmlVal", v, "required", "field xmlVal is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("xmlVal", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("xmlVal", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "xmlVal", v, true, 0, false, false)
 			} else {
 				errs.Add("xmlVal", a.Val, "type", "field xmlVal must be of type string")
 			}
 		case "cuidDefault":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("cuidDefault", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("cuidDefault", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "cuidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("cuidDefault", a.Val, "type", "field cuidDefault must be of type string")
 			}
 		case "cuid1Default":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("cuid1Default", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("cuid1Default", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "cuid1Default", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid1Default", a.Val, "type", "field cuid1Default must be of type string")
 			}
 		case "cuid2Default":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("cuid2Default", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("cuid2Default", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "cuid2Default", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid2Default", a.Val, "type", "field cuid2Default must be of type string")
 			}
 		case "uuidDefault":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("uuidDefault", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("uuidDefault", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "uuidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("uuidDefault", a.Val, "type", "field uuidDefault must be of type string")
 			}
 		case "uuid4Default":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("uuid4Default", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("uuid4Default", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "uuid4Default", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid4Default", a.Val, "type", "field uuid4Default must be of type string")
 			}
 		case "uuid7Default":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("uuid7Default", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("uuid7Default", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "uuid7Default", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid7Default", a.Val, "type", "field uuid7Default must be of type string")
 			}
 		case "ulidDefault":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("ulidDefault", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("ulidDefault", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "ulidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("ulidDefault", a.Val, "type", "field ulidDefault must be of type string")
 			}
 		case "nanoidDefault":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("nanoidDefault", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("nanoidDefault", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "nanoidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("nanoidDefault", a.Val, "type", "field nanoidDefault must be of type string")
 			}
 		case "uuidDb":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("uuidDb", v, "required", "field uuidDb is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("uuidDb", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("uuidDb", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "uuidDb", v, true, 0, false, false)
 			} else {
 				errs.Add("uuidDb", a.Val, "type", "field uuidDb must be of type string")
 			}
 		case "intReq":
-			if _, ok := a.Val.(int32); !ok {
+			if v, ok := a.Val.(int32); ok {
+				ValidateInt32(errs, "intReq", v, "")
+			} else {
 				errs.Add("intReq", a.Val, "type", "field intReq must be of type int32")
 			}
 		case "intOpt":
-			if _, ok := a.Val.(int32); !ok {
+			if v, ok := a.Val.(int32); ok {
+				ValidateInt32(errs, "intOpt", v, "")
+			} else {
 				errs.Add("intOpt", a.Val, "type", "field intOpt must be of type int32")
 			}
 		case "intDefault":
-			if _, ok := a.Val.(int32); !ok {
+			if v, ok := a.Val.(int32); ok {
+				ValidateInt32(errs, "intDefault", v, "")
+			} else {
 				errs.Add("intDefault", a.Val, "type", "field intDefault must be of type int32")
 			}
 		case "integerVal":
-			if _, ok := a.Val.(int32); !ok {
+			if v, ok := a.Val.(int32); ok {
+				ValidateInt32(errs, "integerVal", v, "")
+			} else {
 				errs.Add("integerVal", a.Val, "type", "field integerVal must be of type int32")
 			}
 		case "smallInt":
 			if v, ok := a.Val.(int32); ok {
-				if v < -32768 || v > 32767 {
-					errs.Add("smallInt", v, "range", "value is out of range for SmallInt (-32768 to 32767)")
-				}
+				ValidateInt32(errs, "smallInt", v, "SmallInt")
 			} else {
 				errs.Add("smallInt", a.Val, "type", "field smallInt must be of type int32")
 			}
 		case "tinyInt":
-			if _, ok := a.Val.(int32); !ok {
+			if v, ok := a.Val.(int32); ok {
+				ValidateInt32(errs, "tinyInt", v, "")
+			} else {
 				errs.Add("tinyInt", a.Val, "type", "field tinyInt must be of type int32")
 			}
 		case "oidVal":
 			if v, ok := a.Val.(int32); ok {
-				if v < 0 {
-					errs.Add("oidVal", v, "range", "value is out of range for Oid (must be non-negative)")
-				}
+				ValidateInt32(errs, "oidVal", v, "Oid")
 			} else {
 				errs.Add("oidVal", a.Val, "type", "field oidVal must be of type int32")
 			}
 		case "bigIntReq":
-			if _, ok := a.Val.(int64); !ok {
+			if v, ok := a.Val.(int64); ok {
+				ValidateInt64(errs, "bigIntReq", v, "")
+			} else {
 				errs.Add("bigIntReq", a.Val, "type", "field bigIntReq must be of type int64")
 			}
 		case "bigIntOpt":
-			if _, ok := a.Val.(int64); !ok {
+			if v, ok := a.Val.(int64); ok {
+				ValidateInt64(errs, "bigIntOpt", v, "")
+			} else {
 				errs.Add("bigIntOpt", a.Val, "type", "field bigIntOpt must be of type int64")
 			}
 		case "floatReq":
@@ -891,54 +769,25 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 			}
 		case "decimalReq":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("decimalReq", v, "required", "field decimalReq is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("decimalReq", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("decimalReq", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "decimalReq", v, true, 0, false, false)
 			} else {
 				errs.Add("decimalReq", a.Val, "type", "field decimalReq must be of type string")
 			}
 		case "decimalOpt":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("decimalOpt", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("decimalOpt", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "decimalOpt", v, false, 0, false, false)
 			} else {
 				errs.Add("decimalOpt", a.Val, "type", "field decimalOpt must be of type string")
 			}
 		case "decimalPrecise":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("decimalPrecise", v, "required", "field decimalPrecise is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("decimalPrecise", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("decimalPrecise", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "decimalPrecise", v, true, 0, false, false)
 			} else {
 				errs.Add("decimalPrecise", a.Val, "type", "field decimalPrecise must be of type string")
 			}
 		case "moneyVal":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("moneyVal", v, "required", "field moneyVal is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("moneyVal", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("moneyVal", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "moneyVal", v, true, 0, false, false)
 			} else {
 				errs.Add("moneyVal", a.Val, "type", "field moneyVal must be of type string")
 			}
@@ -1012,26 +861,13 @@ func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
 			}
 		case "ltreeField":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("ltreeField", v, "required", "field ltreeField is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("ltreeField", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("ltreeField", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "ltreeField", v, true, 0, false, false)
 			} else {
 				errs.Add("ltreeField", a.Val, "type", "field ltreeField must be of type string")
 			}
 		case "citextField":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("citextField", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("citextField", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "citextField", v, false, 0, false, false)
 			} else {
 				errs.Add("citextField", a.Val, "type", "field citextField must be of type string")
 			}
@@ -1475,7 +1311,7 @@ func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
 		m["bytesOpt"] = *s.BytesOpt
 	}
 	if s.HstoreField != nil {
-		m["hstoreField"] = toHstore(*s.HstoreField)
+		m["hstoreField"] = ToHstore(*s.HstoreField)
 	}
 	m["ltreeField"] = s.LtreeField
 	if s.CitextField != nil {
@@ -1497,190 +1333,14 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 		return nil, err
 	}
 
+	rowMap := input.ToRowMap()
 	var cols []string
 	var vals []any
-	if input.Id != nil {
-		cols = append(cols, "id")
-		vals = append(vals, *input.Id)
-	}
-	cols = append(cols, "stringReq")
-	vals = append(vals, input.StringReq)
-	if input.StringOpt != nil {
-		cols = append(cols, "stringOpt")
-		vals = append(vals, *input.StringOpt)
-	}
-	if input.StringDefault != nil {
-		cols = append(cols, "stringDefault")
-		vals = append(vals, *input.StringDefault)
-	}
-	cols = append(cols, "stringVarchar")
-	vals = append(vals, input.StringVarchar)
-	cols = append(cols, "stringChar")
-	vals = append(vals, input.StringChar)
-	cols = append(cols, "bitVal")
-	vals = append(vals, input.BitVal)
-	cols = append(cols, "varBitVal")
-	vals = append(vals, input.VarBitVal)
-	cols = append(cols, "inetVal")
-	vals = append(vals, input.InetVal)
-	cols = append(cols, "xmlVal")
-	vals = append(vals, input.XmlVal)
-	if input.CuidDefault != nil {
-		cols = append(cols, "cuidDefault")
-		vals = append(vals, *input.CuidDefault)
-	} else {
-		cols = append(cols, "cuidDefault")
-		vals = append(vals, generateCUID())
-	}
-	if input.Cuid1Default != nil {
-		cols = append(cols, "cuid1Default")
-		vals = append(vals, *input.Cuid1Default)
-	} else {
-		cols = append(cols, "cuid1Default")
-		vals = append(vals, generateCUID())
-	}
-	if input.Cuid2Default != nil {
-		cols = append(cols, "cuid2Default")
-		vals = append(vals, *input.Cuid2Default)
-	} else {
-		cols = append(cols, "cuid2Default")
-		vals = append(vals, generateCUID2())
-	}
-	if input.UuidDefault != nil {
-		cols = append(cols, "uuidDefault")
-		vals = append(vals, *input.UuidDefault)
-	} else {
-		cols = append(cols, "uuidDefault")
-		vals = append(vals, generateUUID())
-	}
-	if input.Uuid4Default != nil {
-		cols = append(cols, "uuid4Default")
-		vals = append(vals, *input.Uuid4Default)
-	} else {
-		cols = append(cols, "uuid4Default")
-		vals = append(vals, generateUUID())
-	}
-	if input.Uuid7Default != nil {
-		cols = append(cols, "uuid7Default")
-		vals = append(vals, *input.Uuid7Default)
-	} else {
-		cols = append(cols, "uuid7Default")
-		vals = append(vals, generateUUID7())
-	}
-	if input.UlidDefault != nil {
-		cols = append(cols, "ulidDefault")
-		vals = append(vals, *input.UlidDefault)
-	} else {
-		cols = append(cols, "ulidDefault")
-		vals = append(vals, generateULID())
-	}
-	if input.NanoidDefault != nil {
-		cols = append(cols, "nanoidDefault")
-		vals = append(vals, *input.NanoidDefault)
-	} else {
-		cols = append(cols, "nanoidDefault")
-		vals = append(vals, generateNanoID())
-	}
-	cols = append(cols, "uuidDb")
-	vals = append(vals, input.UuidDb)
-	cols = append(cols, "intReq")
-	vals = append(vals, input.IntReq)
-	if input.IntOpt != nil {
-		cols = append(cols, "intOpt")
-		vals = append(vals, *input.IntOpt)
-	}
-	if input.IntDefault != nil {
-		cols = append(cols, "intDefault")
-		vals = append(vals, *input.IntDefault)
-	}
-	cols = append(cols, "integerVal")
-	vals = append(vals, input.IntegerVal)
-	cols = append(cols, "smallInt")
-	vals = append(vals, input.SmallInt)
-	cols = append(cols, "tinyInt")
-	vals = append(vals, input.TinyInt)
-	cols = append(cols, "oidVal")
-	vals = append(vals, input.OidVal)
-	cols = append(cols, "bigIntReq")
-	vals = append(vals, input.BigIntReq)
-	if input.BigIntOpt != nil {
-		cols = append(cols, "bigIntOpt")
-		vals = append(vals, *input.BigIntOpt)
-	}
-	cols = append(cols, "floatReq")
-	vals = append(vals, input.FloatReq)
-	if input.FloatOpt != nil {
-		cols = append(cols, "floatOpt")
-		vals = append(vals, *input.FloatOpt)
-	}
-	cols = append(cols, "realVal")
-	vals = append(vals, input.RealVal)
-	cols = append(cols, "decimalReq")
-	vals = append(vals, input.DecimalReq)
-	if input.DecimalOpt != nil {
-		cols = append(cols, "decimalOpt")
-		vals = append(vals, *input.DecimalOpt)
-	}
-	cols = append(cols, "decimalPrecise")
-	vals = append(vals, input.DecimalPrecise)
-	cols = append(cols, "moneyVal")
-	vals = append(vals, input.MoneyVal)
-	cols = append(cols, "boolReq")
-	vals = append(vals, input.BoolReq)
-	if input.BoolOpt != nil {
-		cols = append(cols, "boolOpt")
-		vals = append(vals, *input.BoolOpt)
-	}
-	if input.BoolDefault != nil {
-		cols = append(cols, "boolDefault")
-		vals = append(vals, *input.BoolDefault)
-	}
-	cols = append(cols, "dateTimeReq")
-	vals = append(vals, input.DateTimeReq)
-	if input.DateTimeOpt != nil {
-		cols = append(cols, "dateTimeOpt")
-		vals = append(vals, *input.DateTimeOpt)
-	}
-	if input.DateTimeDefault != nil {
-		cols = append(cols, "dateTimeDefault")
-		vals = append(vals, *input.DateTimeDefault)
-	} else {
-		cols = append(cols, "dateTimeDefault")
-		vals = append(vals, time.Now())
-	}
-	cols = append(cols, "updatedAt")
-	vals = append(vals, input.UpdatedAt)
-	cols = append(cols, "dateTimeTz")
-	vals = append(vals, input.DateTimeTz)
-	cols = append(cols, "timestampVal")
-	vals = append(vals, input.TimestampVal)
-	cols = append(cols, "timeVal")
-	vals = append(vals, input.TimeVal)
-	cols = append(cols, "timetzVal")
-	vals = append(vals, input.TimetzVal)
-	cols = append(cols, "jsonReq")
-	vals = append(vals, input.JsonReq)
-	if input.JsonOpt != nil {
-		cols = append(cols, "jsonOpt")
-		vals = append(vals, *input.JsonOpt)
-	}
-	cols = append(cols, "jsonVal")
-	vals = append(vals, input.JsonVal)
-	cols = append(cols, "bytesReq")
-	vals = append(vals, input.BytesReq)
-	if input.BytesOpt != nil {
-		cols = append(cols, "bytesOpt")
-		vals = append(vals, *input.BytesOpt)
-	}
-	if input.HstoreField != nil {
-		cols = append(cols, "hstoreField")
-		vals = append(vals, toHstore(*input.HstoreField))
-	}
-	cols = append(cols, "ltreeField")
-	vals = append(vals, input.LtreeField)
-	if input.CitextField != nil {
-		cols = append(cols, "citextField")
-		vals = append(vals, *input.CitextField)
+	for _, col := range AllFieldsSoFarColOrder {
+		if val, ok := rowMap[col]; ok {
+			cols = append(cols, col)
+			vals = append(vals, val)
+		}
 	}
 
 	returningCols := q.selectAllFieldsSoFarCols(selects, omits)

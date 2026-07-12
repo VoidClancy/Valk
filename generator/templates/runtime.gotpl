@@ -1,0 +1,180 @@
+type Dialect interface {
+	Quote(ident string) string
+	BindVar(idx int) string
+	SupportsReturning() bool
+	SupportsBulkInsert() bool
+}
+
+type DBTX interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	PrepareContext(context.Context, string) (*sql.Stmt, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+// FieldError represents a single validation failure on a specific field.
+type FieldError struct {
+	Field string
+	Value any
+	Rule  string
+	Msg   string
+}
+
+func (e FieldError) Error() string {
+	return fmt.Sprintf("field %s: %s (value: %v, rule: %s)", e.Field, e.Msg, e.Value, e.Rule)
+}
+
+// ValidationError collects multiple validation errors during an operation.
+type ValidationError struct {
+	Errors []FieldError
+}
+
+func (e ValidationError) Error() string {
+	var msgs []string
+	for _, err := range e.Errors {
+		msgs = append(msgs, err.Error())
+	}
+	return fmt.Sprintf("validation failed: %s", strings.Join(msgs, "; "))
+}
+
+func (e *ValidationError) Add(field string, value any, rule string, msg string) {
+	e.Errors = append(e.Errors, FieldError{
+		Field: field,
+		Value: value,
+		Rule:  rule,
+		Msg:   msg,
+	})
+}
+
+func (e *ValidationError) HasErrors() bool {
+	return len(e.Errors) > 0
+}
+
+type FieldAssignment struct {
+	Col string
+	Val any
+}
+
+type RecordInput struct {
+	Assignments []FieldAssignment
+}
+
+{{- if hasHstoreAnywhere .Schema }}
+func ToHstore(m map[string]*string) hstore.Hstore {
+	result := hstore.Hstore{Map: make(map[string]sql.NullString, len(m))}
+	for k, v := range m {
+		if v == nil {
+			result.Map[k] = sql.NullString{Valid: false}
+		} else {
+			result.Map[k] = sql.NullString{String: *v, Valid: true}
+		}
+	}
+	return result
+}
+
+type HstoreScan struct {
+	P **map[string]*string
+}
+
+func (s HstoreScan) Scan(src any) error {
+	var h hstore.Hstore
+	if err := h.Scan(src); err != nil {
+		return err
+	}
+	if h.Map == nil {
+		*s.P = nil
+		return nil
+	}
+	m := make(map[string]*string, len(h.Map))
+	for k, v := range h.Map {
+		if v.Valid {
+			val := v.String
+			m[k] = &val
+		} else {
+			m[k] = nil
+		}
+	}
+	*s.P = &m
+	return nil
+}
+{{- end }}
+
+func ValidateString(errs *ValidationError, fieldName string, val string, isRequired bool, maxLen int, isBit bool, isInet bool) {
+	if isRequired && val == "" {
+		errs.Add(fieldName, val, "required", fmt.Sprintf("field %s is required", fieldName))
+	}
+	if strings.Contains(val, "\x00") {
+		errs.Add(fieldName, val, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(val) {
+		errs.Add(fieldName, val, "safety", "string must be valid UTF-8")
+	}
+	if maxLen > 0 && utf8.RuneCountInString(val) > maxLen {
+		errs.Add(fieldName, val, "length", fmt.Sprintf("string exceeds maximum length of %d characters", maxLen))
+	}
+	if isBit {
+		if strings.IndexFunc(val, func(r rune) bool { return r != '0' && r != '1' }) >= 0 {
+			errs.Add(fieldName, val, "format", "bit string must contain only '0' and '1'")
+		}
+	}
+	{{- if hasNetAnywhere .Schema }}
+	if isInet {
+		if net.ParseIP(val) == nil {
+			if _, _, err := net.ParseCIDR(val); err != nil {
+				errs.Add(fieldName, val, "format", fmt.Sprintf("field %s must be a valid IP address", fieldName))
+			}
+		}
+	}
+	{{- end }}
+}
+
+func ValidateInt32(errs *ValidationError, fieldName string, val int32, rule string) {
+	switch rule {
+	case "SmallInt":
+		if val < -32768 || val > 32767 {
+			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
+		}
+	case "TinyInt":
+		if val < -128 || val > 127 {
+			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
+		}
+	case "Oid":
+		if val < 0 {
+			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
+		}
+	}
+}
+
+func ValidateInt64(errs *ValidationError, fieldName string, val int64, rule string) {
+	switch rule {
+	case "SmallInt":
+		if val < -32768 || val > 32767 {
+			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
+		}
+	case "TinyInt":
+		if val < -128 || val > 127 {
+			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
+		}
+	case "Oid":
+		if val < 0 {
+			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
+		}
+	}
+}
+
+func ValidateInt(errs *ValidationError, fieldName string, val int, rule string) {
+	switch rule {
+	case "SmallInt":
+		if val < -32768 || val > 32767 {
+			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
+		}
+	case "TinyInt":
+		if val < -128 || val > 127 {
+			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
+		}
+	case "Oid":
+		if val < 0 {
+			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
+		}
+	}
+}

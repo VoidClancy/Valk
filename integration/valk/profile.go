@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 // Profile represents the database model
@@ -143,37 +141,19 @@ func validateProfileCreate(assignments []FieldAssignment) error {
 		switch a.Col {
 		case "id":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("id", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("id", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "id", v, false, 0, false, false)
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
 		case "bio":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("bio", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("bio", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "bio", v, false, 0, false, false)
 			} else {
 				errs.Add("bio", a.Val, "type", "field bio must be of type string")
 			}
 		case "userId":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("userId", v, "required", "field userId is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("userId", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("userId", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "userId", v, true, 0, false, false)
 			} else {
 				errs.Add("userId", a.Val, "type", "field userId must be of type string")
 			}
@@ -250,27 +230,14 @@ func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldA
 		return nil, err
 	}
 
+	rowMap := input.ToRowMap()
 	var cols []string
 	var vals []any
-	if input.Id != nil {
-		cols = append(cols, "id")
-		vals = append(vals, *input.Id)
-	} else {
-		cols = append(cols, "id")
-		vals = append(vals, generateCUID())
-	}
-	if input.Bio != nil {
-		cols = append(cols, "bio")
-		vals = append(vals, *input.Bio)
-	}
-	cols = append(cols, "userId")
-	vals = append(vals, input.UserId)
-	if input.CreatedAt != nil {
-		cols = append(cols, "createdAt")
-		vals = append(vals, *input.CreatedAt)
-	} else {
-		cols = append(cols, "createdAt")
-		vals = append(vals, time.Now())
+	for _, col := range ProfileColOrder {
+		if val, ok := rowMap[col]; ok {
+			cols = append(cols, col)
+			vals = append(vals, val)
+		}
 	}
 
 	returningCols := q.selectProfileCols(selects, omits)
