@@ -26,6 +26,12 @@ func (p UniquePredicate) Validate() error {
 
 type Select = {{ .ParentPackageName }}.{{ .Model.Name }}Select
 type Omit = {{ .ParentPackageName }}.{{ .Model.Name }}Omit
+type QueryBuilder = {{ .ParentPackageName }}.{{ .Model.Name }}QueryBuilder
+
+func Query() *QueryBuilder {
+	return &QueryBuilder{}
+}
+
 func Record(assignments ...{{ .ParentPackageName }}.FieldAssignment) {{ .ParentPackageName }}.RecordInput {
 	return {{ .ParentPackageName }}.RecordInput{Assignments: assignments}
 }

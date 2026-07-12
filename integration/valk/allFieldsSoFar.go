@@ -240,6 +240,66 @@ type AllFieldsSoFarOmit struct {
 	CitextField     bool `json:"citextField"`
 }
 
+type AllFieldsSoFarSelectQuery interface {
+	GetRelationParams() (*AllFieldsSoFarSelect, *AllFieldsSoFarOmit, QueryParams)
+}
+
+func (s *AllFieldsSoFarSelect) GetRelationParams() (*AllFieldsSoFarSelect, *AllFieldsSoFarOmit, QueryParams) {
+	return s, nil, QueryParams{}
+}
+
+// AllFieldsSoFarQueryBuilder builds a query for the relation AllFieldsSoFar
+type AllFieldsSoFarQueryBuilder struct {
+	selects *AllFieldsSoFarSelect
+	omits   *AllFieldsSoFarOmit
+	where   []Predicate
+	take    *int
+	skip    *int
+	orderBy []OrderBy
+}
+
+func (b *AllFieldsSoFarQueryBuilder) Where(preds ...Predicate) *AllFieldsSoFarQueryBuilder {
+	b.where = append(b.where, preds...)
+	return b
+}
+
+func (b *AllFieldsSoFarQueryBuilder) Take(limit int) *AllFieldsSoFarQueryBuilder {
+	b.take = &limit
+	return b
+}
+
+func (b *AllFieldsSoFarQueryBuilder) Skip(offset int) *AllFieldsSoFarQueryBuilder {
+	b.skip = &offset
+	return b
+}
+
+func (b *AllFieldsSoFarQueryBuilder) OrderBy(orders ...OrderBy) *AllFieldsSoFarQueryBuilder {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *AllFieldsSoFarQueryBuilder) Select(s AllFieldsSoFarSelect) *AllFieldsSoFarQueryBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *AllFieldsSoFarQueryBuilder) Omit(o AllFieldsSoFarOmit) *AllFieldsSoFarQueryBuilder {
+	b.omits = &o
+	return b
+}
+
+func (b *AllFieldsSoFarQueryBuilder) GetRelationParams() (*AllFieldsSoFarSelect, *AllFieldsSoFarOmit, QueryParams) {
+	if b == nil {
+		return nil, nil, QueryParams{}
+	}
+	return b.selects, b.omits, QueryParams{
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+	}
+}
+
 type AllFieldsSoFarDelegate struct {
 	client          *Queries
 	beforeCreate    func(context.Context, *AllFieldsSoFarCreate) error

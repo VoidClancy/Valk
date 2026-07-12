@@ -35,34 +35,89 @@ type UserCreate struct {
 
 // UserSelect specifies which fields to include
 type UserSelect struct {
-	Id           bool           `json:"id"`
-	Email        bool           `json:"email"`
-	PhoneNum     bool           `json:"phoneNum"`
-	Password     bool           `json:"password"`
-	Role         bool           `json:"role"`
-	RoleOptional bool           `json:"roleOptional"`
-	ReferredById bool           `json:"referredById"`
-	Profile      *ProfileSelect `json:"profile,omitempty"`
-	Posts        *PostSelect    `json:"posts,omitempty"`
-	Comments     *CommentSelect `json:"comments,omitempty"`
-	ReferredBy   *UserSelect    `json:"referredBy,omitempty"`
-	Referrals    *UserSelect    `json:"referrals,omitempty"`
+	Id           bool               `json:"id"`
+	Email        bool               `json:"email"`
+	PhoneNum     bool               `json:"phoneNum"`
+	Password     bool               `json:"password"`
+	Role         bool               `json:"role"`
+	RoleOptional bool               `json:"roleOptional"`
+	ReferredById bool               `json:"referredById"`
+	Profile      ProfileSelectQuery `json:"profile,omitempty"`
+	Posts        PostSelectQuery    `json:"posts,omitempty"`
+	Comments     CommentSelectQuery `json:"comments,omitempty"`
+	ReferredBy   UserSelectQuery    `json:"referredBy,omitempty"`
+	Referrals    UserSelectQuery    `json:"referrals,omitempty"`
 }
 
 // UserOmit specifies which fields to exclude
 type UserOmit struct {
-	Id           bool         `json:"id"`
-	Email        bool         `json:"email"`
-	PhoneNum     bool         `json:"phoneNum"`
-	Password     bool         `json:"password"`
-	Role         bool         `json:"role"`
-	RoleOptional bool         `json:"roleOptional"`
-	ReferredById bool         `json:"referredById"`
-	Profile      *ProfileOmit `json:"profile,omitempty"`
-	Posts        *PostOmit    `json:"posts,omitempty"`
-	Comments     *CommentOmit `json:"comments,omitempty"`
-	ReferredBy   *UserOmit    `json:"referredBy,omitempty"`
-	Referrals    *UserOmit    `json:"referrals,omitempty"`
+	Id           bool `json:"id"`
+	Email        bool `json:"email"`
+	PhoneNum     bool `json:"phoneNum"`
+	Password     bool `json:"password"`
+	Role         bool `json:"role"`
+	RoleOptional bool `json:"roleOptional"`
+	ReferredById bool `json:"referredById"`
+}
+
+type UserSelectQuery interface {
+	GetRelationParams() (*UserSelect, *UserOmit, QueryParams)
+}
+
+func (s *UserSelect) GetRelationParams() (*UserSelect, *UserOmit, QueryParams) {
+	return s, nil, QueryParams{}
+}
+
+// UserQueryBuilder builds a query for the relation User
+type UserQueryBuilder struct {
+	selects *UserSelect
+	omits   *UserOmit
+	where   []Predicate
+	take    *int
+	skip    *int
+	orderBy []OrderBy
+}
+
+func (b *UserQueryBuilder) Where(preds ...Predicate) *UserQueryBuilder {
+	b.where = append(b.where, preds...)
+	return b
+}
+
+func (b *UserQueryBuilder) Take(limit int) *UserQueryBuilder {
+	b.take = &limit
+	return b
+}
+
+func (b *UserQueryBuilder) Skip(offset int) *UserQueryBuilder {
+	b.skip = &offset
+	return b
+}
+
+func (b *UserQueryBuilder) OrderBy(orders ...OrderBy) *UserQueryBuilder {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *UserQueryBuilder) Select(s UserSelect) *UserQueryBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *UserQueryBuilder) Omit(o UserOmit) *UserQueryBuilder {
+	b.omits = &o
+	return b
+}
+
+func (b *UserQueryBuilder) GetRelationParams() (*UserSelect, *UserOmit, QueryParams) {
+	if b == nil {
+		return nil, nil, QueryParams{}
+	}
+	return b.selects, b.omits, QueryParams{
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+	}
 }
 
 type UserDelegate struct {
@@ -542,7 +597,8 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 		return nil
 	}
 	if selects.Profile != nil {
-		returningCols := q.selectProfileCols(selects.Profile, nil, "userId")
+		relationSelects, relationOmits, relationParams := selects.Profile.GetRelationParams()
+		returningCols := q.selectProfileCols(relationSelects, relationOmits, "userId")
 		// Inverse holds the FK: Profile.userId
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -553,16 +609,18 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 			scanInto(returningCols, (*Profile).ScanFields),
 			directKey(func(c *Profile) string { return c.UserId }),
 			setOne(func(p *User, c *Profile) { p.Profile = c }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading profile: %w", err)
 		}
-		if err := q.loadProfileRelations(ctx, allChildren, selects.Profile); err != nil {
+		if err := q.loadProfileRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.Posts != nil {
-		returningCols := q.selectPostCols(selects.Posts, nil, "authorId")
+		relationSelects, relationOmits, relationParams := selects.Posts.GetRelationParams()
+		returningCols := q.selectPostCols(relationSelects, relationOmits, "authorId")
 		// Inverse holds the FK: Post.authorId
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -573,16 +631,18 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 			scanInto(returningCols, (*Post).ScanFields),
 			directKey(func(c *Post) string { return c.AuthorId }),
 			appendMany(func(p *User) *[]*Post { return &p.Posts }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading posts: %w", err)
 		}
-		if err := q.loadPostRelations(ctx, allChildren, selects.Posts); err != nil {
+		if err := q.loadPostRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.Comments != nil {
-		returningCols := q.selectCommentCols(selects.Comments, nil, "authorId")
+		relationSelects, relationOmits, relationParams := selects.Comments.GetRelationParams()
+		returningCols := q.selectCommentCols(relationSelects, relationOmits, "authorId")
 		// Inverse holds the FK: Comment.authorId
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -593,16 +653,18 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 			scanInto(returningCols, (*Comment).ScanFields),
 			directKey(func(c *Comment) string { return c.AuthorId }),
 			appendMany(func(p *User) *[]*Comment { return &p.Comments }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading comments: %w", err)
 		}
-		if err := q.loadCommentRelations(ctx, allChildren, selects.Comments); err != nil {
+		if err := q.loadCommentRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.ReferredBy != nil {
-		returningCols := q.selectUserCols(selects.ReferredBy, nil, "id")
+		relationSelects, relationOmits, relationParams := selects.ReferredBy.GetRelationParams()
+		returningCols := q.selectUserCols(relationSelects, relationOmits, "id")
 		// Current model holds the FK: User.referredById
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -613,16 +675,18 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 			scanInto(returningCols, (*User).ScanFields),
 			directKey(func(c *User) string { return c.Id }),
 			setOne(func(p *User, c *User) { p.ReferredBy = c }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading referredBy: %w", err)
 		}
-		if err := q.loadUserRelations(ctx, allChildren, selects.ReferredBy); err != nil {
+		if err := q.loadUserRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.Referrals != nil {
-		returningCols := q.selectUserCols(selects.Referrals, nil, "referredById")
+		relationSelects, relationOmits, relationParams := selects.Referrals.GetRelationParams()
+		returningCols := q.selectUserCols(relationSelects, relationOmits, "referredById")
 		// Inverse holds the FK: User.referredById
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -633,11 +697,12 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 			scanInto(returningCols, (*User).ScanFields),
 			optionalKey(func(c *User) *string { return c.ReferredById }),
 			appendMany(func(p *User) *[]*User { return &p.Referrals }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading referrals: %w", err)
 		}
-		if err := q.loadUserRelations(ctx, allChildren, selects.Referrals); err != nil {
+		if err := q.loadUserRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}

@@ -180,8 +180,21 @@ func ValidateInt(errs *ValidationError, fieldName string, val int, rule string) 
 	}
 }
 
+type OrderDirection string
+
+const (
+	Asc  OrderDirection = "ASC"
+	Desc OrderDirection = "DESC"
+)
+
+type OrderBy struct {
+	Field     string
+	Direction OrderDirection
+}
+
 type QueryParams struct {
-	Where []Predicate
-	Take  *int
-	Skip  *int
+	Where   []Predicate
+	Take    *int
+	Skip    *int
+	OrderBy []OrderBy
 }

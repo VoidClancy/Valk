@@ -21,16 +21,75 @@ type CategoryCreate struct {
 
 // CategorySelect specifies which fields to include
 type CategorySelect struct {
-	Id    bool                  `json:"id"`
-	Name  bool                  `json:"name"`
-	Posts *CategoryToPostSelect `json:"posts,omitempty"`
+	Id    bool                      `json:"id"`
+	Name  bool                      `json:"name"`
+	Posts CategoryToPostSelectQuery `json:"posts,omitempty"`
 }
 
 // CategoryOmit specifies which fields to exclude
 type CategoryOmit struct {
-	Id    bool                `json:"id"`
-	Name  bool                `json:"name"`
-	Posts *CategoryToPostOmit `json:"posts,omitempty"`
+	Id   bool `json:"id"`
+	Name bool `json:"name"`
+}
+
+type CategorySelectQuery interface {
+	GetRelationParams() (*CategorySelect, *CategoryOmit, QueryParams)
+}
+
+func (s *CategorySelect) GetRelationParams() (*CategorySelect, *CategoryOmit, QueryParams) {
+	return s, nil, QueryParams{}
+}
+
+// CategoryQueryBuilder builds a query for the relation Category
+type CategoryQueryBuilder struct {
+	selects *CategorySelect
+	omits   *CategoryOmit
+	where   []Predicate
+	take    *int
+	skip    *int
+	orderBy []OrderBy
+}
+
+func (b *CategoryQueryBuilder) Where(preds ...Predicate) *CategoryQueryBuilder {
+	b.where = append(b.where, preds...)
+	return b
+}
+
+func (b *CategoryQueryBuilder) Take(limit int) *CategoryQueryBuilder {
+	b.take = &limit
+	return b
+}
+
+func (b *CategoryQueryBuilder) Skip(offset int) *CategoryQueryBuilder {
+	b.skip = &offset
+	return b
+}
+
+func (b *CategoryQueryBuilder) OrderBy(orders ...OrderBy) *CategoryQueryBuilder {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *CategoryQueryBuilder) Select(s CategorySelect) *CategoryQueryBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *CategoryQueryBuilder) Omit(o CategoryOmit) *CategoryQueryBuilder {
+	b.omits = &o
+	return b
+}
+
+func (b *CategoryQueryBuilder) GetRelationParams() (*CategorySelect, *CategoryOmit, QueryParams) {
+	if b == nil {
+		return nil, nil, QueryParams{}
+	}
+	return b.selects, b.omits, QueryParams{
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+	}
 }
 
 type CategoryDelegate struct {
@@ -413,7 +472,8 @@ func (q *Queries) loadCategoryRelations(ctx context.Context, records []*Category
 		return nil
 	}
 	if selects.Posts != nil {
-		returningCols := q.selectCategoryToPostCols(selects.Posts, nil, "categoryId")
+		relationSelects, relationOmits, relationParams := selects.Posts.GetRelationParams()
+		returningCols := q.selectCategoryToPostCols(relationSelects, relationOmits, "categoryId")
 		// Inverse holds the FK: CategoryToPost.categoryId
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -424,11 +484,12 @@ func (q *Queries) loadCategoryRelations(ctx context.Context, records []*Category
 			scanInto(returningCols, (*CategoryToPost).ScanFields),
 			directKey(func(c *CategoryToPost) int32 { return c.CategoryId }),
 			appendMany(func(p *Category) *[]*CategoryToPost { return &p.Posts }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading posts: %w", err)
 		}
-		if err := q.loadCategoryToPostRelations(ctx, allChildren, selects.Posts); err != nil {
+		if err := q.loadCategoryToPostRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
