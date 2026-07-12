@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/voidclancy/valk/schema"
@@ -114,16 +115,14 @@ func hasHstoreField(m *schema.Model) bool {
 	return false
 }
 func hasHstoreAnywhere(sch schema.Schema) bool {
-	for _, m := range sch.Models {
-		if hasHstoreField(m) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(sch.Models, hasHstoreField)
+}
+func hasNetAnywhere(sch schema.Schema) bool {
+	return slices.ContainsFunc(sch.Models, hasNetField)
 }
 func hstoreExpr(goType string, expr string) string {
 	if strings.TrimPrefix(goType, "*") == "map[string]*string" {
-		return "toHstore(" + expr + ")"
+		return "ToHstore(" + expr + ")"
 	}
 	return expr
 }

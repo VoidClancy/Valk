@@ -246,59 +246,24 @@ func stringifyArgs(args []Argument) []string {
 }
 
 func nativeTypeToSQL(name string) string {
-	switch name {
-	case "VarChar":
-		return "VARCHAR"
-	case "Char":
-		return "CHAR"
-	case "Text":
-		return "TEXT"
-	case "Decimal", "Numeric":
-		return "NUMERIC"
-	case "Uuid":
-		return "UUID"
-	case "Timestamptz":
-		return "TIMESTAMPTZ"
-	case "Date":
-		return "DATE"
-	case "SmallInt":
-		return "SMALLINT"
-	case "Oid":
-		return "OID"
-	case "Bit":
-		return "BIT"
-	case "VarBit":
-		return "BIT VARYING"
-	case "Inet":
-		return "INET"
-	case "Xml":
-		return "XML"
-	case "Citext":
-		return "CITEXT"
-	case "Real":
-		return "REAL"
-	case "Money":
-		return "MONEY"
-	case "Json":
-		return "JSON"
-	case "Time":
-		return "TIME"
-	case "Timetz":
-		return "TIMETZ"
-	default:
-		return ""
+	for _, spec := range NativeTypes {
+		if strings.EqualFold(spec.PrismaName, name) {
+			return spec.SQLType
+		}
 	}
+	return ""
 }
 
 func unsupportedToGoType(sqlType string) string {
 	lower := strings.ToLower(sqlType)
+	for _, spec := range NativeTypes {
+		if strings.ToLower(spec.SQLType) == lower {
+			return spec.GoType
+		}
+	}
 	switch {
-	case lower == "citext":
-		return "string"
-	case lower == "ltree":
-		return "string"
-	case strings.HasPrefix(lower, "hstore"):
-		return "map[string]*string"
+	case strings.HasPrefix(lower, "geometry") || strings.HasPrefix(lower, "geography"):
+		return "any"
 	default:
 		return "any"
 	}

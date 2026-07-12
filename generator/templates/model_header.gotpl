@@ -6,18 +6,12 @@ import (
 	"encoding/json"
 	{{- end }}
 	"fmt"
-	{{- if hasNetField .Model }}
-	"net"
-	{{- end }}
 	"slices"
-	{{- if hasStringField .Model }}
-	"strings"
-	{{- end }}
 	{{- if hasTimeField .Model }}
 	"time"
 	{{- end }}
-	{{- if hasStringField .Model }}
-	"unicode/utf8"
+	{{- if ne .PackageName .ParentPackageName }}
+	"{{ .ParentImportPath }}"
 	{{- end }}
 )
 

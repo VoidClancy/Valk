@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
-	"unicode/utf8"
 )
 
 // Category represents the database model
@@ -123,20 +121,14 @@ func validateCategoryCreate(assignments []FieldAssignment) error {
 		provided[a.Col] = true
 		switch a.Col {
 		case "id":
-			if _, ok := a.Val.(int32); !ok {
+			if v, ok := a.Val.(int32); ok {
+				ValidateInt32(errs, "id", v, "")
+			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type int32")
 			}
 		case "name":
 			if v, ok := a.Val.(string); ok {
-				if v == "" {
-					errs.Add("name", v, "required", "field name is required")
-				}
-				if strings.Contains(v, "\x00") {
-					errs.Add("name", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("name", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "name", v, true, 0, false, false)
 			} else {
 				errs.Add("name", a.Val, "type", "field name must be of type string")
 			}
@@ -191,14 +183,15 @@ func (q *Queries) executeCategoryCreate(ctx context.Context, assignments []Field
 		return nil, err
 	}
 
+	rowMap := input.ToRowMap()
 	var cols []string
 	var vals []any
-	if input.Id != nil {
-		cols = append(cols, "id")
-		vals = append(vals, *input.Id)
+	for _, col := range CategoryColOrder {
+		if val, ok := rowMap[col]; ok {
+			cols = append(cols, col)
+			vals = append(vals, val)
+		}
 	}
-	cols = append(cols, "name")
-	vals = append(vals, input.Name)
 
 	returningCols := q.selectCategoryCols(selects, omits)
 

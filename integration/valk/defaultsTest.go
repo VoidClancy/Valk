@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 // DefaultsTest represents the database model
@@ -185,89 +183,49 @@ func validateDefaultsTestCreate(assignments []FieldAssignment) error {
 		switch a.Col {
 		case "uuid4":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("uuid4", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("uuid4", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "uuid4", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid4", a.Val, "type", "field uuid4 must be of type string")
 			}
 		case "uuid7":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("uuid7", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("uuid7", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "uuid7", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid7", a.Val, "type", "field uuid7 must be of type string")
 			}
 		case "uuidNoArgs":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("uuidNoArgs", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("uuidNoArgs", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "uuidNoArgs", v, false, 0, false, false)
 			} else {
 				errs.Add("uuidNoArgs", a.Val, "type", "field uuidNoArgs must be of type string")
 			}
 		case "cuid1":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("cuid1", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("cuid1", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "cuid1", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid1", a.Val, "type", "field cuid1 must be of type string")
 			}
 		case "cuid2":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("cuid2", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("cuid2", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "cuid2", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid2", a.Val, "type", "field cuid2 must be of type string")
 			}
 		case "cuidNoArgs":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("cuidNoArgs", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("cuidNoArgs", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "cuidNoArgs", v, false, 0, false, false)
 			} else {
 				errs.Add("cuidNoArgs", a.Val, "type", "field cuidNoArgs must be of type string")
 			}
 		case "ulid":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("ulid", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("ulid", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "ulid", v, false, 0, false, false)
 			} else {
 				errs.Add("ulid", a.Val, "type", "field ulid must be of type string")
 			}
 		case "nanoid":
 			if v, ok := a.Val.(string); ok {
-				if strings.Contains(v, "\x00") {
-					errs.Add("nanoid", v, "safety", "string cannot contain null bytes")
-				}
-				if !utf8.ValidString(v) {
-					errs.Add("nanoid", v, "safety", "string must be valid UTF-8")
-				}
+				ValidateString(errs, "nanoid", v, false, 0, false, false)
 			} else {
 				errs.Add("nanoid", a.Val, "type", "field nanoid must be of type string")
 			}
@@ -392,70 +350,14 @@ func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []F
 		return nil, err
 	}
 
+	rowMap := input.ToRowMap()
 	var cols []string
 	var vals []any
-	if input.Uuid4 != nil {
-		cols = append(cols, "uuid4")
-		vals = append(vals, *input.Uuid4)
-	} else {
-		cols = append(cols, "uuid4")
-		vals = append(vals, generateUUID())
-	}
-	if input.Uuid7 != nil {
-		cols = append(cols, "uuid7")
-		vals = append(vals, *input.Uuid7)
-	} else {
-		cols = append(cols, "uuid7")
-		vals = append(vals, generateUUID7())
-	}
-	if input.UuidNoArgs != nil {
-		cols = append(cols, "uuidNoArgs")
-		vals = append(vals, *input.UuidNoArgs)
-	} else {
-		cols = append(cols, "uuidNoArgs")
-		vals = append(vals, generateUUID())
-	}
-	if input.Cuid1 != nil {
-		cols = append(cols, "cuid1")
-		vals = append(vals, *input.Cuid1)
-	} else {
-		cols = append(cols, "cuid1")
-		vals = append(vals, generateCUID())
-	}
-	if input.Cuid2 != nil {
-		cols = append(cols, "cuid2")
-		vals = append(vals, *input.Cuid2)
-	} else {
-		cols = append(cols, "cuid2")
-		vals = append(vals, generateCUID2())
-	}
-	if input.CuidNoArgs != nil {
-		cols = append(cols, "cuidNoArgs")
-		vals = append(vals, *input.CuidNoArgs)
-	} else {
-		cols = append(cols, "cuidNoArgs")
-		vals = append(vals, generateCUID())
-	}
-	if input.Ulid != nil {
-		cols = append(cols, "ulid")
-		vals = append(vals, *input.Ulid)
-	} else {
-		cols = append(cols, "ulid")
-		vals = append(vals, generateULID())
-	}
-	if input.Nanoid != nil {
-		cols = append(cols, "nanoid")
-		vals = append(vals, *input.Nanoid)
-	} else {
-		cols = append(cols, "nanoid")
-		vals = append(vals, generateNanoID())
-	}
-	if input.Now != nil {
-		cols = append(cols, "now")
-		vals = append(vals, *input.Now)
-	} else {
-		cols = append(cols, "now")
-		vals = append(vals, time.Now())
+	for _, col := range DefaultsTestColOrder {
+		if val, ok := rowMap[col]; ok {
+			cols = append(cols, col)
+			vals = append(vals, val)
+		}
 	}
 
 	returningCols := q.selectDefaultsTestCols(selects, omits)

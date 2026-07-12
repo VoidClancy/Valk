@@ -23,6 +23,12 @@ type templateData struct {
 	DefaultDiskPath string
 	Schema          schema.Schema
 	DefaultLogs     []string
+	NeedCUID        bool
+	NeedCUID2       bool
+	NeedUUID        bool
+	NeedUUID7       bool
+	NeedULID        bool
+	NeedNanoID      bool
 }
 
 type modelTemplateData struct {
@@ -114,11 +120,37 @@ func GenerateClient(sch schema.Schema, pkgName string, parentImportPath string, 
 		"hasNetField":        hasNetField,
 		"hasHstoreField":     hasHstoreField,
 		"hasHstoreAnywhere":  hasHstoreAnywhere,
+		"hasNetAnywhere":     hasNetAnywhere,
 		"hstoreExpr":         hstoreExpr,
 	})
 	tmpl, err := tmpl.ParseFS(templatesFS, "templates/*.gotpl")
 	if err != nil {
 		return nil, err
+	}
+
+	var needCUID, needUUID, needUUID7, needCUID2, needULID, needNanoID bool
+	for _, m := range sch.Models {
+		for _, sf := range m.ScalarFields {
+			if sf.Default != nil && sf.Default.Kind == schema.DefaultFunc {
+				switch sf.Default.FuncName {
+				case "cuid", "cuid(1)":
+					needCUID = true
+				case "cuid(2)":
+					needCUID2 = true
+				case "uuid", "uuid(4)":
+					needUUID = true
+				case "uuid(7)":
+					needUUID7 = true
+				case "ulid":
+					needULID = true
+				case "nanoid":
+					needNanoID = true
+				}
+			}
+			if sf.IsID && sf.GoType == "string" && sf.Default == nil {
+				needCUID = true
+			}
+		}
 	}
 
 	var embedDir string
@@ -133,6 +165,12 @@ func GenerateClient(sch schema.Schema, pkgName string, parentImportPath string, 
 		DefaultDiskPath: defaultDiskPath,
 		Schema:          sch,
 		DefaultLogs:     defaultLogs,
+		NeedCUID:        needCUID,
+		NeedCUID2:       needCUID2,
+		NeedUUID:        needUUID,
+		NeedUUID7:       needUUID7,
+		NeedULID:        needULID,
+		NeedNanoID:      needNanoID,
 	}
 
 	outputs := make(map[string]string)
@@ -141,6 +179,7 @@ func GenerateClient(sch schema.Schema, pkgName string, parentImportPath string, 
 	files := []string{
 		"header.gotpl",
 		"enums.gotpl",
+		"runtime.gotpl",
 		"client.gotpl",
 		"tx.gotpl",
 		"builders_create.gotpl",

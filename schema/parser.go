@@ -230,26 +230,6 @@ func (p *Parser) expect(t TokenType) Token {
 	return tok
 }
 
-func (p *Parser) skipBlock() {
-	for !p.eof() && p.current().Type != LBRACE && p.current().Type != EOF {
-		p.advance()
-	}
-	if p.eof() || p.current().Type == EOF {
-		return
-	}
-	p.expect(LBRACE)
-	braceCount := 1
-	for !p.eof() && braceCount > 0 && p.current().Type != EOF {
-		if p.current().Type == LBRACE {
-			braceCount++
-		} else if p.current().Type == RBRACE {
-			braceCount--
-		}
-		p.advance()
-	}
-	p.popDelim(RBRACE)
-}
-
 func (p *Parser) parseDatasourceDecl() astDatasourceDecl {
 	startTok := p.expect(IDENT)
 	name := p.expect(IDENT).Value

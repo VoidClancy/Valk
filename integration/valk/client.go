@@ -7,21 +7,22 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/lib/pq/hstore"
+	"github.com/pressly/goose/v3"
+	"net"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
-
-	"github.com/google/uuid"
-	"github.com/pressly/goose/v3"
 )
 
 var _ = time.Time{}
+var _ = hstore.Hstore{}
+var _ = net.ParseIP
 var _ = json.RawMessage{}
 var _ = strings.Join
 var _ = uuid.New
-var _ = uuid.NewV7
 var _ = rand.Read
 var _ = strconv.AppendUint
 
@@ -42,11 +43,9 @@ func generateCUID() string {
 	}
 	return string(buf)
 }
-
 func generateUUID() string {
 	return uuid.New().String()
 }
-
 func generateUUID7() string {
 	id, err := uuid.NewV7()
 	if err != nil {
@@ -54,7 +53,6 @@ func generateUUID7() string {
 	}
 	return id.String()
 }
-
 func generateCUID2() string {
 	now := uint64(time.Now().UnixMilli())
 	b := make([]byte, 12)
@@ -68,7 +66,6 @@ func generateCUID2() string {
 	}
 	return string(buf)
 }
-
 func generateULID() string {
 	now := uint64(time.Now().UnixMilli())
 	b := make([]byte, 10)
@@ -96,7 +93,6 @@ func generateULID() string {
 	}
 	return string(buf[:])
 }
-
 func generateNanoID() string {
 	const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-"
 	b := make([]byte, 21)
@@ -106,42 +102,58 @@ func generateNanoID() string {
 	}
 	return string(b)
 }
-func toHstore(m map[string]*string) hstore.Hstore {
-	result := hstore.Hstore{Map: make(map[string]sql.NullString, len(m))}
-	for k, v := range m {
-		if v == nil {
-			result.Map[k] = sql.NullString{Valid: false}
-		} else {
-			result.Map[k] = sql.NullString{String: *v, Valid: true}
-		}
-	}
-	return result
+
+type UserRoleType string
+
+const (
+	// Admin maps to "ADMIN"
+	UserRoleTypeAdmin UserRoleType = "ADMIN"
+	// Student maps to "student"
+	UserRoleTypeStudent UserRoleType = "student"
+	// Teacher maps to "TEACHER"
+	UserRoleTypeTeacher UserRoleType = "TEACHER"
+)
+
+type userRoleNamespace struct {
+	// Admin maps to "ADMIN"
+	Admin UserRoleType
+	// Student maps to "student"
+	Student UserRoleType
+	// Teacher maps to "TEACHER"
+	Teacher UserRoleType
 }
 
-type hstoreScan struct {
-	p **map[string]*string
+// UserRole enum values:
+//
+//	ADMIN   ADMIN
+//	STUDENT student
+//	TEACHER TEACHER
+var UserRole = userRoleNamespace{
+	Admin:   UserRoleTypeAdmin,
+	Student: UserRoleTypeStudent,
+	Teacher: UserRoleTypeTeacher,
 }
 
-func (s hstoreScan) Scan(src any) error {
-	var h hstore.Hstore
-	if err := h.Scan(src); err != nil {
-		return err
+func (e UserRoleType) IsValid() bool {
+	switch e {
+	case UserRoleTypeAdmin, UserRoleTypeStudent, UserRoleTypeTeacher:
+		return true
 	}
-	if h.Map == nil {
-		*s.p = nil
-		return nil
-	}
-	m := make(map[string]*string, len(h.Map))
-	for k, v := range h.Map {
-		if v.Valid {
-			val := v.String
-			m[k] = &val
-		} else {
-			m[k] = nil
-		}
-	}
-	*s.p = &m
-	return nil
+	return false
+}
+
+type Dialect interface {
+	Quote(ident string) string
+	BindVar(idx int) string
+	SupportsReturning() bool
+	SupportsBulkInsert() bool
+}
+
+type DBTX interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	PrepareContext(context.Context, string) (*sql.Stmt, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
 // FieldError represents a single validation failure on a specific field.
@@ -191,64 +203,128 @@ type RecordInput struct {
 	Assignments []FieldAssignment
 }
 
-type UserRoleType string
-
-const (
-	// Admin maps to "ADMIN"
-	UserRoleTypeAdmin UserRoleType = "ADMIN"
-	// Student maps to "student"
-	UserRoleTypeStudent UserRoleType = "student"
-	// Teacher maps to "TEACHER"
-	UserRoleTypeTeacher UserRoleType = "TEACHER"
-)
-
-type userRoleNamespace struct {
-	// Admin maps to "ADMIN"
-	Admin UserRoleType
-	// Student maps to "student"
-	Student UserRoleType
-	// Teacher maps to "TEACHER"
-	Teacher UserRoleType
-}
-
-// UserRole enum values:
-//
-//	ADMIN   ADMIN
-//	STUDENT student
-//	TEACHER TEACHER
-var UserRole = userRoleNamespace{
-	Admin:   UserRoleTypeAdmin,
-	Student: UserRoleTypeStudent,
-	Teacher: UserRoleTypeTeacher,
-}
-
-func (e UserRoleType) IsValid() bool {
-	switch e {
-	case UserRoleTypeAdmin, UserRoleTypeStudent, UserRoleTypeTeacher:
-		return true
+func ToHstore(m map[string]*string) hstore.Hstore {
+	result := hstore.Hstore{Map: make(map[string]sql.NullString, len(m))}
+	for k, v := range m {
+		if v == nil {
+			result.Map[k] = sql.NullString{Valid: false}
+		} else {
+			result.Map[k] = sql.NullString{String: *v, Valid: true}
+		}
 	}
-	return false
+	return result
 }
 
-type Dialect interface {
-	Quote(ident string) string
-	BindVar(idx int) string
-	SupportsReturning() bool
-	SupportsBulkInsert() bool
+type HstoreScan struct {
+	P **map[string]*string
 }
+
+func (s HstoreScan) Scan(src any) error {
+	var h hstore.Hstore
+	if err := h.Scan(src); err != nil {
+		return err
+	}
+	if h.Map == nil {
+		*s.P = nil
+		return nil
+	}
+	m := make(map[string]*string, len(h.Map))
+	for k, v := range h.Map {
+		if v.Valid {
+			val := v.String
+			m[k] = &val
+		} else {
+			m[k] = nil
+		}
+	}
+	*s.P = &m
+	return nil
+}
+
+func ValidateString(errs *ValidationError, fieldName string, val string, isRequired bool, maxLen int, isBit bool, isInet bool) {
+	if isRequired && val == "" {
+		errs.Add(fieldName, val, "required", fmt.Sprintf("field %s is required", fieldName))
+	}
+	if strings.Contains(val, "\x00") {
+		errs.Add(fieldName, val, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(val) {
+		errs.Add(fieldName, val, "safety", "string must be valid UTF-8")
+	}
+	if maxLen > 0 && utf8.RuneCountInString(val) > maxLen {
+		errs.Add(fieldName, val, "length", fmt.Sprintf("string exceeds maximum length of %d characters", maxLen))
+	}
+	if isBit {
+		if strings.IndexFunc(val, func(r rune) bool { return r != '0' && r != '1' }) >= 0 {
+			errs.Add(fieldName, val, "format", "bit string must contain only '0' and '1'")
+		}
+	}
+	if isInet {
+		if net.ParseIP(val) == nil {
+			if _, _, err := net.ParseCIDR(val); err != nil {
+				errs.Add(fieldName, val, "format", fmt.Sprintf("field %s must be a valid IP address", fieldName))
+			}
+		}
+	}
+}
+
+func ValidateInt32(errs *ValidationError, fieldName string, val int32, rule string) {
+	switch rule {
+	case "SmallInt":
+		if val < -32768 || val > 32767 {
+			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
+		}
+	case "TinyInt":
+		if val < -128 || val > 127 {
+			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
+		}
+	case "Oid":
+		if val < 0 {
+			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
+		}
+	}
+}
+
+func ValidateInt64(errs *ValidationError, fieldName string, val int64, rule string) {
+	switch rule {
+	case "SmallInt":
+		if val < -32768 || val > 32767 {
+			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
+		}
+	case "TinyInt":
+		if val < -128 || val > 127 {
+			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
+		}
+	case "Oid":
+		if val < 0 {
+			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
+		}
+	}
+}
+
+func ValidateInt(errs *ValidationError, fieldName string, val int, rule string) {
+	switch rule {
+	case "SmallInt":
+		if val < -32768 || val > 32767 {
+			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
+		}
+	case "TinyInt":
+		if val < -128 || val > 127 {
+			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
+		}
+	case "Oid":
+		if val < 0 {
+			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
+		}
+	}
+}
+
 type postgresDialect struct{}
 
 func (postgresDialect) Quote(ident string) string { return `"` + ident + `"` }
 func (postgresDialect) BindVar(idx int) string    { return fmt.Sprintf("$%d", idx) }
 func (postgresDialect) SupportsReturning() bool   { return true }
 func (postgresDialect) SupportsBulkInsert() bool  { return true }
-
-type DBTX interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	PrepareContext(context.Context, string) (*sql.Stmt, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
 
 type Queries struct {
 	db       DBTX
