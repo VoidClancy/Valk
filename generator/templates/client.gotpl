@@ -485,6 +485,14 @@ func (f Field[T]) IsNotNull() Predicate {
 	}
 }
 
+func (f Field[T]) Asc() OrderBy {
+	return OrderBy{Field: f.Column, Direction: Asc}
+}
+
+func (f Field[T]) Desc() OrderBy {
+	return OrderBy{Field: f.Column, Direction: Desc}
+}
+
 type UniqueField[T any] struct {
 	Column string
 }
@@ -594,6 +602,14 @@ func (f UniqueField[T]) IsNotNull() Predicate {
 			Operator: "IS NOT NULL",
 		},
 	}
+}
+
+func (f UniqueField[T]) Asc() OrderBy {
+	return OrderBy{Field: f.Column, Direction: Asc}
+}
+
+func (f UniqueField[T]) Desc() OrderBy {
+	return OrderBy{Field: f.Column, Direction: Desc}
 }
 
 type StringField struct {
@@ -712,6 +728,14 @@ func (f StringField) IsNotNull() Predicate {
 	}
 }
 
+func (f StringField) Asc() OrderBy {
+	return OrderBy{Field: f.Column, Direction: Asc}
+}
+
+func (f StringField) Desc() OrderBy {
+	return OrderBy{Field: f.Column, Direction: Desc}
+}
+
 type StringUniqueField struct {
 	Column string
 }
@@ -828,6 +852,14 @@ func (f StringUniqueField) IsNotNull() Predicate {
 			Operator: "IS NOT NULL",
 		},
 	}
+}
+
+func (f StringUniqueField) Asc() OrderBy {
+	return OrderBy{Field: f.Column, Direction: Asc}
+}
+
+func (f StringUniqueField) Desc() OrderBy {
+	return OrderBy{Field: f.Column, Direction: Desc}
 }
 
 func CompilePredicates(dialect Dialect, preds []Predicate) (string, []any) {

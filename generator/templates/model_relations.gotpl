@@ -11,7 +11,8 @@ func (q *Queries) load{{ .Model.Name }}Relations(ctx context.Context, records []
 		{{- else }}
 			{{- $forceCol = (index $relation.Inverse.FKFields 0).EffectiveColName }}
 		{{- end }}
-		returningCols := q.select{{ $relation.TargetModelName }}Cols(selects.{{ capitalize $relation.Name }}, nil, "{{ $forceCol }}")
+		relationSelects, relationOmits, relationParams := selects.{{ capitalize $relation.Name }}.GetRelationParams()
+		returningCols := q.select{{ $relation.TargetModelName }}Cols(relationSelects, relationOmits, "{{ $forceCol }}")
 
 		{{- if gt (len $relation.FKFields) 0 }}
 		// Current model holds the FK: {{ $.Model.Name }}.{{ (index $relation.FKFields 0).Name }}
@@ -51,11 +52,12 @@ func (q *Queries) load{{ .Model.Name }}Relations(ctx context.Context, records []
 			{{- else }}
 			setOne(func(p *{{ $.Model.Name }}, c *{{ $relation.TargetModelName }}) { p.{{ capitalize $relation.Name }} = c }),
 			{{- end }}
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading {{ $relation.Name }}: %w", err)
 		}
-		if err := q.load{{ $relation.TargetModelName }}Relations(ctx, allChildren, selects.{{ capitalize $relation.Name }}); err != nil {
+		if err := q.load{{ $relation.TargetModelName }}Relations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}

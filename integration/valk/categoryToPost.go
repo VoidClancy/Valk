@@ -22,18 +22,76 @@ type CategoryToPostCreate struct {
 
 // CategoryToPostSelect specifies which fields to include
 type CategoryToPostSelect struct {
-	PostId     bool            `json:"postId"`
-	CategoryId bool            `json:"categoryId"`
-	Post       *PostSelect     `json:"post,omitempty"`
-	Category   *CategorySelect `json:"category,omitempty"`
+	PostId     bool                `json:"postId"`
+	CategoryId bool                `json:"categoryId"`
+	Post       PostSelectQuery     `json:"post,omitempty"`
+	Category   CategorySelectQuery `json:"category,omitempty"`
 }
 
 // CategoryToPostOmit specifies which fields to exclude
 type CategoryToPostOmit struct {
-	PostId     bool          `json:"postId"`
-	CategoryId bool          `json:"categoryId"`
-	Post       *PostOmit     `json:"post,omitempty"`
-	Category   *CategoryOmit `json:"category,omitempty"`
+	PostId     bool `json:"postId"`
+	CategoryId bool `json:"categoryId"`
+}
+
+type CategoryToPostSelectQuery interface {
+	GetRelationParams() (*CategoryToPostSelect, *CategoryToPostOmit, QueryParams)
+}
+
+func (s *CategoryToPostSelect) GetRelationParams() (*CategoryToPostSelect, *CategoryToPostOmit, QueryParams) {
+	return s, nil, QueryParams{}
+}
+
+// CategoryToPostQueryBuilder builds a query for the relation CategoryToPost
+type CategoryToPostQueryBuilder struct {
+	selects *CategoryToPostSelect
+	omits   *CategoryToPostOmit
+	where   []Predicate
+	take    *int
+	skip    *int
+	orderBy []OrderBy
+}
+
+func (b *CategoryToPostQueryBuilder) Where(preds ...Predicate) *CategoryToPostQueryBuilder {
+	b.where = append(b.where, preds...)
+	return b
+}
+
+func (b *CategoryToPostQueryBuilder) Take(limit int) *CategoryToPostQueryBuilder {
+	b.take = &limit
+	return b
+}
+
+func (b *CategoryToPostQueryBuilder) Skip(offset int) *CategoryToPostQueryBuilder {
+	b.skip = &offset
+	return b
+}
+
+func (b *CategoryToPostQueryBuilder) OrderBy(orders ...OrderBy) *CategoryToPostQueryBuilder {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *CategoryToPostQueryBuilder) Select(s CategoryToPostSelect) *CategoryToPostQueryBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *CategoryToPostQueryBuilder) Omit(o CategoryToPostOmit) *CategoryToPostQueryBuilder {
+	b.omits = &o
+	return b
+}
+
+func (b *CategoryToPostQueryBuilder) GetRelationParams() (*CategoryToPostSelect, *CategoryToPostOmit, QueryParams) {
+	if b == nil {
+		return nil, nil, QueryParams{}
+	}
+	return b.selects, b.omits, QueryParams{
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+	}
 }
 
 type CategoryToPostDelegate struct {
@@ -417,7 +475,8 @@ func (q *Queries) loadCategoryToPostRelations(ctx context.Context, records []*Ca
 		return nil
 	}
 	if selects.Post != nil {
-		returningCols := q.selectPostCols(selects.Post, nil, "id")
+		relationSelects, relationOmits, relationParams := selects.Post.GetRelationParams()
+		returningCols := q.selectPostCols(relationSelects, relationOmits, "id")
 		// Current model holds the FK: CategoryToPost.postId
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -428,16 +487,18 @@ func (q *Queries) loadCategoryToPostRelations(ctx context.Context, records []*Ca
 			scanInto(returningCols, (*Post).ScanFields),
 			directKey(func(c *Post) string { return c.Id }),
 			setOne(func(p *CategoryToPost, c *Post) { p.Post = c }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading post: %w", err)
 		}
-		if err := q.loadPostRelations(ctx, allChildren, selects.Post); err != nil {
+		if err := q.loadPostRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.Category != nil {
-		returningCols := q.selectCategoryCols(selects.Category, nil, "id")
+		relationSelects, relationOmits, relationParams := selects.Category.GetRelationParams()
+		returningCols := q.selectCategoryCols(relationSelects, relationOmits, "id")
 		// Current model holds the FK: CategoryToPost.categoryId
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -448,11 +509,12 @@ func (q *Queries) loadCategoryToPostRelations(ctx context.Context, records []*Ca
 			scanInto(returningCols, (*Category).ScanFields),
 			directKey(func(c *Category) int32 { return c.Id }),
 			setOne(func(p *CategoryToPost, c *Category) { p.Category = c }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading category: %w", err)
 		}
-		if err := q.loadCategoryRelations(ctx, allChildren, selects.Category); err != nil {
+		if err := q.loadCategoryRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}

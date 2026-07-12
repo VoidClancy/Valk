@@ -297,6 +297,7 @@ func loadRelation[P any, C any](
 	scan func(*sql.Rows, *C) error,
 	childKey func(*C) (string, bool),
 	assign func(*P, []*C),
+	params QueryParams,
 ) ([]*C, error) {
 	var parentKeys []any
 	for _, p := range parents {
@@ -311,25 +312,26 @@ func loadRelation[P any, C any](
 		return nil, nil
 	}
 
-	var sb strings.Builder
-	sb.Grow(128 + len(returningCols)*15 + len(table) + len(fkCol) + len(parentKeys)*3)
-	sb.WriteString("SELECT ")
-	for i, col := range returningCols {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		sb.WriteString(q.dialect.Quote(col))
-	}
-	sb.WriteString(" FROM ")
-	sb.WriteString(q.dialect.Quote(table))
-	sb.WriteString(" WHERE ")
-	sb.WriteString(q.dialect.Quote(fkCol))
-	sb.WriteString(" IN (")
-	sb.WriteString(q.bindVars(len(parentKeys)))
-	sb.WriteString(")")
-	query := sb.String()
+	// Prepend parent ID checks to filters using StandardPredicate
+	allPreds := append([]Predicate{
+		StandardPredicate{
+			Data: PredicateData{
+				Column:    fkCol,
+				Operator:  "IN",
+				Value:     parentKeys,
+				IsLogical: false,
+			},
+		},
+	}, params.Where...)
 
-	rows, err := q.query(ctx, query, parentKeys...)
+	whereClause, vals := CompilePredicates(q.dialect, allPreds)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+
+	query := compileRelationSQL(q.dialect, table, fkCol, returningCols, whereClause, params)
+
+	rows, err := q.query(ctx, query, vals...)
 	if err != nil {
 		return nil, err
 	}
@@ -362,4 +364,88 @@ func loadRelation[P any, C any](
 	}
 
 	return allChildren, nil
+}
+
+func compileRelationSQL(dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams) string {
+	if params.Take != nil || params.Skip != nil {
+		return compilePartitionedRelationSQL(dialect, table, fkCol, cols, where, params)
+	}
+	return compileSimpleRelationSQL(dialect, table, cols, where, params)
+}
+
+func compilePartitionedRelationSQL(dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams) string {
+	var innerSb strings.Builder
+	innerSb.WriteString("SELECT ")
+	for i, col := range cols {
+		if i > 0 {
+			innerSb.WriteString(", ")
+		}
+		innerSb.WriteString(dialect.Quote(col))
+	}
+	innerSb.WriteString(", ROW_NUMBER() OVER (PARTITION BY ")
+	innerSb.WriteString(dialect.Quote(fkCol))
+	innerSb.WriteString(" ORDER BY ")
+	if len(params.OrderBy) > 0 {
+		for i, ord := range params.OrderBy {
+			if i > 0 {
+				innerSb.WriteString(", ")
+			}
+			innerSb.WriteString(dialect.Quote(ord.Field))
+			innerSb.WriteString(" ")
+			innerSb.WriteString(string(ord.Direction))
+		}
+	} else {
+		innerSb.WriteString(dialect.Quote("id"))
+		innerSb.WriteString(" ASC")
+	}
+	innerSb.WriteString(") as row_num FROM ")
+	innerSb.WriteString(dialect.Quote(table))
+	innerSb.WriteString(where)
+
+	var outerSb strings.Builder
+	outerSb.WriteString("SELECT ")
+	for i, col := range cols {
+		if i > 0 {
+			outerSb.WriteString(", ")
+		}
+		outerSb.WriteString(dialect.Quote(col))
+	}
+	outerSb.WriteString(" FROM (")
+	outerSb.WriteString(innerSb.String())
+	outerSb.WriteString(") t WHERE ")
+
+	if params.Take != nil && params.Skip != nil {
+		outerSb.WriteString(fmt.Sprintf("row_num > %d AND row_num <= %d", *params.Skip, *params.Skip+*params.Take))
+	} else if params.Take != nil {
+		outerSb.WriteString(fmt.Sprintf("row_num <= %d", *params.Take))
+	} else if params.Skip != nil {
+		outerSb.WriteString(fmt.Sprintf("row_num > %d", *params.Skip))
+	}
+	return outerSb.String()
+}
+
+func compileSimpleRelationSQL(dialect Dialect, table string, cols []string, where string, params QueryParams) string {
+	var sb strings.Builder
+	sb.WriteString("SELECT ")
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(dialect.Quote(col))
+	}
+	sb.WriteString(" FROM ")
+	sb.WriteString(dialect.Quote(table))
+	sb.WriteString(where)
+	if len(params.OrderBy) > 0 {
+		sb.WriteString(" ORDER BY ")
+		for i, ord := range params.OrderBy {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(dialect.Quote(ord.Field))
+			sb.WriteString(" ")
+			sb.WriteString(string(ord.Direction))
+		}
+	}
+	return sb.String()
 }

@@ -251,9 +251,9 @@ func TestCreate_Select_ForceIncludesFK_EvenWhenNotExplicitlySelected(t *testing.
 	rid := referrer.Id
 	u, err := db.User.Create(
 		user.Email.Set("referredfk@example.com"), user.PhoneNum.Set("+300000003"), user.ReferredById.Set(rid),
-	).Select(valk.UserSelect{
+	).Select(user.Select{
 		Id:         true,
-		ReferredBy: &valk.UserSelect{Id: true},
+		ReferredBy: &user.Select{Id: true},
 		// ReferredById itself intenionally not selected
 	}).Exec(ctx)
 

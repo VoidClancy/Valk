@@ -661,3 +661,160 @@ func TestFindFirstSkip(t *testing.T) {
 		t.Errorf("expected found user to be one of the seeded users, got %q", res.Email)
 	}
 }
+
+func TestRelationSubqueries(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	uA, err := db.User.Create(user.Email.Set("user_a@example.com"), user.PhoneNum.Set("111")).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to seed User A: %v", err)
+	}
+	uB, err := db.User.Create(user.Email.Set("user_b@example.com"), user.PhoneNum.Set("222")).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to seed User B: %v", err)
+	}
+	uC, err := db.User.Create(user.Email.Set("user_c@example.com"), user.PhoneNum.Set("333")).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to seed User C: %v", err)
+	}
+
+	p1, err := db.Post.Create(post.Title.Set("Alpha"), post.Published.Set(true), post.AuthorId.Set(uA.Id)).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to seed Post 1: %v", err)
+	}
+	_, err = db.Post.Create(post.Title.Set("Beta"), post.Published.Set(false), post.AuthorId.Set(uA.Id)).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to seed Post 2: %v", err)
+	}
+	p3, err := db.Post.Create(post.Title.Set("Gamma"), post.Published.Set(true), post.AuthorId.Set(uA.Id)).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to seed Post 3: %v", err)
+	}
+	_, err = db.Post.Create(post.Title.Set("Delta"), post.Published.Set(true), post.AuthorId.Set(uA.Id)).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to seed Post 4: %v", err)
+	}
+
+	_, err = db.Comment.Create(comment.Textify.Set(100), comment.Dummy3.Set("c1"), comment.Dummy1.Set(1), comment.Dummy2.Set("d"), comment.PostId.Set(p1.Id), comment.AuthorId.Set(uB.Id)).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to seed Comment 1: %v", err)
+	}
+	_, err = db.Comment.Create(comment.Textify.Set(200), comment.Dummy3.Set("c2"), comment.Dummy1.Set(2), comment.Dummy2.Set("d"), comment.PostId.Set(p1.Id), comment.AuthorId.Set(uA.Id)).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to seed Comment 2: %v", err)
+	}
+	_, err = db.Comment.Create(comment.Textify.Set(300), comment.Dummy3.Set("c3"), comment.Dummy1.Set(3), comment.Dummy2.Set("d"), comment.PostId.Set(p1.Id), comment.AuthorId.Set(uC.Id)).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to seed Comment 3: %v", err)
+	}
+
+	_, err = db.Comment.Create(comment.Textify.Set(400), comment.Dummy3.Set("c4"), comment.Dummy1.Set(4), comment.Dummy2.Set("d"), comment.PostId.Set(p3.Id), comment.AuthorId.Set(uB.Id)).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to seed Comment 4: %v", err)
+	}
+
+	t.Run("Deep Nesting with Multi-Level Filters, Sorting, and Pagination", func(t *testing.T) {
+		res, err := db.User.FindFirst(user.Email.EQ("user_a@example.com")).Select(user.Select{
+			Email: true,
+			Posts: post.Query().
+				Where(post.Published.EQ(true)).
+				OrderBy(post.Title.Asc()).
+				Take(2).
+				Skip(1).
+				Select(post.Select{
+					Title: true,
+					Comments: comment.Query().
+						OrderBy(comment.Textify.Desc()).
+						Take(1).
+						Select(comment.Select{
+							Textify: true,
+							Dummy3:  true,
+							Author: user.Query().Select(user.Select{
+								Email: true,
+							}),
+						}),
+				}),
+		}).Exec(ctx)
+
+		if err != nil {
+			t.Fatalf("deep query failed: %v", err)
+		}
+		if res == nil {
+			t.Fatal("expected User A to be found")
+		}
+
+		if len(res.Posts) != 2 {
+			t.Fatalf("expected exactly 2 posts, got %d", len(res.Posts))
+		}
+
+		pFirst := res.Posts[0]
+		pSecond := res.Posts[1]
+		if pFirst.Title != "Delta" || pSecond.Title != "Gamma" {
+			t.Errorf("expected posts 'Delta' and 'Gamma', got %q and %q", pFirst.Title, pSecond.Title)
+		}
+
+		if len(pFirst.Comments) != 0 {
+			t.Errorf("expected 'Delta' to have 0 comments, got %d", len(pFirst.Comments))
+		}
+
+		if len(pSecond.Comments) != 1 {
+			t.Fatalf("expected 'Gamma' to have 1 comment, got %d", len(pSecond.Comments))
+		}
+		c := pSecond.Comments[0]
+		if c.Dummy3 != "c4" || c.Textify != 400 {
+			t.Errorf("expected comment 'c4' with textify 400, got %+v", c)
+		}
+		if c.Author == nil || c.Author.Email != "user_b@example.com" {
+			t.Errorf("expected comment author to be user_b@example.com, got %+v", c.Author)
+		}
+	})
+
+	t.Run("Extreme Subquery Pagination Limits (Take=0, Skip=100)", func(t *testing.T) {
+		res, err := db.User.FindFirst(user.Email.EQ("user_a@example.com")).Select(user.Select{
+			Email: true,
+			Posts: post.Query().Take(0).Select(post.Select{Title: true}),
+		}).Exec(ctx)
+		if err != nil {
+			t.Fatalf("query failed: %v", err)
+		}
+		if res == nil || len(res.Posts) != 0 {
+			t.Errorf("expected 0 posts with Take(0), got: %+v", res)
+		}
+
+		resSkip, err := db.User.FindFirst(user.Email.EQ("user_a@example.com")).Select(user.Select{
+			Email: true,
+			Posts: post.Query().Skip(100).Select(post.Select{Title: true}),
+		}).Exec(ctx)
+		if err != nil {
+			t.Fatalf("query failed: %v", err)
+		}
+		if resSkip == nil || len(resSkip.Posts) != 0 {
+			t.Errorf("expected 0 posts with Skip(100), got: %+v", resSkip)
+		}
+	})
+
+	t.Run("Complex Logical Operator Filtering inside Subquery", func(t *testing.T) {
+		res, err := db.User.FindFirst(user.Email.EQ("user_a@example.com")).Select(user.Select{
+			Email: true,
+			Posts: post.Query().
+				Where(post.And(
+					post.Published.EQ(true),
+					post.Or(
+						post.Title.EQ("Alpha"),
+						post.Title.EQ("Gamma"),
+					),
+				)).
+				OrderBy(post.Title.Asc()).
+				Select(post.Select{Title: true}),
+		}).Exec(ctx)
+
+		if err != nil {
+			t.Fatalf("query failed: %v", err)
+		}
+		if res == nil || len(res.Posts) != 2 || res.Posts[0].Title != "Alpha" || res.Posts[1].Title != "Gamma" {
+			t.Errorf("expected posts 'Alpha' and 'Gamma', got: %+v", res)
+		}
+	})
+}

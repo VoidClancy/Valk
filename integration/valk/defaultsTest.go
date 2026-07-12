@@ -59,6 +59,66 @@ type DefaultsTestOmit struct {
 	Now        bool `json:"now"`
 }
 
+type DefaultsTestSelectQuery interface {
+	GetRelationParams() (*DefaultsTestSelect, *DefaultsTestOmit, QueryParams)
+}
+
+func (s *DefaultsTestSelect) GetRelationParams() (*DefaultsTestSelect, *DefaultsTestOmit, QueryParams) {
+	return s, nil, QueryParams{}
+}
+
+// DefaultsTestQueryBuilder builds a query for the relation DefaultsTest
+type DefaultsTestQueryBuilder struct {
+	selects *DefaultsTestSelect
+	omits   *DefaultsTestOmit
+	where   []Predicate
+	take    *int
+	skip    *int
+	orderBy []OrderBy
+}
+
+func (b *DefaultsTestQueryBuilder) Where(preds ...Predicate) *DefaultsTestQueryBuilder {
+	b.where = append(b.where, preds...)
+	return b
+}
+
+func (b *DefaultsTestQueryBuilder) Take(limit int) *DefaultsTestQueryBuilder {
+	b.take = &limit
+	return b
+}
+
+func (b *DefaultsTestQueryBuilder) Skip(offset int) *DefaultsTestQueryBuilder {
+	b.skip = &offset
+	return b
+}
+
+func (b *DefaultsTestQueryBuilder) OrderBy(orders ...OrderBy) *DefaultsTestQueryBuilder {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *DefaultsTestQueryBuilder) Select(s DefaultsTestSelect) *DefaultsTestQueryBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *DefaultsTestQueryBuilder) Omit(o DefaultsTestOmit) *DefaultsTestQueryBuilder {
+	b.omits = &o
+	return b
+}
+
+func (b *DefaultsTestQueryBuilder) GetRelationParams() (*DefaultsTestSelect, *DefaultsTestOmit, QueryParams) {
+	if b == nil {
+		return nil, nil, QueryParams{}
+	}
+	return b.selects, b.omits, QueryParams{
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+	}
+}
+
 type DefaultsTestDelegate struct {
 	client          *Queries
 	beforeCreate    func(context.Context, *DefaultsTestCreate) error

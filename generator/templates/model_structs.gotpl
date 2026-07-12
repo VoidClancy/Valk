@@ -21,7 +21,7 @@ type {{ .Model.Name }}Select struct {
 	{{ capitalize $field.Name }} bool `json:"{{ $field.Name }}"`
 	{{- end }}
 	{{- range $relation := .Model.RelationFields }}
-	{{ capitalize $relation.Name }} *{{ $relation.TargetModelName }}Select `json:"{{ $relation.Name }},omitempty"`
+	{{ capitalize $relation.Name }} {{ $relation.TargetModelName }}SelectQuery `json:"{{ $relation.Name }},omitempty"`
 	{{- end }}
 }
 
@@ -30,9 +30,66 @@ type {{ .Model.Name }}Omit struct {
 	{{- range $field := .Model.ScalarFields }}
 	{{ capitalize $field.Name }} bool `json:"{{ $field.Name }}"`
 	{{- end }}
-	{{- range $relation := .Model.RelationFields }}
-	{{ capitalize $relation.Name }} *{{ $relation.TargetModelName }}Omit `json:"{{ $relation.Name }},omitempty"`
-	{{- end }}
+}
+
+type {{ .Model.Name }}SelectQuery interface {
+	GetRelationParams() (*{{ .Model.Name }}Select, *{{ .Model.Name }}Omit, QueryParams)
+}
+
+func (s *{{ .Model.Name }}Select) GetRelationParams() (*{{ .Model.Name }}Select, *{{ .Model.Name }}Omit, QueryParams) {
+	return s, nil, QueryParams{}
+}
+
+// {{ .Model.Name }}QueryBuilder builds a query for the relation {{ .Model.Name }}
+type {{ .Model.Name }}QueryBuilder struct {
+	selects *{{ .Model.Name }}Select
+	omits   *{{ .Model.Name }}Omit
+	where   []Predicate
+	take    *int
+	skip    *int
+	orderBy []OrderBy
+}
+
+func (b *{{ .Model.Name }}QueryBuilder) Where(preds ...Predicate) *{{ .Model.Name }}QueryBuilder {
+	b.where = append(b.where, preds...)
+	return b
+}
+
+func (b *{{ .Model.Name }}QueryBuilder) Take(limit int) *{{ .Model.Name }}QueryBuilder {
+	b.take = &limit
+	return b
+}
+
+func (b *{{ .Model.Name }}QueryBuilder) Skip(offset int) *{{ .Model.Name }}QueryBuilder {
+	b.skip = &offset
+	return b
+}
+
+func (b *{{ .Model.Name }}QueryBuilder) OrderBy(orders ...OrderBy) *{{ .Model.Name }}QueryBuilder {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *{{ .Model.Name }}QueryBuilder) Select(s {{ .Model.Name }}Select) *{{ .Model.Name }}QueryBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *{{ .Model.Name }}QueryBuilder) Omit(o {{ .Model.Name }}Omit) *{{ .Model.Name }}QueryBuilder {
+	b.omits = &o
+	return b
+}
+
+func (b *{{ .Model.Name }}QueryBuilder) GetRelationParams() (*{{ .Model.Name }}Select, *{{ .Model.Name }}Omit, QueryParams) {
+	if b == nil {
+		return nil, nil, QueryParams{}
+	}
+	return b.selects, b.omits, QueryParams{
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+	}
 }
 
 type {{ .Model.Name }}Delegate struct {

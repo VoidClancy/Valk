@@ -21,6 +21,11 @@ func (p UniquePredicate) Validate() error {
 
 type Select = valk.CommentSelect
 type Omit = valk.CommentOmit
+type QueryBuilder = valk.CommentQueryBuilder
+
+func Query() *QueryBuilder {
+	return &QueryBuilder{}
+}
 
 func Record(assignments ...valk.FieldAssignment) valk.RecordInput {
 	return valk.RecordInput{Assignments: assignments}

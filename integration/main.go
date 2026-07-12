@@ -156,7 +156,14 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 		comment.PostId.Set(p.Id),
 		comment.AuthorId.Set(referrer.Id),
 		comment.Meta.Set(meta1),
-	).Exec(ctx)
+	).Select(comment.Select{
+		Post: &post.Select{
+			Id:     true,
+			Title:  true,
+			Author: user.Query().Where(post.Id.EQ(p.Id)).OrderBy(user.Email.Asc()),
+		},
+	}).
+		Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create comment 1: %v", err)
 	}
@@ -229,23 +236,23 @@ func main() {
 		user.Email.EQ("referred@example.com"),
 	).Select(user.Select{
 		Email: true,
-		Profile: &profile.Select{
+		Profile: profile.Query().Select(profile.Select{
 			Bio: true,
-		},
-		ReferredBy: &user.Select{
+		}),
+		ReferredBy: user.Query().Select(user.Select{
 			Email:    true,
 			PhoneNum: true,
-		},
-		Posts: &post.Select{
+		}),
+		Posts: post.Query().Select(post.Select{
 			Title: true,
-			Comments: &comment.Select{
+			Comments: comment.Query().Select(comment.Select{
 				Textify: true,
 				Meta:    true,
-				Author: &user.Select{
+				Author: user.Query().Select(user.Select{
 					Email: true,
-				},
-			},
-		},
+				}),
+			}),
+		}),
 	}).Exec(ctx)
 
 	if err != nil {
@@ -261,10 +268,10 @@ func main() {
 		Select(post.Select{
 			Title:     true,
 			Published: true,
-			Comments: &comment.Select{
+			Comments: comment.Query().Select(comment.Select{
 				Textify: true,
 				Meta:    true,
-			},
+			}),
 		}).
 		Exec(ctx)
 
@@ -280,12 +287,12 @@ func main() {
 	).Select(comment.Select{
 		Textify: true,
 		Meta:    true,
-		Post: &post.Select{
+		Post: post.Query().Select(post.Select{
 			Title: true,
-			Author: &user.Select{
+			Author: user.Query().Select(user.Select{
 				Email: true,
-			},
-		},
+			}),
+		}),
 	}).Exec(ctx)
 
 	if err != nil {
@@ -344,9 +351,9 @@ func runManualTransaction(db *valk.DB, ctx context.Context) {
 	).Select(post.Select{
 		Id:    true,
 		Title: true,
-		Author: &user.Select{
+		Author: user.Query().Select(user.Select{
 			Email: true,
-		},
+		}),
 	}).Exec(ctx)
 	if err != nil {
 		fmt.Printf("failed to create Post: %+v", err)
@@ -381,9 +388,9 @@ func runBlockBasedTransaction(db *valk.DB, ctx context.Context) {
 		).Select(post.Select{
 			Id:    true,
 			Title: true,
-			Author: &user.Select{
+			Author: user.Query().Select(user.Select{
 				Email: true,
-			},
+			}),
 		}).Exec(ctx)
 		if err != nil {
 			return err

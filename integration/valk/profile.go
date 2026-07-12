@@ -26,20 +26,79 @@ type ProfileCreate struct {
 
 // ProfileSelect specifies which fields to include
 type ProfileSelect struct {
-	Id        bool        `json:"id"`
-	Bio       bool        `json:"bio"`
-	UserId    bool        `json:"userId"`
-	CreatedAt bool        `json:"createdAt"`
-	User      *UserSelect `json:"user,omitempty"`
+	Id        bool            `json:"id"`
+	Bio       bool            `json:"bio"`
+	UserId    bool            `json:"userId"`
+	CreatedAt bool            `json:"createdAt"`
+	User      UserSelectQuery `json:"user,omitempty"`
 }
 
 // ProfileOmit specifies which fields to exclude
 type ProfileOmit struct {
-	Id        bool      `json:"id"`
-	Bio       bool      `json:"bio"`
-	UserId    bool      `json:"userId"`
-	CreatedAt bool      `json:"createdAt"`
-	User      *UserOmit `json:"user,omitempty"`
+	Id        bool `json:"id"`
+	Bio       bool `json:"bio"`
+	UserId    bool `json:"userId"`
+	CreatedAt bool `json:"createdAt"`
+}
+
+type ProfileSelectQuery interface {
+	GetRelationParams() (*ProfileSelect, *ProfileOmit, QueryParams)
+}
+
+func (s *ProfileSelect) GetRelationParams() (*ProfileSelect, *ProfileOmit, QueryParams) {
+	return s, nil, QueryParams{}
+}
+
+// ProfileQueryBuilder builds a query for the relation Profile
+type ProfileQueryBuilder struct {
+	selects *ProfileSelect
+	omits   *ProfileOmit
+	where   []Predicate
+	take    *int
+	skip    *int
+	orderBy []OrderBy
+}
+
+func (b *ProfileQueryBuilder) Where(preds ...Predicate) *ProfileQueryBuilder {
+	b.where = append(b.where, preds...)
+	return b
+}
+
+func (b *ProfileQueryBuilder) Take(limit int) *ProfileQueryBuilder {
+	b.take = &limit
+	return b
+}
+
+func (b *ProfileQueryBuilder) Skip(offset int) *ProfileQueryBuilder {
+	b.skip = &offset
+	return b
+}
+
+func (b *ProfileQueryBuilder) OrderBy(orders ...OrderBy) *ProfileQueryBuilder {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *ProfileQueryBuilder) Select(s ProfileSelect) *ProfileQueryBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *ProfileQueryBuilder) Omit(o ProfileOmit) *ProfileQueryBuilder {
+	b.omits = &o
+	return b
+}
+
+func (b *ProfileQueryBuilder) GetRelationParams() (*ProfileSelect, *ProfileOmit, QueryParams) {
+	if b == nil {
+		return nil, nil, QueryParams{}
+	}
+	return b.selects, b.omits, QueryParams{
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+	}
 }
 
 type ProfileDelegate struct {
@@ -460,7 +519,8 @@ func (q *Queries) loadProfileRelations(ctx context.Context, records []*Profile, 
 		return nil
 	}
 	if selects.User != nil {
-		returningCols := q.selectUserCols(selects.User, nil, "id")
+		relationSelects, relationOmits, relationParams := selects.User.GetRelationParams()
+		returningCols := q.selectUserCols(relationSelects, relationOmits, "id")
 		// Current model holds the FK: Profile.userId
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -471,11 +531,12 @@ func (q *Queries) loadProfileRelations(ctx context.Context, records []*Profile, 
 			scanInto(returningCols, (*User).ScanFields),
 			directKey(func(c *User) string { return c.Id }),
 			setOne(func(p *Profile, c *User) { p.User = c }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading user: %w", err)
 		}
-		if err := q.loadUserRelations(ctx, allChildren, selects.User); err != nil {
+		if err := q.loadUserRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}

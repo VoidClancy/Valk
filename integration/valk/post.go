@@ -29,26 +29,83 @@ type PostCreate struct {
 
 // PostSelect specifies which fields to include
 type PostSelect struct {
-	Id         bool                  `json:"id"`
-	Title      bool                  `json:"title"`
-	Content    bool                  `json:"content"`
-	Published  bool                  `json:"published"`
-	AuthorId   bool                  `json:"authorId"`
-	Author     *UserSelect           `json:"author,omitempty"`
-	Comments   *CommentSelect        `json:"comments,omitempty"`
-	Categories *CategoryToPostSelect `json:"categories,omitempty"`
+	Id         bool                      `json:"id"`
+	Title      bool                      `json:"title"`
+	Content    bool                      `json:"content"`
+	Published  bool                      `json:"published"`
+	AuthorId   bool                      `json:"authorId"`
+	Author     UserSelectQuery           `json:"author,omitempty"`
+	Comments   CommentSelectQuery        `json:"comments,omitempty"`
+	Categories CategoryToPostSelectQuery `json:"categories,omitempty"`
 }
 
 // PostOmit specifies which fields to exclude
 type PostOmit struct {
-	Id         bool                `json:"id"`
-	Title      bool                `json:"title"`
-	Content    bool                `json:"content"`
-	Published  bool                `json:"published"`
-	AuthorId   bool                `json:"authorId"`
-	Author     *UserOmit           `json:"author,omitempty"`
-	Comments   *CommentOmit        `json:"comments,omitempty"`
-	Categories *CategoryToPostOmit `json:"categories,omitempty"`
+	Id        bool `json:"id"`
+	Title     bool `json:"title"`
+	Content   bool `json:"content"`
+	Published bool `json:"published"`
+	AuthorId  bool `json:"authorId"`
+}
+
+type PostSelectQuery interface {
+	GetRelationParams() (*PostSelect, *PostOmit, QueryParams)
+}
+
+func (s *PostSelect) GetRelationParams() (*PostSelect, *PostOmit, QueryParams) {
+	return s, nil, QueryParams{}
+}
+
+// PostQueryBuilder builds a query for the relation Post
+type PostQueryBuilder struct {
+	selects *PostSelect
+	omits   *PostOmit
+	where   []Predicate
+	take    *int
+	skip    *int
+	orderBy []OrderBy
+}
+
+func (b *PostQueryBuilder) Where(preds ...Predicate) *PostQueryBuilder {
+	b.where = append(b.where, preds...)
+	return b
+}
+
+func (b *PostQueryBuilder) Take(limit int) *PostQueryBuilder {
+	b.take = &limit
+	return b
+}
+
+func (b *PostQueryBuilder) Skip(offset int) *PostQueryBuilder {
+	b.skip = &offset
+	return b
+}
+
+func (b *PostQueryBuilder) OrderBy(orders ...OrderBy) *PostQueryBuilder {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *PostQueryBuilder) Select(s PostSelect) *PostQueryBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *PostQueryBuilder) Omit(o PostOmit) *PostQueryBuilder {
+	b.omits = &o
+	return b
+}
+
+func (b *PostQueryBuilder) GetRelationParams() (*PostSelect, *PostOmit, QueryParams) {
+	if b == nil {
+		return nil, nil, QueryParams{}
+	}
+	return b.selects, b.omits, QueryParams{
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+	}
 }
 
 type PostDelegate struct {
@@ -486,7 +543,8 @@ func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, select
 		return nil
 	}
 	if selects.Author != nil {
-		returningCols := q.selectUserCols(selects.Author, nil, "id")
+		relationSelects, relationOmits, relationParams := selects.Author.GetRelationParams()
+		returningCols := q.selectUserCols(relationSelects, relationOmits, "id")
 		// Current model holds the FK: Post.authorId
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -497,16 +555,18 @@ func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, select
 			scanInto(returningCols, (*User).ScanFields),
 			directKey(func(c *User) string { return c.Id }),
 			setOne(func(p *Post, c *User) { p.Author = c }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading author: %w", err)
 		}
-		if err := q.loadUserRelations(ctx, allChildren, selects.Author); err != nil {
+		if err := q.loadUserRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.Comments != nil {
-		returningCols := q.selectCommentCols(selects.Comments, nil, "postId")
+		relationSelects, relationOmits, relationParams := selects.Comments.GetRelationParams()
+		returningCols := q.selectCommentCols(relationSelects, relationOmits, "postId")
 		// Inverse holds the FK: Comment.postId
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -517,16 +577,18 @@ func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, select
 			scanInto(returningCols, (*Comment).ScanFields),
 			directKey(func(c *Comment) string { return c.PostId }),
 			appendMany(func(p *Post) *[]*Comment { return &p.Comments }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading comments: %w", err)
 		}
-		if err := q.loadCommentRelations(ctx, allChildren, selects.Comments); err != nil {
+		if err := q.loadCommentRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.Categories != nil {
-		returningCols := q.selectCategoryToPostCols(selects.Categories, nil, "postId")
+		relationSelects, relationOmits, relationParams := selects.Categories.GetRelationParams()
+		returningCols := q.selectCategoryToPostCols(relationSelects, relationOmits, "postId")
 		// Inverse holds the FK: CategoryToPost.postId
 		allChildren, err := loadRelation(
 			ctx, q, records,
@@ -537,11 +599,12 @@ func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, select
 			scanInto(returningCols, (*CategoryToPost).ScanFields),
 			directKey(func(c *CategoryToPost) string { return c.PostId }),
 			appendMany(func(p *Post) *[]*CategoryToPost { return &p.Categories }),
+			relationParams,
 		)
 		if err != nil {
 			return fmt.Errorf("loading categories: %w", err)
 		}
-		if err := q.loadCategoryToPostRelations(ctx, allChildren, selects.Categories); err != nil {
+		if err := q.loadCategoryToPostRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
