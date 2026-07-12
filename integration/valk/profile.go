@@ -395,18 +395,24 @@ func (q *Queries) executeProfileFindUnique(ctx context.Context, where UniquePred
 		func(ctx context.Context, txQ *Queries, results []*Profile) error {
 			return txQ.loadProfileRelations(ctx, results, selects)
 		},
+		nil,
 	)
 }
 
-func (q *Queries) executeProfileFindFirst(ctx context.Context, where []Predicate, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
-	for _, p := range where {
+func (q *Queries) executeProfileFindFirst(
+	ctx context.Context,
+	params QueryParams,
+	selects *ProfileSelect,
+	omits *ProfileOmit,
+) (*Profile, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -417,18 +423,24 @@ func (q *Queries) executeProfileFindFirst(ctx context.Context, where []Predicate
 		func(ctx context.Context, txQ *Queries, results []*Profile) error {
 			return txQ.loadProfileRelations(ctx, results, selects)
 		},
+		params.Skip,
 	)
 }
 
-func (q *Queries) executeProfileFindMany(ctx context.Context, where []Predicate, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
-	for _, p := range where {
+func (q *Queries) executeProfileFindMany(
+	ctx context.Context,
+	params QueryParams,
+	selects *ProfileSelect,
+	omits *ProfileOmit,
+) ([]*Profile, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -439,6 +451,8 @@ func (q *Queries) executeProfileFindMany(ctx context.Context, where []Predicate,
 		func(ctx context.Context, txQ *Queries, results []*Profile) error {
 			return txQ.loadProfileRelations(ctx, results, selects)
 		},
+		params.Take,
+		params.Skip,
 	)
 }
 func (q *Queries) loadProfileRelations(ctx context.Context, records []*Profile, selects *ProfileSelect) error {

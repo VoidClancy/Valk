@@ -1498,18 +1498,24 @@ func (q *Queries) executeAllFieldsSoFarFindUnique(ctx context.Context, where Uni
 		func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
 			return txQ.loadAllFieldsSoFarRelations(ctx, results, selects)
 		},
+		nil,
 	)
 }
 
-func (q *Queries) executeAllFieldsSoFarFindFirst(ctx context.Context, where []Predicate, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-	for _, p := range where {
+func (q *Queries) executeAllFieldsSoFarFindFirst(
+	ctx context.Context,
+	params QueryParams,
+	selects *AllFieldsSoFarSelect,
+	omits *AllFieldsSoFarOmit,
+) (*AllFieldsSoFar, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -1520,18 +1526,24 @@ func (q *Queries) executeAllFieldsSoFarFindFirst(ctx context.Context, where []Pr
 		func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
 			return txQ.loadAllFieldsSoFarRelations(ctx, results, selects)
 		},
+		params.Skip,
 	)
 }
 
-func (q *Queries) executeAllFieldsSoFarFindMany(ctx context.Context, where []Predicate, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
-	for _, p := range where {
+func (q *Queries) executeAllFieldsSoFarFindMany(
+	ctx context.Context,
+	params QueryParams,
+	selects *AllFieldsSoFarSelect,
+	omits *AllFieldsSoFarOmit,
+) ([]*AllFieldsSoFar, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -1542,6 +1554,8 @@ func (q *Queries) executeAllFieldsSoFarFindMany(ctx context.Context, where []Pre
 		func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
 			return txQ.loadAllFieldsSoFarRelations(ctx, results, selects)
 		},
+		params.Take,
+		params.Skip,
 	)
 }
 func (q *Queries) loadAllFieldsSoFarRelations(ctx context.Context, records []*AllFieldsSoFar, selects *AllFieldsSoFarSelect) error {

@@ -40,18 +40,24 @@ func (q *Queries) execute{{ .Model.Name }}FindUnique(ctx context.Context, where 
 		func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}) error {
 			return txQ.load{{ .Model.Name }}Relations(ctx, results, selects)
 		},
+		nil,
 	)
 }
 
-func (q *Queries) execute{{ .Model.Name }}FindFirst(ctx context.Context, where []Predicate, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
-	for _, p := range where {
+func (q *Queries) execute{{ .Model.Name }}FindFirst(
+	ctx context.Context,
+	params QueryParams,
+	selects *{{ .Model.Name }}Select,
+	omits *{{ .Model.Name }}Omit,
+) (*{{ .Model.Name }}, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -62,18 +68,24 @@ func (q *Queries) execute{{ .Model.Name }}FindFirst(ctx context.Context, where [
 		func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}) error {
 			return txQ.load{{ .Model.Name }}Relations(ctx, results, selects)
 		},
+		params.Skip,
 	)
 }
 
-func (q *Queries) execute{{ .Model.Name }}FindMany(ctx context.Context, where []Predicate, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
-	for _, p := range where {
+func (q *Queries) execute{{ .Model.Name }}FindMany(
+	ctx context.Context,
+	params QueryParams,
+	selects *{{ .Model.Name }}Select,
+	omits *{{ .Model.Name }}Omit,
+) ([]*{{ .Model.Name }}, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -84,5 +96,7 @@ func (q *Queries) execute{{ .Model.Name }}FindMany(ctx context.Context, where []
 		func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}) error {
 			return txQ.load{{ .Model.Name }}Relations(ctx, results, selects)
 		},
+		params.Take,
+		params.Skip,
 	)
 }

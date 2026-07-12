@@ -421,18 +421,24 @@ func (q *Queries) executePostFindUnique(ctx context.Context, where UniquePredica
 		func(ctx context.Context, txQ *Queries, results []*Post) error {
 			return txQ.loadPostRelations(ctx, results, selects)
 		},
+		nil,
 	)
 }
 
-func (q *Queries) executePostFindFirst(ctx context.Context, where []Predicate, selects *PostSelect, omits *PostOmit) (*Post, error) {
-	for _, p := range where {
+func (q *Queries) executePostFindFirst(
+	ctx context.Context,
+	params QueryParams,
+	selects *PostSelect,
+	omits *PostOmit,
+) (*Post, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -443,18 +449,24 @@ func (q *Queries) executePostFindFirst(ctx context.Context, where []Predicate, s
 		func(ctx context.Context, txQ *Queries, results []*Post) error {
 			return txQ.loadPostRelations(ctx, results, selects)
 		},
+		params.Skip,
 	)
 }
 
-func (q *Queries) executePostFindMany(ctx context.Context, where []Predicate, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
-	for _, p := range where {
+func (q *Queries) executePostFindMany(
+	ctx context.Context,
+	params QueryParams,
+	selects *PostSelect,
+	omits *PostOmit,
+) ([]*Post, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -465,6 +477,8 @@ func (q *Queries) executePostFindMany(ctx context.Context, where []Predicate, se
 		func(ctx context.Context, txQ *Queries, results []*Post) error {
 			return txQ.loadPostRelations(ctx, results, selects)
 		},
+		params.Take,
+		params.Skip,
 	)
 }
 func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, selects *PostSelect) error {

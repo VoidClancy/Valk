@@ -348,18 +348,24 @@ func (q *Queries) executeCategoryFindUnique(ctx context.Context, where UniquePre
 		func(ctx context.Context, txQ *Queries, results []*Category) error {
 			return txQ.loadCategoryRelations(ctx, results, selects)
 		},
+		nil,
 	)
 }
 
-func (q *Queries) executeCategoryFindFirst(ctx context.Context, where []Predicate, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
-	for _, p := range where {
+func (q *Queries) executeCategoryFindFirst(
+	ctx context.Context,
+	params QueryParams,
+	selects *CategorySelect,
+	omits *CategoryOmit,
+) (*Category, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -370,18 +376,24 @@ func (q *Queries) executeCategoryFindFirst(ctx context.Context, where []Predicat
 		func(ctx context.Context, txQ *Queries, results []*Category) error {
 			return txQ.loadCategoryRelations(ctx, results, selects)
 		},
+		params.Skip,
 	)
 }
 
-func (q *Queries) executeCategoryFindMany(ctx context.Context, where []Predicate, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
-	for _, p := range where {
+func (q *Queries) executeCategoryFindMany(
+	ctx context.Context,
+	params QueryParams,
+	selects *CategorySelect,
+	omits *CategoryOmit,
+) ([]*Category, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -392,6 +404,8 @@ func (q *Queries) executeCategoryFindMany(ctx context.Context, where []Predicate
 		func(ctx context.Context, txQ *Queries, results []*Category) error {
 			return txQ.loadCategoryRelations(ctx, results, selects)
 		},
+		params.Take,
+		params.Skip,
 	)
 }
 func (q *Queries) loadCategoryRelations(ctx context.Context, records []*Category, selects *CategorySelect) error {

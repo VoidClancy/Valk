@@ -489,18 +489,24 @@ func (q *Queries) executeCommentFindUnique(ctx context.Context, where UniquePred
 		func(ctx context.Context, txQ *Queries, results []*Comment) error {
 			return txQ.loadCommentRelations(ctx, results, selects)
 		},
+		nil,
 	)
 }
 
-func (q *Queries) executeCommentFindFirst(ctx context.Context, where []Predicate, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
-	for _, p := range where {
+func (q *Queries) executeCommentFindFirst(
+	ctx context.Context,
+	params QueryParams,
+	selects *CommentSelect,
+	omits *CommentOmit,
+) (*Comment, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -511,18 +517,24 @@ func (q *Queries) executeCommentFindFirst(ctx context.Context, where []Predicate
 		func(ctx context.Context, txQ *Queries, results []*Comment) error {
 			return txQ.loadCommentRelations(ctx, results, selects)
 		},
+		params.Skip,
 	)
 }
 
-func (q *Queries) executeCommentFindMany(ctx context.Context, where []Predicate, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
-	for _, p := range where {
+func (q *Queries) executeCommentFindMany(
+	ctx context.Context,
+	params QueryParams,
+	selects *CommentSelect,
+	omits *CommentOmit,
+) ([]*Comment, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -533,6 +545,8 @@ func (q *Queries) executeCommentFindMany(ctx context.Context, where []Predicate,
 		func(ctx context.Context, txQ *Queries, results []*Comment) error {
 			return txQ.loadCommentRelations(ctx, results, selects)
 		},
+		params.Take,
+		params.Skip,
 	)
 }
 func (q *Queries) loadCommentRelations(ctx context.Context, records []*Comment, selects *CommentSelect) error {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"integration/valk"
 	"integration/valk/comment"
 	"integration/valk/post"
@@ -584,5 +585,79 @@ func TestJsonField(t *testing.T) {
 	}
 	if len(foundMany) != 1 || foundMany[0].Id != c.Id {
 		t.Errorf("expected 1 comment, got %d comments", len(foundMany))
+	}
+}
+
+func TestFindManyTakeAndSkip(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	var usersToCreate []valk.RecordInput
+
+	for i := range 5 {
+		usersToCreate = append(usersToCreate, user.Record(
+			user.Email.Set(fmt.Sprintf("user%d@example.com", i)),
+			user.PhoneNum.Set(fmt.Sprintf("99%d", i)),
+		))
+	}
+
+	_, err := db.User.CreateMany(usersToCreate...).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create users: %v", err)
+
+	}
+
+	resTake, err := db.User.FindMany().Take(2).Exec(ctx)
+	if err != nil {
+		t.Fatalf("FindMany Take(2) failed: %v", err)
+	}
+	if len(resTake) != 2 {
+		t.Errorf("expected 2 users, got %d", len(resTake))
+	}
+
+	resSkip, err := db.User.FindMany().Skip(3).Exec(ctx)
+	if err != nil {
+		t.Fatalf("FindMany Skip(3) failed: %v", err)
+	}
+	if len(resSkip) != 2 {
+		t.Errorf("expected 2 users on skip 3, got %d", len(resSkip))
+	}
+
+	resTakeSkip, err := db.User.FindMany().Take(2).Skip(1).Exec(ctx)
+	if err != nil {
+		t.Fatalf("FindMany Take(2) Skip(1) failed: %v", err)
+	}
+	if len(resTakeSkip) != 2 {
+		t.Errorf("expected 2 users, got %d", len(resTakeSkip))
+	}
+}
+
+func TestFindFirstSkip(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	var usersToCreate []valk.RecordInput
+	for i := range 5 {
+		usersToCreate = append(usersToCreate, user.Record(
+			user.Email.Set(fmt.Sprintf("ff_user%d@example.com", i)),
+			user.PhoneNum.Set(fmt.Sprintf("88%d", i)),
+		))
+	}
+	_, err := db.User.CreateMany(usersToCreate...).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create users: %v", err)
+	}
+
+	res, err := db.User.FindFirst().Skip(2).Exec(ctx)
+	if err != nil {
+		t.Fatalf("FindFirst with Skip failed: %v", err)
+	}
+	if res == nil {
+		t.Fatal("expected to find a user")
+	}
+	if !strings.HasPrefix(res.Email, "ff_user") {
+		t.Errorf("expected found user to be one of the seeded users, got %q", res.Email)
 	}
 }

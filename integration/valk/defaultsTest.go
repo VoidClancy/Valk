@@ -515,18 +515,24 @@ func (q *Queries) executeDefaultsTestFindUnique(ctx context.Context, where Uniqu
 		func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
 			return txQ.loadDefaultsTestRelations(ctx, results, selects)
 		},
+		nil,
 	)
 }
 
-func (q *Queries) executeDefaultsTestFindFirst(ctx context.Context, where []Predicate, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
-	for _, p := range where {
+func (q *Queries) executeDefaultsTestFindFirst(
+	ctx context.Context,
+	params QueryParams,
+	selects *DefaultsTestSelect,
+	omits *DefaultsTestOmit,
+) (*DefaultsTest, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -537,18 +543,24 @@ func (q *Queries) executeDefaultsTestFindFirst(ctx context.Context, where []Pred
 		func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
 			return txQ.loadDefaultsTestRelations(ctx, results, selects)
 		},
+		params.Skip,
 	)
 }
 
-func (q *Queries) executeDefaultsTestFindMany(ctx context.Context, where []Predicate, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error) {
-	for _, p := range where {
+func (q *Queries) executeDefaultsTestFindMany(
+	ctx context.Context,
+	params QueryParams,
+	selects *DefaultsTestSelect,
+	omits *DefaultsTestOmit,
+) ([]*DefaultsTest, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -559,6 +571,8 @@ func (q *Queries) executeDefaultsTestFindMany(ctx context.Context, where []Predi
 		func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
 			return txQ.loadDefaultsTestRelations(ctx, results, selects)
 		},
+		params.Take,
+		params.Skip,
 	)
 }
 func (q *Queries) loadDefaultsTestRelations(ctx context.Context, records []*DefaultsTest, selects *DefaultsTestSelect) error {

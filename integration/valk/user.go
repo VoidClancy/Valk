@@ -477,18 +477,24 @@ func (q *Queries) executeUserFindUnique(ctx context.Context, where UniquePredica
 		func(ctx context.Context, txQ *Queries, results []*User) error {
 			return txQ.loadUserRelations(ctx, results, selects)
 		},
+		nil,
 	)
 }
 
-func (q *Queries) executeUserFindFirst(ctx context.Context, where []Predicate, selects *UserSelect, omits *UserOmit) (*User, error) {
-	for _, p := range where {
+func (q *Queries) executeUserFindFirst(
+	ctx context.Context,
+	params QueryParams,
+	selects *UserSelect,
+	omits *UserOmit,
+) (*User, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -499,18 +505,24 @@ func (q *Queries) executeUserFindFirst(ctx context.Context, where []Predicate, s
 		func(ctx context.Context, txQ *Queries, results []*User) error {
 			return txQ.loadUserRelations(ctx, results, selects)
 		},
+		params.Skip,
 	)
 }
 
-func (q *Queries) executeUserFindMany(ctx context.Context, where []Predicate, selects *UserSelect, omits *UserOmit) ([]*User, error) {
-	for _, p := range where {
+func (q *Queries) executeUserFindMany(
+	ctx context.Context,
+	params QueryParams,
+	selects *UserSelect,
+	omits *UserOmit,
+) ([]*User, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -521,6 +533,8 @@ func (q *Queries) executeUserFindMany(ctx context.Context, where []Predicate, se
 		func(ctx context.Context, txQ *Queries, results []*User) error {
 			return txQ.loadUserRelations(ctx, results, selects)
 		},
+		params.Take,
+		params.Skip,
 	)
 }
 func (q *Queries) loadUserRelations(ctx context.Context, records []*User, selects *UserSelect) error {
