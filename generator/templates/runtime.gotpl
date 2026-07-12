@@ -3,6 +3,7 @@ type Dialect interface {
 	BindVar(idx int) string
 	SupportsReturning() bool
 	SupportsBulkInsert() bool
+	FormatLimitOffset(take *int, skip *int) string
 }
 
 type DBTX interface {
@@ -177,4 +178,10 @@ func ValidateInt(errs *ValidationError, fieldName string, val int, rule string) 
 			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
 		}
 	}
+}
+
+type QueryParams struct {
+	Where []Predicate
+	Take  *int
+	Skip  *int
 }

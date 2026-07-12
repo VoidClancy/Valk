@@ -147,6 +147,7 @@ type Dialect interface {
 	BindVar(idx int) string
 	SupportsReturning() bool
 	SupportsBulkInsert() bool
+	FormatLimitOffset(take *int, skip *int) string
 }
 
 type DBTX interface {
@@ -319,12 +320,30 @@ func ValidateInt(errs *ValidationError, fieldName string, val int, rule string) 
 	}
 }
 
+type QueryParams struct {
+	Where []Predicate
+	Take  *int
+	Skip  *int
+}
+
 type postgresDialect struct{}
 
 func (postgresDialect) Quote(ident string) string { return `"` + ident + `"` }
 func (postgresDialect) BindVar(idx int) string    { return fmt.Sprintf("$%d", idx) }
 func (postgresDialect) SupportsReturning() bool   { return true }
 func (postgresDialect) SupportsBulkInsert() bool  { return true }
+func (postgresDialect) FormatLimitOffset(take *int, skip *int) string {
+	if take != nil {
+		if skip != nil {
+			return fmt.Sprintf(" LIMIT %d OFFSET %d", *take, *skip)
+		}
+		return fmt.Sprintf(" LIMIT %d", *take)
+	}
+	if skip != nil {
+		return fmt.Sprintf(" OFFSET %d", *skip)
+	}
+	return ""
+}
 
 type Queries struct {
 	db       DBTX
@@ -1802,7 +1821,13 @@ func (b *FindUniqueOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 type FindFirstBuilder[M any, S any, O any] struct {
 	client   *Queries
 	where    []Predicate
-	execFunc func(ctx context.Context, where []Predicate, s *S, o *O) (*M, error)
+	skip     *int
+	execFunc func(ctx context.Context, params QueryParams, s *S, o *O) (*M, error)
+}
+
+func (b *FindFirstBuilder[M, S, O]) Skip(offset int) *FindFirstBuilder[M, S, O] {
+	b.skip = &offset
+	return b
 }
 
 func (b *FindFirstBuilder[M, S, O]) Select(s S) *FindFirstSelectBuilder[M, S, O] {
@@ -1814,7 +1839,11 @@ func (b *FindFirstBuilder[M, S, O]) Omit(o O) *FindFirstOmitBuilder[M, S, O] {
 }
 
 func (b *FindFirstBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.execFunc(ctx, b.where, nil, nil)
+	params := QueryParams{
+		Where: b.where,
+		Skip:  b.skip,
+	}
+	return b.execFunc(ctx, params, nil, nil)
 }
 
 type FindFirstSelectBuilder[M any, S any, O any] struct {
@@ -1823,7 +1852,11 @@ type FindFirstSelectBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindFirstSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.where, &b.selects, nil)
+	params := QueryParams{
+		Where: b.builder.where,
+		Skip:  b.builder.skip,
+	}
+	return b.builder.execFunc(ctx, params, &b.selects, nil)
 }
 
 type FindFirstOmitBuilder[M any, S any, O any] struct {
@@ -1832,13 +1865,29 @@ type FindFirstOmitBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.where, nil, &b.omits)
+	params := QueryParams{
+		Where: b.builder.where,
+		Skip:  b.builder.skip,
+	}
+	return b.builder.execFunc(ctx, params, nil, &b.omits)
 }
 
 type FindManyBuilder[M any, S any, O any] struct {
 	client   *Queries
 	where    []Predicate
-	execFunc func(ctx context.Context, where []Predicate, s *S, o *O) ([]*M, error)
+	take     *int
+	skip     *int
+	execFunc func(ctx context.Context, params QueryParams, s *S, o *O) ([]*M, error)
+}
+
+func (b *FindManyBuilder[M, S, O]) Take(limit int) *FindManyBuilder[M, S, O] {
+	b.take = &limit
+	return b
+}
+
+func (b *FindManyBuilder[M, S, O]) Skip(offset int) *FindManyBuilder[M, S, O] {
+	b.skip = &offset
+	return b
 }
 
 func (b *FindManyBuilder[M, S, O]) Select(s S) *FindManySelectBuilder[M, S, O] {
@@ -1850,7 +1899,12 @@ func (b *FindManyBuilder[M, S, O]) Omit(o O) *FindManyOmitBuilder[M, S, O] {
 }
 
 func (b *FindManyBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.execFunc(ctx, b.where, nil, nil)
+	params := QueryParams{
+		Where: b.where,
+		Take:  b.take,
+		Skip:  b.skip,
+	}
+	return b.execFunc(ctx, params, nil, nil)
 }
 
 type FindManySelectBuilder[M any, S any, O any] struct {
@@ -1859,7 +1913,12 @@ type FindManySelectBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindManySelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.builder.execFunc(ctx, b.builder.where, &b.selects, nil)
+	params := QueryParams{
+		Where: b.builder.where,
+		Take:  b.builder.take,
+		Skip:  b.builder.skip,
+	}
+	return b.builder.execFunc(ctx, params, &b.selects, nil)
 }
 
 type FindManyOmitBuilder[M any, S any, O any] struct {
@@ -1868,7 +1927,12 @@ type FindManyOmitBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindManyOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.builder.execFunc(ctx, b.builder.where, nil, &b.omits)
+	params := QueryParams{
+		Where: b.builder.where,
+		Take:  b.builder.take,
+		Skip:  b.builder.skip,
+	}
+	return b.builder.execFunc(ctx, params, nil, &b.omits)
 }
 
 func executeFindOne[M any](
@@ -1879,6 +1943,7 @@ func executeFindOne[M any](
 	whereVals []any,
 	returningCols []string,
 	scanFunc func(record *M, cols []string) []any,
+	skip *int,
 ) (*M, error) {
 	var sb strings.Builder
 	sb.Grow(64 + len(returningCols)*15 + len(table) + len(whereClause))
@@ -1892,7 +1957,8 @@ func executeFindOne[M any](
 	sb.WriteString(" FROM ")
 	sb.WriteString(q.dialect.Quote(table))
 	sb.WriteString(whereClause)
-	sb.WriteString(" LIMIT 1")
+	limitOne := 1
+	sb.WriteString(q.dialect.FormatLimitOffset(&limitOne, skip))
 
 	var res M
 	row := q.queryRow(ctx, sb.String(), whereVals...)
@@ -1914,6 +1980,8 @@ func executeFindMany[M any](
 	whereVals []any,
 	returningCols []string,
 	scanFunc func(record *M, cols []string) []any,
+	take *int,
+	skip *int,
 ) ([]*M, error) {
 	var sb strings.Builder
 	sb.Grow(64 + len(returningCols)*15 + len(table) + len(whereClause))
@@ -1927,6 +1995,7 @@ func executeFindMany[M any](
 	sb.WriteString(" FROM ")
 	sb.WriteString(q.dialect.Quote(table))
 	sb.WriteString(whereClause)
+	sb.WriteString(q.dialect.FormatLimitOffset(take, skip))
 
 	rows, err := q.query(ctx, sb.String(), whereVals...)
 	if err != nil {
@@ -1959,15 +2028,16 @@ func executeSingleWithRelations[M any](
 	scanFunc func(*M, []string) []any,
 	hasRelations bool,
 	loadRelations func(ctx context.Context, txQ *Queries, results []*M) error,
+	skip *int,
 ) (*M, error) {
 	if !hasRelations {
-		return executeFindOne(ctx, q, table, whereClause, whereVals, returningCols, scanFunc)
+		return executeFindOne(ctx, q, table, whereClause, whereVals, returningCols, scanFunc, skip)
 	}
 
 	var res *M
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		var err error
-		res, err = executeFindOne(ctx, txQ, table, whereClause, whereVals, returningCols, scanFunc)
+		res, err = executeFindOne(ctx, txQ, table, whereClause, whereVals, returningCols, scanFunc, skip)
 		if err != nil || res == nil {
 			return err
 		}
@@ -1989,15 +2059,17 @@ func executeManyWithRelations[M any](
 	scanFunc func(*M, []string) []any,
 	hasRelations bool,
 	loadRelations func(ctx context.Context, txQ *Queries, results []*M) error,
+	take *int,
+	skip *int,
 ) ([]*M, error) {
 	if !hasRelations {
-		return executeFindMany(ctx, q, table, whereClause, whereVals, returningCols, scanFunc)
+		return executeFindMany(ctx, q, table, whereClause, whereVals, returningCols, scanFunc, take, skip)
 	}
 
 	results := make([]*M, 0)
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		var err error
-		results, err = executeFindMany(ctx, txQ, table, whereClause, whereVals, returningCols, scanFunc)
+		results, err = executeFindMany(ctx, txQ, table, whereClause, whereVals, returningCols, scanFunc, take, skip)
 		if err != nil || len(results) == 0 {
 			return err
 		}

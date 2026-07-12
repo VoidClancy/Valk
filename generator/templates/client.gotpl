@@ -4,6 +4,18 @@ func (postgresDialect) Quote(ident string) string    { return `"` + ident + `"` 
 func (postgresDialect) BindVar(idx int) string       { return fmt.Sprintf("$%d", idx) }
 func (postgresDialect) SupportsReturning() bool      { return true }
 func (postgresDialect) SupportsBulkInsert() bool     { return true }
+func (postgresDialect) FormatLimitOffset(take *int, skip *int) string {
+	if take != nil {
+		if skip != nil {
+			return fmt.Sprintf(" LIMIT %d OFFSET %d", *take, *skip)
+		}
+		return fmt.Sprintf(" LIMIT %d", *take)
+	}
+	if skip != nil {
+		return fmt.Sprintf(" OFFSET %d", *skip)
+	}
+	return ""
+}
 {{- end }}
 
 {{- if or (eq .Schema.Datasource.Provider "sqlite") (eq .Schema.Datasource.Provider "sqlite3") }}
@@ -12,6 +24,18 @@ func (sqliteDialect) Quote(ident string) string      { return `"` + ident + `"` 
 func (sqliteDialect) BindVar(idx int) string         { return "?" }
 func (sqliteDialect) SupportsReturning() bool        { return true }
 func (sqliteDialect) SupportsBulkInsert() bool       { return false }
+func (sqliteDialect) FormatLimitOffset(take *int, skip *int) string {
+	if take != nil {
+		if skip != nil {
+			return fmt.Sprintf(" LIMIT %d OFFSET %d", *take, *skip)
+		}
+		return fmt.Sprintf(" LIMIT %d", *take)
+	}
+	if skip != nil {
+		return fmt.Sprintf(" LIMIT -1 OFFSET %d", *skip)
+	}
+	return ""
+}
 {{- end }}
 
 type Queries struct {

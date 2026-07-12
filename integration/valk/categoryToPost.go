@@ -352,18 +352,24 @@ func (q *Queries) executeCategoryToPostFindUnique(ctx context.Context, where Uni
 		func(ctx context.Context, txQ *Queries, results []*CategoryToPost) error {
 			return txQ.loadCategoryToPostRelations(ctx, results, selects)
 		},
+		nil,
 	)
 }
 
-func (q *Queries) executeCategoryToPostFindFirst(ctx context.Context, where []Predicate, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
-	for _, p := range where {
+func (q *Queries) executeCategoryToPostFindFirst(
+	ctx context.Context,
+	params QueryParams,
+	selects *CategoryToPostSelect,
+	omits *CategoryToPostOmit,
+) (*CategoryToPost, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -374,18 +380,24 @@ func (q *Queries) executeCategoryToPostFindFirst(ctx context.Context, where []Pr
 		func(ctx context.Context, txQ *Queries, results []*CategoryToPost) error {
 			return txQ.loadCategoryToPostRelations(ctx, results, selects)
 		},
+		params.Skip,
 	)
 }
 
-func (q *Queries) executeCategoryToPostFindMany(ctx context.Context, where []Predicate, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
-	for _, p := range where {
+func (q *Queries) executeCategoryToPostFindMany(
+	ctx context.Context,
+	params QueryParams,
+	selects *CategoryToPostSelect,
+	omits *CategoryToPostOmit,
+) ([]*CategoryToPost, error) {
+	for _, p := range params.Where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, where)
+	whereClause, vals := CompilePredicates(q.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -396,6 +408,8 @@ func (q *Queries) executeCategoryToPostFindMany(ctx context.Context, where []Pre
 		func(ctx context.Context, txQ *Queries, results []*CategoryToPost) error {
 			return txQ.loadCategoryToPostRelations(ctx, results, selects)
 		},
+		params.Take,
+		params.Skip,
 	)
 }
 func (q *Queries) loadCategoryToPostRelations(ctx context.Context, records []*CategoryToPost, selects *CategoryToPostSelect) error {
