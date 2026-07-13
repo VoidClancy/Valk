@@ -533,11 +533,12 @@ func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, re
 	}
 	return results, nil
 }
-func (d *DefaultsTestDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
+func (d *DefaultsTestDelegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
 	return &FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
-		client:   d.client,
-		where:    where,
-		execFunc: d.client.executeDefaultsTestFindUnique,
+		client:     d.client,
+		where:      where,
+		additional: additional,
+		execFunc:   d.client.executeDefaultsTestFindUnique,
 	}
 }
 
@@ -557,14 +558,22 @@ func (d *DefaultsTestDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Def
 	}
 }
 
-func (q *Queries) executeDefaultsTestFindUnique(ctx context.Context, where UniquePredicate, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+func (q *Queries) executeDefaultsTestFindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
 	if where == nil {
 		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
 	}
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
-	whereClause, vals := CompilePredicates(q.dialect, []Predicate{where})
+	for _, p := range additional {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	allPreds := append([]Predicate{where}, additional...)
+	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}

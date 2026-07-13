@@ -1,7 +1,8 @@
 type FindUniqueBuilder[M any, S any, O any] struct {
-	client   *Queries
-	where    UniquePredicate
-	execFunc func(ctx context.Context, where UniquePredicate, s *S, o *O) (*M, error)
+	client     *Queries
+	where      UniquePredicate
+	additional []Predicate
+	execFunc   func(ctx context.Context, where UniquePredicate, additional []Predicate, s *S, o *O) (*M, error)
 }
 
 func (b *FindUniqueBuilder[M, S, O]) Select(s S) *FindUniqueSelectBuilder[M, S, O] {
@@ -13,7 +14,7 @@ func (b *FindUniqueBuilder[M, S, O]) Omit(o O) *FindUniqueOmitBuilder[M, S, O] {
 }
 
 func (b *FindUniqueBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.execFunc(ctx, b.where, nil, nil)
+	return b.execFunc(ctx, b.where, b.additional, nil, nil)
 }
 
 type FindUniqueSelectBuilder[M any, S any, O any] struct {
@@ -22,7 +23,7 @@ type FindUniqueSelectBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindUniqueSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.where, &b.selects, nil)
+	return b.builder.execFunc(ctx, b.builder.where, b.builder.additional, &b.selects, nil)
 }
 
 type FindUniqueOmitBuilder[M any, S any, O any] struct {
@@ -31,7 +32,7 @@ type FindUniqueOmitBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindUniqueOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.where, nil, &b.omits)
+	return b.builder.execFunc(ctx, b.builder.where, b.builder.additional, nil, &b.omits)
 }
 
 type FindFirstBuilder[M any, S any, O any] struct {

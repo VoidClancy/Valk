@@ -1516,11 +1516,12 @@ func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, 
 	}
 	return results, nil
 }
-func (d *AllFieldsSoFarDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
+func (d *AllFieldsSoFarDelegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
 	return &FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
-		client:   d.client,
-		where:    where,
-		execFunc: d.client.executeAllFieldsSoFarFindUnique,
+		client:     d.client,
+		where:      where,
+		additional: additional,
+		execFunc:   d.client.executeAllFieldsSoFarFindUnique,
 	}
 }
 
@@ -1540,14 +1541,22 @@ func (d *AllFieldsSoFarDelegate) FindMany(preds ...Predicate) *FindManyBuilder[A
 	}
 }
 
-func (q *Queries) executeAllFieldsSoFarFindUnique(ctx context.Context, where UniquePredicate, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+func (q *Queries) executeAllFieldsSoFarFindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
 	if where == nil {
 		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
 	}
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
-	whereClause, vals := CompilePredicates(q.dialect, []Predicate{where})
+	for _, p := range additional {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	allPreds := append([]Predicate{where}, additional...)
+	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}

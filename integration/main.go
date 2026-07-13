@@ -61,6 +61,29 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 		))
 	}
 
+	_, err := db.User.FindUnique(
+		user.EmailPhoneUnique("x@y.com", "+1111"),
+	).Select(user.Select{
+		Id:       true,
+		Email:    true,
+		PhoneNum: true,
+		Profile:  &profile.Select{},
+
+		Posts: post.Query().Where(post.And(
+			post.Title.Contains("super-cool-post"),
+			post.Published.EQ(true),
+		)).
+			Select(post.Select{
+				Id:    true,
+				Title: true,
+				Comments: comment.Query().Where(comment.Or(
+					comment.AuthorId.Contains("xyz"),
+					comment.AuthorId.Contains("abc"),
+				)),
+			}),
+	}).
+		Exec(ctx)
+
 	users, err := db.User.CreateManyAndReturn(usersToCreate...).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create users: %v", err)
@@ -86,7 +109,11 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 		user.PhoneNum.Set("555-0001"),
 		user.Password.Set("pass123"),
 		user.Role.Set(valk.UserRole.Student),
-	).Exec(ctx)
+	).Select(user.Select{
+		Id:    true,
+		Email: true,
+	}).
+		Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create referrer: %v", err)
 	}
@@ -206,100 +233,16 @@ func main() {
 	ctx := context.Background()
 
 	runMigrations(db, ctx)
-
-	fmt.Println("=== Seeding Data ===")
-	data := seed(db, ctx)
-	fmt.Println("Seeding complete.")
-	fmt.Println()
-
-	all, err := db.User.FindMany().Exec(ctx)
+	res, err := db.User.FindUnique(
+		user.EmailPhoneUnique("x@y.com", "+1111"),
+		user.RoleOptional.EQ(valk.UserRole.Admin),
+	).Exec(ctx)
 	if err != nil {
-		log.Fatalf("failed to get all users: %v", err)
+		log.Fatalf("failed to find user: %v", err)
 	}
-	fmt.Println("=== ALL ===")
+	fmt.Println(res)
+	printJSON(res)
 
-	printJSON(all)
-
-	bleh, err := db.User.FindMany(user.And(
-		user.Email.Contains("@example"),
-		user.Or(
-			user.Email.EQ("referred@example.com"),
-			user.PhoneNum.EQ("+1111"),
-		),
-	)).Select(user.Select{
-		Id: true,
-	}).Exec(ctx)
-	printJSON(bleh)
-
-	fmt.Println("=== QUERY 1: Deep Nested Select ===")
-	resUser, err := db.User.FindFirst(
-		user.Email.EQ("referred@example.com"),
-	).Select(user.Select{
-		Email: true,
-		Profile: profile.Query().Select(profile.Select{
-			Bio: true,
-		}),
-		ReferredBy: user.Query().Select(user.Select{
-			Email:    true,
-			PhoneNum: true,
-		}),
-		Posts: post.Query().Select(post.Select{
-			Title: true,
-			Comments: comment.Query().Select(comment.Select{
-				Textify: true,
-				Meta:    true,
-				Author: user.Query().Select(user.Select{
-					Email: true,
-				}),
-			}),
-		}),
-	}).Exec(ctx)
-
-	if err != nil {
-		log.Fatalf("Query 1 failed: %v", err)
-	}
-	printJSON(resUser)
-	fmt.Println()
-
-	fmt.Println("=== QUERY 2: Omit Nested Fields ===")
-	resPost, err := db.Post.FindFirst(
-		post.Title.Like("%Valkyrie%"),
-	).
-		Select(post.Select{
-			Title:     true,
-			Published: true,
-			Comments: comment.Query().Select(comment.Select{
-				Textify: true,
-				Meta:    true,
-			}),
-		}).
-		Exec(ctx)
-
-	if err != nil {
-		log.Fatalf("Query 2 failed: %v", err)
-	}
-	printJSON(resPost)
-	fmt.Println()
-
-	fmt.Println("=== QUERY 3: Filtering with Relations ===")
-	resComments, err := db.Comment.FindMany(
-		comment.Meta.EQ(data.Meta1),
-	).Select(comment.Select{
-		Textify: true,
-		Meta:    true,
-		Post: post.Query().Select(post.Select{
-			Title: true,
-			Author: user.Query().Select(user.Select{
-				Email: true,
-			}),
-		}),
-	}).Exec(ctx)
-
-	if err != nil {
-		log.Fatalf("Query 3 failed: %v", err)
-	}
-	printJSON(resComments)
-	fmt.Println()
 }
 
 func openConn() *valk.DB {

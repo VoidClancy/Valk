@@ -505,11 +505,12 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records
 	}
 	return results, nil
 }
-func (d *CommentDelegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[Comment, CommentSelect, CommentOmit] {
+func (d *CommentDelegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[Comment, CommentSelect, CommentOmit] {
 	return &FindUniqueBuilder[Comment, CommentSelect, CommentOmit]{
-		client:   d.client,
-		where:    where,
-		execFunc: d.client.executeCommentFindUnique,
+		client:     d.client,
+		where:      where,
+		additional: additional,
+		execFunc:   d.client.executeCommentFindUnique,
 	}
 }
 
@@ -529,14 +530,22 @@ func (d *CommentDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Comment,
 	}
 }
 
-func (q *Queries) executeCommentFindUnique(ctx context.Context, where UniquePredicate, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+func (q *Queries) executeCommentFindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
 	if where == nil {
 		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
 	}
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
-	whereClause, vals := CompilePredicates(q.dialect, []Predicate{where})
+	for _, p := range additional {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	allPreds := append([]Predicate{where}, additional...)
+	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}

@@ -1,8 +1,9 @@
-func (d *{{ .Model.Name }}Delegate) FindUnique(where UniquePredicate) *FindUniqueBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
+func (d *{{ .Model.Name }}Delegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
 	return &FindUniqueBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
-		client:   d.client,
-		where:    where,
-		execFunc: d.client.execute{{ .Model.Name }}FindUnique,
+		client:     d.client,
+		where:      where,
+		additional: additional,
+		execFunc:   d.client.execute{{ .Model.Name }}FindUnique,
 	}
 }
 
@@ -22,14 +23,22 @@ func (d *{{ .Model.Name }}Delegate) FindMany(preds ...Predicate) *FindManyBuilde
 	}
 }
 
-func (q *Queries) execute{{ .Model.Name }}FindUnique(ctx context.Context, where UniquePredicate, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+func (q *Queries) execute{{ .Model.Name }}FindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
 	if where == nil {
 		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
 	}
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
-	whereClause, vals := CompilePredicates(q.dialect, []Predicate{where})
+	for _, p := range additional {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	allPreds := append([]Predicate{where}, additional...)
+	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
