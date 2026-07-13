@@ -818,3 +818,57 @@ func TestRelationSubqueries(t *testing.T) {
 		}
 	})
 }
+
+func TestFindUniqueExtended(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	adminRole := valk.UserRole.Admin
+	studentRole := valk.UserRole.Student
+
+	_, err := db.User.Create(
+		user.Email.Set("ext_admin@example.com"),
+		user.PhoneNum.Set("1111"),
+		user.RoleOptional.Set(adminRole),
+	).Exec(ctx)
+	if err != nil {
+		t.Fatalf("seed admin failed: %v", err)
+	}
+
+	_, err = db.User.Create(
+		user.Email.Set("ext_student@example.com"),
+		user.PhoneNum.Set("2222"),
+		user.RoleOptional.Set(studentRole),
+	).Exec(ctx)
+	if err != nil {
+		t.Fatalf("seed student failed: %v", err)
+	}
+
+	t.Run("Match unique and non-unique", func(t *testing.T) {
+		res, err := db.User.FindUnique(
+			user.Email.EQ("ext_admin@example.com"),
+			user.RoleOptional.EQ(adminRole),
+			user.PhoneNum.EQ("1111"),
+		).Exec(ctx)
+		if err != nil {
+			t.Fatalf("query failed: %v", err)
+		}
+		if res == nil || res.Email != "ext_admin@example.com" {
+			t.Errorf("expected to find admin user, got: %+v", res)
+		}
+	})
+
+	t.Run("Mismatch on non-unique field", func(t *testing.T) {
+		res, err := db.User.FindUnique(
+			user.Email.EQ("ext_admin@example.com"),
+			user.RoleOptional.EQ(studentRole), // Mismatching role
+		).Exec(ctx)
+		if err != nil {
+			t.Fatalf("query failed: %v", err)
+		}
+		if res != nil {
+			t.Errorf("expected nil result on role mismatch, got: %+v", res)
+		}
+	})
+}
