@@ -838,15 +838,13 @@ func TestNativeDefaults_CreateMany(t *testing.T) {
 
 	base := baseAllFields(t)
 
-	rec1 := allFieldsSoFar.Record(append(base,
-		allFieldsSoFar.StringReq.Set("many-1"),
-		allFieldsSoFar.IntReq.Set(10),
-	)...)
+	rec1 := db.AllFieldsSoFar.Create(base...).
+		SetStringReq("many-1").
+		SetIntReq(10)
 
-	rec2 := allFieldsSoFar.Record(append(base,
-		allFieldsSoFar.StringReq.Set("many-2"),
-		allFieldsSoFar.IntReq.Set(20),
-	)...)
+	rec2 := db.AllFieldsSoFar.Create(base...).
+		SetStringReq("many-2").
+		SetIntReq(20)
 
 	count, err := db.AllFieldsSoFar.CreateMany(rec1, rec2).Exec(ctx)
 	if err != nil {
@@ -865,14 +863,8 @@ func TestNativeDefaults_CreateManyAndReturn(t *testing.T) {
 	base := baseAllFields(t)
 
 	recs, err := db.AllFieldsSoFar.CreateManyAndReturn(
-		allFieldsSoFar.Record(append(base,
-			allFieldsSoFar.StringReq.Set("ret-1"),
-			allFieldsSoFar.IntReq.Set(100),
-		)...),
-		allFieldsSoFar.Record(append(base,
-			allFieldsSoFar.StringReq.Set("ret-2"),
-			allFieldsSoFar.IntReq.Set(200),
-		)...),
+		db.AllFieldsSoFar.Create(base...).SetStringReq("ret-1").SetIntReq(100),
+		db.AllFieldsSoFar.Create(base...).SetStringReq("ret-2").SetIntReq(200),
 	).Exec(ctx)
 
 	if err != nil {
@@ -955,14 +947,8 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 		})
 
 		base := baseAllFields(t)
-		r1 := allFieldsSoFar.Record(append(base,
-			allFieldsSoFar.StringReq.Set("hook-cm-1"),
-			allFieldsSoFar.IntReq.Set(1),
-		)...)
-		r2 := allFieldsSoFar.Record(append(base,
-			allFieldsSoFar.StringReq.Set("hook-cm-2"),
-			allFieldsSoFar.IntReq.Set(2),
-		)...)
+		r1 := db.AllFieldsSoFar.Create(base...).SetStringReq("hook-cm-1").SetIntReq(1)
+		r2 := db.AllFieldsSoFar.Create(base...).SetStringReq("hook-cm-2").SetIntReq(2)
 
 		_, err := db.AllFieldsSoFar.CreateMany(r1, r2).Exec(ctx)
 		if err != nil {

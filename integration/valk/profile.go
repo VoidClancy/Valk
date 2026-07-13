@@ -183,11 +183,34 @@ func (s *ProfileSelect) hasAnyRelation() bool {
 	return s.User != nil
 }
 
-func (d *ProfileDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[Profile, ProfileSelect, ProfileOmit] {
-	return &CreateBuilder[Profile, ProfileSelect, ProfileOmit]{
-		client:      d.client,
-		assignments: assignments,
-		execFunc:    d.client.executeProfileCreate,
+type ProfileCreateBuilder struct {
+	*CreateBuilder[Profile, ProfileSelect, ProfileOmit]
+}
+
+func (b *ProfileCreateBuilder) SetId(v string) *ProfileCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+func (b *ProfileCreateBuilder) SetBio(v string) *ProfileCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bio", Val: v})
+	return b
+}
+func (b *ProfileCreateBuilder) SetUserId(v string) *ProfileCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "userId", Val: v})
+	return b
+}
+func (b *ProfileCreateBuilder) SetCreatedAt(v time.Time) *ProfileCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "createdAt", Val: v})
+	return b
+}
+
+func (d *ProfileDelegate) Create(assignments ...FieldAssignment) *ProfileCreateBuilder {
+	return &ProfileCreateBuilder{
+		CreateBuilder: &CreateBuilder[Profile, ProfileSelect, ProfileOmit]{
+			client:      d.client,
+			assignments: assignments,
+			execFunc:    d.client.executeProfileCreate,
+		},
 	}
 }
 
@@ -336,7 +359,11 @@ func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldA
 	return res, nil
 }
 
-func (d *ProfileDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Profile] {
+func (d *ProfileDelegate) CreateMany(builders ...*ProfileCreateBuilder) *CreateManyBuilder[Profile] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyBuilder[Profile]{
 		client:   d.client,
 		records:  records,
@@ -344,7 +371,11 @@ func (d *ProfileDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[
 	}
 }
 
-func (d *ProfileDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit] {
+func (d *ProfileDelegate) CreateManyAndReturn(builders ...*ProfileCreateBuilder) *CreateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit]{
 		client:   d.client,
 		records:  records,

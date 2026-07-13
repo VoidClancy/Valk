@@ -22,6 +22,7 @@ func (p UniquePredicate) Validate() error {
 type Select = valk.CommentSelect
 type Omit = valk.CommentOmit
 type QueryBuilder = valk.CommentQueryBuilder
+type CreateBuilder = valk.CommentCreateBuilder
 
 func Query() *QueryBuilder {
 	return &QueryBuilder{}
