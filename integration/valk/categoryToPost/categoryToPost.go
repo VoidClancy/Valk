@@ -21,6 +21,7 @@ func (p UniquePredicate) Validate() error {
 type Select = valk.CategoryToPostSelect
 type Omit = valk.CategoryToPostOmit
 type QueryBuilder = valk.CategoryToPostQueryBuilder
+type CreateBuilder = valk.CategoryToPostCreateBuilder
 
 func Query() *QueryBuilder {
 	return &QueryBuilder{}

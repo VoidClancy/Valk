@@ -217,11 +217,46 @@ func (s *UserSelect) hasAnyRelation() bool {
 	return s.Profile != nil || s.Posts != nil || s.Comments != nil || s.ReferredBy != nil || s.Referrals != nil
 }
 
-func (d *UserDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[User, UserSelect, UserOmit] {
-	return &CreateBuilder[User, UserSelect, UserOmit]{
-		client:      d.client,
-		assignments: assignments,
-		execFunc:    d.client.executeUserCreate,
+type UserCreateBuilder struct {
+	*CreateBuilder[User, UserSelect, UserOmit]
+}
+
+func (b *UserCreateBuilder) SetId(v string) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+func (b *UserCreateBuilder) SetEmail(v string) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "email", Val: v})
+	return b
+}
+func (b *UserCreateBuilder) SetPhoneNum(v string) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "phoneNum", Val: v})
+	return b
+}
+func (b *UserCreateBuilder) SetPassword(v string) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "password", Val: v})
+	return b
+}
+func (b *UserCreateBuilder) SetRole(v UserRoleType) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "role", Val: v})
+	return b
+}
+func (b *UserCreateBuilder) SetRoleOptional(v UserRoleType) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "roleOptional", Val: v})
+	return b
+}
+func (b *UserCreateBuilder) SetReferredById(v string) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "referredById", Val: v})
+	return b
+}
+
+func (d *UserDelegate) Create(assignments ...FieldAssignment) *UserCreateBuilder {
+	return &UserCreateBuilder{
+		CreateBuilder: &CreateBuilder[User, UserSelect, UserOmit]{
+			client:      d.client,
+			assignments: assignments,
+			execFunc:    d.client.executeUserCreate,
+		},
 	}
 }
 
@@ -414,7 +449,11 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 	return res, nil
 }
 
-func (d *UserDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[User] {
+func (d *UserDelegate) CreateMany(builders ...*UserCreateBuilder) *CreateManyBuilder[User] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyBuilder[User]{
 		client:   d.client,
 		records:  records,
@@ -422,7 +461,11 @@ func (d *UserDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Use
 	}
 }
 
-func (d *UserDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[User, UserSelect, UserOmit] {
+func (d *UserDelegate) CreateManyAndReturn(builders ...*UserCreateBuilder) *CreateManyAndReturnBuilder[User, UserSelect, UserOmit] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyAndReturnBuilder[User, UserSelect, UserOmit]{
 		client:   d.client,
 		records:  records,

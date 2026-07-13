@@ -29,6 +29,60 @@ type SeedData struct {
 	Meta2      json.RawMessage
 }
 
+func dbReset(db *valk.DB) error {
+	tx, err := db.Raw().Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DROP SCHEMA public CASCADE`); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(`CREATE SCHEMA public`); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func main() {
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	// db := openConn()
+	db := openPGConn()
+	defer dbReset(db)
+	defer db.Close()
+	var test user.CreateBuilder
+	_ = test
+	rawDB := db.Raw()
+	rawDB.SetMaxOpenConns(10)
+	ctx := context.Background()
+
+	runMigrations(db, ctx)
+
+	var builders []*user.CreateBuilder
+	for i := range 20 {
+		builder := db.User.Create().
+			SetEmail(fmt.Sprintf("user%d@gmail.com", i)).
+			SetPassword(fmt.Sprintf("pass%d", i)).
+			SetPhoneNum(fmt.Sprintf("+1111%d", i))
+
+		builders = append(builders, builder)
+	}
+	count, err := db.User.CreateMany(builders...).Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to seed users: %v", err)
+	}
+
+	printJSON(count)
+
+}
+
 func seed(db *valk.DB, ctx context.Context) *SeedData {
 
 	db.User.BeforeCreate(func(ctx context.Context, user *valk.UserCreate) error {
@@ -51,14 +105,14 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 		return nil
 	})
 
-	var usersToCreate []valk.RecordInput
+	var usersToCreate []*user.CreateBuilder
 
 	for i := range 20 {
-		usersToCreate = append(usersToCreate, user.Record(
-			user.Email.Set(fmt.Sprintf("email-%d", i)),
-			user.PhoneNum.Set(fmt.Sprintf("555-%d", i)),
-			user.Password.Set(fmt.Sprintf("password-%d", i)),
-		))
+		usersToCreate = append(usersToCreate, db.User.Create().
+			SetEmail(fmt.Sprintf("email-%d", i)).
+			SetPhoneNum(fmt.Sprintf("555-%d", i)).
+			SetPassword(fmt.Sprintf("password-%d", i)),
+		)
 	}
 
 	_, err := db.User.FindUnique(
@@ -91,16 +145,14 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 	fmt.Printf("CreateManyAndReturn: %d users returned with auto-generated IDs\n", len(users))
 
 	if _, err := db.User.CreateMany(
-		user.Record(
-			user.Email.Set("test"),
-			user.PhoneNum.Set("555-test"),
-			user.Password.Set("passwd"),
-		),
-		user.Record(
-			user.Email.Set("again"),
-			user.PhoneNum.Set("555-again"),
-			user.Password.Set("123456"),
-		),
+		db.User.Create().
+			SetEmail("test").
+			SetPhoneNum("555-test").
+			SetPassword("passwd"),
+		db.User.Create().
+			SetEmail("again").
+			SetPhoneNum("555-again").
+			SetPassword("123456"),
 	).Exec(ctx); err != nil {
 		log.Fatalf("failed to CreateMany: %v", err)
 	}
@@ -216,33 +268,6 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 		Meta1:      meta1,
 		Meta2:      meta2,
 	}
-}
-
-func main() {
-
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-	// db := openConn()
-	db := openPGConn()
-	defer db.Close()
-
-	rawDB := db.Raw()
-	rawDB.SetMaxOpenConns(10)
-	ctx := context.Background()
-
-	runMigrations(db, ctx)
-	res, err := db.User.FindUnique(
-		user.EmailPhoneUnique("x@y.com", "+1111"),
-		user.RoleOptional.EQ(valk.UserRole.Admin),
-	).Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to find user: %v", err)
-	}
-	fmt.Println(res)
-	printJSON(res)
-
 }
 
 func openConn() *valk.DB {

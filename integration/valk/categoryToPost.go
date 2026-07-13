@@ -166,11 +166,26 @@ func (s *CategoryToPostSelect) hasAnyRelation() bool {
 	return s.Post != nil || s.Category != nil
 }
 
-func (d *CategoryToPostDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
-	return &CreateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
-		client:      d.client,
-		assignments: assignments,
-		execFunc:    d.client.executeCategoryToPostCreate,
+type CategoryToPostCreateBuilder struct {
+	*CreateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]
+}
+
+func (b *CategoryToPostCreateBuilder) SetPostId(v string) *CategoryToPostCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "postId", Val: v})
+	return b
+}
+func (b *CategoryToPostCreateBuilder) SetCategoryId(v int32) *CategoryToPostCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "categoryId", Val: v})
+	return b
+}
+
+func (d *CategoryToPostDelegate) Create(assignments ...FieldAssignment) *CategoryToPostCreateBuilder {
+	return &CategoryToPostCreateBuilder{
+		CreateBuilder: &CreateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
+			client:      d.client,
+			assignments: assignments,
+			execFunc:    d.client.executeCategoryToPostCreate,
+		},
 	}
 }
 
@@ -292,7 +307,11 @@ func (q *Queries) executeCategoryToPostCreate(ctx context.Context, assignments [
 	return res, nil
 }
 
-func (d *CategoryToPostDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[CategoryToPost] {
+func (d *CategoryToPostDelegate) CreateMany(builders ...*CategoryToPostCreateBuilder) *CreateManyBuilder[CategoryToPost] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyBuilder[CategoryToPost]{
 		client:   d.client,
 		records:  records,
@@ -300,7 +319,11 @@ func (d *CategoryToPostDelegate) CreateMany(records ...RecordInput) *CreateManyB
 	}
 }
 
-func (d *CategoryToPostDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+func (d *CategoryToPostDelegate) CreateManyAndReturn(builders ...*CategoryToPostCreateBuilder) *CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
 		client:   d.client,
 		records:  records,

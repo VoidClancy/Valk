@@ -10,5 +10,5 @@
     "client": "./valk",
     "migrations": "./valk/migrations"
   },
-  "log":["query"]
+  "log":["all"]
 }

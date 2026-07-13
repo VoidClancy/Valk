@@ -226,11 +226,54 @@ func (s *DefaultsTestSelect) hasAnyRelation() bool {
 	return false
 }
 
-func (d *DefaultsTestDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
-	return &CreateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
-		client:      d.client,
-		assignments: assignments,
-		execFunc:    d.client.executeDefaultsTestCreate,
+type DefaultsTestCreateBuilder struct {
+	*CreateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]
+}
+
+func (b *DefaultsTestCreateBuilder) SetUuid4(v string) *DefaultsTestCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid4", Val: v})
+	return b
+}
+func (b *DefaultsTestCreateBuilder) SetUuid7(v string) *DefaultsTestCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid7", Val: v})
+	return b
+}
+func (b *DefaultsTestCreateBuilder) SetUuidNoArgs(v string) *DefaultsTestCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidNoArgs", Val: v})
+	return b
+}
+func (b *DefaultsTestCreateBuilder) SetCuid1(v string) *DefaultsTestCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid1", Val: v})
+	return b
+}
+func (b *DefaultsTestCreateBuilder) SetCuid2(v string) *DefaultsTestCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid2", Val: v})
+	return b
+}
+func (b *DefaultsTestCreateBuilder) SetCuidNoArgs(v string) *DefaultsTestCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuidNoArgs", Val: v})
+	return b
+}
+func (b *DefaultsTestCreateBuilder) SetUlid(v string) *DefaultsTestCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ulid", Val: v})
+	return b
+}
+func (b *DefaultsTestCreateBuilder) SetNanoid(v string) *DefaultsTestCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "nanoid", Val: v})
+	return b
+}
+func (b *DefaultsTestCreateBuilder) SetNow(v time.Time) *DefaultsTestCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "now", Val: v})
+	return b
+}
+
+func (d *DefaultsTestDelegate) Create(assignments ...FieldAssignment) *DefaultsTestCreateBuilder {
+	return &DefaultsTestCreateBuilder{
+		CreateBuilder: &CreateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
+			client:      d.client,
+			assignments: assignments,
+			execFunc:    d.client.executeDefaultsTestCreate,
+		},
 	}
 }
 
@@ -457,7 +500,11 @@ func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []F
 	return res, nil
 }
 
-func (d *DefaultsTestDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[DefaultsTest] {
+func (d *DefaultsTestDelegate) CreateMany(builders ...*DefaultsTestCreateBuilder) *CreateManyBuilder[DefaultsTest] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyBuilder[DefaultsTest]{
 		client:   d.client,
 		records:  records,
@@ -465,7 +512,11 @@ func (d *DefaultsTestDelegate) CreateMany(records ...RecordInput) *CreateManyBui
 	}
 }
 
-func (d *DefaultsTestDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
+func (d *DefaultsTestDelegate) CreateManyAndReturn(builders ...*DefaultsTestCreateBuilder) *CreateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
 		client:   d.client,
 		records:  records,

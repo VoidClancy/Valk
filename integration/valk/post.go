@@ -195,11 +195,38 @@ func (s *PostSelect) hasAnyRelation() bool {
 	return s.Author != nil || s.Comments != nil || s.Categories != nil
 }
 
-func (d *PostDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[Post, PostSelect, PostOmit] {
-	return &CreateBuilder[Post, PostSelect, PostOmit]{
-		client:      d.client,
-		assignments: assignments,
-		execFunc:    d.client.executePostCreate,
+type PostCreateBuilder struct {
+	*CreateBuilder[Post, PostSelect, PostOmit]
+}
+
+func (b *PostCreateBuilder) SetId(v string) *PostCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+func (b *PostCreateBuilder) SetTitle(v string) *PostCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "title", Val: v})
+	return b
+}
+func (b *PostCreateBuilder) SetContent(v string) *PostCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "content", Val: v})
+	return b
+}
+func (b *PostCreateBuilder) SetPublished(v bool) *PostCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "published", Val: v})
+	return b
+}
+func (b *PostCreateBuilder) SetAuthorId(v string) *PostCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "authorId", Val: v})
+	return b
+}
+
+func (d *PostDelegate) Create(assignments ...FieldAssignment) *PostCreateBuilder {
+	return &PostCreateBuilder{
+		CreateBuilder: &CreateBuilder[Post, PostSelect, PostOmit]{
+			client:      d.client,
+			assignments: assignments,
+			execFunc:    d.client.executePostCreate,
+		},
 	}
 }
 
@@ -360,7 +387,11 @@ func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssi
 	return res, nil
 }
 
-func (d *PostDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Post] {
+func (d *PostDelegate) CreateMany(builders ...*PostCreateBuilder) *CreateManyBuilder[Post] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyBuilder[Post]{
 		client:   d.client,
 		records:  records,
@@ -368,7 +399,11 @@ func (d *PostDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Pos
 	}
 }
 
-func (d *PostDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[Post, PostSelect, PostOmit] {
+func (d *PostDelegate) CreateManyAndReturn(builders ...*PostCreateBuilder) *CreateManyAndReturnBuilder[Post, PostSelect, PostOmit] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyAndReturnBuilder[Post, PostSelect, PostOmit]{
 		client:   d.client,
 		records:  records,

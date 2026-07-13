@@ -23,7 +23,7 @@ type sqliteDialect struct{}
 func (sqliteDialect) Quote(ident string) string      { return `"` + ident + `"` }
 func (sqliteDialect) BindVar(idx int) string         { return "?" }
 func (sqliteDialect) SupportsReturning() bool        { return true }
-func (sqliteDialect) SupportsBulkInsert() bool       { return false }
+func (sqliteDialect) SupportsBulkInsert() bool       { return true }
 func (sqliteDialect) FormatLimitOffset(take *int, skip *int) string {
 	if take != nil {
 		if skip != nil {

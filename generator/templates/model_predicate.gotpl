@@ -27,6 +27,7 @@ func (p UniquePredicate) Validate() error {
 type Select = {{ .ParentPackageName }}.{{ .Model.Name }}Select
 type Omit = {{ .ParentPackageName }}.{{ .Model.Name }}Omit
 type QueryBuilder = {{ .ParentPackageName }}.{{ .Model.Name }}QueryBuilder
+type CreateBuilder = {{ .ParentPackageName }}.{{ .Model.Name }}CreateBuilder
 
 func Query() *QueryBuilder {
 	return &QueryBuilder{}

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"integration/valk"
-	"integration/valk/post"
 	"integration/valk/user"
 	"strings"
 	"testing"
@@ -26,8 +25,8 @@ func TestCreateMany_Hooks(t *testing.T) {
 		})
 
 		count, err := client.User.CreateMany(
-			user.Record(user.Email.Set("hooked@example.com"), user.PhoneNum.Set("+100000000")),
-			user.Record(user.Email.Set("normal@example.com"), user.PhoneNum.Set("+200000000")),
+			client.User.Create().SetEmail("hooked@example.com").SetPhoneNum("+100000000"),
+			client.User.Create().SetEmail("normal@example.com").SetPhoneNum("+200000000"),
 		).Exec(ctx)
 
 		if err != nil {
@@ -58,8 +57,8 @@ func TestCreateMany_Hooks(t *testing.T) {
 		})
 
 		users, err := client.User.CreateManyAndReturn(
-			user.Record(user.Email.Set("hooked@example.com"), user.PhoneNum.Set("+100000001")),
-			user.Record(user.Email.Set("normal@example.com"), user.PhoneNum.Set("+200000001")),
+			client.User.Create().SetEmail("hooked@example.com").SetPhoneNum("+100000001"),
+			client.User.Create().SetEmail("normal@example.com").SetPhoneNum("+200000001"),
 		).Exec(ctx)
 
 		if err != nil {
@@ -88,8 +87,8 @@ func TestCreateMany_Hooks(t *testing.T) {
 		})
 
 		_, err := client.User.CreateMany(
-			user.Record(user.Email.Set("good@example.com"), user.PhoneNum.Set("+300000000")),
-			user.Record(user.Email.Set("reject@example.com"), user.PhoneNum.Set("+300000001")),
+			client.User.Create().SetEmail("good@example.com").SetPhoneNum("+300000000"),
+			client.User.Create().SetEmail("reject@example.com").SetPhoneNum("+300000001"),
 		).Exec(ctx)
 
 		if err == nil {
@@ -118,7 +117,7 @@ func TestCreateMany_Hooks(t *testing.T) {
 		})
 
 		users, err := client.User.CreateManyAndReturn(
-			user.Record(user.Email.Set("after@example.com"), user.PhoneNum.Set("+500000000")),
+			client.User.Create().SetEmail("after@example.com").SetPhoneNum("+500000000"),
 		).Exec(ctx)
 
 		if err != nil {
@@ -148,7 +147,7 @@ func TestCreateMany_Hooks(t *testing.T) {
 		prevCount := count
 
 		_, err := client.User.CreateManyAndReturn(
-			user.Record(user.Email.Set("aftershoot@example.com"), user.PhoneNum.Set("+600000000")),
+			client.User.Create().SetEmail("aftershoot@example.com").SetPhoneNum("+600000000"),
 		).Exec(ctx)
 
 		if err == nil {
@@ -177,14 +176,8 @@ func TestCreateMany_Hooks(t *testing.T) {
 		})
 
 		count, err := client.User.CreateMany(
-			user.Record(
-				user.Email.Set("bulk1@example.com"),
-				user.PhoneNum.Set("+700000001"),
-			),
-			user.Record(
-				user.Email.Set("bulk2@example.com"),
-				user.PhoneNum.Set("+700000002"),
-			),
+			client.User.Create().SetEmail("bulk1@example.com").SetPhoneNum("+700000001"),
+			client.User.Create().SetEmail("bulk2@example.com").SetPhoneNum("+700000002"),
 		).Exec(ctx)
 
 		if err != nil {
@@ -216,10 +209,7 @@ func TestCreateMany_Hooks(t *testing.T) {
 		})
 
 		_, err := client.User.CreateMany(
-			user.Record(
-				user.Email.Set("ghost@example.com"),
-				user.PhoneNum.Set("+800000000"),
-			),
+			client.User.Create().SetEmail("ghost@example.com").SetPhoneNum("+800000000"),
 		).Exec(ctx)
 
 		if err == nil {
@@ -247,9 +237,9 @@ func TestCreateMany(t *testing.T) {
 
 	t.Run("CreateMany returns correct count", func(t *testing.T) {
 		count, err := client.User.CreateMany(
-			user.Record(user.Email.Set("bulk1@example.com"), user.PhoneNum.Set("+111")),
-			user.Record(user.Email.Set("bulk2@example.com"), user.PhoneNum.Set("+222")),
-			user.Record(user.Email.Set("bulk3@example.com"), user.PhoneNum.Set("+333")),
+			client.User.Create().SetEmail("bulk1@example.com").SetPhoneNum("+111"),
+			client.User.Create().SetEmail("bulk2@example.com").SetPhoneNum("+222"),
+			client.User.Create().SetEmail("bulk3@example.com").SetPhoneNum("+333"),
 		).Exec(ctx)
 
 		if err != nil {
@@ -280,8 +270,8 @@ func TestCreateMany(t *testing.T) {
 		}
 
 		posts, err := client.Post.CreateManyAndReturn(
-			post.Record(post.Title.Set("Post One"), post.AuthorId.Set(author.Id)),
-			post.Record(post.Title.Set("Post Two"), post.AuthorId.Set(author.Id)),
+			client.Post.Create().SetTitle("Post One").SetAuthorId(author.Id),
+			client.Post.Create().SetTitle("Post Two").SetAuthorId(author.Id),
 		).Select(valk.PostSelect{
 			Id:    true,
 			Title: true,

@@ -632,11 +632,234 @@ func (s *AllFieldsSoFarSelect) hasAnyRelation() bool {
 	return false
 }
 
-func (d *AllFieldsSoFarDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
-	return &CreateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
-		client:      d.client,
-		assignments: assignments,
-		execFunc:    d.client.executeAllFieldsSoFarCreate,
+type AllFieldsSoFarCreateBuilder struct {
+	*CreateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]
+}
+
+func (b *AllFieldsSoFarCreateBuilder) SetId(v int32) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetStringReq(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetStringOpt(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetStringDefault(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetStringVarchar(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringVarchar", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetStringChar(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringChar", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetBitVal(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bitVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetVarBitVal(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "varBitVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetInetVal(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "inetVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetXmlVal(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "xmlVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetCuidDefault(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuidDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetCuid1Default(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid1Default", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetCuid2Default(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid2Default", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetUuidDefault(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetUuid4Default(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid4Default", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetUuid7Default(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid7Default", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetUlidDefault(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ulidDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetNanoidDefault(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "nanoidDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetUuidDb(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidDb", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetIntReq(v int32) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetIntOpt(v int32) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetIntDefault(v int32) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetIntegerVal(v int32) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "integerVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetSmallInt(v int32) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "smallInt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetTinyInt(v int32) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "tinyInt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetOidVal(v int32) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "oidVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetBigIntReq(v int64) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bigIntReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetBigIntOpt(v int64) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bigIntOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetFloatReq(v float64) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "floatReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetFloatOpt(v float64) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "floatOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetRealVal(v float64) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "realVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetDecimalReq(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetDecimalOpt(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetDecimalPrecise(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalPrecise", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetMoneyVal(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "moneyVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetBoolReq(v bool) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetBoolOpt(v bool) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetBoolDefault(v bool) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetDateTimeReq(v time.Time) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetDateTimeOpt(v time.Time) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetDateTimeDefault(v time.Time) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetUpdatedAt(v time.Time) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetDateTimeTz(v time.Time) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeTz", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetTimestampVal(v time.Time) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timestampVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetTimeVal(v time.Time) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timeVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetTimetzVal(v time.Time) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timetzVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetJsonReq(v json.RawMessage) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetJsonOpt(v json.RawMessage) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetJsonVal(v json.RawMessage) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetBytesReq(v []byte) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bytesReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetBytesOpt(v []byte) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bytesOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetHstoreField(v map[string]*string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "hstoreField", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetLtreeField(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ltreeField", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarCreateBuilder) SetCitextField(v string) *AllFieldsSoFarCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "citextField", Val: v})
+	return b
+}
+
+func (d *AllFieldsSoFarDelegate) Create(assignments ...FieldAssignment) *AllFieldsSoFarCreateBuilder {
+	return &AllFieldsSoFarCreateBuilder{
+		CreateBuilder: &CreateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
+			client:      d.client,
+			assignments: assignments,
+			execFunc:    d.client.executeAllFieldsSoFarCreate,
+		},
 	}
 }
 
@@ -1440,7 +1663,11 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 	return res, nil
 }
 
-func (d *AllFieldsSoFarDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[AllFieldsSoFar] {
+func (d *AllFieldsSoFarDelegate) CreateMany(builders ...*AllFieldsSoFarCreateBuilder) *CreateManyBuilder[AllFieldsSoFar] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyBuilder[AllFieldsSoFar]{
 		client:   d.client,
 		records:  records,
@@ -1448,7 +1675,11 @@ func (d *AllFieldsSoFarDelegate) CreateMany(records ...RecordInput) *CreateManyB
 	}
 }
 
-func (d *AllFieldsSoFarDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
+func (d *AllFieldsSoFarDelegate) CreateManyAndReturn(builders ...*AllFieldsSoFarCreateBuilder) *CreateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
 		client:   d.client,
 		records:  records,

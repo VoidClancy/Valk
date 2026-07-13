@@ -164,11 +164,26 @@ func (s *CategorySelect) hasAnyRelation() bool {
 	return s.Posts != nil
 }
 
-func (d *CategoryDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[Category, CategorySelect, CategoryOmit] {
-	return &CreateBuilder[Category, CategorySelect, CategoryOmit]{
-		client:      d.client,
-		assignments: assignments,
-		execFunc:    d.client.executeCategoryCreate,
+type CategoryCreateBuilder struct {
+	*CreateBuilder[Category, CategorySelect, CategoryOmit]
+}
+
+func (b *CategoryCreateBuilder) SetId(v int32) *CategoryCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+func (b *CategoryCreateBuilder) SetName(v string) *CategoryCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "name", Val: v})
+	return b
+}
+
+func (d *CategoryDelegate) Create(assignments ...FieldAssignment) *CategoryCreateBuilder {
+	return &CategoryCreateBuilder{
+		CreateBuilder: &CreateBuilder[Category, CategorySelect, CategoryOmit]{
+			client:      d.client,
+			assignments: assignments,
+			execFunc:    d.client.executeCategoryCreate,
+		},
 	}
 }
 
@@ -289,7 +304,11 @@ func (q *Queries) executeCategoryCreate(ctx context.Context, assignments []Field
 	return res, nil
 }
 
-func (d *CategoryDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Category] {
+func (d *CategoryDelegate) CreateMany(builders ...*CategoryCreateBuilder) *CreateManyBuilder[Category] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyBuilder[Category]{
 		client:   d.client,
 		records:  records,
@@ -297,7 +316,11 @@ func (d *CategoryDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder
 	}
 }
 
-func (d *CategoryDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[Category, CategorySelect, CategoryOmit] {
+func (d *CategoryDelegate) CreateManyAndReturn(builders ...*CategoryCreateBuilder) *CreateManyAndReturnBuilder[Category, CategorySelect, CategoryOmit] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyAndReturnBuilder[Category, CategorySelect, CategoryOmit]{
 		client:   d.client,
 		records:  records,

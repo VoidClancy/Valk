@@ -593,13 +593,13 @@ func TestFindManyTakeAndSkip(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	var usersToCreate []valk.RecordInput
+	var usersToCreate []*user.CreateBuilder
 
 	for i := range 5 {
-		usersToCreate = append(usersToCreate, user.Record(
-			user.Email.Set(fmt.Sprintf("user%d@example.com", i)),
-			user.PhoneNum.Set(fmt.Sprintf("99%d", i)),
-		))
+		usersToCreate = append(usersToCreate, db.User.Create().
+			SetEmail(fmt.Sprintf("user%d@example.com", i)).
+			SetPhoneNum(fmt.Sprintf("99%d", i)),
+		)
 	}
 
 	_, err := db.User.CreateMany(usersToCreate...).Exec(ctx)
@@ -638,12 +638,12 @@ func TestFindFirstSkip(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	var usersToCreate []valk.RecordInput
+	var usersToCreate []*user.CreateBuilder
 	for i := range 5 {
-		usersToCreate = append(usersToCreate, user.Record(
-			user.Email.Set(fmt.Sprintf("ff_user%d@example.com", i)),
-			user.PhoneNum.Set(fmt.Sprintf("88%d", i)),
-		))
+		usersToCreate = append(usersToCreate, db.User.Create().
+			SetEmail(fmt.Sprintf("ff_user%d@example.com", i)).
+			SetPhoneNum(fmt.Sprintf("88%d", i)),
+		)
 	}
 	_, err := db.User.CreateMany(usersToCreate...).Exec(ctx)
 	if err != nil {

@@ -221,11 +221,50 @@ func (s *CommentSelect) hasAnyRelation() bool {
 	return s.Post != nil || s.Author != nil
 }
 
-func (d *CommentDelegate) Create(assignments ...FieldAssignment) *CreateBuilder[Comment, CommentSelect, CommentOmit] {
-	return &CreateBuilder[Comment, CommentSelect, CommentOmit]{
-		client:      d.client,
-		assignments: assignments,
-		execFunc:    d.client.executeCommentCreate,
+type CommentCreateBuilder struct {
+	*CreateBuilder[Comment, CommentSelect, CommentOmit]
+}
+
+func (b *CommentCreateBuilder) SetId(v string) *CommentCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+func (b *CommentCreateBuilder) SetTextify(v int32) *CommentCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "textify", Val: v})
+	return b
+}
+func (b *CommentCreateBuilder) SetDummy3(v string) *CommentCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy3", Val: v})
+	return b
+}
+func (b *CommentCreateBuilder) SetDummy1(v int32) *CommentCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy1", Val: v})
+	return b
+}
+func (b *CommentCreateBuilder) SetDummy2(v string) *CommentCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy2", Val: v})
+	return b
+}
+func (b *CommentCreateBuilder) SetPostId(v string) *CommentCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "postId", Val: v})
+	return b
+}
+func (b *CommentCreateBuilder) SetAuthorId(v string) *CommentCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "authorId", Val: v})
+	return b
+}
+func (b *CommentCreateBuilder) SetMeta(v json.RawMessage) *CommentCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "meta", Val: v})
+	return b
+}
+
+func (d *CommentDelegate) Create(assignments ...FieldAssignment) *CommentCreateBuilder {
+	return &CommentCreateBuilder{
+		CreateBuilder: &CreateBuilder[Comment, CommentSelect, CommentOmit]{
+			client:      d.client,
+			assignments: assignments,
+			execFunc:    d.client.executeCommentCreate,
+		},
 	}
 }
 
@@ -429,7 +468,11 @@ func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldA
 	return res, nil
 }
 
-func (d *CommentDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[Comment] {
+func (d *CommentDelegate) CreateMany(builders ...*CommentCreateBuilder) *CreateManyBuilder[Comment] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyBuilder[Comment]{
 		client:   d.client,
 		records:  records,
@@ -437,7 +480,11 @@ func (d *CommentDelegate) CreateMany(records ...RecordInput) *CreateManyBuilder[
 	}
 }
 
-func (d *CommentDelegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit] {
+func (d *CommentDelegate) CreateManyAndReturn(builders ...*CommentCreateBuilder) *CreateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit]{
 		client:   d.client,
 		records:  records,

@@ -556,6 +556,7 @@ func (db *DB) Raw() *sql.DB {
 
 // RunMigrations runs all pending migrations from the embedded folder.
 func (db *DB) RunMigrations(ctx context.Context) error {
+	log.Println("Running migrations...")
 	if err := goose.SetDialect(db.provider); err != nil {
 		return err
 	}
@@ -563,8 +564,10 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 	goose.SetBaseFS(migrationsFS)
 	err := goose.UpContext(ctx, db.sqlDB, "migrations")
 	if err != nil {
+		log.Printf("Migrations failed: %v", err)
 		return err
 	}
+	log.Println("Migrations completed successfully.")
 	return nil
 }
 
@@ -586,6 +589,9 @@ func (q *Queries) bindVars(count int) string {
 func (q *Queries) query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
 	log.Printf("[%s] SQL Query: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	res, err := q.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+	}
 	return res, err
 }
 
@@ -597,6 +603,9 @@ func (q *Queries) queryRow(ctx context.Context, query string, args ...any) *sql.
 func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
 	log.Printf("[%s] SQL Exec: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	res, err := q.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+	}
 	return res, err
 }
 

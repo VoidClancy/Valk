@@ -15,11 +15,32 @@ func (s *{{ .Model.Name }}Select) hasAnyRelation() bool {
 	{{- end }}
 }
 
-func (d *{{ .Model.Name }}Delegate) Create(assignments ...FieldAssignment) *CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
-	return &CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
-		client:      d.client,
-		assignments: assignments,
-		execFunc:    d.client.execute{{ .Model.Name }}Create,
+type {{ .Model.Name }}CreateBuilder struct {
+	*CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]
+}
+
+{{ range $field := .Model.ScalarFields }}
+{{- $fieldType := trimPrefix $field.GoType "*" }}
+{{- if $field.EnumRef }}
+	{{- if $field.IsArray }}
+		{{- $fieldType = printf "[]%sType" $field.EnumRef.Name }}
+	{{- else }}
+		{{- $fieldType = printf "%sType" $field.EnumRef.Name }}
+	{{- end }}
+{{- end }}
+func (b *{{ $.Model.Name }}CreateBuilder) Set{{ capitalize $field.Name }}(v {{ $fieldType }}) *{{ $.Model.Name }}CreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "{{ $field.EffectiveColName }}", Val: v})
+	return b
+}
+{{- end }}
+
+func (d *{{ .Model.Name }}Delegate) Create(assignments ...FieldAssignment) *{{ .Model.Name }}CreateBuilder {
+	return &{{ .Model.Name }}CreateBuilder{
+		CreateBuilder: &CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
+			client:      d.client,
+			assignments: assignments,
+			execFunc:    d.client.execute{{ .Model.Name }}Create,
+		},
 	}
 }
 
@@ -279,7 +300,11 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 	return res, nil
 }
 
-func (d *{{ .Model.Name }}Delegate) CreateMany(records ...RecordInput) *CreateManyBuilder[{{ .Model.Name }}] {
+func (d *{{ .Model.Name }}Delegate) CreateMany(builders ...*{{ .Model.Name }}CreateBuilder) *CreateManyBuilder[{{ .Model.Name }}] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyBuilder[{{ .Model.Name }}]{
 		client:   d.client,
 		records:  records,
@@ -287,7 +312,11 @@ func (d *{{ .Model.Name }}Delegate) CreateMany(records ...RecordInput) *CreateMa
 	}
 }
 
-func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(records ...RecordInput) *CreateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
+func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(builders ...*{{ .Model.Name }}CreateBuilder) *CreateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
+	records := make([]RecordInput, len(builders))
+	for i, b := range builders {
+		records[i] = RecordInput{Assignments: b.assignments}
+	}
 	return &CreateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
 		client:   d.client,
 		records:  records,
