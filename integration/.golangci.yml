@@ -1,0 +1,8 @@
+run:
+  timeout: 5m
+
+issues:
+  exclude-dirs:
+    - valk
+  exclude-files:
+    - main.go

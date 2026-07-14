@@ -64,7 +64,7 @@ func openTestPostgres(t *testing.T, schemaName string) *sql.DB {
 		// Reconnect to default to drop the schema
 		db, err := sql.Open("postgres", defaultDSN)
 		if err == nil {
-			db.Exec(fmt.Sprintf(`DROP SCHEMA IF EXISTS %q CASCADE`, schemaName))
+			_, _ = db.Exec(fmt.Sprintf(`DROP SCHEMA IF EXISTS %q CASCADE`, schemaName))
 			db.Close()
 		}
 	})
@@ -133,7 +133,7 @@ func mockStdin(t *testing.T, input string) {
 		os.Stdin = oldStdin
 	})
 	os.Stdin = r
-	w.Write([]byte(input))
+	_, _ = w.Write([]byte(input))
 	w.Close()
 }
 

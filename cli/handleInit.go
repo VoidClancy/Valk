@@ -6,7 +6,11 @@ import (
 )
 
 func handleInit() {
-	os.WriteFile("valk.json", []byte(configFileContent), 0644)
+	err := os.WriteFile("valk.json", []byte(configFileContent), 0644)
+	if err != nil {
+		fmt.Printf("Error writing valk.json: %v\n", err)
+		os.Exit(1)
+	}
 	fmt.Println("creating valk.json ....")
 }
 

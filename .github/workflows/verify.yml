@@ -54,7 +54,7 @@ jobs:
         make integration-gen
         cd integration
         ../bin/valk migrate -u "file:dev.db" init_sqlite
-        go test -tags sqlite -v ./...
+        go test -race -tags sqlite -v ./...
         mv schema.prisma.bak schema.prisma
 
     - name: Run Postgres Integration Tests
@@ -71,5 +71,5 @@ jobs:
         make integration-gen
         cd integration
         ../bin/valk migrate -u "$PG_URL" init_pg
-        PG_DATABASE_URL="$PG_URL" go test -v ./...
+        PG_DATABASE_URL="$PG_URL" go test -race -v ./...
         mv schema.prisma.bak schema.prisma
