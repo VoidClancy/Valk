@@ -49,7 +49,7 @@ type CategoryToPostQueryBuilder struct {
 	where   []PredicateOf[CategoryToPost]
 	take    *int
 	skip    *int
-	orderBy []OrderBy
+	orderBy []OrderBy[CategoryToPost]
 }
 
 func (b *CategoryToPostQueryBuilder) Where(preds ...PredicateOf[CategoryToPost]) *CategoryToPostQueryBuilder {
@@ -67,7 +67,7 @@ func (b *CategoryToPostQueryBuilder) Skip(offset int) *CategoryToPostQueryBuilde
 	return b
 }
 
-func (b *CategoryToPostQueryBuilder) OrderBy(orders ...OrderBy) *CategoryToPostQueryBuilder {
+func (b *CategoryToPostQueryBuilder) OrderBy(orders ...OrderBy[CategoryToPost]) *CategoryToPostQueryBuilder {
 	b.orderBy = append(b.orderBy, orders...)
 	return b
 }

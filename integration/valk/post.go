@@ -63,7 +63,7 @@ type PostQueryBuilder struct {
 	where   []PredicateOf[Post]
 	take    *int
 	skip    *int
-	orderBy []OrderBy
+	orderBy []OrderBy[Post]
 }
 
 func (b *PostQueryBuilder) Where(preds ...PredicateOf[Post]) *PostQueryBuilder {
@@ -81,7 +81,7 @@ func (b *PostQueryBuilder) Skip(offset int) *PostQueryBuilder {
 	return b
 }
 
-func (b *PostQueryBuilder) OrderBy(orders ...OrderBy) *PostQueryBuilder {
+func (b *PostQueryBuilder) OrderBy(orders ...OrderBy[Post]) *PostQueryBuilder {
 	b.orderBy = append(b.orderBy, orders...)
 	return b
 }

@@ -47,7 +47,7 @@ type CategoryQueryBuilder struct {
 	where   []PredicateOf[Category]
 	take    *int
 	skip    *int
-	orderBy []OrderBy
+	orderBy []OrderBy[Category]
 }
 
 func (b *CategoryQueryBuilder) Where(preds ...PredicateOf[Category]) *CategoryQueryBuilder {
@@ -65,7 +65,7 @@ func (b *CategoryQueryBuilder) Skip(offset int) *CategoryQueryBuilder {
 	return b
 }
 
-func (b *CategoryQueryBuilder) OrderBy(orders ...OrderBy) *CategoryQueryBuilder {
+func (b *CategoryQueryBuilder) OrderBy(orders ...OrderBy[Category]) *CategoryQueryBuilder {
 	b.orderBy = append(b.orderBy, orders...)
 	return b
 }

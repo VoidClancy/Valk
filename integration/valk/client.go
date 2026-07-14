@@ -328,7 +328,7 @@ const (
 	Desc OrderDirection = "DESC"
 )
 
-type OrderBy struct {
+type OrderBy[M any] struct {
 	Field     string
 	Direction OrderDirection
 }
@@ -337,7 +337,7 @@ type QueryParams[M any] struct {
 	Where   []PredicateOf[M]
 	Take    *int
 	Skip    *int
-	OrderBy []OrderBy
+	OrderBy []OrderBy[M]
 }
 
 type postgresDialect struct{}
@@ -884,12 +884,12 @@ func (f Field[M, T]) IsNotNull() Predicate[M] {
 	}
 }
 
-func (f Field[M, T]) Asc() OrderBy {
-	return OrderBy{Field: f.Column, Direction: Asc}
+func (f Field[M, T]) Asc() OrderBy[M] {
+	return OrderBy[M]{Field: f.Column, Direction: Asc}
 }
 
-func (f Field[M, T]) Desc() OrderBy {
-	return OrderBy{Field: f.Column, Direction: Desc}
+func (f Field[M, T]) Desc() OrderBy[M] {
+	return OrderBy[M]{Field: f.Column, Direction: Desc}
 }
 
 type UniqueField[M any, T any] struct {
@@ -988,12 +988,12 @@ func (f UniqueField[M, T]) IsNotNull() Predicate[M] {
 	}
 }
 
-func (f UniqueField[M, T]) Asc() OrderBy {
-	return OrderBy{Field: f.Column, Direction: Asc}
+func (f UniqueField[M, T]) Asc() OrderBy[M] {
+	return OrderBy[M]{Field: f.Column, Direction: Asc}
 }
 
-func (f UniqueField[M, T]) Desc() OrderBy {
-	return OrderBy{Field: f.Column, Direction: Desc}
+func (f UniqueField[M, T]) Desc() OrderBy[M] {
+	return OrderBy[M]{Field: f.Column, Direction: Desc}
 }
 
 type StringField[M any] struct {
@@ -1112,12 +1112,12 @@ func (f StringField[M]) IsNotNull() Predicate[M] {
 	}
 }
 
-func (f StringField[M]) Asc() OrderBy {
-	return OrderBy{Field: f.Column, Direction: Asc}
+func (f StringField[M]) Asc() OrderBy[M] {
+	return OrderBy[M]{Field: f.Column, Direction: Asc}
 }
 
-func (f StringField[M]) Desc() OrderBy {
-	return OrderBy{Field: f.Column, Direction: Desc}
+func (f StringField[M]) Desc() OrderBy[M] {
+	return OrderBy[M]{Field: f.Column, Direction: Desc}
 }
 
 type StringUniqueField[M any] struct {
@@ -1236,12 +1236,12 @@ func (f StringUniqueField[M]) IsNotNull() Predicate[M] {
 	}
 }
 
-func (f StringUniqueField[M]) Asc() OrderBy {
-	return OrderBy{Field: f.Column, Direction: Asc}
+func (f StringUniqueField[M]) Asc() OrderBy[M] {
+	return OrderBy[M]{Field: f.Column, Direction: Asc}
 }
 
-func (f StringUniqueField[M]) Desc() OrderBy {
-	return OrderBy{Field: f.Column, Direction: Desc}
+func (f StringUniqueField[M]) Desc() OrderBy[M] {
+	return OrderBy[M]{Field: f.Column, Direction: Desc}
 }
 
 func CompilePredicates[M any](dialect Dialect, preds []PredicateOf[M]) (string, []any) {

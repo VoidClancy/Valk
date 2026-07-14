@@ -74,7 +74,7 @@ type DefaultsTestQueryBuilder struct {
 	where   []PredicateOf[DefaultsTest]
 	take    *int
 	skip    *int
-	orderBy []OrderBy
+	orderBy []OrderBy[DefaultsTest]
 }
 
 func (b *DefaultsTestQueryBuilder) Where(preds ...PredicateOf[DefaultsTest]) *DefaultsTestQueryBuilder {
@@ -92,7 +92,7 @@ func (b *DefaultsTestQueryBuilder) Skip(offset int) *DefaultsTestQueryBuilder {
 	return b
 }
 
-func (b *DefaultsTestQueryBuilder) OrderBy(orders ...OrderBy) *DefaultsTestQueryBuilder {
+func (b *DefaultsTestQueryBuilder) OrderBy(orders ...OrderBy[DefaultsTest]) *DefaultsTestQueryBuilder {
 	b.orderBy = append(b.orderBy, orders...)
 	return b
 }

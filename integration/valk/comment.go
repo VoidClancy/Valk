@@ -74,7 +74,7 @@ type CommentQueryBuilder struct {
 	where   []PredicateOf[Comment]
 	take    *int
 	skip    *int
-	orderBy []OrderBy
+	orderBy []OrderBy[Comment]
 }
 
 func (b *CommentQueryBuilder) Where(preds ...PredicateOf[Comment]) *CommentQueryBuilder {
@@ -92,7 +92,7 @@ func (b *CommentQueryBuilder) Skip(offset int) *CommentQueryBuilder {
 	return b
 }
 
-func (b *CommentQueryBuilder) OrderBy(orders ...OrderBy) *CommentQueryBuilder {
+func (b *CommentQueryBuilder) OrderBy(orders ...OrderBy[Comment]) *CommentQueryBuilder {
 	b.orderBy = append(b.orderBy, orders...)
 	return b
 }
