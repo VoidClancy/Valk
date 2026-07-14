@@ -297,7 +297,7 @@ func loadRelation[P any, C any](
 	scan func(*sql.Rows, *C) error,
 	childKey func(*C) (string, bool),
 	assign func(*P, []*C),
-	params QueryParams,
+	params QueryParams[C],
 ) ([]*C, error) {
 	var parentKeys []any
 	for _, p := range parents {
@@ -312,9 +312,9 @@ func loadRelation[P any, C any](
 		return nil, nil
 	}
 
-	// Prepend parent ID checks to filters using StandardPredicate
-	allPreds := append([]Predicate{
-		StandardPredicate{
+	// Prepend parent ID checks to filters using Predicate[C]
+	allPreds := append([]PredicateOf[C]{
+		Predicate[C]{
 			Data: PredicateData{
 				Column:    fkCol,
 				Operator:  "IN",
@@ -366,14 +366,14 @@ func loadRelation[P any, C any](
 	return allChildren, nil
 }
 
-func compileRelationSQL(dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams) string {
+func compileRelationSQL[M any](dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams[M]) string {
 	if params.Take != nil || params.Skip != nil {
 		return compilePartitionedRelationSQL(dialect, table, fkCol, cols, where, params)
 	}
 	return compileSimpleRelationSQL(dialect, table, cols, where, params)
 }
 
-func compilePartitionedRelationSQL(dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams) string {
+func compilePartitionedRelationSQL[M any](dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams[M]) string {
 	var innerSb strings.Builder
 	innerSb.WriteString("SELECT ")
 	for i, col := range cols {
@@ -424,7 +424,7 @@ func compilePartitionedRelationSQL(dialect Dialect, table, fkCol string, cols []
 	return outerSb.String()
 }
 
-func compileSimpleRelationSQL(dialect Dialect, table string, cols []string, where string, params QueryParams) string {
+func compileSimpleRelationSQL[M any](dialect Dialect, table string, cols []string, where string, params QueryParams[M]) string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	for i, col := range cols {

@@ -60,24 +60,24 @@ type DefaultsTestOmit struct {
 }
 
 type DefaultsTestSelectQuery interface {
-	GetRelationParams() (*DefaultsTestSelect, *DefaultsTestOmit, QueryParams)
+	GetRelationParams() (*DefaultsTestSelect, *DefaultsTestOmit, QueryParams[DefaultsTest])
 }
 
-func (s *DefaultsTestSelect) GetRelationParams() (*DefaultsTestSelect, *DefaultsTestOmit, QueryParams) {
-	return s, nil, QueryParams{}
+func (s *DefaultsTestSelect) GetRelationParams() (*DefaultsTestSelect, *DefaultsTestOmit, QueryParams[DefaultsTest]) {
+	return s, nil, QueryParams[DefaultsTest]{}
 }
 
 // DefaultsTestQueryBuilder builds a query for the relation DefaultsTest
 type DefaultsTestQueryBuilder struct {
 	selects *DefaultsTestSelect
 	omits   *DefaultsTestOmit
-	where   []Predicate
+	where   []PredicateOf[DefaultsTest]
 	take    *int
 	skip    *int
 	orderBy []OrderBy
 }
 
-func (b *DefaultsTestQueryBuilder) Where(preds ...Predicate) *DefaultsTestQueryBuilder {
+func (b *DefaultsTestQueryBuilder) Where(preds ...PredicateOf[DefaultsTest]) *DefaultsTestQueryBuilder {
 	b.where = append(b.where, preds...)
 	return b
 }
@@ -107,11 +107,11 @@ func (b *DefaultsTestQueryBuilder) Omit(o DefaultsTestOmit) *DefaultsTestQueryBu
 	return b
 }
 
-func (b *DefaultsTestQueryBuilder) GetRelationParams() (*DefaultsTestSelect, *DefaultsTestOmit, QueryParams) {
+func (b *DefaultsTestQueryBuilder) GetRelationParams() (*DefaultsTestSelect, *DefaultsTestOmit, QueryParams[DefaultsTest]) {
 	if b == nil {
-		return nil, nil, QueryParams{}
+		return nil, nil, QueryParams[DefaultsTest]{}
 	}
-	return b.selects, b.omits, QueryParams{
+	return b.selects, b.omits, QueryParams[DefaultsTest]{
 		Where:   b.where,
 		Take:    b.take,
 		Skip:    b.skip,
@@ -584,7 +584,7 @@ func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, re
 	}
 	return results, nil
 }
-func (d *DefaultsTestDelegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
+func (d *DefaultsTestDelegate) FindUnique(where UniquePredicate[DefaultsTest], additional ...PredicateOf[DefaultsTest]) *FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
 	return &FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
 		client:     d.client,
 		where:      where,
@@ -593,7 +593,7 @@ func (d *DefaultsTestDelegate) FindUnique(where UniquePredicate, additional ...P
 	}
 }
 
-func (d *DefaultsTestDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
+func (d *DefaultsTestDelegate) FindFirst(preds ...PredicateOf[DefaultsTest]) *FindFirstBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
 	return &FindFirstBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
 		client:   d.client,
 		where:    preds,
@@ -601,7 +601,7 @@ func (d *DefaultsTestDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[D
 	}
 }
 
-func (d *DefaultsTestDelegate) FindMany(preds ...Predicate) *FindManyBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
+func (d *DefaultsTestDelegate) FindMany(preds ...PredicateOf[DefaultsTest]) *FindManyBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
 	return &FindManyBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
 		client:   d.client,
 		where:    preds,
@@ -609,10 +609,7 @@ func (d *DefaultsTestDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Def
 	}
 }
 
-func (q *Queries) executeDefaultsTestFindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
-	if where == nil {
-		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
-	}
+func (q *Queries) executeDefaultsTestFindUnique(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
@@ -623,7 +620,7 @@ func (q *Queries) executeDefaultsTestFindUnique(ctx context.Context, where Uniqu
 			}
 		}
 	}
-	allPreds := append([]Predicate{where}, additional...)
+	allPreds := append([]PredicateOf[DefaultsTest]{where}, additional...)
 	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -641,7 +638,7 @@ func (q *Queries) executeDefaultsTestFindUnique(ctx context.Context, where Uniqu
 
 func (q *Queries) executeDefaultsTestFindFirst(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[DefaultsTest],
 	selects *DefaultsTestSelect,
 	omits *DefaultsTestOmit,
 ) (*DefaultsTest, error) {
@@ -669,7 +666,7 @@ func (q *Queries) executeDefaultsTestFindFirst(
 
 func (q *Queries) executeDefaultsTestFindMany(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[DefaultsTest],
 	selects *DefaultsTestSelect,
 	omits *DefaultsTestOmit,
 ) ([]*DefaultsTest, error) {

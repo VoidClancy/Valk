@@ -33,24 +33,24 @@ type {{ .Model.Name }}Omit struct {
 }
 
 type {{ .Model.Name }}SelectQuery interface {
-	GetRelationParams() (*{{ .Model.Name }}Select, *{{ .Model.Name }}Omit, QueryParams)
+	GetRelationParams() (*{{ .Model.Name }}Select, *{{ .Model.Name }}Omit, QueryParams[{{ .Model.Name }}])
 }
 
-func (s *{{ .Model.Name }}Select) GetRelationParams() (*{{ .Model.Name }}Select, *{{ .Model.Name }}Omit, QueryParams) {
-	return s, nil, QueryParams{}
+func (s *{{ .Model.Name }}Select) GetRelationParams() (*{{ .Model.Name }}Select, *{{ .Model.Name }}Omit, QueryParams[{{ .Model.Name }}]) {
+	return s, nil, QueryParams[{{ .Model.Name }}]{}
 }
 
 // {{ .Model.Name }}QueryBuilder builds a query for the relation {{ .Model.Name }}
 type {{ .Model.Name }}QueryBuilder struct {
 	selects *{{ .Model.Name }}Select
 	omits   *{{ .Model.Name }}Omit
-	where   []Predicate
+	where   []PredicateOf[{{ .Model.Name }}]
 	take    *int
 	skip    *int
 	orderBy []OrderBy
 }
 
-func (b *{{ .Model.Name }}QueryBuilder) Where(preds ...Predicate) *{{ .Model.Name }}QueryBuilder {
+func (b *{{ .Model.Name }}QueryBuilder) Where(preds ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}QueryBuilder {
 	b.where = append(b.where, preds...)
 	return b
 }
@@ -80,11 +80,11 @@ func (b *{{ .Model.Name }}QueryBuilder) Omit(o {{ .Model.Name }}Omit) *{{ .Model
 	return b
 }
 
-func (b *{{ .Model.Name }}QueryBuilder) GetRelationParams() (*{{ .Model.Name }}Select, *{{ .Model.Name }}Omit, QueryParams) {
+func (b *{{ .Model.Name }}QueryBuilder) GetRelationParams() (*{{ .Model.Name }}Select, *{{ .Model.Name }}Omit, QueryParams[{{ .Model.Name }}]) {
 	if b == nil {
-		return nil, nil, QueryParams{}
+		return nil, nil, QueryParams[{{ .Model.Name }}]{}
 	}
-	return b.selects, b.omits, QueryParams{
+	return b.selects, b.omits, QueryParams[{{ .Model.Name }}]{
 		Where:   b.where,
 		Take:    b.take,
 		Skip:    b.skip,

@@ -1,8 +1,8 @@
 type FindUniqueBuilder[M any, S any, O any] struct {
 	client     *Queries
-	where      UniquePredicate
-	additional []Predicate
-	execFunc   func(ctx context.Context, where UniquePredicate, additional []Predicate, s *S, o *O) (*M, error)
+	where      UniquePredicate[M]
+	additional []PredicateOf[M]
+	execFunc   func(ctx context.Context, where UniquePredicate[M], additional []PredicateOf[M], s *S, o *O) (*M, error)
 }
 
 func (b *FindUniqueBuilder[M, S, O]) Select(s S) *FindUniqueSelectBuilder[M, S, O] {
@@ -37,9 +37,9 @@ func (b *FindUniqueOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 
 type FindFirstBuilder[M any, S any, O any] struct {
 	client   *Queries
-	where    []Predicate
+	where    []PredicateOf[M]
 	skip     *int
-	execFunc func(ctx context.Context, params QueryParams, s *S, o *O) (*M, error)
+	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) (*M, error)
 }
 
 func (b *FindFirstBuilder[M, S, O]) Skip(offset int) *FindFirstBuilder[M, S, O] {
@@ -56,7 +56,7 @@ func (b *FindFirstBuilder[M, S, O]) Omit(o O) *FindFirstOmitBuilder[M, S, O] {
 }
 
 func (b *FindFirstBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.where,
 		Skip:  b.skip,
 	}
@@ -69,7 +69,7 @@ type FindFirstSelectBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindFirstSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.builder.where,
 		Skip:  b.builder.skip,
 	}
@@ -82,7 +82,7 @@ type FindFirstOmitBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.builder.where,
 		Skip:  b.builder.skip,
 	}
@@ -91,10 +91,10 @@ func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 
 type FindManyBuilder[M any, S any, O any] struct {
 	client   *Queries
-	where    []Predicate
+	where    []PredicateOf[M]
 	take     *int
 	skip     *int
-	execFunc func(ctx context.Context, params QueryParams, s *S, o *O) ([]*M, error)
+	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) ([]*M, error)
 }
 
 func (b *FindManyBuilder[M, S, O]) Take(limit int) *FindManyBuilder[M, S, O] {
@@ -116,7 +116,7 @@ func (b *FindManyBuilder[M, S, O]) Omit(o O) *FindManyOmitBuilder[M, S, O] {
 }
 
 func (b *FindManyBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.where,
 		Take:  b.take,
 		Skip:  b.skip,
@@ -130,7 +130,7 @@ type FindManySelectBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindManySelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.builder.where,
 		Take:  b.builder.take,
 		Skip:  b.builder.skip,
@@ -144,7 +144,7 @@ type FindManyOmitBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindManyOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.builder.where,
 		Take:  b.builder.take,
 		Skip:  b.builder.skip,

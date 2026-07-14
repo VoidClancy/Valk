@@ -42,24 +42,24 @@ type ProfileOmit struct {
 }
 
 type ProfileSelectQuery interface {
-	GetRelationParams() (*ProfileSelect, *ProfileOmit, QueryParams)
+	GetRelationParams() (*ProfileSelect, *ProfileOmit, QueryParams[Profile])
 }
 
-func (s *ProfileSelect) GetRelationParams() (*ProfileSelect, *ProfileOmit, QueryParams) {
-	return s, nil, QueryParams{}
+func (s *ProfileSelect) GetRelationParams() (*ProfileSelect, *ProfileOmit, QueryParams[Profile]) {
+	return s, nil, QueryParams[Profile]{}
 }
 
 // ProfileQueryBuilder builds a query for the relation Profile
 type ProfileQueryBuilder struct {
 	selects *ProfileSelect
 	omits   *ProfileOmit
-	where   []Predicate
+	where   []PredicateOf[Profile]
 	take    *int
 	skip    *int
 	orderBy []OrderBy
 }
 
-func (b *ProfileQueryBuilder) Where(preds ...Predicate) *ProfileQueryBuilder {
+func (b *ProfileQueryBuilder) Where(preds ...PredicateOf[Profile]) *ProfileQueryBuilder {
 	b.where = append(b.where, preds...)
 	return b
 }
@@ -89,11 +89,11 @@ func (b *ProfileQueryBuilder) Omit(o ProfileOmit) *ProfileQueryBuilder {
 	return b
 }
 
-func (b *ProfileQueryBuilder) GetRelationParams() (*ProfileSelect, *ProfileOmit, QueryParams) {
+func (b *ProfileQueryBuilder) GetRelationParams() (*ProfileSelect, *ProfileOmit, QueryParams[Profile]) {
 	if b == nil {
-		return nil, nil, QueryParams{}
+		return nil, nil, QueryParams[Profile]{}
 	}
-	return b.selects, b.omits, QueryParams{
+	return b.selects, b.omits, QueryParams[Profile]{
 		Where:   b.where,
 		Take:    b.take,
 		Skip:    b.skip,
@@ -443,7 +443,7 @@ func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records
 	}
 	return results, nil
 }
-func (d *ProfileDelegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit] {
+func (d *ProfileDelegate) FindUnique(where UniquePredicate[Profile], additional ...PredicateOf[Profile]) *FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit] {
 	return &FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit]{
 		client:     d.client,
 		where:      where,
@@ -452,7 +452,7 @@ func (d *ProfileDelegate) FindUnique(where UniquePredicate, additional ...Predic
 	}
 }
 
-func (d *ProfileDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Profile, ProfileSelect, ProfileOmit] {
+func (d *ProfileDelegate) FindFirst(preds ...PredicateOf[Profile]) *FindFirstBuilder[Profile, ProfileSelect, ProfileOmit] {
 	return &FindFirstBuilder[Profile, ProfileSelect, ProfileOmit]{
 		client:   d.client,
 		where:    preds,
@@ -460,7 +460,7 @@ func (d *ProfileDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Profil
 	}
 }
 
-func (d *ProfileDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Profile, ProfileSelect, ProfileOmit] {
+func (d *ProfileDelegate) FindMany(preds ...PredicateOf[Profile]) *FindManyBuilder[Profile, ProfileSelect, ProfileOmit] {
 	return &FindManyBuilder[Profile, ProfileSelect, ProfileOmit]{
 		client:   d.client,
 		where:    preds,
@@ -468,10 +468,7 @@ func (d *ProfileDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Profile,
 	}
 }
 
-func (q *Queries) executeProfileFindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
-	if where == nil {
-		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
-	}
+func (q *Queries) executeProfileFindUnique(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
@@ -482,7 +479,7 @@ func (q *Queries) executeProfileFindUnique(ctx context.Context, where UniquePred
 			}
 		}
 	}
-	allPreds := append([]Predicate{where}, additional...)
+	allPreds := append([]PredicateOf[Profile]{where}, additional...)
 	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -500,7 +497,7 @@ func (q *Queries) executeProfileFindUnique(ctx context.Context, where UniquePred
 
 func (q *Queries) executeProfileFindFirst(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[Profile],
 	selects *ProfileSelect,
 	omits *ProfileOmit,
 ) (*Profile, error) {
@@ -528,7 +525,7 @@ func (q *Queries) executeProfileFindFirst(
 
 func (q *Queries) executeProfileFindMany(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[Profile],
 	selects *ProfileSelect,
 	omits *ProfileOmit,
 ) ([]*Profile, error) {

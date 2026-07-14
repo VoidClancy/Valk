@@ -35,24 +35,24 @@ type CategoryToPostOmit struct {
 }
 
 type CategoryToPostSelectQuery interface {
-	GetRelationParams() (*CategoryToPostSelect, *CategoryToPostOmit, QueryParams)
+	GetRelationParams() (*CategoryToPostSelect, *CategoryToPostOmit, QueryParams[CategoryToPost])
 }
 
-func (s *CategoryToPostSelect) GetRelationParams() (*CategoryToPostSelect, *CategoryToPostOmit, QueryParams) {
-	return s, nil, QueryParams{}
+func (s *CategoryToPostSelect) GetRelationParams() (*CategoryToPostSelect, *CategoryToPostOmit, QueryParams[CategoryToPost]) {
+	return s, nil, QueryParams[CategoryToPost]{}
 }
 
 // CategoryToPostQueryBuilder builds a query for the relation CategoryToPost
 type CategoryToPostQueryBuilder struct {
 	selects *CategoryToPostSelect
 	omits   *CategoryToPostOmit
-	where   []Predicate
+	where   []PredicateOf[CategoryToPost]
 	take    *int
 	skip    *int
 	orderBy []OrderBy
 }
 
-func (b *CategoryToPostQueryBuilder) Where(preds ...Predicate) *CategoryToPostQueryBuilder {
+func (b *CategoryToPostQueryBuilder) Where(preds ...PredicateOf[CategoryToPost]) *CategoryToPostQueryBuilder {
 	b.where = append(b.where, preds...)
 	return b
 }
@@ -82,11 +82,11 @@ func (b *CategoryToPostQueryBuilder) Omit(o CategoryToPostOmit) *CategoryToPostQ
 	return b
 }
 
-func (b *CategoryToPostQueryBuilder) GetRelationParams() (*CategoryToPostSelect, *CategoryToPostOmit, QueryParams) {
+func (b *CategoryToPostQueryBuilder) GetRelationParams() (*CategoryToPostSelect, *CategoryToPostOmit, QueryParams[CategoryToPost]) {
 	if b == nil {
-		return nil, nil, QueryParams{}
+		return nil, nil, QueryParams[CategoryToPost]{}
 	}
-	return b.selects, b.omits, QueryParams{
+	return b.selects, b.omits, QueryParams[CategoryToPost]{
 		Where:   b.where,
 		Take:    b.take,
 		Skip:    b.skip,
@@ -391,7 +391,7 @@ func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, 
 	}
 	return results, nil
 }
-func (d *CategoryToPostDelegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+func (d *CategoryToPostDelegate) FindUnique(where UniquePredicate[CategoryToPost], additional ...PredicateOf[CategoryToPost]) *FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
 	return &FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
 		client:     d.client,
 		where:      where,
@@ -400,7 +400,7 @@ func (d *CategoryToPostDelegate) FindUnique(where UniquePredicate, additional ..
 	}
 }
 
-func (d *CategoryToPostDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+func (d *CategoryToPostDelegate) FindFirst(preds ...PredicateOf[CategoryToPost]) *FindFirstBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
 	return &FindFirstBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
 		client:   d.client,
 		where:    preds,
@@ -408,7 +408,7 @@ func (d *CategoryToPostDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder
 	}
 }
 
-func (d *CategoryToPostDelegate) FindMany(preds ...Predicate) *FindManyBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+func (d *CategoryToPostDelegate) FindMany(preds ...PredicateOf[CategoryToPost]) *FindManyBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
 	return &FindManyBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
 		client:   d.client,
 		where:    preds,
@@ -416,10 +416,7 @@ func (d *CategoryToPostDelegate) FindMany(preds ...Predicate) *FindManyBuilder[C
 	}
 }
 
-func (q *Queries) executeCategoryToPostFindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
-	if where == nil {
-		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
-	}
+func (q *Queries) executeCategoryToPostFindUnique(ctx context.Context, where UniquePredicate[CategoryToPost], additional []PredicateOf[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
@@ -430,7 +427,7 @@ func (q *Queries) executeCategoryToPostFindUnique(ctx context.Context, where Uni
 			}
 		}
 	}
-	allPreds := append([]Predicate{where}, additional...)
+	allPreds := append([]PredicateOf[CategoryToPost]{where}, additional...)
 	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -448,7 +445,7 @@ func (q *Queries) executeCategoryToPostFindUnique(ctx context.Context, where Uni
 
 func (q *Queries) executeCategoryToPostFindFirst(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[CategoryToPost],
 	selects *CategoryToPostSelect,
 	omits *CategoryToPostOmit,
 ) (*CategoryToPost, error) {
@@ -476,7 +473,7 @@ func (q *Queries) executeCategoryToPostFindFirst(
 
 func (q *Queries) executeCategoryToPostFindMany(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[CategoryToPost],
 	selects *CategoryToPostSelect,
 	omits *CategoryToPostOmit,
 ) ([]*CategoryToPost, error) {

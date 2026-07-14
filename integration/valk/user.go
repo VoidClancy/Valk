@@ -61,24 +61,24 @@ type UserOmit struct {
 }
 
 type UserSelectQuery interface {
-	GetRelationParams() (*UserSelect, *UserOmit, QueryParams)
+	GetRelationParams() (*UserSelect, *UserOmit, QueryParams[User])
 }
 
-func (s *UserSelect) GetRelationParams() (*UserSelect, *UserOmit, QueryParams) {
-	return s, nil, QueryParams{}
+func (s *UserSelect) GetRelationParams() (*UserSelect, *UserOmit, QueryParams[User]) {
+	return s, nil, QueryParams[User]{}
 }
 
 // UserQueryBuilder builds a query for the relation User
 type UserQueryBuilder struct {
 	selects *UserSelect
 	omits   *UserOmit
-	where   []Predicate
+	where   []PredicateOf[User]
 	take    *int
 	skip    *int
 	orderBy []OrderBy
 }
 
-func (b *UserQueryBuilder) Where(preds ...Predicate) *UserQueryBuilder {
+func (b *UserQueryBuilder) Where(preds ...PredicateOf[User]) *UserQueryBuilder {
 	b.where = append(b.where, preds...)
 	return b
 }
@@ -108,11 +108,11 @@ func (b *UserQueryBuilder) Omit(o UserOmit) *UserQueryBuilder {
 	return b
 }
 
-func (b *UserQueryBuilder) GetRelationParams() (*UserSelect, *UserOmit, QueryParams) {
+func (b *UserQueryBuilder) GetRelationParams() (*UserSelect, *UserOmit, QueryParams[User]) {
 	if b == nil {
-		return nil, nil, QueryParams{}
+		return nil, nil, QueryParams[User]{}
 	}
-	return b.selects, b.omits, QueryParams{
+	return b.selects, b.omits, QueryParams[User]{
 		Where:   b.where,
 		Take:    b.take,
 		Skip:    b.skip,
@@ -533,7 +533,7 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []
 	}
 	return results, nil
 }
-func (d *UserDelegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[User, UserSelect, UserOmit] {
+func (d *UserDelegate) FindUnique(where UniquePredicate[User], additional ...PredicateOf[User]) *FindUniqueBuilder[User, UserSelect, UserOmit] {
 	return &FindUniqueBuilder[User, UserSelect, UserOmit]{
 		client:     d.client,
 		where:      where,
@@ -542,7 +542,7 @@ func (d *UserDelegate) FindUnique(where UniquePredicate, additional ...Predicate
 	}
 }
 
-func (d *UserDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[User, UserSelect, UserOmit] {
+func (d *UserDelegate) FindFirst(preds ...PredicateOf[User]) *FindFirstBuilder[User, UserSelect, UserOmit] {
 	return &FindFirstBuilder[User, UserSelect, UserOmit]{
 		client:   d.client,
 		where:    preds,
@@ -550,7 +550,7 @@ func (d *UserDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[User, Use
 	}
 }
 
-func (d *UserDelegate) FindMany(preds ...Predicate) *FindManyBuilder[User, UserSelect, UserOmit] {
+func (d *UserDelegate) FindMany(preds ...PredicateOf[User]) *FindManyBuilder[User, UserSelect, UserOmit] {
 	return &FindManyBuilder[User, UserSelect, UserOmit]{
 		client:   d.client,
 		where:    preds,
@@ -558,10 +558,7 @@ func (d *UserDelegate) FindMany(preds ...Predicate) *FindManyBuilder[User, UserS
 	}
 }
 
-func (q *Queries) executeUserFindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *UserSelect, omits *UserOmit) (*User, error) {
-	if where == nil {
-		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
-	}
+func (q *Queries) executeUserFindUnique(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error) {
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
@@ -572,7 +569,7 @@ func (q *Queries) executeUserFindUnique(ctx context.Context, where UniquePredica
 			}
 		}
 	}
-	allPreds := append([]Predicate{where}, additional...)
+	allPreds := append([]PredicateOf[User]{where}, additional...)
 	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -590,7 +587,7 @@ func (q *Queries) executeUserFindUnique(ctx context.Context, where UniquePredica
 
 func (q *Queries) executeUserFindFirst(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[User],
 	selects *UserSelect,
 	omits *UserOmit,
 ) (*User, error) {
@@ -618,7 +615,7 @@ func (q *Queries) executeUserFindFirst(
 
 func (q *Queries) executeUserFindMany(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[User],
 	selects *UserSelect,
 	omits *UserOmit,
 ) ([]*User, error) {

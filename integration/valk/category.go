@@ -33,24 +33,24 @@ type CategoryOmit struct {
 }
 
 type CategorySelectQuery interface {
-	GetRelationParams() (*CategorySelect, *CategoryOmit, QueryParams)
+	GetRelationParams() (*CategorySelect, *CategoryOmit, QueryParams[Category])
 }
 
-func (s *CategorySelect) GetRelationParams() (*CategorySelect, *CategoryOmit, QueryParams) {
-	return s, nil, QueryParams{}
+func (s *CategorySelect) GetRelationParams() (*CategorySelect, *CategoryOmit, QueryParams[Category]) {
+	return s, nil, QueryParams[Category]{}
 }
 
 // CategoryQueryBuilder builds a query for the relation Category
 type CategoryQueryBuilder struct {
 	selects *CategorySelect
 	omits   *CategoryOmit
-	where   []Predicate
+	where   []PredicateOf[Category]
 	take    *int
 	skip    *int
 	orderBy []OrderBy
 }
 
-func (b *CategoryQueryBuilder) Where(preds ...Predicate) *CategoryQueryBuilder {
+func (b *CategoryQueryBuilder) Where(preds ...PredicateOf[Category]) *CategoryQueryBuilder {
 	b.where = append(b.where, preds...)
 	return b
 }
@@ -80,11 +80,11 @@ func (b *CategoryQueryBuilder) Omit(o CategoryOmit) *CategoryQueryBuilder {
 	return b
 }
 
-func (b *CategoryQueryBuilder) GetRelationParams() (*CategorySelect, *CategoryOmit, QueryParams) {
+func (b *CategoryQueryBuilder) GetRelationParams() (*CategorySelect, *CategoryOmit, QueryParams[Category]) {
 	if b == nil {
-		return nil, nil, QueryParams{}
+		return nil, nil, QueryParams[Category]{}
 	}
-	return b.selects, b.omits, QueryParams{
+	return b.selects, b.omits, QueryParams[Category]{
 		Where:   b.where,
 		Take:    b.take,
 		Skip:    b.skip,
@@ -388,7 +388,7 @@ func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, record
 	}
 	return results, nil
 }
-func (d *CategoryDelegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[Category, CategorySelect, CategoryOmit] {
+func (d *CategoryDelegate) FindUnique(where UniquePredicate[Category], additional ...PredicateOf[Category]) *FindUniqueBuilder[Category, CategorySelect, CategoryOmit] {
 	return &FindUniqueBuilder[Category, CategorySelect, CategoryOmit]{
 		client:     d.client,
 		where:      where,
@@ -397,7 +397,7 @@ func (d *CategoryDelegate) FindUnique(where UniquePredicate, additional ...Predi
 	}
 }
 
-func (d *CategoryDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Category, CategorySelect, CategoryOmit] {
+func (d *CategoryDelegate) FindFirst(preds ...PredicateOf[Category]) *FindFirstBuilder[Category, CategorySelect, CategoryOmit] {
 	return &FindFirstBuilder[Category, CategorySelect, CategoryOmit]{
 		client:   d.client,
 		where:    preds,
@@ -405,7 +405,7 @@ func (d *CategoryDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Categ
 	}
 }
 
-func (d *CategoryDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Category, CategorySelect, CategoryOmit] {
+func (d *CategoryDelegate) FindMany(preds ...PredicateOf[Category]) *FindManyBuilder[Category, CategorySelect, CategoryOmit] {
 	return &FindManyBuilder[Category, CategorySelect, CategoryOmit]{
 		client:   d.client,
 		where:    preds,
@@ -413,10 +413,7 @@ func (d *CategoryDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Categor
 	}
 }
 
-func (q *Queries) executeCategoryFindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
-	if where == nil {
-		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
-	}
+func (q *Queries) executeCategoryFindUnique(ctx context.Context, where UniquePredicate[Category], additional []PredicateOf[Category], selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
@@ -427,7 +424,7 @@ func (q *Queries) executeCategoryFindUnique(ctx context.Context, where UniquePre
 			}
 		}
 	}
-	allPreds := append([]Predicate{where}, additional...)
+	allPreds := append([]PredicateOf[Category]{where}, additional...)
 	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -445,7 +442,7 @@ func (q *Queries) executeCategoryFindUnique(ctx context.Context, where UniquePre
 
 func (q *Queries) executeCategoryFindFirst(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[Category],
 	selects *CategorySelect,
 	omits *CategoryOmit,
 ) (*Category, error) {
@@ -473,7 +470,7 @@ func (q *Queries) executeCategoryFindFirst(
 
 func (q *Queries) executeCategoryFindMany(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[Category],
 	selects *CategorySelect,
 	omits *CategoryOmit,
 ) ([]*Category, error) {
