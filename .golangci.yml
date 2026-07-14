@@ -1,0 +1,9 @@
+run:
+  timeout: 5m
+
+issues:
+  exclude-dirs:
+    - integration/valk
+    - valk
+  exclude-files:
+    - integration/main.go

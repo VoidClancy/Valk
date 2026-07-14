@@ -34,6 +34,12 @@ jobs:
         cache: true
         cache-dependency-path: '**/go.sum'
 
+    - name: Run Formatter Check
+      run: make fmt-check
+
+    - name: Run Tidy Check
+      run: make tidy-check
+
     - name: Vet packages
       run: make vet
 
@@ -48,7 +54,7 @@ jobs:
         make integration-gen
         cd integration
         ../bin/valk migrate -u "file:dev.db" init_sqlite
-        go test -tags sqlite -v ./...
+        go test -race -tags sqlite -v ./...
         mv schema.prisma.bak schema.prisma
 
     - name: Run Postgres Integration Tests
@@ -65,5 +71,5 @@ jobs:
         make integration-gen
         cd integration
         ../bin/valk migrate -u "$PG_URL" init_pg
-        PG_DATABASE_URL="$PG_URL" go test -v ./...
+        PG_DATABASE_URL="$PG_URL" go test -race -v ./...
         mv schema.prisma.bak schema.prisma

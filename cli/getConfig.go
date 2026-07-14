@@ -48,9 +48,6 @@ func GetConfig() *Config {
 	}
 	// hasAll := false
 	for _, l := range config.Log {
-		if l == "all" {
-			// hasAll = true
-		}
 		if !slices.Contains(LogLevels, l) && l != "all" {
 			log.Fatalf("invalid log level in valk.json: %q (must be one of: query, info, warn, error, all)", l)
 			return nil

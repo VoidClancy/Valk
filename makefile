@@ -1,4 +1,4 @@
-.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check vet integration-gen integration-test bench race lint test-sqlite test-pg test-dbs
+.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check tidy tidy-check vulncheck vet integration-gen integration-test bench race lint test-sqlite test-pg test-dbs ci-local
 
 bi: build install
 
@@ -24,7 +24,7 @@ run:
 	go build -o bin/valk && ./bin/valk
 
 test:
-	go test -v ./...
+	go test -race -v ./...
 
 fmt:
 	gofmt -w .
@@ -36,13 +36,26 @@ fmt-check:
 		exit 1; \
 	fi
 
+tidy:
+	go mod tidy
+	cd integration && go mod tidy
+
+tidy-check:
+	go mod tidy
+	cd integration && go mod tidy
+	@git diff --exit-code go.mod go.sum integration/go.mod integration/go.sum || (echo "go.mod or go.sum is not tidy. Run: make tidy"; exit 1)
+
 vet:
 	go vet ./...
 	cd integration && go vet ./...
 
 lint:
-	-$(shell go env GOPATH)/bin/staticcheck ./...
-	-$(shell go env GOPATH)/bin/gocritic check ./...
+	$(shell go env GOPATH)/bin/golangci-lint run ./...
+	cd integration && $(shell go env GOPATH)/bin/golangci-lint run ./...
+
+vulncheck:
+	govulncheck ./...
+	cd integration && govulncheck ./...
 
 integration-gen: build
 	cd integration && ../bin/valk generate
@@ -68,13 +81,15 @@ test-sqlite: bi test
 	rm -f integration/valk/migrations/*.sql
 	rm -f integration/dev.db
 	cd integration && DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/valk -m init
-	cd integration && go test -tags sqlite -v ./...
+	cd integration && go test -race -tags sqlite -v ./...
 
 test-pg: bi db-reset test
 	node integration/prepareSchema.js postgres
 	cd integration && ../bin/valk -g
 	rm -f integration/valk/migrations/*.sql
 	cd integration && DATABASE_URL="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" DATABASE_DIRECT_URL="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" ../bin/valk -m init
-	cd integration && go test -v ./...
+	cd integration && go test -race -v ./...
 
 test-dbs: test-sqlite test-pg
+
+ci: fmt fmt-check tidy-check vet lint test vulncheck test-dbs

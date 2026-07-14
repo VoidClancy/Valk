@@ -2,11 +2,11 @@ package cli
 
 import (
 	"fmt"
+	"github.com/voidclancy/valk/generator"
+	"github.com/voidclancy/valk/schema"
 	"os"
 	"path/filepath"
 	"strings"
-	"github.com/voidclancy/valk/generator"
-	"github.com/voidclancy/valk/schema"
 )
 
 func handleGenerate() {

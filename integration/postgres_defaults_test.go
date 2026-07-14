@@ -607,8 +607,12 @@ func TestNativeDefaults_JsonTypes(t *testing.T) {
 			t.Fatalf("json/jsonb create: %v", err)
 		}
 		var got, want any
-		json.Unmarshal(rec.JsonReq, &got)
-		json.Unmarshal([]byte(`{"x":1}`), &want)
+		if err := json.Unmarshal(rec.JsonReq, &got); err != nil {
+			t.Fatalf("failed to unmarshal rec.JsonReq: %v", err)
+		}
+		if err := json.Unmarshal([]byte(`{"x":1}`), &want); err != nil {
+			t.Fatalf("failed to unmarshal comparison JSON: %v", err)
+		}
 		gotJSON, _ := json.Marshal(got)
 		wantJSON, _ := json.Marshal(want)
 		if string(gotJSON) != string(wantJSON) {

@@ -137,7 +137,7 @@ func TestManualTransactionCommitAndRollback(t *testing.T) {
 		"u4", "user4@example.com", "444444444", "student",
 	)
 	if err != nil {
-		tx1.Rollback()
+		_ = tx1.Rollback()
 		t.Fatalf("insert failed: %v", err)
 	}
 	if err := tx1.Commit(); err != nil {
@@ -165,7 +165,7 @@ func TestManualTransactionCommitAndRollback(t *testing.T) {
 		"u5", "user5@example.com", "555555555", "student",
 	)
 	if err != nil {
-		tx2.Rollback()
+		_ = tx2.Rollback()
 		t.Fatalf("insert failed: %v", err)
 	}
 	if err := tx2.Rollback(); err != nil {

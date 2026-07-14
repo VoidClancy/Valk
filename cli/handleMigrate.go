@@ -64,7 +64,10 @@ func handleMigrate(args []string) {
 	}
 	defer db.Close()
 
-	goose.SetDialect(string(schemaDef.Datasource.Provider))
+	if err := goose.SetDialect(string(schemaDef.Datasource.Provider)); err != nil {
+		fmt.Printf("Error setting database dialect: %v\n", err)
+		os.Exit(1)
+	}
 	if !opts.Verbose {
 		goose.SetLogger(goose.NopLogger())
 	}

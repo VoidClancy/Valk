@@ -96,7 +96,9 @@ func TestCreateMany_Hooks(t *testing.T) {
 		}
 
 		var count int
-		client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count)
+		if err := client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count); err != nil {
+			t.Fatalf("failed to scan user count: %v", err)
+		}
 		if count != 0 {
 			t.Fatalf("expected 0 rows after aborted CreateMany, got %d", count)
 		}
@@ -143,7 +145,9 @@ func TestCreateMany_Hooks(t *testing.T) {
 		})
 
 		var count int
-		client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count)
+		if err := client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count); err != nil {
+			t.Fatalf("failed to scan user count: %v", err)
+		}
 		prevCount := count
 
 		_, err := client.User.CreateManyAndReturn(
@@ -157,7 +161,9 @@ func TestCreateMany_Hooks(t *testing.T) {
 			t.Errorf("expected 'after hook rejected' in error, got %v", err)
 		}
 
-		client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count)
+		if err := client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&count); err != nil {
+			t.Fatalf("failed to scan user count: %v", err)
+		}
 		if count != prevCount+1 {
 			t.Fatalf("expected %d rows (insert still committed), got %d", prevCount+1, count)
 		}
@@ -220,10 +226,12 @@ func TestCreateMany_Hooks(t *testing.T) {
 		}
 
 		var count int
-		client.Raw().QueryRowContext(ctx, query(
+		if err := client.Raw().QueryRowContext(ctx, query(
 			`SELECT count(*) FROM "User" WHERE email = 'ghost@example.com'`,
 			`SELECT count(*) FROM "User" WHERE email = 'ghost@example.com'`,
-		)).Scan(&count)
+		)).Scan(&count); err != nil {
+			t.Fatalf("failed to scan user count: %v", err)
+		}
 		if count != 1 {
 			t.Fatalf("expected row to still exist (insert committed before hook), got %d", count)
 		}

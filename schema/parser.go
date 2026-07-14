@@ -520,11 +520,13 @@ func (p *Parser) parseExpression(precedence int) Value {
 
 		p.advance() // consume operator
 		right := p.parseExpression(opPrecedence + 1)
+		lCopy := left
+		rCopy := right
 		left = Value{
 			Type:   ValBinary,
 			Scalar: tok.Value,
-			Left:   new(left),
-			Right:  new(right),
+			Left:   &lCopy,
+			Right:  &rCopy,
 		}
 	}
 
