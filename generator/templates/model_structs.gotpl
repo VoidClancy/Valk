@@ -47,7 +47,7 @@ type {{ .Model.Name }}QueryBuilder struct {
 	where   []PredicateOf[{{ .Model.Name }}]
 	take    *int
 	skip    *int
-	orderBy []OrderBy
+	orderBy []OrderBy[{{ .Model.Name }}]
 }
 
 func (b *{{ .Model.Name }}QueryBuilder) Where(preds ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}QueryBuilder {
@@ -65,7 +65,7 @@ func (b *{{ .Model.Name }}QueryBuilder) Skip(offset int) *{{ .Model.Name }}Query
 	return b
 }
 
-func (b *{{ .Model.Name }}QueryBuilder) OrderBy(orders ...OrderBy) *{{ .Model.Name }}QueryBuilder {
+func (b *{{ .Model.Name }}QueryBuilder) OrderBy(orders ...OrderBy[{{ .Model.Name }}]) *{{ .Model.Name }}QueryBuilder {
 	b.orderBy = append(b.orderBy, orders...)
 	return b
 }

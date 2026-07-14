@@ -255,7 +255,7 @@ type AllFieldsSoFarQueryBuilder struct {
 	where   []PredicateOf[AllFieldsSoFar]
 	take    *int
 	skip    *int
-	orderBy []OrderBy
+	orderBy []OrderBy[AllFieldsSoFar]
 }
 
 func (b *AllFieldsSoFarQueryBuilder) Where(preds ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarQueryBuilder {
@@ -273,7 +273,7 @@ func (b *AllFieldsSoFarQueryBuilder) Skip(offset int) *AllFieldsSoFarQueryBuilde
 	return b
 }
 
-func (b *AllFieldsSoFarQueryBuilder) OrderBy(orders ...OrderBy) *AllFieldsSoFarQueryBuilder {
+func (b *AllFieldsSoFarQueryBuilder) OrderBy(orders ...OrderBy[AllFieldsSoFar]) *AllFieldsSoFarQueryBuilder {
 	b.orderBy = append(b.orderBy, orders...)
 	return b
 }

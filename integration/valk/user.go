@@ -75,7 +75,7 @@ type UserQueryBuilder struct {
 	where   []PredicateOf[User]
 	take    *int
 	skip    *int
-	orderBy []OrderBy
+	orderBy []OrderBy[User]
 }
 
 func (b *UserQueryBuilder) Where(preds ...PredicateOf[User]) *UserQueryBuilder {
@@ -93,7 +93,7 @@ func (b *UserQueryBuilder) Skip(offset int) *UserQueryBuilder {
 	return b
 }
 
-func (b *UserQueryBuilder) OrderBy(orders ...OrderBy) *UserQueryBuilder {
+func (b *UserQueryBuilder) OrderBy(orders ...OrderBy[User]) *UserQueryBuilder {
 	b.orderBy = append(b.orderBy, orders...)
 	return b
 }

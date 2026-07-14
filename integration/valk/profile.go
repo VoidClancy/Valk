@@ -56,7 +56,7 @@ type ProfileQueryBuilder struct {
 	where   []PredicateOf[Profile]
 	take    *int
 	skip    *int
-	orderBy []OrderBy
+	orderBy []OrderBy[Profile]
 }
 
 func (b *ProfileQueryBuilder) Where(preds ...PredicateOf[Profile]) *ProfileQueryBuilder {
@@ -74,7 +74,7 @@ func (b *ProfileQueryBuilder) Skip(offset int) *ProfileQueryBuilder {
 	return b
 }
 
-func (b *ProfileQueryBuilder) OrderBy(orders ...OrderBy) *ProfileQueryBuilder {
+func (b *ProfileQueryBuilder) OrderBy(orders ...OrderBy[Profile]) *ProfileQueryBuilder {
 	b.orderBy = append(b.orderBy, orders...)
 	return b
 }
