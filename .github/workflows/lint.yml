@@ -27,11 +27,9 @@ jobs:
       - name: golangci-lint (root)
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.64
           working-directory: .
 
       - name: golangci-lint (integration)
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.64
           working-directory: integration
