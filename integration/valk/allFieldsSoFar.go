@@ -241,24 +241,24 @@ type AllFieldsSoFarOmit struct {
 }
 
 type AllFieldsSoFarSelectQuery interface {
-	GetRelationParams() (*AllFieldsSoFarSelect, *AllFieldsSoFarOmit, QueryParams)
+	GetRelationParams() (*AllFieldsSoFarSelect, *AllFieldsSoFarOmit, QueryParams[AllFieldsSoFar])
 }
 
-func (s *AllFieldsSoFarSelect) GetRelationParams() (*AllFieldsSoFarSelect, *AllFieldsSoFarOmit, QueryParams) {
-	return s, nil, QueryParams{}
+func (s *AllFieldsSoFarSelect) GetRelationParams() (*AllFieldsSoFarSelect, *AllFieldsSoFarOmit, QueryParams[AllFieldsSoFar]) {
+	return s, nil, QueryParams[AllFieldsSoFar]{}
 }
 
 // AllFieldsSoFarQueryBuilder builds a query for the relation AllFieldsSoFar
 type AllFieldsSoFarQueryBuilder struct {
 	selects *AllFieldsSoFarSelect
 	omits   *AllFieldsSoFarOmit
-	where   []Predicate
+	where   []PredicateOf[AllFieldsSoFar]
 	take    *int
 	skip    *int
 	orderBy []OrderBy
 }
 
-func (b *AllFieldsSoFarQueryBuilder) Where(preds ...Predicate) *AllFieldsSoFarQueryBuilder {
+func (b *AllFieldsSoFarQueryBuilder) Where(preds ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarQueryBuilder {
 	b.where = append(b.where, preds...)
 	return b
 }
@@ -288,11 +288,11 @@ func (b *AllFieldsSoFarQueryBuilder) Omit(o AllFieldsSoFarOmit) *AllFieldsSoFarQ
 	return b
 }
 
-func (b *AllFieldsSoFarQueryBuilder) GetRelationParams() (*AllFieldsSoFarSelect, *AllFieldsSoFarOmit, QueryParams) {
+func (b *AllFieldsSoFarQueryBuilder) GetRelationParams() (*AllFieldsSoFarSelect, *AllFieldsSoFarOmit, QueryParams[AllFieldsSoFar]) {
 	if b == nil {
-		return nil, nil, QueryParams{}
+		return nil, nil, QueryParams[AllFieldsSoFar]{}
 	}
-	return b.selects, b.omits, QueryParams{
+	return b.selects, b.omits, QueryParams[AllFieldsSoFar]{
 		Where:   b.where,
 		Take:    b.take,
 		Skip:    b.skip,
@@ -1747,7 +1747,7 @@ func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, 
 	}
 	return results, nil
 }
-func (d *AllFieldsSoFarDelegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
+func (d *AllFieldsSoFarDelegate) FindUnique(where UniquePredicate[AllFieldsSoFar], additional ...PredicateOf[AllFieldsSoFar]) *FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
 	return &FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
 		client:     d.client,
 		where:      where,
@@ -1756,7 +1756,7 @@ func (d *AllFieldsSoFarDelegate) FindUnique(where UniquePredicate, additional ..
 	}
 }
 
-func (d *AllFieldsSoFarDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
+func (d *AllFieldsSoFarDelegate) FindFirst(preds ...PredicateOf[AllFieldsSoFar]) *FindFirstBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
 	return &FindFirstBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
 		client:   d.client,
 		where:    preds,
@@ -1764,7 +1764,7 @@ func (d *AllFieldsSoFarDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder
 	}
 }
 
-func (d *AllFieldsSoFarDelegate) FindMany(preds ...Predicate) *FindManyBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
+func (d *AllFieldsSoFarDelegate) FindMany(preds ...PredicateOf[AllFieldsSoFar]) *FindManyBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
 	return &FindManyBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
 		client:   d.client,
 		where:    preds,
@@ -1772,10 +1772,7 @@ func (d *AllFieldsSoFarDelegate) FindMany(preds ...Predicate) *FindManyBuilder[A
 	}
 }
 
-func (q *Queries) executeAllFieldsSoFarFindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-	if where == nil {
-		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
-	}
+func (q *Queries) executeAllFieldsSoFarFindUnique(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
@@ -1786,7 +1783,7 @@ func (q *Queries) executeAllFieldsSoFarFindUnique(ctx context.Context, where Uni
 			}
 		}
 	}
-	allPreds := append([]Predicate{where}, additional...)
+	allPreds := append([]PredicateOf[AllFieldsSoFar]{where}, additional...)
 	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -1804,7 +1801,7 @@ func (q *Queries) executeAllFieldsSoFarFindUnique(ctx context.Context, where Uni
 
 func (q *Queries) executeAllFieldsSoFarFindFirst(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[AllFieldsSoFar],
 	selects *AllFieldsSoFarSelect,
 	omits *AllFieldsSoFarOmit,
 ) (*AllFieldsSoFar, error) {
@@ -1832,7 +1829,7 @@ func (q *Queries) executeAllFieldsSoFarFindFirst(
 
 func (q *Queries) executeAllFieldsSoFarFindMany(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[AllFieldsSoFar],
 	selects *AllFieldsSoFarSelect,
 	omits *AllFieldsSoFarOmit,
 ) ([]*AllFieldsSoFar, error) {

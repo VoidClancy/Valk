@@ -192,8 +192,8 @@ type OrderBy struct {
 	Direction OrderDirection
 }
 
-type QueryParams struct {
-	Where   []Predicate
+type QueryParams[M any] struct {
+	Where   []PredicateOf[M]
 	Take    *int
 	Skip    *int
 	OrderBy []OrderBy

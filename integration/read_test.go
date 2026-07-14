@@ -24,7 +24,7 @@ func TestFindUniqueWithNoFieldsSet(t *testing.T) {
 		t.Fatalf("seed failed: %v", err)
 	}
 
-	res, err := db.User.FindUnique(nil).Exec(ctx)
+	res, err := db.User.FindUnique(valk.UniquePredicate[valk.User]{}).Exec(ctx)
 	if err == nil && res != nil {
 		t.Errorf("FindUnique with a zero-value where matched a row unexpectedly (%+v); it should require at least one unique field or return an error", res)
 	}

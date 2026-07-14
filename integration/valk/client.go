@@ -333,8 +333,8 @@ type OrderBy struct {
 	Direction OrderDirection
 }
 
-type QueryParams struct {
-	Where   []Predicate
+type QueryParams[M any] struct {
+	Where   []PredicateOf[M]
 	Take    *int
 	Skip    *int
 	OrderBy []OrderBy
@@ -660,24 +660,42 @@ type PredicateData struct {
 	Children  []PredicateData
 }
 
-type Predicate interface {
+type PredicateOf[M any] interface {
 	ToPredicateData() PredicateData
 	Validate() error
+	phantom(M)
 }
 
-type UniquePredicate interface {
-	Predicate
-	IsUnique()
-	Validate() error
-}
-
-type StandardPredicate struct {
+type Predicate[M any] struct {
 	Data PredicateData
 }
 
-func (sp StandardPredicate) ToPredicateData() PredicateData {
-	return sp.Data
+func (p Predicate[M]) ToPredicateData() PredicateData {
+	return p.Data
 }
+
+func (p Predicate[M]) Validate() error {
+	return p.Data.Validate()
+}
+
+func (p Predicate[M]) phantom(M) {}
+
+type UniquePredicate[M any] struct {
+	Data PredicateData
+}
+
+func (p UniquePredicate[M]) ToPredicateData() PredicateData {
+	return p.Data
+}
+
+func (p UniquePredicate[M]) Validate() error {
+	if p.Data.Column == "" && len(p.Data.Children) == 0 {
+		return fmt.Errorf("at least one unique field must be set for FindUnique")
+	}
+	return p.Data.Validate()
+}
+
+func (p UniquePredicate[M]) phantom(M) {}
 
 func validateValue(col string, val any) error {
 	switch v := val.(type) {
@@ -724,18 +742,14 @@ func (pd PredicateData) Validate() error {
 	return validateValue(pd.Column, pd.Value)
 }
 
-func (sp StandardPredicate) Validate() error {
-	return sp.Data.Validate()
-}
-
-func And(preds ...Predicate) Predicate {
+func And[M any](preds ...PredicateOf[M]) PredicateOf[M] {
 	var children []PredicateData
 	for _, p := range preds {
 		if p != nil {
 			children = append(children, p.ToPredicateData())
 		}
 	}
-	return StandardPredicate{
+	return Predicate[M]{
 		Data: PredicateData{
 			IsLogical: true,
 			Operator:  "AND",
@@ -744,14 +758,14 @@ func And(preds ...Predicate) Predicate {
 	}
 }
 
-func Or(preds ...Predicate) Predicate {
+func Or[M any](preds ...PredicateOf[M]) PredicateOf[M] {
 	var children []PredicateData
 	for _, p := range preds {
 		if p != nil {
 			children = append(children, p.ToPredicateData())
 		}
 	}
-	return StandardPredicate{
+	return Predicate[M]{
 		Data: PredicateData{
 			IsLogical: true,
 			Operator:  "OR",
@@ -760,12 +774,12 @@ func Or(preds ...Predicate) Predicate {
 	}
 }
 
-func Not(pred Predicate) Predicate {
+func Not[M any](pred PredicateOf[M]) PredicateOf[M] {
 	var children []PredicateData
 	if pred != nil {
 		children = append(children, pred.ToPredicateData())
 	}
-	return StandardPredicate{
+	return Predicate[M]{
 		Data: PredicateData{
 			IsLogical: true,
 			Operator:  "NOT",
@@ -774,16 +788,16 @@ func Not(pred Predicate) Predicate {
 	}
 }
 
-type Field[T any] struct {
+type Field[M any, T any] struct {
 	Column string
 }
 
-func (f Field[T]) Set(val T) FieldAssignment {
+func (f Field[M, T]) Set(val T) FieldAssignment {
 	return FieldAssignment{Col: f.Column, Val: val}
 }
 
-func (f Field[T]) EQ(val T) Predicate {
-	return StandardPredicate{
+func (f Field[M, T]) EQ(val T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "=",
@@ -792,8 +806,8 @@ func (f Field[T]) EQ(val T) Predicate {
 	}
 }
 
-func (f Field[T]) NEQ(val T) Predicate {
-	return StandardPredicate{
+func (f Field[M, T]) NEQ(val T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "!=",
@@ -802,8 +816,8 @@ func (f Field[T]) NEQ(val T) Predicate {
 	}
 }
 
-func (f Field[T]) GT(val T) Predicate {
-	return StandardPredicate{
+func (f Field[M, T]) GT(val T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: ">",
@@ -812,8 +826,8 @@ func (f Field[T]) GT(val T) Predicate {
 	}
 }
 
-func (f Field[T]) GTE(val T) Predicate {
-	return StandardPredicate{
+func (f Field[M, T]) GTE(val T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: ">=",
@@ -822,8 +836,8 @@ func (f Field[T]) GTE(val T) Predicate {
 	}
 }
 
-func (f Field[T]) LT(val T) Predicate {
-	return StandardPredicate{
+func (f Field[M, T]) LT(val T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "<",
@@ -832,8 +846,8 @@ func (f Field[T]) LT(val T) Predicate {
 	}
 }
 
-func (f Field[T]) LTE(val T) Predicate {
-	return StandardPredicate{
+func (f Field[M, T]) LTE(val T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "<=",
@@ -842,8 +856,8 @@ func (f Field[T]) LTE(val T) Predicate {
 	}
 }
 
-func (f Field[T]) In(vals []T) Predicate {
-	return StandardPredicate{
+func (f Field[M, T]) In(vals []T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "IN",
@@ -852,8 +866,8 @@ func (f Field[T]) In(vals []T) Predicate {
 	}
 }
 
-func (f Field[T]) IsNull() Predicate {
-	return StandardPredicate{
+func (f Field[M, T]) IsNull() Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "IS NULL",
@@ -861,8 +875,8 @@ func (f Field[T]) IsNull() Predicate {
 	}
 }
 
-func (f Field[T]) IsNotNull() Predicate {
-	return StandardPredicate{
+func (f Field[M, T]) IsNotNull() Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "IS NOT NULL",
@@ -870,143 +884,24 @@ func (f Field[T]) IsNotNull() Predicate {
 	}
 }
 
-func (f Field[T]) Asc() OrderBy {
+func (f Field[M, T]) Asc() OrderBy {
 	return OrderBy{Field: f.Column, Direction: Asc}
 }
 
-func (f Field[T]) Desc() OrderBy {
+func (f Field[M, T]) Desc() OrderBy {
 	return OrderBy{Field: f.Column, Direction: Desc}
 }
 
-type UniqueField[T any] struct {
+type UniqueField[M any, T any] struct {
 	Column string
 }
 
-func (f UniqueField[T]) Set(val T) FieldAssignment {
+func (f UniqueField[M, T]) Set(val T) FieldAssignment {
 	return FieldAssignment{Col: f.Column, Val: val}
 }
 
-type UniqueFieldPredicate struct {
-	StandardPredicate
-}
-
-func (UniqueFieldPredicate) IsUnique() {}
-
-func (p UniqueFieldPredicate) Validate() error {
-	if p.Data.Column == "" {
-		return fmt.Errorf("at least one unique field must be set for FindUnique")
-	}
-	return p.StandardPredicate.Validate()
-}
-
-func (f UniqueField[T]) EQ(val T) UniquePredicate {
-	return UniqueFieldPredicate{
-		StandardPredicate: StandardPredicate{
-			Data: PredicateData{
-				Column:   f.Column,
-				Operator: "=",
-				Value:    val,
-			},
-		},
-	}
-}
-
-func (f UniqueField[T]) NEQ(val T) Predicate {
-	return StandardPredicate{
-		Data: PredicateData{
-			Column:   f.Column,
-			Operator: "!=",
-			Value:    val,
-		},
-	}
-}
-
-func (f UniqueField[T]) GT(val T) Predicate {
-	return StandardPredicate{
-		Data: PredicateData{
-			Column:   f.Column,
-			Operator: ">",
-			Value:    val,
-		},
-	}
-}
-
-func (f UniqueField[T]) GTE(val T) Predicate {
-	return StandardPredicate{
-		Data: PredicateData{
-			Column:   f.Column,
-			Operator: ">=",
-			Value:    val,
-		},
-	}
-}
-
-func (f UniqueField[T]) LT(val T) Predicate {
-	return StandardPredicate{
-		Data: PredicateData{
-			Column:   f.Column,
-			Operator: "<",
-			Value:    val,
-		},
-	}
-}
-
-func (f UniqueField[T]) LTE(val T) Predicate {
-	return StandardPredicate{
-		Data: PredicateData{
-			Column:   f.Column,
-			Operator: "<=",
-			Value:    val,
-		},
-	}
-}
-
-func (f UniqueField[T]) In(vals []T) Predicate {
-	return StandardPredicate{
-		Data: PredicateData{
-			Column:   f.Column,
-			Operator: "IN",
-			Value:    vals,
-		},
-	}
-}
-
-func (f UniqueField[T]) IsNull() Predicate {
-	return StandardPredicate{
-		Data: PredicateData{
-			Column:   f.Column,
-			Operator: "IS NULL",
-		},
-	}
-}
-
-func (f UniqueField[T]) IsNotNull() Predicate {
-	return StandardPredicate{
-		Data: PredicateData{
-			Column:   f.Column,
-			Operator: "IS NOT NULL",
-		},
-	}
-}
-
-func (f UniqueField[T]) Asc() OrderBy {
-	return OrderBy{Field: f.Column, Direction: Asc}
-}
-
-func (f UniqueField[T]) Desc() OrderBy {
-	return OrderBy{Field: f.Column, Direction: Desc}
-}
-
-type StringField struct {
-	Column string
-}
-
-func (f StringField) Set(val string) FieldAssignment {
-	return FieldAssignment{Col: f.Column, Val: val}
-}
-
-func (f StringField) EQ(val string) Predicate {
-	return StandardPredicate{
+func (f UniqueField[M, T]) EQ(val T) UniquePredicate[M] {
+	return UniquePredicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "=",
@@ -1015,8 +910,8 @@ func (f StringField) EQ(val string) Predicate {
 	}
 }
 
-func (f StringField) NEQ(val string) Predicate {
-	return StandardPredicate{
+func (f UniqueField[M, T]) NEQ(val T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "!=",
@@ -1025,8 +920,8 @@ func (f StringField) NEQ(val string) Predicate {
 	}
 }
 
-func (f StringField) GT(val string) Predicate {
-	return StandardPredicate{
+func (f UniqueField[M, T]) GT(val T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: ">",
@@ -1035,8 +930,8 @@ func (f StringField) GT(val string) Predicate {
 	}
 }
 
-func (f StringField) GTE(val string) Predicate {
-	return StandardPredicate{
+func (f UniqueField[M, T]) GTE(val T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: ">=",
@@ -1045,8 +940,8 @@ func (f StringField) GTE(val string) Predicate {
 	}
 }
 
-func (f StringField) LT(val string) Predicate {
-	return StandardPredicate{
+func (f UniqueField[M, T]) LT(val T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "<",
@@ -1055,8 +950,8 @@ func (f StringField) LT(val string) Predicate {
 	}
 }
 
-func (f StringField) LTE(val string) Predicate {
-	return StandardPredicate{
+func (f UniqueField[M, T]) LTE(val T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "<=",
@@ -1065,8 +960,8 @@ func (f StringField) LTE(val string) Predicate {
 	}
 }
 
-func (f StringField) In(vals []string) Predicate {
-	return StandardPredicate{
+func (f UniqueField[M, T]) In(vals []T) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "IN",
@@ -1075,28 +970,8 @@ func (f StringField) In(vals []string) Predicate {
 	}
 }
 
-func (f StringField) Like(val string) Predicate {
-	return StandardPredicate{
-		Data: PredicateData{
-			Column:   f.Column,
-			Operator: "LIKE",
-			Value:    val,
-		},
-	}
-}
-
-func (f StringField) Contains(val string) Predicate {
-	return StandardPredicate{
-		Data: PredicateData{
-			Column:   f.Column,
-			Operator: "LIKE",
-			Value:    "%" + val + "%",
-		},
-	}
-}
-
-func (f StringField) IsNull() Predicate {
-	return StandardPredicate{
+func (f UniqueField[M, T]) IsNull() Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "IS NULL",
@@ -1104,8 +979,8 @@ func (f StringField) IsNull() Predicate {
 	}
 }
 
-func (f StringField) IsNotNull() Predicate {
-	return StandardPredicate{
+func (f UniqueField[M, T]) IsNotNull() Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "IS NOT NULL",
@@ -1113,36 +988,34 @@ func (f StringField) IsNotNull() Predicate {
 	}
 }
 
-func (f StringField) Asc() OrderBy {
+func (f UniqueField[M, T]) Asc() OrderBy {
 	return OrderBy{Field: f.Column, Direction: Asc}
 }
 
-func (f StringField) Desc() OrderBy {
+func (f UniqueField[M, T]) Desc() OrderBy {
 	return OrderBy{Field: f.Column, Direction: Desc}
 }
 
-type StringUniqueField struct {
+type StringField[M any] struct {
 	Column string
 }
 
-func (f StringUniqueField) Set(val string) FieldAssignment {
+func (f StringField[M]) Set(val string) FieldAssignment {
 	return FieldAssignment{Col: f.Column, Val: val}
 }
 
-func (f StringUniqueField) EQ(val string) UniquePredicate {
-	return UniqueFieldPredicate{
-		StandardPredicate: StandardPredicate{
-			Data: PredicateData{
-				Column:   f.Column,
-				Operator: "=",
-				Value:    val,
-			},
+func (f StringField[M]) EQ(val string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "=",
+			Value:    val,
 		},
 	}
 }
 
-func (f StringUniqueField) NEQ(val string) Predicate {
-	return StandardPredicate{
+func (f StringField[M]) NEQ(val string) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "!=",
@@ -1151,8 +1024,8 @@ func (f StringUniqueField) NEQ(val string) Predicate {
 	}
 }
 
-func (f StringUniqueField) GT(val string) Predicate {
-	return StandardPredicate{
+func (f StringField[M]) GT(val string) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: ">",
@@ -1161,8 +1034,8 @@ func (f StringUniqueField) GT(val string) Predicate {
 	}
 }
 
-func (f StringUniqueField) GTE(val string) Predicate {
-	return StandardPredicate{
+func (f StringField[M]) GTE(val string) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: ">=",
@@ -1171,8 +1044,8 @@ func (f StringUniqueField) GTE(val string) Predicate {
 	}
 }
 
-func (f StringUniqueField) LT(val string) Predicate {
-	return StandardPredicate{
+func (f StringField[M]) LT(val string) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "<",
@@ -1181,8 +1054,8 @@ func (f StringUniqueField) LT(val string) Predicate {
 	}
 }
 
-func (f StringUniqueField) LTE(val string) Predicate {
-	return StandardPredicate{
+func (f StringField[M]) LTE(val string) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "<=",
@@ -1191,8 +1064,8 @@ func (f StringUniqueField) LTE(val string) Predicate {
 	}
 }
 
-func (f StringUniqueField) In(vals []string) Predicate {
-	return StandardPredicate{
+func (f StringField[M]) In(vals []string) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "IN",
@@ -1201,8 +1074,8 @@ func (f StringUniqueField) In(vals []string) Predicate {
 	}
 }
 
-func (f StringUniqueField) Like(val string) Predicate {
-	return StandardPredicate{
+func (f StringField[M]) Like(val string) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "LIKE",
@@ -1211,8 +1084,8 @@ func (f StringUniqueField) Like(val string) Predicate {
 	}
 }
 
-func (f StringUniqueField) Contains(val string) Predicate {
-	return StandardPredicate{
+func (f StringField[M]) Contains(val string) Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "LIKE",
@@ -1221,8 +1094,8 @@ func (f StringUniqueField) Contains(val string) Predicate {
 	}
 }
 
-func (f StringUniqueField) IsNull() Predicate {
-	return StandardPredicate{
+func (f StringField[M]) IsNull() Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "IS NULL",
@@ -1230,8 +1103,8 @@ func (f StringUniqueField) IsNull() Predicate {
 	}
 }
 
-func (f StringUniqueField) IsNotNull() Predicate {
-	return StandardPredicate{
+func (f StringField[M]) IsNotNull() Predicate[M] {
+	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "IS NOT NULL",
@@ -1239,15 +1112,139 @@ func (f StringUniqueField) IsNotNull() Predicate {
 	}
 }
 
-func (f StringUniqueField) Asc() OrderBy {
+func (f StringField[M]) Asc() OrderBy {
 	return OrderBy{Field: f.Column, Direction: Asc}
 }
 
-func (f StringUniqueField) Desc() OrderBy {
+func (f StringField[M]) Desc() OrderBy {
 	return OrderBy{Field: f.Column, Direction: Desc}
 }
 
-func CompilePredicates(dialect Dialect, preds []Predicate) (string, []any) {
+type StringUniqueField[M any] struct {
+	Column string
+}
+
+func (f StringUniqueField[M]) Set(val string) FieldAssignment {
+	return FieldAssignment{Col: f.Column, Val: val}
+}
+
+func (f StringUniqueField[M]) EQ(val string) UniquePredicate[M] {
+	return UniquePredicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "=",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField[M]) NEQ(val string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "!=",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField[M]) GT(val string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: ">",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField[M]) GTE(val string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: ">=",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField[M]) LT(val string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "<",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField[M]) LTE(val string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "<=",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField[M]) In(vals []string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IN",
+			Value:    vals,
+		},
+	}
+}
+
+func (f StringUniqueField[M]) Like(val string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "LIKE",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField[M]) Contains(val string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "LIKE",
+			Value:    "%" + val + "%",
+		},
+	}
+}
+
+func (f StringUniqueField[M]) IsNull() Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IS NULL",
+		},
+	}
+}
+
+func (f StringUniqueField[M]) IsNotNull() Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "IS NOT NULL",
+		},
+	}
+}
+
+func (f StringUniqueField[M]) Asc() OrderBy {
+	return OrderBy{Field: f.Column, Direction: Asc}
+}
+
+func (f StringUniqueField[M]) Desc() OrderBy {
+	return OrderBy{Field: f.Column, Direction: Desc}
+}
+
+func CompilePredicates[M any](dialect Dialect, preds []PredicateOf[M]) (string, []any) {
 	if len(preds) == 0 {
 		return "", nil
 	}
@@ -1780,7 +1777,7 @@ func loadRelation[P any, C any](
 	scan func(*sql.Rows, *C) error,
 	childKey func(*C) (string, bool),
 	assign func(*P, []*C),
-	params QueryParams,
+	params QueryParams[C],
 ) ([]*C, error) {
 	var parentKeys []any
 	for _, p := range parents {
@@ -1795,9 +1792,9 @@ func loadRelation[P any, C any](
 		return nil, nil
 	}
 
-	// Prepend parent ID checks to filters using StandardPredicate
-	allPreds := append([]Predicate{
-		StandardPredicate{
+	// Prepend parent ID checks to filters using Predicate[C]
+	allPreds := append([]PredicateOf[C]{
+		Predicate[C]{
 			Data: PredicateData{
 				Column:    fkCol,
 				Operator:  "IN",
@@ -1849,14 +1846,14 @@ func loadRelation[P any, C any](
 	return allChildren, nil
 }
 
-func compileRelationSQL(dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams) string {
+func compileRelationSQL[M any](dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams[M]) string {
 	if params.Take != nil || params.Skip != nil {
 		return compilePartitionedRelationSQL(dialect, table, fkCol, cols, where, params)
 	}
 	return compileSimpleRelationSQL(dialect, table, cols, where, params)
 }
 
-func compilePartitionedRelationSQL(dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams) string {
+func compilePartitionedRelationSQL[M any](dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams[M]) string {
 	var innerSb strings.Builder
 	innerSb.WriteString("SELECT ")
 	for i, col := range cols {
@@ -1907,7 +1904,7 @@ func compilePartitionedRelationSQL(dialect Dialect, table, fkCol string, cols []
 	return outerSb.String()
 }
 
-func compileSimpleRelationSQL(dialect Dialect, table string, cols []string, where string, params QueryParams) string {
+func compileSimpleRelationSQL[M any](dialect Dialect, table string, cols []string, where string, params QueryParams[M]) string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	for i, col := range cols {
@@ -1935,9 +1932,9 @@ func compileSimpleRelationSQL(dialect Dialect, table string, cols []string, wher
 
 type FindUniqueBuilder[M any, S any, O any] struct {
 	client     *Queries
-	where      UniquePredicate
-	additional []Predicate
-	execFunc   func(ctx context.Context, where UniquePredicate, additional []Predicate, s *S, o *O) (*M, error)
+	where      UniquePredicate[M]
+	additional []PredicateOf[M]
+	execFunc   func(ctx context.Context, where UniquePredicate[M], additional []PredicateOf[M], s *S, o *O) (*M, error)
 }
 
 func (b *FindUniqueBuilder[M, S, O]) Select(s S) *FindUniqueSelectBuilder[M, S, O] {
@@ -1972,9 +1969,9 @@ func (b *FindUniqueOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 
 type FindFirstBuilder[M any, S any, O any] struct {
 	client   *Queries
-	where    []Predicate
+	where    []PredicateOf[M]
 	skip     *int
-	execFunc func(ctx context.Context, params QueryParams, s *S, o *O) (*M, error)
+	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) (*M, error)
 }
 
 func (b *FindFirstBuilder[M, S, O]) Skip(offset int) *FindFirstBuilder[M, S, O] {
@@ -1991,7 +1988,7 @@ func (b *FindFirstBuilder[M, S, O]) Omit(o O) *FindFirstOmitBuilder[M, S, O] {
 }
 
 func (b *FindFirstBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.where,
 		Skip:  b.skip,
 	}
@@ -2004,7 +2001,7 @@ type FindFirstSelectBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindFirstSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.builder.where,
 		Skip:  b.builder.skip,
 	}
@@ -2017,7 +2014,7 @@ type FindFirstOmitBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.builder.where,
 		Skip:  b.builder.skip,
 	}
@@ -2026,10 +2023,10 @@ func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 
 type FindManyBuilder[M any, S any, O any] struct {
 	client   *Queries
-	where    []Predicate
+	where    []PredicateOf[M]
 	take     *int
 	skip     *int
-	execFunc func(ctx context.Context, params QueryParams, s *S, o *O) ([]*M, error)
+	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) ([]*M, error)
 }
 
 func (b *FindManyBuilder[M, S, O]) Take(limit int) *FindManyBuilder[M, S, O] {
@@ -2051,7 +2048,7 @@ func (b *FindManyBuilder[M, S, O]) Omit(o O) *FindManyOmitBuilder[M, S, O] {
 }
 
 func (b *FindManyBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.where,
 		Take:  b.take,
 		Skip:  b.skip,
@@ -2065,7 +2062,7 @@ type FindManySelectBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindManySelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.builder.where,
 		Take:  b.builder.take,
 		Skip:  b.builder.skip,
@@ -2079,7 +2076,7 @@ type FindManyOmitBuilder[M any, S any, O any] struct {
 }
 
 func (b *FindManyOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	params := QueryParams{
+	params := QueryParams[M]{
 		Where: b.builder.where,
 		Take:  b.builder.take,
 		Skip:  b.builder.skip,

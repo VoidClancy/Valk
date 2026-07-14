@@ -49,24 +49,24 @@ type PostOmit struct {
 }
 
 type PostSelectQuery interface {
-	GetRelationParams() (*PostSelect, *PostOmit, QueryParams)
+	GetRelationParams() (*PostSelect, *PostOmit, QueryParams[Post])
 }
 
-func (s *PostSelect) GetRelationParams() (*PostSelect, *PostOmit, QueryParams) {
-	return s, nil, QueryParams{}
+func (s *PostSelect) GetRelationParams() (*PostSelect, *PostOmit, QueryParams[Post]) {
+	return s, nil, QueryParams[Post]{}
 }
 
 // PostQueryBuilder builds a query for the relation Post
 type PostQueryBuilder struct {
 	selects *PostSelect
 	omits   *PostOmit
-	where   []Predicate
+	where   []PredicateOf[Post]
 	take    *int
 	skip    *int
 	orderBy []OrderBy
 }
 
-func (b *PostQueryBuilder) Where(preds ...Predicate) *PostQueryBuilder {
+func (b *PostQueryBuilder) Where(preds ...PredicateOf[Post]) *PostQueryBuilder {
 	b.where = append(b.where, preds...)
 	return b
 }
@@ -96,11 +96,11 @@ func (b *PostQueryBuilder) Omit(o PostOmit) *PostQueryBuilder {
 	return b
 }
 
-func (b *PostQueryBuilder) GetRelationParams() (*PostSelect, *PostOmit, QueryParams) {
+func (b *PostQueryBuilder) GetRelationParams() (*PostSelect, *PostOmit, QueryParams[Post]) {
 	if b == nil {
-		return nil, nil, QueryParams{}
+		return nil, nil, QueryParams[Post]{}
 	}
-	return b.selects, b.omits, QueryParams{
+	return b.selects, b.omits, QueryParams[Post]{
 		Where:   b.where,
 		Take:    b.take,
 		Skip:    b.skip,
@@ -471,7 +471,7 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []
 	}
 	return results, nil
 }
-func (d *PostDelegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[Post, PostSelect, PostOmit] {
+func (d *PostDelegate) FindUnique(where UniquePredicate[Post], additional ...PredicateOf[Post]) *FindUniqueBuilder[Post, PostSelect, PostOmit] {
 	return &FindUniqueBuilder[Post, PostSelect, PostOmit]{
 		client:     d.client,
 		where:      where,
@@ -480,7 +480,7 @@ func (d *PostDelegate) FindUnique(where UniquePredicate, additional ...Predicate
 	}
 }
 
-func (d *PostDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Post, PostSelect, PostOmit] {
+func (d *PostDelegate) FindFirst(preds ...PredicateOf[Post]) *FindFirstBuilder[Post, PostSelect, PostOmit] {
 	return &FindFirstBuilder[Post, PostSelect, PostOmit]{
 		client:   d.client,
 		where:    preds,
@@ -488,7 +488,7 @@ func (d *PostDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Post, Pos
 	}
 }
 
-func (d *PostDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Post, PostSelect, PostOmit] {
+func (d *PostDelegate) FindMany(preds ...PredicateOf[Post]) *FindManyBuilder[Post, PostSelect, PostOmit] {
 	return &FindManyBuilder[Post, PostSelect, PostOmit]{
 		client:   d.client,
 		where:    preds,
@@ -496,10 +496,7 @@ func (d *PostDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Post, PostS
 	}
 }
 
-func (q *Queries) executePostFindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *PostSelect, omits *PostOmit) (*Post, error) {
-	if where == nil {
-		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
-	}
+func (q *Queries) executePostFindUnique(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], selects *PostSelect, omits *PostOmit) (*Post, error) {
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
@@ -510,7 +507,7 @@ func (q *Queries) executePostFindUnique(ctx context.Context, where UniquePredica
 			}
 		}
 	}
-	allPreds := append([]Predicate{where}, additional...)
+	allPreds := append([]PredicateOf[Post]{where}, additional...)
 	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -528,7 +525,7 @@ func (q *Queries) executePostFindUnique(ctx context.Context, where UniquePredica
 
 func (q *Queries) executePostFindFirst(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[Post],
 	selects *PostSelect,
 	omits *PostOmit,
 ) (*Post, error) {
@@ -556,7 +553,7 @@ func (q *Queries) executePostFindFirst(
 
 func (q *Queries) executePostFindMany(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[Post],
 	selects *PostSelect,
 	omits *PostOmit,
 ) ([]*Post, error) {

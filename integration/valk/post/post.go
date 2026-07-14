@@ -1,22 +1,8 @@
 package post
 
 import (
-	"fmt"
 	"integration/valk"
 )
-
-type UniquePredicate struct {
-	valk.StandardPredicate
-}
-
-func (UniquePredicate) IsUnique() {}
-
-func (p UniquePredicate) Validate() error {
-	if p.StandardPredicate.Data.Column == "" && len(p.StandardPredicate.Data.Children) == 0 {
-		return fmt.Errorf("at least one unique field must be set for FindUnique")
-	}
-	return p.StandardPredicate.Validate()
-}
 
 type Select = valk.PostSelect
 type Omit = valk.PostOmit
@@ -31,24 +17,24 @@ func Record(assignments ...valk.FieldAssignment) valk.RecordInput {
 	return valk.RecordInput{Assignments: assignments}
 }
 
-func And(preds ...valk.Predicate) valk.Predicate {
+func And(preds ...valk.PredicateOf[valk.Post]) valk.PredicateOf[valk.Post] {
 	return valk.And(preds...)
 }
 
-func Or(preds ...valk.Predicate) valk.Predicate {
+func Or(preds ...valk.PredicateOf[valk.Post]) valk.PredicateOf[valk.Post] {
 	return valk.Or(preds...)
 }
 
-func Not(pred valk.Predicate) valk.Predicate {
+func Not(pred valk.PredicateOf[valk.Post]) valk.PredicateOf[valk.Post] {
 	return valk.Not(pred)
 }
 
-var Id = valk.StringUniqueField{Column: "id"}
+var Id = valk.StringUniqueField[valk.Post]{Column: "id"}
 
-var Title = valk.StringField{Column: "title"}
+var Title = valk.StringField[valk.Post]{Column: "title"}
 
-var Content = valk.StringField{Column: "content"}
+var Content = valk.StringField[valk.Post]{Column: "content"}
 
-var Published = valk.Field[bool]{Column: "published"}
+var Published = valk.Field[valk.Post, bool]{Column: "published"}
 
-var AuthorId = valk.StringField{Column: "authorId"}
+var AuthorId = valk.StringField[valk.Post]{Column: "authorId"}

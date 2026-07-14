@@ -60,24 +60,24 @@ type CommentOmit struct {
 }
 
 type CommentSelectQuery interface {
-	GetRelationParams() (*CommentSelect, *CommentOmit, QueryParams)
+	GetRelationParams() (*CommentSelect, *CommentOmit, QueryParams[Comment])
 }
 
-func (s *CommentSelect) GetRelationParams() (*CommentSelect, *CommentOmit, QueryParams) {
-	return s, nil, QueryParams{}
+func (s *CommentSelect) GetRelationParams() (*CommentSelect, *CommentOmit, QueryParams[Comment]) {
+	return s, nil, QueryParams[Comment]{}
 }
 
 // CommentQueryBuilder builds a query for the relation Comment
 type CommentQueryBuilder struct {
 	selects *CommentSelect
 	omits   *CommentOmit
-	where   []Predicate
+	where   []PredicateOf[Comment]
 	take    *int
 	skip    *int
 	orderBy []OrderBy
 }
 
-func (b *CommentQueryBuilder) Where(preds ...Predicate) *CommentQueryBuilder {
+func (b *CommentQueryBuilder) Where(preds ...PredicateOf[Comment]) *CommentQueryBuilder {
 	b.where = append(b.where, preds...)
 	return b
 }
@@ -107,11 +107,11 @@ func (b *CommentQueryBuilder) Omit(o CommentOmit) *CommentQueryBuilder {
 	return b
 }
 
-func (b *CommentQueryBuilder) GetRelationParams() (*CommentSelect, *CommentOmit, QueryParams) {
+func (b *CommentQueryBuilder) GetRelationParams() (*CommentSelect, *CommentOmit, QueryParams[Comment]) {
 	if b == nil {
-		return nil, nil, QueryParams{}
+		return nil, nil, QueryParams[Comment]{}
 	}
-	return b.selects, b.omits, QueryParams{
+	return b.selects, b.omits, QueryParams[Comment]{
 		Where:   b.where,
 		Take:    b.take,
 		Skip:    b.skip,
@@ -552,7 +552,7 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records
 	}
 	return results, nil
 }
-func (d *CommentDelegate) FindUnique(where UniquePredicate, additional ...Predicate) *FindUniqueBuilder[Comment, CommentSelect, CommentOmit] {
+func (d *CommentDelegate) FindUnique(where UniquePredicate[Comment], additional ...PredicateOf[Comment]) *FindUniqueBuilder[Comment, CommentSelect, CommentOmit] {
 	return &FindUniqueBuilder[Comment, CommentSelect, CommentOmit]{
 		client:     d.client,
 		where:      where,
@@ -561,7 +561,7 @@ func (d *CommentDelegate) FindUnique(where UniquePredicate, additional ...Predic
 	}
 }
 
-func (d *CommentDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Comment, CommentSelect, CommentOmit] {
+func (d *CommentDelegate) FindFirst(preds ...PredicateOf[Comment]) *FindFirstBuilder[Comment, CommentSelect, CommentOmit] {
 	return &FindFirstBuilder[Comment, CommentSelect, CommentOmit]{
 		client:   d.client,
 		where:    preds,
@@ -569,7 +569,7 @@ func (d *CommentDelegate) FindFirst(preds ...Predicate) *FindFirstBuilder[Commen
 	}
 }
 
-func (d *CommentDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Comment, CommentSelect, CommentOmit] {
+func (d *CommentDelegate) FindMany(preds ...PredicateOf[Comment]) *FindManyBuilder[Comment, CommentSelect, CommentOmit] {
 	return &FindManyBuilder[Comment, CommentSelect, CommentOmit]{
 		client:   d.client,
 		where:    preds,
@@ -577,10 +577,7 @@ func (d *CommentDelegate) FindMany(preds ...Predicate) *FindManyBuilder[Comment,
 	}
 }
 
-func (q *Queries) executeCommentFindUnique(ctx context.Context, where UniquePredicate, additional []Predicate, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
-	if where == nil {
-		return nil, fmt.Errorf("at least one unique field must be set for FindUnique")
-	}
+func (q *Queries) executeCommentFindUnique(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
 	if err := where.Validate(); err != nil {
 		return nil, err
 	}
@@ -591,7 +588,7 @@ func (q *Queries) executeCommentFindUnique(ctx context.Context, where UniquePred
 			}
 		}
 	}
-	allPreds := append([]Predicate{where}, additional...)
+	allPreds := append([]PredicateOf[Comment]{where}, additional...)
 	whereClause, vals := CompilePredicates(q.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
@@ -609,7 +606,7 @@ func (q *Queries) executeCommentFindUnique(ctx context.Context, where UniquePred
 
 func (q *Queries) executeCommentFindFirst(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[Comment],
 	selects *CommentSelect,
 	omits *CommentOmit,
 ) (*Comment, error) {
@@ -637,7 +634,7 @@ func (q *Queries) executeCommentFindFirst(
 
 func (q *Queries) executeCommentFindMany(
 	ctx context.Context,
-	params QueryParams,
+	params QueryParams[Comment],
 	selects *CommentSelect,
 	omits *CommentOmit,
 ) ([]*Comment, error) {

@@ -64,22 +64,33 @@ func main() {
 	ctx := context.Background()
 
 	runMigrations(db, ctx)
-
-	var builders []*user.CreateBuilder
-	for i := range 20 {
-		builder := db.User.Create().
-			SetEmail(fmt.Sprintf("user%d@gmail.com", i)).
-			SetPassword(fmt.Sprintf("pass%d", i)).
-			SetPhoneNum(fmt.Sprintf("+1111%d", i))
-
-		builders = append(builders, builder)
-	}
-	count, err := db.User.CreateMany(builders...).Exec(ctx)
+	posts, err := db.Post.FindMany(post.Id.Contains("xx")).Select(post.Select{}).Exec(ctx)
 	if err != nil {
-		log.Fatalf("failed to seed users: %v", err)
+		log.Fatal(err)
+	}
+	post, err := db.Post.FindUnique(post.Id.EQ("xxx")).Select(post.Select{}).Exec(ctx)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	printJSON(count)
+	printJSON(posts)
+	printJSON(post)
+
+	// var builders []*user.CreateBuilder
+	// for i := range 20 {
+	// 	builder := db.User.Create().
+	// 		SetEmail(fmt.Sprintf("user%d@gmail.com", i)).
+	// 		SetPassword(fmt.Sprintf("pass%d", i)).
+	// 		SetPhoneNum(fmt.Sprintf("+1111%d", i))
+
+	// 	builders = append(builders, builder)
+	// }
+	// count, err := db.User.CreateMany(builders...).Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to seed users: %v", err)
+	// }
+
+	// printJSON(count)
 
 }
 
@@ -239,7 +250,7 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 		Post: &post.Select{
 			Id:     true,
 			Title:  true,
-			Author: user.Query().Where(post.Id.EQ(p.Id)).OrderBy(user.Email.Asc()),
+			Author: user.Query().Where(user.Id.EQ(p.Id)).OrderBy(user.Id.Asc()),
 		},
 	}).
 		Exec(ctx)
