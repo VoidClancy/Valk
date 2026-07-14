@@ -2,9 +2,9 @@ package migration
 
 import (
 	"database/sql"
-	"strings"
 	providers "github.com/voidclancy/valk/dbProviders"
 	"github.com/voidclancy/valk/schema"
+	"strings"
 
 	"ariga.io/atlas/sql/migrate"
 )

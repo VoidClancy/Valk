@@ -27,7 +27,7 @@ var NativeTypes = []NativeTypeSpec{
 	{PrismaName: "Json", SQLType: "JSON", GoType: "json.RawMessage"},
 	{PrismaName: "Time", SQLType: "TIME", GoType: "time.Time"},
 	{PrismaName: "Timetz", SQLType: "TIMETZ", GoType: "time.Time"},
-	
+
 	// Extension-backed types
 	{PrismaName: "Citext", SQLType: "citext", GoType: "string", Extension: "citext"},
 	{PrismaName: "Ltree", SQLType: "ltree", GoType: "string", Extension: "ltree"},

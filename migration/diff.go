@@ -147,8 +147,8 @@ func injectRequiredExtensions(upSQL string, targetSchema *vs.Schema) string {
 	for _, model := range targetSchema.Models {
 		for _, sf := range model.ScalarFields {
 			for _, spec := range vs.NativeTypes {
-				if (sf.NativeType != nil && strings.EqualFold(sf.NativeType.Name, spec.PrismaName)) || 
-				   strings.EqualFold(sf.SQLType, spec.SQLType) {
+				if (sf.NativeType != nil && strings.EqualFold(sf.NativeType.Name, spec.PrismaName)) ||
+					strings.EqualFold(sf.SQLType, spec.SQLType) {
 					if spec.Extension != "" {
 						needed[spec.Extension] = spec.Extension
 					}

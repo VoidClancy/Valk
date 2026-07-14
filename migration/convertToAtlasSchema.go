@@ -2,9 +2,9 @@ package migration
 
 import (
 	"fmt"
-	"strings"
 	providers "github.com/voidclancy/valk/dbProviders"
 	vs "github.com/voidclancy/valk/schema"
+	"strings"
 
 	"ariga.io/atlas/sql/postgres"
 	"ariga.io/atlas/sql/schema"

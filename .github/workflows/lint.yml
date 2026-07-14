@@ -1,0 +1,37 @@
+name: lint
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  golangci:
+    name: Run golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: golangci-lint (root)
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64
+          working-directory: .
+
+      - name: golangci-lint (integration)
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64
+          working-directory: integration

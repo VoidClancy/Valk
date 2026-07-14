@@ -1,4 +1,4 @@
-.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check vet integration-gen integration-test bench race lint test-sqlite test-pg test-dbs
+.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check tidy tidy-check vulncheck vet integration-gen integration-test bench race lint test-sqlite test-pg test-dbs ci-local
 
 bi: build install
 
@@ -36,6 +36,15 @@ fmt-check:
 		exit 1; \
 	fi
 
+tidy:
+	go mod tidy
+	cd integration && go mod tidy
+
+tidy-check:
+	go mod tidy
+	cd integration && go mod tidy
+	@git diff --exit-code go.mod go.sum integration/go.mod integration/go.sum || (echo "go.mod or go.sum is not tidy. Run: make tidy"; exit 1)
+
 vet:
 	go vet ./...
 	cd integration && go vet ./...
@@ -43,6 +52,10 @@ vet:
 lint:
 	-$(shell go env GOPATH)/bin/staticcheck ./...
 	-$(shell go env GOPATH)/bin/gocritic check ./...
+
+vulncheck:
+	govulncheck ./...
+	cd integration && govulncheck ./...
 
 integration-gen: build
 	cd integration && ../bin/valk generate
@@ -78,3 +91,5 @@ test-pg: bi db-reset test
 	cd integration && go test -v ./...
 
 test-dbs: test-sqlite test-pg
+
+ci: fmt fmt-check tidy-check vet test vulncheck test-dbs

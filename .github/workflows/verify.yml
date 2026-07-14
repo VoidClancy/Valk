@@ -34,6 +34,12 @@ jobs:
         cache: true
         cache-dependency-path: '**/go.sum'
 
+    - name: Run Formatter Check
+      run: make fmt-check
+
+    - name: Run Tidy Check
+      run: make tidy-check
+
     - name: Vet packages
       run: make vet
 
