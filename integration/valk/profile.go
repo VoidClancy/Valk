@@ -313,14 +313,7 @@ func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldA
 	}
 
 	rowMap := input.ToRowMap()
-	var cols []string
-	var vals []any
-	for _, col := range ProfileColOrder {
-		if val, ok := rowMap[col]; ok {
-			cols = append(cols, col)
-			vals = append(vals, val)
-		}
-	}
+	cols, vals := mapToColsVals(rowMap, ProfileColOrder)
 
 	returningCols := q.selectProfileCols(selects, omits)
 

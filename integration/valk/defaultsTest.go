@@ -454,14 +454,7 @@ func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []F
 	}
 
 	rowMap := input.ToRowMap()
-	var cols []string
-	var vals []any
-	for _, col := range DefaultsTestColOrder {
-		if val, ok := rowMap[col]; ok {
-			cols = append(cols, col)
-			vals = append(vals, val)
-		}
-	}
+	cols, vals := mapToColsVals(rowMap, DefaultsTestColOrder)
 
 	returningCols := q.selectDefaultsTestCols(selects, omits)
 

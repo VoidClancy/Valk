@@ -322,6 +322,8 @@ func (s *PostCreate) ToRowMap() map[string]any {
 	}
 	if s.Published != nil {
 		m["published"] = *s.Published
+	} else {
+		m["published"] = rawDefault{}
 	}
 	m["authorId"] = s.AuthorId
 	return m
@@ -341,14 +343,7 @@ func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssi
 	}
 
 	rowMap := input.ToRowMap()
-	var cols []string
-	var vals []any
-	for _, col := range PostColOrder {
-		if val, ok := rowMap[col]; ok {
-			cols = append(cols, col)
-			vals = append(vals, val)
-		}
-	}
+	cols, vals := mapToColsVals(rowMap, PostColOrder)
 
 	returningCols := q.selectPostCols(selects, omits)
 

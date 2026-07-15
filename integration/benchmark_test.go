@@ -182,3 +182,25 @@ func BenchmarkRawSQLCreateWithScan(b *testing.B) {
 		}
 	}
 }
+func BenchmarkRawSQLCreateReturning(b *testing.B) {
+	db, cleanup := setupTestDB(nil)
+	defer cleanup()
+	ctx := context.Background()
+
+	for i := 0; b.Loop(); i++ {
+		id := generateCUID()
+		email := fmt.Sprintf("bench-returning-%d@example.com", i)
+		phone := fmt.Sprintf("+11111%d", i)
+
+		var res valk.User
+		err := db.Raw().QueryRowContext(ctx,
+			`INSERT INTO "User" ("id", "email", "phoneNum", "role") `+
+				`VALUES ($1, $2, $3, $4) `+
+				`RETURNING "id", "email", "phoneNum", "role", "referredById"`,
+			id, email, phone, "student",
+		).Scan(&res.Id, &res.Email, &res.PhoneNum, &res.Role, &res.ReferredById)
+		if err != nil {
+			b.Fatalf("Raw SQL create+returning failed: %v", err)
+		}
+	}
+}

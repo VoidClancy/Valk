@@ -379,6 +379,8 @@ func (s *UserCreate) ToRowMap() map[string]any {
 	}
 	if s.Role != nil {
 		m["role"] = *s.Role
+	} else {
+		m["role"] = rawDefault{}
 	}
 	if s.RoleOptional != nil {
 		m["roleOptional"] = *s.RoleOptional
@@ -403,14 +405,7 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 	}
 
 	rowMap := input.ToRowMap()
-	var cols []string
-	var vals []any
-	for _, col := range UserColOrder {
-		if val, ok := rowMap[col]; ok {
-			cols = append(cols, col)
-			vals = append(vals, val)
-		}
-	}
+	cols, vals := mapToColsVals(rowMap, UserColOrder)
 
 	returningCols := q.selectUserCols(selects, omits)
 

@@ -422,14 +422,7 @@ func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldA
 	}
 
 	rowMap := input.ToRowMap()
-	var cols []string
-	var vals []any
-	for _, col := range CommentColOrder {
-		if val, ok := rowMap[col]; ok {
-			cols = append(cols, col)
-			vals = append(vals, val)
-		}
-	}
+	cols, vals := mapToColsVals(rowMap, CommentColOrder)
 
 	returningCols := q.selectCommentCols(selects, omits)
 

@@ -64,17 +64,28 @@ func main() {
 	ctx := context.Background()
 
 	runMigrations(db, ctx)
-	posts, err := db.Post.FindMany(post.Id.Contains("xx")).Select(post.Select{}).Exec(ctx)
+	_, err = db.Post.FindMany(post.Id.Contains("xx")).Select(post.Select{}).Exec(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	post, err := db.Post.FindUnique(post.Id.EQ("xxx")).Select(post.Select{}).Exec(ctx)
+	_, err = db.Post.FindUnique(post.Id.EQ("xxx")).Select(post.Select{}).Exec(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	printJSON(posts)
-	printJSON(post)
+	user, err := db.User.Create().SetId("122").SetEmail("xasx").SetPhoneNum("+122111").Exec(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	printJSON(user)
+	bulkUsers, err := db.User.CreateManyAndReturn(
+		db.User.Create().SetId("11").SetEmail("xx").SetPhoneNum("+1111"),
+		db.User.Create().SetId("22").SetEmail("xy").SetPhoneNum("+11112").SetRole(valk.UserRole.Admin),
+		db.User.Create().SetId("22222").SetEmail("xcy").SetPhoneNum("+ss11112").SetRole(valk.UserRole.Admin),
+	).Exec(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	printJSON(bulkUsers)
 
 	// var builders []*user.CreateBuilder
 	// for i := range 20 {
