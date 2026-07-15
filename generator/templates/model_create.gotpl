@@ -197,7 +197,9 @@ func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
 		{{- else }}
 	if s.{{ $fieldName }} != nil {
 		m["{{ $col }}"] = *s.{{ $fieldName }}
-	}
+	}{{- if ne $field.Default nil }} else {
+		m["{{ $col }}"] = rawDefault{}
+	}{{- end }}
 		{{- end }}
 	{{- else if $field.IsArray }}
 	if s.{{ $fieldName }} != nil {
@@ -218,9 +220,17 @@ func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
 			{{- else }}
 	if s.{{ $fieldName }} != nil {
 		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
+	} else {
+		m["{{ $col }}"] = rawDefault{}
 	}
 			{{- end }}
-		{{- else if or $field.Optional (ne $field.Default nil) }}
+		{{- else if ne $field.Default nil }}
+	if s.{{ $fieldName }} != nil {
+		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
+	} else {
+		m["{{ $col }}"] = rawDefault{}
+	}
+		{{- else if $field.Optional }}
 	if s.{{ $fieldName }} != nil {
 		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
 	}
@@ -254,14 +264,7 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 	}
 
 	rowMap := input.ToRowMap()
-	var cols []string
-	var vals []any
-	for _, col := range {{ .Model.Name }}ColOrder {
-		if val, ok := rowMap[col]; ok {
-			cols = append(cols, col)
-			vals = append(vals, val)
-		}
-	}
+	cols, vals := mapToColsVals(rowMap, {{ .Model.Name }}ColOrder)
 
 	returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
 

@@ -261,14 +261,7 @@ func (q *Queries) executeCategoryToPostCreate(ctx context.Context, assignments [
 	}
 
 	rowMap := input.ToRowMap()
-	var cols []string
-	var vals []any
-	for _, col := range CategoryToPostColOrder {
-		if val, ok := rowMap[col]; ok {
-			cols = append(cols, col)
-			vals = append(vals, val)
-		}
-	}
+	cols, vals := mapToColsVals(rowMap, CategoryToPostColOrder)
 
 	returningCols := q.selectCategoryToPostCols(selects, omits)
 

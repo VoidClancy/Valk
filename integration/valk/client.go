@@ -12,6 +12,7 @@ import (
 	"github.com/pressly/goose/v3"
 	"log"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -149,7 +150,10 @@ type Dialect interface {
 	SupportsReturning() bool
 	SupportsBulkInsert() bool
 	FormatLimitOffset(take *int, skip *int) string
+	SupportsDefaultKeyword() bool
 }
+
+type rawDefault struct{}
 
 type DBTX interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
@@ -358,6 +362,7 @@ func (postgresDialect) FormatLimitOffset(take *int, skip *int) string {
 	}
 	return ""
 }
+func (postgresDialect) SupportsDefaultKeyword() bool { return true }
 
 type Queries struct {
 	db       DBTX
@@ -1669,8 +1674,9 @@ func executeCreateMany(
 		return 0, nil
 	}
 
-	if q.dialect.SupportsBulkInsert() {
-		query, vals := buildBulkInsertSQL(q.dialect, tableName, rowMaps, colOrder, nil)
+	batches := partitionRowMaps(q.dialect, rowMaps)
+	if len(batches) == 1 {
+		query, vals := buildBulkInsertSQL(q.dialect, tableName, batches[0], colOrder, nil)
 		res, err := q.exec(ctx, query, vals...)
 		if err != nil {
 			return 0, err
@@ -1680,13 +1686,17 @@ func executeCreateMany(
 
 	var count int64
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rowMap := range rowMaps {
-			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, []map[string]any{rowMap}, colOrder, nil)
-			_, err := txQ.exec(ctx, query, vals...)
+		for _, batch := range batches {
+			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, batch, colOrder, nil)
+			res, err := txQ.exec(ctx, query, vals...)
 			if err != nil {
 				return err
 			}
-			count++
+			affected, err := res.RowsAffected()
+			if err != nil {
+				return err
+			}
+			count += affected
 		}
 		return nil
 	})
@@ -1714,24 +1724,16 @@ func executeCreateManyAndReturn[M any, S any, O any](
 	hasRelations := selects != nil && hasRelationsFn(selects)
 	returningCols := selectColsFn(selects, omits)
 
-	if q.dialect.SupportsBulkInsert() {
-		query, vals := buildBulkInsertSQL(q.dialect, tableName, rowMaps, colOrder, returningCols)
+	if !q.dialect.SupportsBulkInsert() {
 		recordsOut := make([]*M, 0)
 		err := q.transaction(ctx, func(txQ *Queries) error {
-			rows, err := txQ.query(ctx, query, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-			for rows.Next() {
-				var record M
-				if err := rows.Scan(scanFunc(&record, returningCols)...); err != nil {
+			for _, rowMap := range rowMaps {
+				cols, vals := mapToColsVals(rowMap, colOrder)
+				res, err := executeInsert(ctx, txQ, tableName, cols, vals, returningCols, idCol, scanFunc)
+				if err != nil {
 					return err
 				}
-				recordsOut = append(recordsOut, &record)
-			}
-			if err := rows.Err(); err != nil {
-				return err
+				recordsOut = append(recordsOut, res)
 			}
 			if hasRelations {
 				return loadRelationsFn(ctx, recordsOut, selects)
@@ -1744,17 +1746,50 @@ func executeCreateManyAndReturn[M any, S any, O any](
 		return recordsOut, nil
 	}
 
+	batches := partitionRowMaps(q.dialect, rowMaps)
 	recordsOut := make([]*M, 0)
+	if len(batches) == 1 && !hasRelations {
+		query, vals := buildBulkInsertSQL(q.dialect, tableName, batches[0], colOrder, returningCols)
+		rows, err := q.query(ctx, query, vals...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var record M
+			if err := rows.Scan(scanFunc(&record, returningCols)...); err != nil {
+				return nil, err
+			}
+			recordsOut = append(recordsOut, &record)
+		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return recordsOut, nil
+	}
+
 	err := q.transaction(ctx, func(txQ *Queries) error {
-		for _, rowMap := range rowMaps {
-			cols, vals := mapToColsVals(rowMap, colOrder)
-			res, err := executeInsert(ctx, txQ, tableName, cols, vals, returningCols, idCol, scanFunc)
+		for _, batch := range batches {
+			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, batch, colOrder, returningCols)
+			err := func() error {
+				rows, err := txQ.query(ctx, query, vals...)
+				if err != nil {
+					return err
+				}
+				defer rows.Close()
+				for rows.Next() {
+					var record M
+					if err := rows.Scan(scanFunc(&record, returningCols)...); err != nil {
+						return err
+					}
+					recordsOut = append(recordsOut, &record)
+				}
+				return rows.Err()
+			}()
 			if err != nil {
 				return err
 			}
-			recordsOut = append(recordsOut, res)
 		}
-
 		if hasRelations {
 			return loadRelationsFn(ctx, recordsOut, selects)
 		}
@@ -1928,6 +1963,62 @@ func compileSimpleRelationSQL[M any](dialect Dialect, table string, cols []strin
 		}
 	}
 	return sb.String()
+}
+
+func groupRowMapsByKeys(rowMaps []map[string]any) [][]map[string]any {
+	groups := make(map[string][]map[string]any)
+	var keysList []string
+
+	for _, original := range rowMaps {
+		cleanMap := make(map[string]any)
+		var activeKeys []string
+		for k, v := range original {
+			if _, isDefault := v.(rawDefault); !isDefault {
+				cleanMap[k] = v
+				activeKeys = append(activeKeys, k)
+			}
+		}
+		sort.Strings(activeKeys)
+		groupKey := strings.Join(activeKeys, ",")
+
+		if _, exists := groups[groupKey]; !exists {
+			keysList = append(keysList, groupKey)
+		}
+		groups[groupKey] = append(groups[groupKey], cleanMap)
+	}
+
+	result := make([][]map[string]any, 0, len(groups))
+	for _, gk := range keysList {
+		result = append(result, groups[gk])
+	}
+	return result
+}
+
+// partitionRowMaps prepares row insertion payloads by dividing them into batches.
+// If the dialect does not support bulk insert (e.g. non-bulk dialects), it partitions
+// the payload into single-row batches after stripping out rawDefault values so that
+// the database can apply column defaults on a row-by-row basis.
+// Otherwise, it returns batches based on the dialect's support for the DEFAULT keyword.
+func partitionRowMaps(dialect Dialect, rowMaps []map[string]any) [][]map[string]any {
+	if !dialect.SupportsBulkInsert() {
+		result := make([][]map[string]any, len(rowMaps))
+		for i, rMap := range rowMaps {
+			cleanMap := make(map[string]any)
+			for k, v := range rMap {
+				if _, isDefault := v.(rawDefault); !isDefault {
+					cleanMap[k] = v
+				}
+			}
+			result[i] = []map[string]any{cleanMap}
+		}
+		return result
+	}
+
+	if !dialect.SupportsDefaultKeyword() {
+		return groupRowMapsByKeys(rowMaps)
+	}
+
+	return [][]map[string]any{rowMaps}
 }
 
 type FindUniqueBuilder[M any, S any, O any] struct {
@@ -2298,8 +2389,10 @@ func computeCols(specs []colSpec, hasSelects, anySelected bool) []string {
 func mapToColsVals(m map[string]any, colOrder []string) (cols []string, vals []any) {
 	for _, c := range colOrder {
 		if v, ok := m[c]; ok {
-			cols = append(cols, c)
-			vals = append(vals, v)
+			if _, isDefault := v.(rawDefault); !isDefault {
+				cols = append(cols, c)
+				vals = append(vals, v)
+			}
 		}
 	}
 	return
@@ -2320,12 +2413,6 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 	}
 
 	var vals []any
-	for _, rMap := range rowMaps {
-		for _, col := range cols {
-			vals = append(vals, rMap[col])
-		}
-	}
-
 	var sb strings.Builder
 	sb.WriteString("INSERT INTO ")
 	sb.WriteString(dialect.Quote(table))
@@ -2339,17 +2426,25 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 	sb.WriteString(") VALUES ")
 
 	paramIndex := 1
-	for i := range rowMaps {
+	for i, rMap := range rowMaps {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
 		sb.WriteString("(")
-		for j := range cols {
+		for j, col := range cols {
 			if j > 0 {
 				sb.WriteString(", ")
 			}
-			sb.WriteString(dialect.BindVar(paramIndex))
-			paramIndex++
+			val, exists := rMap[col]
+			if !exists {
+				sb.WriteString("DEFAULT")
+			} else if _, isDefault := val.(rawDefault); isDefault {
+				sb.WriteString("DEFAULT")
+			} else {
+				sb.WriteString(dialect.BindVar(paramIndex))
+				paramIndex++
+				vals = append(vals, val)
+			}
 		}
 		sb.WriteString(")")
 	}

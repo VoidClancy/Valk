@@ -16,6 +16,8 @@ func (postgresDialect) FormatLimitOffset(take *int, skip *int) string {
 	}
 	return ""
 }
+func (postgresDialect) SupportsDefaultKeyword() bool  { return true }
+
 {{- end }}
 
 {{- if or (eq .Schema.Datasource.Provider "sqlite") (eq .Schema.Datasource.Provider "sqlite3") }}
@@ -36,6 +38,8 @@ func (sqliteDialect) FormatLimitOffset(take *int, skip *int) string {
 	}
 	return ""
 }
+func (sqliteDialect) SupportsDefaultKeyword() bool    { return false }
+
 {{- end }}
 
 type Queries struct {

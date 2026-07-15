@@ -66,8 +66,10 @@ func computeCols(specs []colSpec, hasSelects, anySelected bool) []string {
 func mapToColsVals(m map[string]any, colOrder []string) (cols []string, vals []any) {
 	for _, c := range colOrder {
 		if v, ok := m[c]; ok {
-			cols = append(cols, c)
-			vals = append(vals, v)
+			if _, isDefault := v.(rawDefault); !isDefault {
+				cols = append(cols, c)
+				vals = append(vals, v)
+			}
 		}
 	}
 	return
@@ -88,12 +90,6 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 	}
 
 	var vals []any
-	for _, rMap := range rowMaps {
-		for _, col := range cols {
-			vals = append(vals, rMap[col])
-		}
-	}
-
 	var sb strings.Builder
 	sb.WriteString("INSERT INTO ")
 	sb.WriteString(dialect.Quote(table))
@@ -107,17 +103,25 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 	sb.WriteString(") VALUES ")
 
 	paramIndex := 1
-	for i := range rowMaps {
+	for i, rMap := range rowMaps {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
 		sb.WriteString("(")
-		for j := range cols {
+		for j, col := range cols {
 			if j > 0 {
 				sb.WriteString(", ")
 			}
-			sb.WriteString(dialect.BindVar(paramIndex))
-			paramIndex++
+			val, exists := rMap[col]
+			if !exists {
+				sb.WriteString("DEFAULT")
+			} else if _, isDefault := val.(rawDefault); isDefault {
+				sb.WriteString("DEFAULT")
+			} else {
+				sb.WriteString(dialect.BindVar(paramIndex))
+				paramIndex++
+				vals = append(vals, val)
+			}
 		}
 		sb.WriteString(")")
 	}

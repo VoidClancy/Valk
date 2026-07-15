@@ -1489,6 +1489,8 @@ func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
 	}
 	if s.StringDefault != nil {
 		m["stringDefault"] = *s.StringDefault
+	} else {
+		m["stringDefault"] = rawDefault{}
 	}
 	m["stringVarchar"] = s.StringVarchar
 	m["stringChar"] = s.StringChar
@@ -1543,6 +1545,8 @@ func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
 	}
 	if s.IntDefault != nil {
 		m["intDefault"] = *s.IntDefault
+	} else {
+		m["intDefault"] = rawDefault{}
 	}
 	m["integerVal"] = s.IntegerVal
 	m["smallInt"] = s.SmallInt
@@ -1569,6 +1573,8 @@ func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
 	}
 	if s.BoolDefault != nil {
 		m["boolDefault"] = *s.BoolDefault
+	} else {
+		m["boolDefault"] = rawDefault{}
 	}
 	m["dateTimeReq"] = s.DateTimeReq
 	if s.DateTimeOpt != nil {
@@ -1617,14 +1623,7 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 	}
 
 	rowMap := input.ToRowMap()
-	var cols []string
-	var vals []any
-	for _, col := range AllFieldsSoFarColOrder {
-		if val, ok := rowMap[col]; ok {
-			cols = append(cols, col)
-			vals = append(vals, val)
-		}
-	}
+	cols, vals := mapToColsVals(rowMap, AllFieldsSoFarColOrder)
 
 	returningCols := q.selectAllFieldsSoFarCols(selects, omits)
 
