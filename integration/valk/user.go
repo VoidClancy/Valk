@@ -468,7 +468,7 @@ func (d *UserDelegate) CreateManyAndReturn(builders ...*UserCreateBuilder) *Crea
 	}
 }
 
-func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]UserCreate, len(records))
 	for i, rec := range records {
@@ -484,7 +484,7 @@ func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInp
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "User", UserColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "User", UserColOrder, skipDuplicates)
 	if err != nil {
 		return 0, err
 	}
@@ -496,7 +496,7 @@ func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInp
 	return count, nil
 }
 
-func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit) ([]*User, error) {
+func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit, skipDuplicates bool) ([]*User, error) {
 	rowMaps := make([]map[string]any, len(records))
 	idCol := "id"
 	for i, rec := range records {
@@ -517,6 +517,7 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []
 		(*User).ScanFields,
 		(*UserSelect).hasAnyRelation,
 		idCol,
+		skipDuplicates,
 	)
 	if err != nil {
 		return nil, err

@@ -75,7 +75,7 @@ func mapToColsVals(m map[string]any, colOrder []string) (cols []string, vals []a
 	return
 }
 
-func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any, colOrder []string, returningCols []string) (string, []any) {
+func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any, colOrder []string, returningCols []string, skipDuplicates bool) (string, []any) {
 	colsSet := make(map[string]bool)
 	for _, rMap := range rowMaps {
 		for col := range rMap {
@@ -91,7 +91,8 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 
 	var vals []any
 	var sb strings.Builder
-	sb.WriteString("INSERT INTO ")
+	sb.WriteString(dialect.InsertPrefix(skipDuplicates))
+	sb.WriteString(" ")
 	sb.WriteString(dialect.Quote(table))
 	sb.WriteString(" (")
 	for i, col := range cols {
@@ -125,6 +126,8 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 		}
 		sb.WriteString(")")
 	}
+
+	sb.WriteString(dialect.ConflictClause(skipDuplicates))
 
 	if dialect.SupportsReturning() && len(returningCols) > 0 {
 		sb.WriteString(" RETURNING ")

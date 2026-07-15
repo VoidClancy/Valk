@@ -405,3 +405,82 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 		}
 	})
 }
+
+func TestCreateMany_SkipDuplicates(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("CreateMany with SkipDuplicates skips existing records", func(t *testing.T) {
+		client, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		_, err := client.User.Create().SetEmail("dup@example.com").SetPhoneNum("+100").Exec(ctx)
+		if err != nil {
+			t.Fatalf("failed to create initial user: %v", err)
+		}
+
+		count, err := client.User.CreateMany(
+			client.User.Create().SetEmail("dup@example.com").SetPhoneNum("+101"), // duplicate email
+			client.User.Create().SetEmail("unique@example.com").SetPhoneNum("+102"),
+		).SkipDuplicates().Exec(ctx)
+
+		if err != nil {
+			t.Fatalf("CreateMany with SkipDuplicates failed: %v", err)
+		}
+
+		if count != 1 {
+			t.Errorf("expected count 1, got %d", count)
+		}
+
+		var dbCount int
+		err = client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&dbCount)
+		if err != nil {
+			t.Fatalf("Raw SQL query failed: %v", err)
+		}
+		if dbCount != 2 {
+			t.Errorf("expected 2 users in db, got %d", dbCount)
+		}
+
+		dupUser, err := client.User.FindUnique(user.Email.EQ("dup@example.com")).Exec(ctx)
+		if err != nil {
+			t.Fatalf("failed to query dupUser: %v", err)
+		}
+		if dupUser.PhoneNum != "+100" {
+			t.Errorf("expected original phone number '+100', got %q", dupUser.PhoneNum)
+		}
+	})
+
+	t.Run("CreateManyAndReturn with SkipDuplicates only returns newly inserted records", func(t *testing.T) {
+		client, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		_, err := client.User.Create().SetEmail("dup-ret@example.com").SetPhoneNum("+200").Exec(ctx)
+		if err != nil {
+			t.Fatalf("failed to create initial user: %v", err)
+		}
+
+		users, err := client.User.CreateManyAndReturn(
+			client.User.Create().SetEmail("dup-ret@example.com").SetPhoneNum("+201"),
+			client.User.Create().SetEmail("unique-ret@example.com").SetPhoneNum("+202"),
+		).SkipDuplicates().Exec(ctx)
+
+		if err != nil {
+			t.Fatalf("CreateManyAndReturn with SkipDuplicates failed: %v", err)
+		}
+
+		if len(users) != 1 {
+			t.Fatalf("expected 1 returned user, got %d", len(users))
+		}
+		if users[0].Email != "unique-ret@example.com" {
+			t.Errorf("expected returned user email 'unique-ret@example.com', got %q", users[0].Email)
+		}
+
+		var dbCount int
+		err = client.Raw().QueryRowContext(ctx, `SELECT count(*) FROM "User"`).Scan(&dbCount)
+		if err != nil {
+			t.Fatalf("Raw SQL query failed: %v", err)
+		}
+		if dbCount != 2 {
+			t.Errorf("expected 2 users in db, got %d", dbCount)
+		}
+	})
+}

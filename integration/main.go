@@ -64,44 +64,77 @@ func main() {
 	ctx := context.Background()
 
 	runMigrations(db, ctx)
-	_, err = db.Post.FindMany(post.Id.Contains("xx")).Select(post.Select{}).Exec(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = db.Post.FindUnique(post.Id.EQ("xxx")).Select(post.Select{}).Exec(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	user, err := db.User.Create().SetId("122").SetEmail("xasx").SetPhoneNum("+122111").Exec(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	printJSON(user)
-	bulkUsers, err := db.User.CreateManyAndReturn(
-		db.User.Create().SetId("11").SetEmail("xx").SetPhoneNum("+1111"),
-		db.User.Create().SetId("22").SetEmail("xy").SetPhoneNum("+11112").SetRole(valk.UserRole.Admin),
-		db.User.Create().SetId("22222").SetEmail("xcy").SetPhoneNum("+ss11112").SetRole(valk.UserRole.Admin),
-	).Exec(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	printJSON(bulkUsers)
+	_, err = db.User.Create().SetEmail("c@y.com").SetPhoneNum("+1111").SetId("1234").Exec(ctx)
+	foundUser, err := db.User.FindUnique(
+		user.EmailPhoneUnique("c@y.com", "+1111"),
+		user.And(
+			user.PhoneNum.Contains("1111"),
+			user.Id.Contains("234"),
+		),
+	).Select(user.Select{
+		Id:    true,
+		Email: true,
 
-	// var builders []*user.CreateBuilder
-	// for i := range 20 {
-	// 	builder := db.User.Create().
-	// 		SetEmail(fmt.Sprintf("user%d@gmail.com", i)).
-	// 		SetPassword(fmt.Sprintf("pass%d", i)).
-	// 		SetPhoneNum(fmt.Sprintf("+1111%d", i))
+		Profile: &profile.Select{
+			Id:  true,
+			Bio: true,
+		},
 
-	// 	builders = append(builders, builder)
-	// }
-	// count, err := db.User.CreateMany(builders...).Exec(ctx)
+		Posts: post.Query().
+			Where(post.AuthorId.Contains("234")).
+			Select(post.Select{
+				Id:    true,
+				Title: true,
+			}),
+	}).
+		Exec(ctx)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	printJSON(foundUser)
+
+	// _, err = db.Post.FindMany(post.Id.Contains("xx")).Select(post.Select{}).Exec(ctx)
 	// if err != nil {
-	// 	log.Fatalf("failed to seed users: %v", err)
+	// 	log.Fatal(err)
 	// }
+	// _, err = db.Post.FindUnique(post.Id.EQ("xxx")).Select(post.Select{}).Exec(ctx)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// user, err := db.User.Create().SetId("122").SetEmail("xasx").SetPhoneNum("+122111").Exec(ctx)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// printJSON(user)
+	// bulkUsers, err := db.User.CreateManyAndReturn(
+	// 	db.User.Create().SetId("11").SetEmail("xx").SetPhoneNum("+1111"),
+	// 	db.User.Create().SetId("22").SetEmail("xy").SetPhoneNum("+11112").SetRole(valk.UserRole.Admin),
+	// 	db.User.Create().SetId("22222").SetEmail("xcy").SetPhoneNum("+ss11112").SetRole(valk.UserRole.Admin),
+	// ).Exec(ctx)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// printJSON(bulkUsers)
 
-	// printJSON(count)
+	var builders []*user.CreateBuilder
+	for i := range 20 {
+		builder := db.User.Create().
+			SetEmail("user@gmail.com").
+			SetPassword(fmt.Sprintf("pass%d", i)).
+			SetPhoneNum(fmt.Sprintf("+1111%d", i))
+		if i%2 == 0 {
+			builder.SetRole(valk.UserRole.Admin)
+		}
+
+		builders = append(builders, builder)
+	}
+	count, err := db.User.CreateMany(builders...).SkipDuplicates().Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to seed users: %v", err)
+	}
+
+	printJSON(count)
 
 }
 

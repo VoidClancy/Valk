@@ -151,6 +151,8 @@ type Dialect interface {
 	SupportsBulkInsert() bool
 	FormatLimitOffset(take *int, skip *int) string
 	SupportsDefaultKeyword() bool
+	InsertPrefix(skipDuplicates bool) string
+	ConflictClause(skipDuplicates bool) string
 }
 
 type rawDefault struct{}
@@ -362,7 +364,14 @@ func (postgresDialect) FormatLimitOffset(take *int, skip *int) string {
 	}
 	return ""
 }
-func (postgresDialect) SupportsDefaultKeyword() bool { return true }
+func (postgresDialect) SupportsDefaultKeyword() bool            { return true }
+func (postgresDialect) InsertPrefix(skipDuplicates bool) string { return "INSERT INTO" }
+func (postgresDialect) ConflictClause(skipDuplicates bool) string {
+	if skipDuplicates {
+		return " ON CONFLICT DO NOTHING"
+	}
+	return ""
+}
 
 type Queries struct {
 	db       DBTX
@@ -1521,19 +1530,31 @@ func (b *CreateOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 }
 
 type CreateManyBuilder[M any] struct {
-	client   *Queries
-	records  []RecordInput
-	execFunc func(ctx context.Context, records []RecordInput) (int64, error)
+	client         *Queries
+	records        []RecordInput
+	execFunc       func(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error)
+	skipDuplicates bool
+}
+
+func (b *CreateManyBuilder[M]) SkipDuplicates() *CreateManyBuilder[M] {
+	b.skipDuplicates = true
+	return b
 }
 
 func (b *CreateManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
-	return b.execFunc(ctx, b.records)
+	return b.execFunc(ctx, b.records, b.skipDuplicates)
 }
 
 type CreateManyAndReturnBuilder[M any, S any, O any] struct {
-	client   *Queries
-	records  []RecordInput
-	execFunc func(ctx context.Context, records []RecordInput, s *S, o *O) ([]*M, error)
+	client         *Queries
+	records        []RecordInput
+	execFunc       func(ctx context.Context, records []RecordInput, s *S, o *O, skipDuplicates bool) ([]*M, error)
+	skipDuplicates bool
+}
+
+func (b *CreateManyAndReturnBuilder[M, S, O]) SkipDuplicates() *CreateManyAndReturnBuilder[M, S, O] {
+	b.skipDuplicates = true
+	return b
 }
 
 func (b *CreateManyAndReturnBuilder[M, S, O]) Select(s S) *CreateManyAndReturnSelectBuilder[M, S, O] {
@@ -1545,7 +1566,7 @@ func (b *CreateManyAndReturnBuilder[M, S, O]) Omit(o O) *CreateManyAndReturnOmit
 }
 
 func (b *CreateManyAndReturnBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.execFunc(ctx, b.records, nil, nil)
+	return b.execFunc(ctx, b.records, nil, nil, b.skipDuplicates)
 }
 
 type CreateManyAndReturnSelectBuilder[M any, S any, O any] struct {
@@ -1554,7 +1575,7 @@ type CreateManyAndReturnSelectBuilder[M any, S any, O any] struct {
 }
 
 func (b *CreateManyAndReturnSelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.builder.execFunc(ctx, b.builder.records, &b.selects, nil)
+	return b.builder.execFunc(ctx, b.builder.records, &b.selects, nil, b.builder.skipDuplicates)
 }
 
 type CreateManyAndReturnOmitBuilder[M any, S any, O any] struct {
@@ -1563,7 +1584,7 @@ type CreateManyAndReturnOmitBuilder[M any, S any, O any] struct {
 }
 
 func (b *CreateManyAndReturnOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.builder.execFunc(ctx, b.builder.records, nil, &b.omits)
+	return b.builder.execFunc(ctx, b.builder.records, nil, &b.omits, b.builder.skipDuplicates)
 }
 
 func executeInsert[M any](
@@ -1669,6 +1690,7 @@ func executeCreateMany(
 	rowMaps []map[string]any,
 	tableName string,
 	colOrder []string,
+	skipDuplicates bool,
 ) (int64, error) {
 	if len(rowMaps) == 0 {
 		return 0, nil
@@ -1676,7 +1698,7 @@ func executeCreateMany(
 
 	batches := partitionRowMaps(q.dialect, rowMaps)
 	if len(batches) == 1 {
-		query, vals := buildBulkInsertSQL(q.dialect, tableName, batches[0], colOrder, nil)
+		query, vals := buildBulkInsertSQL(q.dialect, tableName, batches[0], colOrder, nil, skipDuplicates)
 		res, err := q.exec(ctx, query, vals...)
 		if err != nil {
 			return 0, err
@@ -1687,7 +1709,7 @@ func executeCreateMany(
 	var count int64
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		for _, batch := range batches {
-			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, batch, colOrder, nil)
+			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, batch, colOrder, nil, skipDuplicates)
 			res, err := txQ.exec(ctx, query, vals...)
 			if err != nil {
 				return err
@@ -1716,6 +1738,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 	scanFunc func(*M, []string) []any,
 	hasRelationsFn func(*S) bool,
 	idCol string,
+	skipDuplicates bool,
 ) ([]*M, error) {
 	if len(rowMaps) == 0 {
 		return nil, nil
@@ -1749,7 +1772,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 	batches := partitionRowMaps(q.dialect, rowMaps)
 	recordsOut := make([]*M, 0)
 	if len(batches) == 1 && !hasRelations {
-		query, vals := buildBulkInsertSQL(q.dialect, tableName, batches[0], colOrder, returningCols)
+		query, vals := buildBulkInsertSQL(q.dialect, tableName, batches[0], colOrder, returningCols, skipDuplicates)
 		rows, err := q.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
@@ -1770,7 +1793,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		for _, batch := range batches {
-			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, batch, colOrder, returningCols)
+			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, batch, colOrder, returningCols, skipDuplicates)
 			err := func() error {
 				rows, err := txQ.query(ctx, query, vals...)
 				if err != nil {
@@ -2398,7 +2421,7 @@ func mapToColsVals(m map[string]any, colOrder []string) (cols []string, vals []a
 	return
 }
 
-func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any, colOrder []string, returningCols []string) (string, []any) {
+func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any, colOrder []string, returningCols []string, skipDuplicates bool) (string, []any) {
 	colsSet := make(map[string]bool)
 	for _, rMap := range rowMaps {
 		for col := range rMap {
@@ -2414,7 +2437,8 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 
 	var vals []any
 	var sb strings.Builder
-	sb.WriteString("INSERT INTO ")
+	sb.WriteString(dialect.InsertPrefix(skipDuplicates))
+	sb.WriteString(" ")
 	sb.WriteString(dialect.Quote(table))
 	sb.WriteString(" (")
 	for i, col := range cols {
@@ -2448,6 +2472,8 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 		}
 		sb.WriteString(")")
 	}
+
+	sb.WriteString(dialect.ConflictClause(skipDuplicates))
 
 	if dialect.SupportsReturning() && len(returningCols) > 0 {
 		sb.WriteString(" RETURNING ")

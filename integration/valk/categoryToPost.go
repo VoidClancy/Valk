@@ -324,7 +324,7 @@ func (d *CategoryToPostDelegate) CreateManyAndReturn(builders ...*CategoryToPost
 	}
 }
 
-func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]CategoryToPostCreate, len(records))
 	for i, rec := range records {
@@ -340,7 +340,7 @@ func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records [
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "CategoryToPost", CategoryToPostColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "CategoryToPost", CategoryToPostColOrder, skipDuplicates)
 	if err != nil {
 		return 0, err
 	}
@@ -352,7 +352,7 @@ func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records [
 	return count, nil
 }
 
-func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
+func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit, skipDuplicates bool) ([]*CategoryToPost, error) {
 	rowMaps := make([]map[string]any, len(records))
 	idCol := ""
 	for i, rec := range records {
@@ -373,6 +373,7 @@ func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, 
 		(*CategoryToPost).ScanFields,
 		(*CategoryToPostSelect).hasAnyRelation,
 		idCol,
+		skipDuplicates,
 	)
 	if err != nil {
 		return nil, err
