@@ -321,7 +321,7 @@ func (d *CategoryDelegate) CreateManyAndReturn(builders ...*CategoryCreateBuilde
 	}
 }
 
-func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]CategoryCreate, len(records))
 	for i, rec := range records {
@@ -337,7 +337,7 @@ func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []Recor
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "Category", CategoryColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "Category", CategoryColOrder, skipDuplicates)
 	if err != nil {
 		return 0, err
 	}
@@ -349,7 +349,7 @@ func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []Recor
 	return count, nil
 }
 
-func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
+func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategorySelect, omits *CategoryOmit, skipDuplicates bool) ([]*Category, error) {
 	rowMaps := make([]map[string]any, len(records))
 	idCol := "id"
 	for i, rec := range records {
@@ -370,6 +370,7 @@ func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, record
 		(*Category).ScanFields,
 		(*CategorySelect).hasAnyRelation,
 		idCol,
+		skipDuplicates,
 	)
 	if err != nil {
 		return nil, err

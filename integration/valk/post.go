@@ -406,7 +406,7 @@ func (d *PostDelegate) CreateManyAndReturn(builders ...*PostCreateBuilder) *Crea
 	}
 }
 
-func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]PostCreate, len(records))
 	for i, rec := range records {
@@ -422,7 +422,7 @@ func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInp
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "Post", PostColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "Post", PostColOrder, skipDuplicates)
 	if err != nil {
 		return 0, err
 	}
@@ -434,7 +434,7 @@ func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInp
 	return count, nil
 }
 
-func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
+func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *PostSelect, omits *PostOmit, skipDuplicates bool) ([]*Post, error) {
 	rowMaps := make([]map[string]any, len(records))
 	idCol := "id"
 	for i, rec := range records {
@@ -455,6 +455,7 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []
 		(*Post).ScanFields,
 		(*PostSelect).hasAnyRelation,
 		idCol,
+		skipDuplicates,
 	)
 	if err != nil {
 		return nil, err

@@ -517,7 +517,7 @@ func (d *DefaultsTestDelegate) CreateManyAndReturn(builders ...*DefaultsTestCrea
 	}
 }
 
-func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]DefaultsTestCreate, len(records))
 	for i, rec := range records {
@@ -533,7 +533,7 @@ func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []R
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "DefaultsTest", DefaultsTestColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "DefaultsTest", DefaultsTestColOrder, skipDuplicates)
 	if err != nil {
 		return 0, err
 	}
@@ -545,7 +545,7 @@ func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []R
 	return count, nil
 }
 
-func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error) {
+func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *DefaultsTestSelect, omits *DefaultsTestOmit, skipDuplicates bool) ([]*DefaultsTest, error) {
 	rowMaps := make([]map[string]any, len(records))
 	idCol := "uuid4"
 	for i, rec := range records {
@@ -566,6 +566,7 @@ func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, re
 		(*DefaultsTest).ScanFields,
 		(*DefaultsTestSelect).hasAnyRelation,
 		idCol,
+		skipDuplicates,
 	)
 	if err != nil {
 		return nil, err

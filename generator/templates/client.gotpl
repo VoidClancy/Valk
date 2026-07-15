@@ -17,6 +17,13 @@ func (postgresDialect) FormatLimitOffset(take *int, skip *int) string {
 	return ""
 }
 func (postgresDialect) SupportsDefaultKeyword() bool  { return true }
+func (postgresDialect) InsertPrefix(skipDuplicates bool) string { return "INSERT INTO" }
+func (postgresDialect) ConflictClause(skipDuplicates bool) string {
+	if skipDuplicates {
+		return " ON CONFLICT DO NOTHING"
+	}
+	return ""
+}
 
 {{- end }}
 
@@ -39,6 +46,13 @@ func (sqliteDialect) FormatLimitOffset(take *int, skip *int) string {
 	return ""
 }
 func (sqliteDialect) SupportsDefaultKeyword() bool    { return false }
+func (sqliteDialect) InsertPrefix(skipDuplicates bool) string {
+	if skipDuplicates {
+		return "INSERT OR IGNORE INTO"
+	}
+	return "INSERT INTO"
+}
+func (sqliteDialect) ConflictClause(skipDuplicates bool) string { return "" }
 
 {{- end }}
 

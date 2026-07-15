@@ -5,6 +5,8 @@ type Dialect interface {
 	SupportsBulkInsert() bool
 	FormatLimitOffset(take *int, skip *int) string
 	SupportsDefaultKeyword() bool
+	InsertPrefix(skipDuplicates bool) string
+	ConflictClause(skipDuplicates bool) string
 }
 
 type rawDefault struct{}

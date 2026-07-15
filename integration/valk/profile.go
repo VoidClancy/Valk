@@ -376,7 +376,7 @@ func (d *ProfileDelegate) CreateManyAndReturn(builders ...*ProfileCreateBuilder)
 	}
 }
 
-func (q *Queries) executeProfileCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+func (q *Queries) executeProfileCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]ProfileCreate, len(records))
 	for i, rec := range records {
@@ -392,7 +392,7 @@ func (q *Queries) executeProfileCreateMany(ctx context.Context, records []Record
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "Profile", ProfileColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "Profile", ProfileColOrder, skipDuplicates)
 	if err != nil {
 		return 0, err
 	}
@@ -404,7 +404,7 @@ func (q *Queries) executeProfileCreateMany(ctx context.Context, records []Record
 	return count, nil
 }
 
-func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
+func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *ProfileSelect, omits *ProfileOmit, skipDuplicates bool) ([]*Profile, error) {
 	rowMaps := make([]map[string]any, len(records))
 	idCol := "id"
 	for i, rec := range records {
@@ -425,6 +425,7 @@ func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records
 		(*Profile).ScanFields,
 		(*ProfileSelect).hasAnyRelation,
 		idCol,
+		skipDuplicates,
 	)
 	if err != nil {
 		return nil, err

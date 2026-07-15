@@ -1686,7 +1686,7 @@ func (d *AllFieldsSoFarDelegate) CreateManyAndReturn(builders ...*AllFieldsSoFar
 	}
 }
 
-func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]AllFieldsSoFarCreate, len(records))
 	for i, rec := range records {
@@ -1702,7 +1702,7 @@ func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records [
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "AllFieldsSoFar", AllFieldsSoFarColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "AllFieldsSoFar", AllFieldsSoFarColOrder, skipDuplicates)
 	if err != nil {
 		return 0, err
 	}
@@ -1714,7 +1714,7 @@ func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records [
 	return count, nil
 }
 
-func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
+func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, skipDuplicates bool) ([]*AllFieldsSoFar, error) {
 	rowMaps := make([]map[string]any, len(records))
 	idCol := "id"
 	for i, rec := range records {
@@ -1735,6 +1735,7 @@ func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, 
 		(*AllFieldsSoFar).ScanFields,
 		(*AllFieldsSoFarSelect).hasAnyRelation,
 		idCol,
+		skipDuplicates,
 	)
 	if err != nil {
 		return nil, err

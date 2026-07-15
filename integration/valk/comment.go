@@ -485,7 +485,7 @@ func (d *CommentDelegate) CreateManyAndReturn(builders ...*CommentCreateBuilder)
 	}
 }
 
-func (q *Queries) executeCommentCreateMany(ctx context.Context, records []RecordInput) (int64, error) {
+func (q *Queries) executeCommentCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]CommentCreate, len(records))
 	for i, rec := range records {
@@ -501,7 +501,7 @@ func (q *Queries) executeCommentCreateMany(ctx context.Context, records []Record
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "Comment", CommentColOrder)
+	count, err := executeCreateMany(ctx, q, rowMaps, "Comment", CommentColOrder, skipDuplicates)
 	if err != nil {
 		return 0, err
 	}
@@ -513,7 +513,7 @@ func (q *Queries) executeCommentCreateMany(ctx context.Context, records []Record
 	return count, nil
 }
 
-func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
+func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CommentSelect, omits *CommentOmit, skipDuplicates bool) ([]*Comment, error) {
 	rowMaps := make([]map[string]any, len(records))
 	idCol := "id"
 	for i, rec := range records {
@@ -534,6 +534,7 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records
 		(*Comment).ScanFields,
 		(*CommentSelect).hasAnyRelation,
 		idCol,
+		skipDuplicates,
 	)
 	if err != nil {
 		return nil, err
