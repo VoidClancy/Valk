@@ -101,23 +101,29 @@ func (b *ProfileQueryBuilder) GetRelationParams() (*ProfileSelect, *ProfileOmit,
 	}
 }
 
+type ProfileCreateQuery = func(ctx context.Context, args *ProfileCreate) (*Profile, error)
+type ProfileCreateManyQuery = func(ctx context.Context, args []*ProfileCreate) (int64, error)
+type ProfileCreateManyAndReturnQuery = func(ctx context.Context, args []*ProfileCreate) ([]*Profile, error)
+type ProfileFindUniqueQuery = func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
+type ProfileFindFirstQuery = func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
+type ProfileFindManyQuery = func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error)
+
+type ProfileExtension struct {
+	Create              func(ctx context.Context, input *ProfileCreate, next ProfileCreateQuery) (*Profile, error)
+	CreateMany          func(ctx context.Context, inputs []*ProfileCreate, next ProfileCreateManyQuery) (int64, error)
+	CreateManyAndReturn func(ctx context.Context, inputs []*ProfileCreate, next ProfileCreateManyAndReturnQuery) ([]*Profile, error)
+	FindUnique          func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileFindUniqueQuery) (*Profile, error)
+	FindFirst           func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileFindFirstQuery) (*Profile, error)
+	FindMany            func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileFindManyQuery) ([]*Profile, error)
+}
+
 type ProfileDelegate struct {
-	client          *Queries
-	beforeCreate    func(context.Context, *ProfileCreate) error
-	afterCreate     func(context.Context, []*Profile) error
-	afterCreateMany func(context.Context, []ProfileCreate, int64) error
+	client     *Queries
+	extensions []ProfileExtension
 }
 
-func (d *ProfileDelegate) BeforeCreate(hook func(context.Context, *ProfileCreate) error) {
-	d.beforeCreate = hook
-}
-
-func (d *ProfileDelegate) AfterCreate(hook func(context.Context, []*Profile) error) {
-	d.afterCreate = hook
-}
-
-func (d *ProfileDelegate) AfterCreateMany(hook func(context.Context, []ProfileCreate, int64) error) {
-	d.afterCreateMany = hook
+func (d *ProfileDelegate) Use(exts ...ProfileExtension) {
+	d.extensions = append(d.extensions, exts...)
 }
 
 func (m *Profile) ScanFields(cols []string) []any {
@@ -313,56 +319,56 @@ func (s *ProfileCreate) ToRowMap() map[string]any {
 func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*Profile, error) {
 	input := assignmentsToProfileCreate(assignments)
 
-	if q.Profile.beforeCreate != nil {
-		if err := q.Profile.beforeCreate(ctx, &input); err != nil {
+	curr := func(c context.Context, args *ProfileCreate) (*Profile, error) {
+		if err := validateProfileCreate(assignments); err != nil {
 			return nil, err
 		}
+
+		rowMap := args.ToRowMap()
+		cols, vals := mapToColsVals(rowMap, ProfileColOrder)
+
+		returningCols := q.selectProfileCols(selects, omits)
+
+		scanFunc := func(res *Profile, cols []string) []any {
+			return res.ScanFields(cols)
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		hasRelations := selects.hasAnyRelation()
+
+		var res *Profile
+		var err error
+		if hasRelations {
+			err = q.transaction(c, func(txQ *Queries) error {
+				var err error
+				res, err = executeInsert(c, txQ, "Profile", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.loadProfileRelations(c, []*Profile{res}, selects)
+			})
+		} else {
+			res, err = executeInsert(c, q, "Profile", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
 	}
 
-	if err := validateProfileCreate(assignments); err != nil {
-		return nil, err
-	}
-
-	rowMap := input.ToRowMap()
-	cols, vals := mapToColsVals(rowMap, ProfileColOrder)
-
-	returningCols := q.selectProfileCols(selects, omits)
-
-	scanFunc := func(res *Profile, cols []string) []any {
-		return res.ScanFields(cols)
-	}
-
-	pkCols := []string{
-		"id",
-	}
-
-	hasRelations := selects.hasAnyRelation()
-
-	var res *Profile
-	var err error
-	if hasRelations {
-		err = q.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = executeInsert(ctx, txQ, "Profile", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-			if err != nil {
-				return err
+	for _, ext := range slices.Backward(q.Profile.extensions) {
+		if ext.Create != nil {
+			next, hook := curr, ext.Create
+			curr = func(c context.Context, input *ProfileCreate) (*Profile, error) {
+				return hook(c, input, next)
 			}
-			return txQ.loadProfileRelations(ctx, []*Profile{res}, selects)
-		})
-	} else {
-		res, err = executeInsert(ctx, q, "Profile", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if q.Profile.afterCreate != nil {
-		if err := q.Profile.afterCreate(ctx, []*Profile{res}); err != nil {
-			return nil, err
 		}
 	}
 
-	return res, nil
+	return curr(ctx, &input)
 }
 
 type ProfileCreateManyBuilder struct {
@@ -424,71 +430,81 @@ func (d *ProfileDelegate) CreateManyAndReturn(builders ...*ProfileCreateBuilder)
 }
 
 func (q *Queries) executeProfileCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
-	rowMaps := make([]map[string]any, len(records))
-	inputs := make([]ProfileCreate, len(records))
+	inputs := make([]*ProfileCreate, len(records))
 	for i, rec := range records {
 		if err := validateProfileCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToProfileCreate(rec.Assignments)
-		if q.Profile.beforeCreate != nil {
-			if err := q.Profile.beforeCreate(ctx, &input); err != nil {
-				return 0, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*ProfileCreate) (int64, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		return executeCreateMany(c, q, rowMaps, "Profile", ProfileColOrder, pkCols, conflictTarget, conflictAction)
+	}
+
+	for _, ext := range slices.Backward(q.Profile.extensions) {
+		if ext.CreateMany != nil {
+			next, hook := curr, ext.CreateMany
+			curr = func(c context.Context, inputs []*ProfileCreate) (int64, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
-		inputs[i] = input
 	}
-	pkCols := []string{
-		"id",
-	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "Profile", ProfileColOrder, pkCols, conflictTarget, conflictAction)
-	if err != nil {
-		return 0, err
-	}
-	if q.Profile.afterCreateMany != nil {
-		if err := q.Profile.afterCreateMany(ctx, inputs, count); err != nil {
-			return 0, err
-		}
-	}
-	return count, nil
+
+	return curr(ctx, inputs)
 }
 
 func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *ProfileSelect, omits *ProfileOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Profile, error) {
-	rowMaps := make([]map[string]any, len(records))
-	pkCols := []string{
-		"id",
-	}
+	inputs := make([]*ProfileCreate, len(records))
 	for i, rec := range records {
 		if err := validateProfileCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToProfileCreate(rec.Assignments)
-		if q.Profile.beforeCreate != nil {
-			if err := q.Profile.beforeCreate(ctx, &input); err != nil {
-				return nil, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*ProfileCreate) ([]*Profile, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		return executeCreateManyAndReturn(c, q, rowMaps, "Profile", ProfileColOrder, selects, omits,
+			q.selectProfileCols,
+			q.loadProfileRelations,
+			(*Profile).ScanFields,
+			(*ProfileSelect).hasAnyRelation,
+			pkCols,
+			conflictTarget,
+			conflictAction,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.Profile.extensions) {
+		if ext.CreateManyAndReturn != nil {
+			next, hook := curr, ext.CreateManyAndReturn
+			curr = func(c context.Context, inputs []*ProfileCreate) ([]*Profile, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
 	}
-	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "Profile", ProfileColOrder, selects, omits,
-		q.selectProfileCols,
-		q.loadProfileRelations,
-		(*Profile).ScanFields,
-		(*ProfileSelect).hasAnyRelation,
-		pkCols,
-		conflictTarget,
-		conflictAction,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if q.Profile.afterCreate != nil {
-		if err := q.Profile.afterCreate(ctx, results); err != nil {
-			return nil, err
-		}
-	}
-	return results, nil
+
+	return curr(ctx, inputs)
 }
 
 type ProfileConflictBuilder[B any] struct {
@@ -560,30 +576,43 @@ func (d *ProfileDelegate) FindMany(preds ...PredicateOf[Profile]) *FindManyBuild
 }
 
 func (q *Queries) executeProfileFindUnique(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+	curr := func(c context.Context, w UniquePredicate[Profile], add []PredicateOf[Profile], sel *ProfileSelect, o *ProfileOmit) (*Profile, error) {
+		if err := w.Validate(); err != nil {
+			return nil, err
+		}
+		for _, p := range add {
+			if p != nil {
+				if err := p.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		allPreds := append([]PredicateOf[Profile]{w}, add...)
+		whereClause, vals := CompilePredicates(q.dialect, allPreds)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectProfileCols(sel, o)
+		return executeSingleWithRelations(c, q, "Profile", whereClause, vals, returningCols,
+			func(res *Profile, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*Profile) error {
+				return txQ.loadProfileRelations(ctx, results, sel)
+			},
+			nil,
+		)
 	}
-	for _, p := range additional {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+
+	for _, ext := range slices.Backward(q.Profile.extensions) {
+		if ext.FindUnique != nil {
+			next, hook := curr, ext.FindUnique
+			curr = func(c context.Context, w UniquePredicate[Profile], add []PredicateOf[Profile], sel *ProfileSelect, o *ProfileOmit) (*Profile, error) {
+				return hook(c, w, add, sel, o, next)
 			}
 		}
 	}
-	allPreds := append([]PredicateOf[Profile]{where}, additional...)
-	whereClause, vals := CompilePredicates(q.dialect, allPreds)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectProfileCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "Profile", whereClause, vals, returningCols,
-		func(res *Profile, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*Profile) error {
-			return txQ.loadProfileRelations(ctx, results, selects)
-		},
-		nil,
-	)
+
+	return curr(ctx, where, additional, selects, omits)
 }
 
 func (q *Queries) executeProfileFindFirst(
@@ -592,26 +621,39 @@ func (q *Queries) executeProfileFindFirst(
 	selects *ProfileSelect,
 	omits *ProfileOmit,
 ) (*Profile, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[Profile], sel *ProfileSelect, o *ProfileOmit) (*Profile, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectProfileCols(sel, o)
+		return executeSingleWithRelations(c, q, "Profile", whereClause, vals, returningCols,
+			func(res *Profile, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*Profile) error {
+				return txQ.loadProfileRelations(ctx, results, sel)
+			},
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.Profile.extensions) {
+		if ext.FindFirst != nil {
+			next, hook := curr, ext.FindFirst
+			curr = func(c context.Context, p QueryParams[Profile], sel *ProfileSelect, o *ProfileOmit) (*Profile, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectProfileCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "Profile", whereClause, vals, returningCols,
-		func(res *Profile, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*Profile) error {
-			return txQ.loadProfileRelations(ctx, results, selects)
-		},
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 
 func (q *Queries) executeProfileFindMany(
@@ -620,27 +662,40 @@ func (q *Queries) executeProfileFindMany(
 	selects *ProfileSelect,
 	omits *ProfileOmit,
 ) ([]*Profile, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[Profile], sel *ProfileSelect, o *ProfileOmit) ([]*Profile, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectProfileCols(sel, o)
+		return executeManyWithRelations(c, q, "Profile", whereClause, vals, returningCols,
+			func(res *Profile, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*Profile) error {
+				return txQ.loadProfileRelations(ctx, results, sel)
+			},
+			p.Take,
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.Profile.extensions) {
+		if ext.FindMany != nil {
+			next, hook := curr, ext.FindMany
+			curr = func(c context.Context, p QueryParams[Profile], sel *ProfileSelect, o *ProfileOmit) ([]*Profile, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectProfileCols(selects, omits)
-	return executeManyWithRelations(ctx, q, "Profile", whereClause, vals, returningCols,
-		func(res *Profile, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*Profile) error {
-			return txQ.loadProfileRelations(ctx, results, selects)
-		},
-		params.Take,
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 func (q *Queries) loadProfileRelations(ctx context.Context, records []*Profile, selects *ProfileSelect) error {
 	if selects == nil || len(records) == 0 {

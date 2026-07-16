@@ -1,6 +1,7 @@
 package post
 
 import (
+	"context"
 	"integration/valk"
 )
 
@@ -40,3 +41,24 @@ var Content = valk.StringField[valk.Post]{Column: "content"}
 var Published = valk.Field[valk.Post, bool]{Column: "published"}
 
 var AuthorId = valk.StringField[valk.Post]{Column: "authorId"}
+
+type CreateInput = valk.PostCreate
+type CreateQuery = valk.PostCreateQuery
+type CreateHook = func(context.Context, *CreateInput, CreateQuery) (*valk.Post, error)
+
+type CreateManyQuery = valk.PostCreateManyQuery
+type CreateManyHook = func(context.Context, []*CreateInput, CreateManyQuery) (int64, error)
+
+type CreateManyAndReturnQuery = valk.PostCreateManyAndReturnQuery
+type CreateManyAndReturnHook = func(context.Context, []*CreateInput, CreateManyAndReturnQuery) ([]*valk.Post, error)
+
+type FindUniqueQuery = valk.PostFindUniqueQuery
+type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.Post], []valk.PredicateOf[valk.Post], *valk.PostSelect, *valk.PostOmit, FindUniqueQuery) (*valk.Post, error)
+
+type FindFirstQuery = valk.PostFindFirstQuery
+type FindFirstHook = func(context.Context, valk.QueryParams[valk.Post], *valk.PostSelect, *valk.PostOmit, FindFirstQuery) (*valk.Post, error)
+
+type FindManyQuery = valk.PostFindManyQuery
+type FindManyHook = func(context.Context, valk.QueryParams[valk.Post], *valk.PostSelect, *valk.PostOmit, FindManyQuery) ([]*valk.Post, error)
+
+type Extension = valk.PostExtension

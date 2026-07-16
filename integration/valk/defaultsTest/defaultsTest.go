@@ -1,6 +1,7 @@
 package defaultsTest
 
 import (
+	"context"
 	"integration/valk"
 	"time"
 )
@@ -49,3 +50,24 @@ var Ulid = valk.StringField[valk.DefaultsTest]{Column: "ulid"}
 var Nanoid = valk.StringField[valk.DefaultsTest]{Column: "nanoid"}
 
 var Now = valk.Field[valk.DefaultsTest, time.Time]{Column: "now"}
+
+type CreateInput = valk.DefaultsTestCreate
+type CreateQuery = valk.DefaultsTestCreateQuery
+type CreateHook = func(context.Context, *CreateInput, CreateQuery) (*valk.DefaultsTest, error)
+
+type CreateManyQuery = valk.DefaultsTestCreateManyQuery
+type CreateManyHook = func(context.Context, []*CreateInput, CreateManyQuery) (int64, error)
+
+type CreateManyAndReturnQuery = valk.DefaultsTestCreateManyAndReturnQuery
+type CreateManyAndReturnHook = func(context.Context, []*CreateInput, CreateManyAndReturnQuery) ([]*valk.DefaultsTest, error)
+
+type FindUniqueQuery = valk.DefaultsTestFindUniqueQuery
+type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.DefaultsTest], []valk.PredicateOf[valk.DefaultsTest], *valk.DefaultsTestSelect, *valk.DefaultsTestOmit, FindUniqueQuery) (*valk.DefaultsTest, error)
+
+type FindFirstQuery = valk.DefaultsTestFindFirstQuery
+type FindFirstHook = func(context.Context, valk.QueryParams[valk.DefaultsTest], *valk.DefaultsTestSelect, *valk.DefaultsTestOmit, FindFirstQuery) (*valk.DefaultsTest, error)
+
+type FindManyQuery = valk.DefaultsTestFindManyQuery
+type FindManyHook = func(context.Context, valk.QueryParams[valk.DefaultsTest], *valk.DefaultsTestSelect, *valk.DefaultsTestOmit, FindManyQuery) ([]*valk.DefaultsTest, error)
+
+type Extension = valk.DefaultsTestExtension

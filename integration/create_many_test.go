@@ -17,11 +17,15 @@ func TestCreateMany_Hooks(t *testing.T) {
 		client, cleanup := setupTestDB(t)
 		defer cleanup()
 
-		client.User.BeforeCreate(func(ctx context.Context, input *valk.UserCreate) error {
-			if input.Email == "hooked@example.com" {
-				input.PhoneNum = "+188888888"
-			}
-			return nil
+		client.User.Use(user.Extension{
+			CreateMany: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyQuery) (int64, error) {
+				for _, input := range args {
+					if input.Email == "hooked@example.com" {
+						input.PhoneNum = "+188888888"
+					}
+				}
+				return next(ctx, args)
+			},
 		})
 
 		count, err := client.User.CreateMany(
@@ -49,11 +53,15 @@ func TestCreateMany_Hooks(t *testing.T) {
 		client, cleanup := setupTestDB(t)
 		defer cleanup()
 
-		client.User.BeforeCreate(func(ctx context.Context, input *valk.UserCreate) error {
-			if input.Email == "hooked@example.com" {
-				input.PhoneNum = "+188888888"
-			}
-			return nil
+		client.User.Use(user.Extension{
+			CreateManyAndReturn: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
+				for _, input := range args {
+					if input.Email == "hooked@example.com" {
+						input.PhoneNum = "+188888888"
+					}
+				}
+				return next(ctx, args)
+			},
 		})
 
 		users, err := client.User.CreateManyAndReturn(
@@ -79,11 +87,15 @@ func TestCreateMany_Hooks(t *testing.T) {
 		client, cleanup := setupTestDB(t)
 		defer cleanup()
 
-		client.User.BeforeCreate(func(ctx context.Context, input *valk.UserCreate) error {
-			if input.Email == "reject@example.com" {
-				return fmt.Errorf("hook rejected: %s", input.Email)
-			}
-			return nil
+		client.User.Use(user.Extension{
+			CreateMany: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyQuery) (int64, error) {
+				for _, input := range args {
+					if input.Email == "reject@example.com" {
+						return 0, fmt.Errorf("hook rejected: %s", input.Email)
+					}
+				}
+				return next(ctx, args)
+			},
 		})
 
 		_, err := client.User.CreateMany(
@@ -110,12 +122,17 @@ func TestCreateMany_Hooks(t *testing.T) {
 
 		var afterCalled bool
 		var gotRole valk.UserRoleType
-		client.User.AfterCreate(func(ctx context.Context, users []*valk.User) error {
-			afterCalled = true
-			if len(users) > 0 {
-				gotRole = users[0].Role
-			}
-			return nil
+		client.User.Use(user.Extension{
+			CreateManyAndReturn: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
+				res, err := next(ctx, args)
+				if err == nil {
+					afterCalled = true
+					if len(res) > 0 {
+						gotRole = res[0].Role
+					}
+				}
+				return res, err
+			},
 		})
 
 		users, err := client.User.CreateManyAndReturn(
@@ -140,8 +157,14 @@ func TestCreateMany_Hooks(t *testing.T) {
 		client, cleanup := setupTestDB(t)
 		defer cleanup()
 
-		client.User.AfterCreate(func(ctx context.Context, users []*valk.User) error {
-			return fmt.Errorf("after hook rejected")
+		client.User.Use(user.Extension{
+			CreateManyAndReturn: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
+				_, err := next(ctx, args)
+				if err != nil {
+					return nil, err
+				}
+				return nil, fmt.Errorf("after hook rejected")
+			},
 		})
 
 		var count int
@@ -175,10 +198,18 @@ func TestCreateMany_Hooks(t *testing.T) {
 
 		var gotUsers []valk.UserCreate
 		var gotCount int64
-		client.User.AfterCreateMany(func(ctx context.Context, users []valk.UserCreate, count int64) error {
-			gotUsers = users
-			gotCount = count
-			return nil
+		client.User.Use(user.Extension{
+			CreateMany: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyQuery) (int64, error) {
+				count, err := next(ctx, args)
+				if err == nil {
+					gotUsers = make([]valk.UserCreate, len(args))
+					for i, a := range args {
+						gotUsers[i] = *a
+					}
+					gotCount = count
+				}
+				return count, err
+			},
 		})
 
 		count, err := client.User.CreateMany(
@@ -210,8 +241,14 @@ func TestCreateMany_Hooks(t *testing.T) {
 		client, cleanup := setupTestDB(t)
 		defer cleanup()
 
-		client.User.AfterCreateMany(func(ctx context.Context, users []valk.UserCreate, count int64) error {
-			return fmt.Errorf("after create many rejected")
+		client.User.Use(user.Extension{
+			CreateMany: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyQuery) (int64, error) {
+				_, err := next(ctx, args)
+				if err != nil {
+					return 0, err
+				}
+				return 0, fmt.Errorf("after create many rejected")
+			},
 		})
 
 		_, err := client.User.CreateMany(

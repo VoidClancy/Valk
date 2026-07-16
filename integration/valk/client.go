@@ -12,6 +12,7 @@ import (
 	"github.com/pressly/goose/v3"
 	"log"
 	"net"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ var _ = hstore.Hstore{}
 var _ = net.ParseIP
 var _ = json.RawMessage{}
 var _ = strings.Join
+var _ = slices.Clone[[]any]
 var _ = uuid.New
 var _ = rand.Read
 var _ = strconv.AppendUint
@@ -672,30 +674,22 @@ func (q *Queries) initDelegates() {
 }
 
 func (q *Queries) copyHooksFrom(other *Queries) {
-	q.User.beforeCreate = other.User.beforeCreate
-	q.User.afterCreate = other.User.afterCreate
-	q.User.afterCreateMany = other.User.afterCreateMany
-	q.Profile.beforeCreate = other.Profile.beforeCreate
-	q.Profile.afterCreate = other.Profile.afterCreate
-	q.Profile.afterCreateMany = other.Profile.afterCreateMany
-	q.Post.beforeCreate = other.Post.beforeCreate
-	q.Post.afterCreate = other.Post.afterCreate
-	q.Post.afterCreateMany = other.Post.afterCreateMany
-	q.Comment.beforeCreate = other.Comment.beforeCreate
-	q.Comment.afterCreate = other.Comment.afterCreate
-	q.Comment.afterCreateMany = other.Comment.afterCreateMany
-	q.Category.beforeCreate = other.Category.beforeCreate
-	q.Category.afterCreate = other.Category.afterCreate
-	q.Category.afterCreateMany = other.Category.afterCreateMany
-	q.CategoryToPost.beforeCreate = other.CategoryToPost.beforeCreate
-	q.CategoryToPost.afterCreate = other.CategoryToPost.afterCreate
-	q.CategoryToPost.afterCreateMany = other.CategoryToPost.afterCreateMany
-	q.DefaultsTest.beforeCreate = other.DefaultsTest.beforeCreate
-	q.DefaultsTest.afterCreate = other.DefaultsTest.afterCreate
-	q.DefaultsTest.afterCreateMany = other.DefaultsTest.afterCreateMany
-	q.AllFieldsSoFar.beforeCreate = other.AllFieldsSoFar.beforeCreate
-	q.AllFieldsSoFar.afterCreate = other.AllFieldsSoFar.afterCreate
-	q.AllFieldsSoFar.afterCreateMany = other.AllFieldsSoFar.afterCreateMany
+	q.User.extensions = make([]UserExtension, len(other.User.extensions))
+	copy(q.User.extensions, other.User.extensions)
+	q.Profile.extensions = make([]ProfileExtension, len(other.Profile.extensions))
+	copy(q.Profile.extensions, other.Profile.extensions)
+	q.Post.extensions = make([]PostExtension, len(other.Post.extensions))
+	copy(q.Post.extensions, other.Post.extensions)
+	q.Comment.extensions = make([]CommentExtension, len(other.Comment.extensions))
+	copy(q.Comment.extensions, other.Comment.extensions)
+	q.Category.extensions = make([]CategoryExtension, len(other.Category.extensions))
+	copy(q.Category.extensions, other.Category.extensions)
+	q.CategoryToPost.extensions = make([]CategoryToPostExtension, len(other.CategoryToPost.extensions))
+	copy(q.CategoryToPost.extensions, other.CategoryToPost.extensions)
+	q.DefaultsTest.extensions = make([]DefaultsTestExtension, len(other.DefaultsTest.extensions))
+	copy(q.DefaultsTest.extensions, other.DefaultsTest.extensions)
+	q.AllFieldsSoFar.extensions = make([]AllFieldsSoFarExtension, len(other.AllFieldsSoFar.extensions))
+	copy(q.AllFieldsSoFar.extensions, other.AllFieldsSoFar.extensions)
 }
 
 // Close closes the database connection.

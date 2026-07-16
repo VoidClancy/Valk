@@ -300,23 +300,29 @@ func (b *AllFieldsSoFarQueryBuilder) GetRelationParams() (*AllFieldsSoFarSelect,
 	}
 }
 
+type AllFieldsSoFarCreateQuery = func(ctx context.Context, args *AllFieldsSoFarCreate) (*AllFieldsSoFar, error)
+type AllFieldsSoFarCreateManyQuery = func(ctx context.Context, args []*AllFieldsSoFarCreate) (int64, error)
+type AllFieldsSoFarCreateManyAndReturnQuery = func(ctx context.Context, args []*AllFieldsSoFarCreate) ([]*AllFieldsSoFar, error)
+type AllFieldsSoFarFindUniqueQuery = func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
+type AllFieldsSoFarFindFirstQuery = func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
+type AllFieldsSoFarFindManyQuery = func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error)
+
+type AllFieldsSoFarExtension struct {
+	Create              func(ctx context.Context, input *AllFieldsSoFarCreate, next AllFieldsSoFarCreateQuery) (*AllFieldsSoFar, error)
+	CreateMany          func(ctx context.Context, inputs []*AllFieldsSoFarCreate, next AllFieldsSoFarCreateManyQuery) (int64, error)
+	CreateManyAndReturn func(ctx context.Context, inputs []*AllFieldsSoFarCreate, next AllFieldsSoFarCreateManyAndReturnQuery) ([]*AllFieldsSoFar, error)
+	FindUnique          func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarFindUniqueQuery) (*AllFieldsSoFar, error)
+	FindFirst           func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarFindFirstQuery) (*AllFieldsSoFar, error)
+	FindMany            func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarFindManyQuery) ([]*AllFieldsSoFar, error)
+}
+
 type AllFieldsSoFarDelegate struct {
-	client          *Queries
-	beforeCreate    func(context.Context, *AllFieldsSoFarCreate) error
-	afterCreate     func(context.Context, []*AllFieldsSoFar) error
-	afterCreateMany func(context.Context, []AllFieldsSoFarCreate, int64) error
+	client     *Queries
+	extensions []AllFieldsSoFarExtension
 }
 
-func (d *AllFieldsSoFarDelegate) BeforeCreate(hook func(context.Context, *AllFieldsSoFarCreate) error) {
-	d.beforeCreate = hook
-}
-
-func (d *AllFieldsSoFarDelegate) AfterCreate(hook func(context.Context, []*AllFieldsSoFar) error) {
-	d.afterCreate = hook
-}
-
-func (d *AllFieldsSoFarDelegate) AfterCreateMany(hook func(context.Context, []AllFieldsSoFarCreate, int64) error) {
-	d.afterCreateMany = hook
+func (d *AllFieldsSoFarDelegate) Use(exts ...AllFieldsSoFarExtension) {
+	d.extensions = append(d.extensions, exts...)
 }
 
 func (m *AllFieldsSoFar) ScanFields(cols []string) []any {
@@ -1623,56 +1629,56 @@ func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
 func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*AllFieldsSoFar, error) {
 	input := assignmentsToAllFieldsSoFarCreate(assignments)
 
-	if q.AllFieldsSoFar.beforeCreate != nil {
-		if err := q.AllFieldsSoFar.beforeCreate(ctx, &input); err != nil {
+	curr := func(c context.Context, args *AllFieldsSoFarCreate) (*AllFieldsSoFar, error) {
+		if err := validateAllFieldsSoFarCreate(assignments); err != nil {
 			return nil, err
 		}
+
+		rowMap := args.ToRowMap()
+		cols, vals := mapToColsVals(rowMap, AllFieldsSoFarColOrder)
+
+		returningCols := q.selectAllFieldsSoFarCols(selects, omits)
+
+		scanFunc := func(res *AllFieldsSoFar, cols []string) []any {
+			return res.ScanFields(cols)
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		hasRelations := selects.hasAnyRelation()
+
+		var res *AllFieldsSoFar
+		var err error
+		if hasRelations {
+			err = q.transaction(c, func(txQ *Queries) error {
+				var err error
+				res, err = executeInsert(c, txQ, "AllFieldsSoFar", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.loadAllFieldsSoFarRelations(c, []*AllFieldsSoFar{res}, selects)
+			})
+		} else {
+			res, err = executeInsert(c, q, "AllFieldsSoFar", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
 	}
 
-	if err := validateAllFieldsSoFarCreate(assignments); err != nil {
-		return nil, err
-	}
-
-	rowMap := input.ToRowMap()
-	cols, vals := mapToColsVals(rowMap, AllFieldsSoFarColOrder)
-
-	returningCols := q.selectAllFieldsSoFarCols(selects, omits)
-
-	scanFunc := func(res *AllFieldsSoFar, cols []string) []any {
-		return res.ScanFields(cols)
-	}
-
-	pkCols := []string{
-		"id",
-	}
-
-	hasRelations := selects.hasAnyRelation()
-
-	var res *AllFieldsSoFar
-	var err error
-	if hasRelations {
-		err = q.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = executeInsert(ctx, txQ, "AllFieldsSoFar", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-			if err != nil {
-				return err
+	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+		if ext.Create != nil {
+			next, hook := curr, ext.Create
+			curr = func(c context.Context, input *AllFieldsSoFarCreate) (*AllFieldsSoFar, error) {
+				return hook(c, input, next)
 			}
-			return txQ.loadAllFieldsSoFarRelations(ctx, []*AllFieldsSoFar{res}, selects)
-		})
-	} else {
-		res, err = executeInsert(ctx, q, "AllFieldsSoFar", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if q.AllFieldsSoFar.afterCreate != nil {
-		if err := q.AllFieldsSoFar.afterCreate(ctx, []*AllFieldsSoFar{res}); err != nil {
-			return nil, err
 		}
 	}
 
-	return res, nil
+	return curr(ctx, &input)
 }
 
 type AllFieldsSoFarCreateManyBuilder struct {
@@ -1734,71 +1740,81 @@ func (d *AllFieldsSoFarDelegate) CreateManyAndReturn(builders ...*AllFieldsSoFar
 }
 
 func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
-	rowMaps := make([]map[string]any, len(records))
-	inputs := make([]AllFieldsSoFarCreate, len(records))
+	inputs := make([]*AllFieldsSoFarCreate, len(records))
 	for i, rec := range records {
 		if err := validateAllFieldsSoFarCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToAllFieldsSoFarCreate(rec.Assignments)
-		if q.AllFieldsSoFar.beforeCreate != nil {
-			if err := q.AllFieldsSoFar.beforeCreate(ctx, &input); err != nil {
-				return 0, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*AllFieldsSoFarCreate) (int64, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		return executeCreateMany(c, q, rowMaps, "AllFieldsSoFar", AllFieldsSoFarColOrder, pkCols, conflictTarget, conflictAction)
+	}
+
+	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+		if ext.CreateMany != nil {
+			next, hook := curr, ext.CreateMany
+			curr = func(c context.Context, inputs []*AllFieldsSoFarCreate) (int64, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
-		inputs[i] = input
 	}
-	pkCols := []string{
-		"id",
-	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "AllFieldsSoFar", AllFieldsSoFarColOrder, pkCols, conflictTarget, conflictAction)
-	if err != nil {
-		return 0, err
-	}
-	if q.AllFieldsSoFar.afterCreateMany != nil {
-		if err := q.AllFieldsSoFar.afterCreateMany(ctx, inputs, count); err != nil {
-			return 0, err
-		}
-	}
-	return count, nil
+
+	return curr(ctx, inputs)
 }
 
 func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*AllFieldsSoFar, error) {
-	rowMaps := make([]map[string]any, len(records))
-	pkCols := []string{
-		"id",
-	}
+	inputs := make([]*AllFieldsSoFarCreate, len(records))
 	for i, rec := range records {
 		if err := validateAllFieldsSoFarCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToAllFieldsSoFarCreate(rec.Assignments)
-		if q.AllFieldsSoFar.beforeCreate != nil {
-			if err := q.AllFieldsSoFar.beforeCreate(ctx, &input); err != nil {
-				return nil, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*AllFieldsSoFarCreate) ([]*AllFieldsSoFar, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		return executeCreateManyAndReturn(c, q, rowMaps, "AllFieldsSoFar", AllFieldsSoFarColOrder, selects, omits,
+			q.selectAllFieldsSoFarCols,
+			q.loadAllFieldsSoFarRelations,
+			(*AllFieldsSoFar).ScanFields,
+			(*AllFieldsSoFarSelect).hasAnyRelation,
+			pkCols,
+			conflictTarget,
+			conflictAction,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+		if ext.CreateManyAndReturn != nil {
+			next, hook := curr, ext.CreateManyAndReturn
+			curr = func(c context.Context, inputs []*AllFieldsSoFarCreate) ([]*AllFieldsSoFar, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
 	}
-	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "AllFieldsSoFar", AllFieldsSoFarColOrder, selects, omits,
-		q.selectAllFieldsSoFarCols,
-		q.loadAllFieldsSoFarRelations,
-		(*AllFieldsSoFar).ScanFields,
-		(*AllFieldsSoFarSelect).hasAnyRelation,
-		pkCols,
-		conflictTarget,
-		conflictAction,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if q.AllFieldsSoFar.afterCreate != nil {
-		if err := q.AllFieldsSoFar.afterCreate(ctx, results); err != nil {
-			return nil, err
-		}
-	}
-	return results, nil
+
+	return curr(ctx, inputs)
 }
 
 type AllFieldsSoFarConflictBuilder[B any] struct {
@@ -2021,30 +2037,43 @@ func (d *AllFieldsSoFarDelegate) FindMany(preds ...PredicateOf[AllFieldsSoFar]) 
 }
 
 func (q *Queries) executeAllFieldsSoFarFindUnique(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+	curr := func(c context.Context, w UniquePredicate[AllFieldsSoFar], add []PredicateOf[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+		if err := w.Validate(); err != nil {
+			return nil, err
+		}
+		for _, p := range add {
+			if p != nil {
+				if err := p.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		allPreds := append([]PredicateOf[AllFieldsSoFar]{w}, add...)
+		whereClause, vals := CompilePredicates(q.dialect, allPreds)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectAllFieldsSoFarCols(sel, o)
+		return executeSingleWithRelations(c, q, "AllFieldsSoFar", whereClause, vals, returningCols,
+			func(res *AllFieldsSoFar, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
+				return txQ.loadAllFieldsSoFarRelations(ctx, results, sel)
+			},
+			nil,
+		)
 	}
-	for _, p := range additional {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+
+	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+		if ext.FindUnique != nil {
+			next, hook := curr, ext.FindUnique
+			curr = func(c context.Context, w UniquePredicate[AllFieldsSoFar], add []PredicateOf[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+				return hook(c, w, add, sel, o, next)
 			}
 		}
 	}
-	allPreds := append([]PredicateOf[AllFieldsSoFar]{where}, additional...)
-	whereClause, vals := CompilePredicates(q.dialect, allPreds)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectAllFieldsSoFarCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "AllFieldsSoFar", whereClause, vals, returningCols,
-		func(res *AllFieldsSoFar, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
-			return txQ.loadAllFieldsSoFarRelations(ctx, results, selects)
-		},
-		nil,
-	)
+
+	return curr(ctx, where, additional, selects, omits)
 }
 
 func (q *Queries) executeAllFieldsSoFarFindFirst(
@@ -2053,26 +2082,39 @@ func (q *Queries) executeAllFieldsSoFarFindFirst(
 	selects *AllFieldsSoFarSelect,
 	omits *AllFieldsSoFarOmit,
 ) (*AllFieldsSoFar, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectAllFieldsSoFarCols(sel, o)
+		return executeSingleWithRelations(c, q, "AllFieldsSoFar", whereClause, vals, returningCols,
+			func(res *AllFieldsSoFar, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
+				return txQ.loadAllFieldsSoFarRelations(ctx, results, sel)
+			},
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+		if ext.FindFirst != nil {
+			next, hook := curr, ext.FindFirst
+			curr = func(c context.Context, p QueryParams[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectAllFieldsSoFarCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "AllFieldsSoFar", whereClause, vals, returningCols,
-		func(res *AllFieldsSoFar, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
-			return txQ.loadAllFieldsSoFarRelations(ctx, results, selects)
-		},
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 
 func (q *Queries) executeAllFieldsSoFarFindMany(
@@ -2081,27 +2123,40 @@ func (q *Queries) executeAllFieldsSoFarFindMany(
 	selects *AllFieldsSoFarSelect,
 	omits *AllFieldsSoFarOmit,
 ) ([]*AllFieldsSoFar, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectAllFieldsSoFarCols(sel, o)
+		return executeManyWithRelations(c, q, "AllFieldsSoFar", whereClause, vals, returningCols,
+			func(res *AllFieldsSoFar, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
+				return txQ.loadAllFieldsSoFarRelations(ctx, results, sel)
+			},
+			p.Take,
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+		if ext.FindMany != nil {
+			next, hook := curr, ext.FindMany
+			curr = func(c context.Context, p QueryParams[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectAllFieldsSoFarCols(selects, omits)
-	return executeManyWithRelations(ctx, q, "AllFieldsSoFar", whereClause, vals, returningCols,
-		func(res *AllFieldsSoFar, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
-			return txQ.loadAllFieldsSoFarRelations(ctx, results, selects)
-		},
-		params.Take,
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 func (q *Queries) loadAllFieldsSoFarRelations(ctx context.Context, records []*AllFieldsSoFar, selects *AllFieldsSoFarSelect) error {
 	if selects == nil || len(records) == 0 {

@@ -111,9 +111,8 @@ func (q *Queries) initDelegates() {
 
 func (q *Queries) copyHooksFrom(other *Queries) {
 	{{- range $model := .Schema.Models }}
-	q.{{ $model.Name }}.beforeCreate = other.{{ $model.Name }}.beforeCreate
-	q.{{ $model.Name }}.afterCreate = other.{{ $model.Name }}.afterCreate
-	q.{{ $model.Name }}.afterCreateMany = other.{{ $model.Name }}.afterCreateMany
+	q.{{ $model.Name }}.extensions = make([]{{ $model.Name }}Extension, len(other.{{ $model.Name }}.extensions))
+	copy(q.{{ $model.Name }}.extensions, other.{{ $model.Name }}.extensions)
 	{{- end }}
 }
 

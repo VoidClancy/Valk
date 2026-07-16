@@ -119,23 +119,29 @@ func (b *DefaultsTestQueryBuilder) GetRelationParams() (*DefaultsTestSelect, *De
 	}
 }
 
+type DefaultsTestCreateQuery = func(ctx context.Context, args *DefaultsTestCreate) (*DefaultsTest, error)
+type DefaultsTestCreateManyQuery = func(ctx context.Context, args []*DefaultsTestCreate) (int64, error)
+type DefaultsTestCreateManyAndReturnQuery = func(ctx context.Context, args []*DefaultsTestCreate) ([]*DefaultsTest, error)
+type DefaultsTestFindUniqueQuery = func(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error)
+type DefaultsTestFindFirstQuery = func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error)
+type DefaultsTestFindManyQuery = func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error)
+
+type DefaultsTestExtension struct {
+	Create              func(ctx context.Context, input *DefaultsTestCreate, next DefaultsTestCreateQuery) (*DefaultsTest, error)
+	CreateMany          func(ctx context.Context, inputs []*DefaultsTestCreate, next DefaultsTestCreateManyQuery) (int64, error)
+	CreateManyAndReturn func(ctx context.Context, inputs []*DefaultsTestCreate, next DefaultsTestCreateManyAndReturnQuery) ([]*DefaultsTest, error)
+	FindUnique          func(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestFindUniqueQuery) (*DefaultsTest, error)
+	FindFirst           func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestFindFirstQuery) (*DefaultsTest, error)
+	FindMany            func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestFindManyQuery) ([]*DefaultsTest, error)
+}
+
 type DefaultsTestDelegate struct {
-	client          *Queries
-	beforeCreate    func(context.Context, *DefaultsTestCreate) error
-	afterCreate     func(context.Context, []*DefaultsTest) error
-	afterCreateMany func(context.Context, []DefaultsTestCreate, int64) error
+	client     *Queries
+	extensions []DefaultsTestExtension
 }
 
-func (d *DefaultsTestDelegate) BeforeCreate(hook func(context.Context, *DefaultsTestCreate) error) {
-	d.beforeCreate = hook
-}
-
-func (d *DefaultsTestDelegate) AfterCreate(hook func(context.Context, []*DefaultsTest) error) {
-	d.afterCreate = hook
-}
-
-func (d *DefaultsTestDelegate) AfterCreateMany(hook func(context.Context, []DefaultsTestCreate, int64) error) {
-	d.afterCreateMany = hook
+func (d *DefaultsTestDelegate) Use(exts ...DefaultsTestExtension) {
+	d.extensions = append(d.extensions, exts...)
 }
 
 func (m *DefaultsTest) ScanFields(cols []string) []any {
@@ -454,56 +460,56 @@ func (s *DefaultsTestCreate) ToRowMap() map[string]any {
 func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*DefaultsTest, error) {
 	input := assignmentsToDefaultsTestCreate(assignments)
 
-	if q.DefaultsTest.beforeCreate != nil {
-		if err := q.DefaultsTest.beforeCreate(ctx, &input); err != nil {
+	curr := func(c context.Context, args *DefaultsTestCreate) (*DefaultsTest, error) {
+		if err := validateDefaultsTestCreate(assignments); err != nil {
 			return nil, err
 		}
+
+		rowMap := args.ToRowMap()
+		cols, vals := mapToColsVals(rowMap, DefaultsTestColOrder)
+
+		returningCols := q.selectDefaultsTestCols(selects, omits)
+
+		scanFunc := func(res *DefaultsTest, cols []string) []any {
+			return res.ScanFields(cols)
+		}
+
+		pkCols := []string{
+			"uuid4",
+		}
+
+		hasRelations := selects.hasAnyRelation()
+
+		var res *DefaultsTest
+		var err error
+		if hasRelations {
+			err = q.transaction(c, func(txQ *Queries) error {
+				var err error
+				res, err = executeInsert(c, txQ, "DefaultsTest", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.loadDefaultsTestRelations(c, []*DefaultsTest{res}, selects)
+			})
+		} else {
+			res, err = executeInsert(c, q, "DefaultsTest", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
 	}
 
-	if err := validateDefaultsTestCreate(assignments); err != nil {
-		return nil, err
-	}
-
-	rowMap := input.ToRowMap()
-	cols, vals := mapToColsVals(rowMap, DefaultsTestColOrder)
-
-	returningCols := q.selectDefaultsTestCols(selects, omits)
-
-	scanFunc := func(res *DefaultsTest, cols []string) []any {
-		return res.ScanFields(cols)
-	}
-
-	pkCols := []string{
-		"uuid4",
-	}
-
-	hasRelations := selects.hasAnyRelation()
-
-	var res *DefaultsTest
-	var err error
-	if hasRelations {
-		err = q.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = executeInsert(ctx, txQ, "DefaultsTest", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-			if err != nil {
-				return err
+	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+		if ext.Create != nil {
+			next, hook := curr, ext.Create
+			curr = func(c context.Context, input *DefaultsTestCreate) (*DefaultsTest, error) {
+				return hook(c, input, next)
 			}
-			return txQ.loadDefaultsTestRelations(ctx, []*DefaultsTest{res}, selects)
-		})
-	} else {
-		res, err = executeInsert(ctx, q, "DefaultsTest", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if q.DefaultsTest.afterCreate != nil {
-		if err := q.DefaultsTest.afterCreate(ctx, []*DefaultsTest{res}); err != nil {
-			return nil, err
 		}
 	}
 
-	return res, nil
+	return curr(ctx, &input)
 }
 
 type DefaultsTestCreateManyBuilder struct {
@@ -565,71 +571,81 @@ func (d *DefaultsTestDelegate) CreateManyAndReturn(builders ...*DefaultsTestCrea
 }
 
 func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
-	rowMaps := make([]map[string]any, len(records))
-	inputs := make([]DefaultsTestCreate, len(records))
+	inputs := make([]*DefaultsTestCreate, len(records))
 	for i, rec := range records {
 		if err := validateDefaultsTestCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToDefaultsTestCreate(rec.Assignments)
-		if q.DefaultsTest.beforeCreate != nil {
-			if err := q.DefaultsTest.beforeCreate(ctx, &input); err != nil {
-				return 0, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*DefaultsTestCreate) (int64, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"uuid4",
+		}
+
+		return executeCreateMany(c, q, rowMaps, "DefaultsTest", DefaultsTestColOrder, pkCols, conflictTarget, conflictAction)
+	}
+
+	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+		if ext.CreateMany != nil {
+			next, hook := curr, ext.CreateMany
+			curr = func(c context.Context, inputs []*DefaultsTestCreate) (int64, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
-		inputs[i] = input
 	}
-	pkCols := []string{
-		"uuid4",
-	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "DefaultsTest", DefaultsTestColOrder, pkCols, conflictTarget, conflictAction)
-	if err != nil {
-		return 0, err
-	}
-	if q.DefaultsTest.afterCreateMany != nil {
-		if err := q.DefaultsTest.afterCreateMany(ctx, inputs, count); err != nil {
-			return 0, err
-		}
-	}
-	return count, nil
+
+	return curr(ctx, inputs)
 }
 
 func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *DefaultsTestSelect, omits *DefaultsTestOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*DefaultsTest, error) {
-	rowMaps := make([]map[string]any, len(records))
-	pkCols := []string{
-		"uuid4",
-	}
+	inputs := make([]*DefaultsTestCreate, len(records))
 	for i, rec := range records {
 		if err := validateDefaultsTestCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToDefaultsTestCreate(rec.Assignments)
-		if q.DefaultsTest.beforeCreate != nil {
-			if err := q.DefaultsTest.beforeCreate(ctx, &input); err != nil {
-				return nil, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*DefaultsTestCreate) ([]*DefaultsTest, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"uuid4",
+		}
+
+		return executeCreateManyAndReturn(c, q, rowMaps, "DefaultsTest", DefaultsTestColOrder, selects, omits,
+			q.selectDefaultsTestCols,
+			q.loadDefaultsTestRelations,
+			(*DefaultsTest).ScanFields,
+			(*DefaultsTestSelect).hasAnyRelation,
+			pkCols,
+			conflictTarget,
+			conflictAction,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+		if ext.CreateManyAndReturn != nil {
+			next, hook := curr, ext.CreateManyAndReturn
+			curr = func(c context.Context, inputs []*DefaultsTestCreate) ([]*DefaultsTest, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
 	}
-	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "DefaultsTest", DefaultsTestColOrder, selects, omits,
-		q.selectDefaultsTestCols,
-		q.loadDefaultsTestRelations,
-		(*DefaultsTest).ScanFields,
-		(*DefaultsTestSelect).hasAnyRelation,
-		pkCols,
-		conflictTarget,
-		conflictAction,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if q.DefaultsTest.afterCreate != nil {
-		if err := q.DefaultsTest.afterCreate(ctx, results); err != nil {
-			return nil, err
-		}
-	}
-	return results, nil
+
+	return curr(ctx, inputs)
 }
 
 type DefaultsTestConflictBuilder[B any] struct {
@@ -711,30 +727,43 @@ func (d *DefaultsTestDelegate) FindMany(preds ...PredicateOf[DefaultsTest]) *Fin
 }
 
 func (q *Queries) executeDefaultsTestFindUnique(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+	curr := func(c context.Context, w UniquePredicate[DefaultsTest], add []PredicateOf[DefaultsTest], sel *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
+		if err := w.Validate(); err != nil {
+			return nil, err
+		}
+		for _, p := range add {
+			if p != nil {
+				if err := p.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		allPreds := append([]PredicateOf[DefaultsTest]{w}, add...)
+		whereClause, vals := CompilePredicates(q.dialect, allPreds)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectDefaultsTestCols(sel, o)
+		return executeSingleWithRelations(c, q, "DefaultsTest", whereClause, vals, returningCols,
+			func(res *DefaultsTest, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
+				return txQ.loadDefaultsTestRelations(ctx, results, sel)
+			},
+			nil,
+		)
 	}
-	for _, p := range additional {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+
+	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+		if ext.FindUnique != nil {
+			next, hook := curr, ext.FindUnique
+			curr = func(c context.Context, w UniquePredicate[DefaultsTest], add []PredicateOf[DefaultsTest], sel *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
+				return hook(c, w, add, sel, o, next)
 			}
 		}
 	}
-	allPreds := append([]PredicateOf[DefaultsTest]{where}, additional...)
-	whereClause, vals := CompilePredicates(q.dialect, allPreds)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectDefaultsTestCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "DefaultsTest", whereClause, vals, returningCols,
-		func(res *DefaultsTest, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
-			return txQ.loadDefaultsTestRelations(ctx, results, selects)
-		},
-		nil,
-	)
+
+	return curr(ctx, where, additional, selects, omits)
 }
 
 func (q *Queries) executeDefaultsTestFindFirst(
@@ -743,26 +772,39 @@ func (q *Queries) executeDefaultsTestFindFirst(
 	selects *DefaultsTestSelect,
 	omits *DefaultsTestOmit,
 ) (*DefaultsTest, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[DefaultsTest], sel *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectDefaultsTestCols(sel, o)
+		return executeSingleWithRelations(c, q, "DefaultsTest", whereClause, vals, returningCols,
+			func(res *DefaultsTest, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
+				return txQ.loadDefaultsTestRelations(ctx, results, sel)
+			},
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+		if ext.FindFirst != nil {
+			next, hook := curr, ext.FindFirst
+			curr = func(c context.Context, p QueryParams[DefaultsTest], sel *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectDefaultsTestCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "DefaultsTest", whereClause, vals, returningCols,
-		func(res *DefaultsTest, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
-			return txQ.loadDefaultsTestRelations(ctx, results, selects)
-		},
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 
 func (q *Queries) executeDefaultsTestFindMany(
@@ -771,27 +813,40 @@ func (q *Queries) executeDefaultsTestFindMany(
 	selects *DefaultsTestSelect,
 	omits *DefaultsTestOmit,
 ) ([]*DefaultsTest, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[DefaultsTest], sel *DefaultsTestSelect, o *DefaultsTestOmit) ([]*DefaultsTest, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectDefaultsTestCols(sel, o)
+		return executeManyWithRelations(c, q, "DefaultsTest", whereClause, vals, returningCols,
+			func(res *DefaultsTest, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
+				return txQ.loadDefaultsTestRelations(ctx, results, sel)
+			},
+			p.Take,
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+		if ext.FindMany != nil {
+			next, hook := curr, ext.FindMany
+			curr = func(c context.Context, p QueryParams[DefaultsTest], sel *DefaultsTestSelect, o *DefaultsTestOmit) ([]*DefaultsTest, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectDefaultsTestCols(selects, omits)
-	return executeManyWithRelations(ctx, q, "DefaultsTest", whereClause, vals, returningCols,
-		func(res *DefaultsTest, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
-			return txQ.loadDefaultsTestRelations(ctx, results, selects)
-		},
-		params.Take,
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 func (q *Queries) loadDefaultsTestRelations(ctx context.Context, records []*DefaultsTest, selects *DefaultsTestSelect) error {
 	if selects == nil || len(records) == 0 {

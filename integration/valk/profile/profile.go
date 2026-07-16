@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"context"
 	"integration/valk"
 	"time"
 )
@@ -39,3 +40,24 @@ var Bio = valk.StringField[valk.Profile]{Column: "bio"}
 var UserId = valk.StringUniqueField[valk.Profile]{Column: "userId"}
 
 var CreatedAt = valk.Field[valk.Profile, time.Time]{Column: "createdAt"}
+
+type CreateInput = valk.ProfileCreate
+type CreateQuery = valk.ProfileCreateQuery
+type CreateHook = func(context.Context, *CreateInput, CreateQuery) (*valk.Profile, error)
+
+type CreateManyQuery = valk.ProfileCreateManyQuery
+type CreateManyHook = func(context.Context, []*CreateInput, CreateManyQuery) (int64, error)
+
+type CreateManyAndReturnQuery = valk.ProfileCreateManyAndReturnQuery
+type CreateManyAndReturnHook = func(context.Context, []*CreateInput, CreateManyAndReturnQuery) ([]*valk.Profile, error)
+
+type FindUniqueQuery = valk.ProfileFindUniqueQuery
+type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.Profile], []valk.PredicateOf[valk.Profile], *valk.ProfileSelect, *valk.ProfileOmit, FindUniqueQuery) (*valk.Profile, error)
+
+type FindFirstQuery = valk.ProfileFindFirstQuery
+type FindFirstHook = func(context.Context, valk.QueryParams[valk.Profile], *valk.ProfileSelect, *valk.ProfileOmit, FindFirstQuery) (*valk.Profile, error)
+
+type FindManyQuery = valk.ProfileFindManyQuery
+type FindManyHook = func(context.Context, valk.QueryParams[valk.Profile], *valk.ProfileSelect, *valk.ProfileOmit, FindManyQuery) ([]*valk.Profile, error)
+
+type Extension = valk.ProfileExtension

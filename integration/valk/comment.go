@@ -119,23 +119,29 @@ func (b *CommentQueryBuilder) GetRelationParams() (*CommentSelect, *CommentOmit,
 	}
 }
 
+type CommentCreateQuery = func(ctx context.Context, args *CommentCreate) (*Comment, error)
+type CommentCreateManyQuery = func(ctx context.Context, args []*CommentCreate) (int64, error)
+type CommentCreateManyAndReturnQuery = func(ctx context.Context, args []*CommentCreate) ([]*Comment, error)
+type CommentFindUniqueQuery = func(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error)
+type CommentFindFirstQuery = func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error)
+type CommentFindManyQuery = func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit) ([]*Comment, error)
+
+type CommentExtension struct {
+	Create              func(ctx context.Context, input *CommentCreate, next CommentCreateQuery) (*Comment, error)
+	CreateMany          func(ctx context.Context, inputs []*CommentCreate, next CommentCreateManyQuery) (int64, error)
+	CreateManyAndReturn func(ctx context.Context, inputs []*CommentCreate, next CommentCreateManyAndReturnQuery) ([]*Comment, error)
+	FindUnique          func(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], selects *CommentSelect, omits *CommentOmit, next CommentFindUniqueQuery) (*Comment, error)
+	FindFirst           func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit, next CommentFindFirstQuery) (*Comment, error)
+	FindMany            func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit, next CommentFindManyQuery) ([]*Comment, error)
+}
+
 type CommentDelegate struct {
-	client          *Queries
-	beforeCreate    func(context.Context, *CommentCreate) error
-	afterCreate     func(context.Context, []*Comment) error
-	afterCreateMany func(context.Context, []CommentCreate, int64) error
+	client     *Queries
+	extensions []CommentExtension
 }
 
-func (d *CommentDelegate) BeforeCreate(hook func(context.Context, *CommentCreate) error) {
-	d.beforeCreate = hook
-}
-
-func (d *CommentDelegate) AfterCreate(hook func(context.Context, []*Comment) error) {
-	d.afterCreate = hook
-}
-
-func (d *CommentDelegate) AfterCreateMany(hook func(context.Context, []CommentCreate, int64) error) {
-	d.afterCreateMany = hook
+func (d *CommentDelegate) Use(exts ...CommentExtension) {
+	d.extensions = append(d.extensions, exts...)
 }
 
 func (m *Comment) ScanFields(cols []string) []any {
@@ -422,56 +428,56 @@ func (s *CommentCreate) ToRowMap() map[string]any {
 func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*Comment, error) {
 	input := assignmentsToCommentCreate(assignments)
 
-	if q.Comment.beforeCreate != nil {
-		if err := q.Comment.beforeCreate(ctx, &input); err != nil {
+	curr := func(c context.Context, args *CommentCreate) (*Comment, error) {
+		if err := validateCommentCreate(assignments); err != nil {
 			return nil, err
 		}
+
+		rowMap := args.ToRowMap()
+		cols, vals := mapToColsVals(rowMap, CommentColOrder)
+
+		returningCols := q.selectCommentCols(selects, omits)
+
+		scanFunc := func(res *Comment, cols []string) []any {
+			return res.ScanFields(cols)
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		hasRelations := selects.hasAnyRelation()
+
+		var res *Comment
+		var err error
+		if hasRelations {
+			err = q.transaction(c, func(txQ *Queries) error {
+				var err error
+				res, err = executeInsert(c, txQ, "Comment", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.loadCommentRelations(c, []*Comment{res}, selects)
+			})
+		} else {
+			res, err = executeInsert(c, q, "Comment", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
 	}
 
-	if err := validateCommentCreate(assignments); err != nil {
-		return nil, err
-	}
-
-	rowMap := input.ToRowMap()
-	cols, vals := mapToColsVals(rowMap, CommentColOrder)
-
-	returningCols := q.selectCommentCols(selects, omits)
-
-	scanFunc := func(res *Comment, cols []string) []any {
-		return res.ScanFields(cols)
-	}
-
-	pkCols := []string{
-		"id",
-	}
-
-	hasRelations := selects.hasAnyRelation()
-
-	var res *Comment
-	var err error
-	if hasRelations {
-		err = q.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = executeInsert(ctx, txQ, "Comment", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-			if err != nil {
-				return err
+	for _, ext := range slices.Backward(q.Comment.extensions) {
+		if ext.Create != nil {
+			next, hook := curr, ext.Create
+			curr = func(c context.Context, input *CommentCreate) (*Comment, error) {
+				return hook(c, input, next)
 			}
-			return txQ.loadCommentRelations(ctx, []*Comment{res}, selects)
-		})
-	} else {
-		res, err = executeInsert(ctx, q, "Comment", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if q.Comment.afterCreate != nil {
-		if err := q.Comment.afterCreate(ctx, []*Comment{res}); err != nil {
-			return nil, err
 		}
 	}
 
-	return res, nil
+	return curr(ctx, &input)
 }
 
 type CommentCreateManyBuilder struct {
@@ -533,71 +539,81 @@ func (d *CommentDelegate) CreateManyAndReturn(builders ...*CommentCreateBuilder)
 }
 
 func (q *Queries) executeCommentCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
-	rowMaps := make([]map[string]any, len(records))
-	inputs := make([]CommentCreate, len(records))
+	inputs := make([]*CommentCreate, len(records))
 	for i, rec := range records {
 		if err := validateCommentCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToCommentCreate(rec.Assignments)
-		if q.Comment.beforeCreate != nil {
-			if err := q.Comment.beforeCreate(ctx, &input); err != nil {
-				return 0, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*CommentCreate) (int64, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		return executeCreateMany(c, q, rowMaps, "Comment", CommentColOrder, pkCols, conflictTarget, conflictAction)
+	}
+
+	for _, ext := range slices.Backward(q.Comment.extensions) {
+		if ext.CreateMany != nil {
+			next, hook := curr, ext.CreateMany
+			curr = func(c context.Context, inputs []*CommentCreate) (int64, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
-		inputs[i] = input
 	}
-	pkCols := []string{
-		"id",
-	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "Comment", CommentColOrder, pkCols, conflictTarget, conflictAction)
-	if err != nil {
-		return 0, err
-	}
-	if q.Comment.afterCreateMany != nil {
-		if err := q.Comment.afterCreateMany(ctx, inputs, count); err != nil {
-			return 0, err
-		}
-	}
-	return count, nil
+
+	return curr(ctx, inputs)
 }
 
 func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CommentSelect, omits *CommentOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Comment, error) {
-	rowMaps := make([]map[string]any, len(records))
-	pkCols := []string{
-		"id",
-	}
+	inputs := make([]*CommentCreate, len(records))
 	for i, rec := range records {
 		if err := validateCommentCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToCommentCreate(rec.Assignments)
-		if q.Comment.beforeCreate != nil {
-			if err := q.Comment.beforeCreate(ctx, &input); err != nil {
-				return nil, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*CommentCreate) ([]*Comment, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		return executeCreateManyAndReturn(c, q, rowMaps, "Comment", CommentColOrder, selects, omits,
+			q.selectCommentCols,
+			q.loadCommentRelations,
+			(*Comment).ScanFields,
+			(*CommentSelect).hasAnyRelation,
+			pkCols,
+			conflictTarget,
+			conflictAction,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.Comment.extensions) {
+		if ext.CreateManyAndReturn != nil {
+			next, hook := curr, ext.CreateManyAndReturn
+			curr = func(c context.Context, inputs []*CommentCreate) ([]*Comment, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
 	}
-	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "Comment", CommentColOrder, selects, omits,
-		q.selectCommentCols,
-		q.loadCommentRelations,
-		(*Comment).ScanFields,
-		(*CommentSelect).hasAnyRelation,
-		pkCols,
-		conflictTarget,
-		conflictAction,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if q.Comment.afterCreate != nil {
-		if err := q.Comment.afterCreate(ctx, results); err != nil {
-			return nil, err
-		}
-	}
-	return results, nil
+
+	return curr(ctx, inputs)
 }
 
 type CommentConflictBuilder[B any] struct {
@@ -683,30 +699,43 @@ func (d *CommentDelegate) FindMany(preds ...PredicateOf[Comment]) *FindManyBuild
 }
 
 func (q *Queries) executeCommentFindUnique(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+	curr := func(c context.Context, w UniquePredicate[Comment], add []PredicateOf[Comment], sel *CommentSelect, o *CommentOmit) (*Comment, error) {
+		if err := w.Validate(); err != nil {
+			return nil, err
+		}
+		for _, p := range add {
+			if p != nil {
+				if err := p.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		allPreds := append([]PredicateOf[Comment]{w}, add...)
+		whereClause, vals := CompilePredicates(q.dialect, allPreds)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectCommentCols(sel, o)
+		return executeSingleWithRelations(c, q, "Comment", whereClause, vals, returningCols,
+			func(res *Comment, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*Comment) error {
+				return txQ.loadCommentRelations(ctx, results, sel)
+			},
+			nil,
+		)
 	}
-	for _, p := range additional {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+
+	for _, ext := range slices.Backward(q.Comment.extensions) {
+		if ext.FindUnique != nil {
+			next, hook := curr, ext.FindUnique
+			curr = func(c context.Context, w UniquePredicate[Comment], add []PredicateOf[Comment], sel *CommentSelect, o *CommentOmit) (*Comment, error) {
+				return hook(c, w, add, sel, o, next)
 			}
 		}
 	}
-	allPreds := append([]PredicateOf[Comment]{where}, additional...)
-	whereClause, vals := CompilePredicates(q.dialect, allPreds)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectCommentCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "Comment", whereClause, vals, returningCols,
-		func(res *Comment, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*Comment) error {
-			return txQ.loadCommentRelations(ctx, results, selects)
-		},
-		nil,
-	)
+
+	return curr(ctx, where, additional, selects, omits)
 }
 
 func (q *Queries) executeCommentFindFirst(
@@ -715,26 +744,39 @@ func (q *Queries) executeCommentFindFirst(
 	selects *CommentSelect,
 	omits *CommentOmit,
 ) (*Comment, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[Comment], sel *CommentSelect, o *CommentOmit) (*Comment, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectCommentCols(sel, o)
+		return executeSingleWithRelations(c, q, "Comment", whereClause, vals, returningCols,
+			func(res *Comment, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*Comment) error {
+				return txQ.loadCommentRelations(ctx, results, sel)
+			},
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.Comment.extensions) {
+		if ext.FindFirst != nil {
+			next, hook := curr, ext.FindFirst
+			curr = func(c context.Context, p QueryParams[Comment], sel *CommentSelect, o *CommentOmit) (*Comment, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectCommentCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "Comment", whereClause, vals, returningCols,
-		func(res *Comment, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*Comment) error {
-			return txQ.loadCommentRelations(ctx, results, selects)
-		},
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 
 func (q *Queries) executeCommentFindMany(
@@ -743,27 +785,40 @@ func (q *Queries) executeCommentFindMany(
 	selects *CommentSelect,
 	omits *CommentOmit,
 ) ([]*Comment, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[Comment], sel *CommentSelect, o *CommentOmit) ([]*Comment, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectCommentCols(sel, o)
+		return executeManyWithRelations(c, q, "Comment", whereClause, vals, returningCols,
+			func(res *Comment, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*Comment) error {
+				return txQ.loadCommentRelations(ctx, results, sel)
+			},
+			p.Take,
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.Comment.extensions) {
+		if ext.FindMany != nil {
+			next, hook := curr, ext.FindMany
+			curr = func(c context.Context, p QueryParams[Comment], sel *CommentSelect, o *CommentOmit) ([]*Comment, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectCommentCols(selects, omits)
-	return executeManyWithRelations(ctx, q, "Comment", whereClause, vals, returningCols,
-		func(res *Comment, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*Comment) error {
-			return txQ.loadCommentRelations(ctx, results, selects)
-		},
-		params.Take,
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 func (q *Queries) loadCommentRelations(ctx context.Context, records []*Comment, selects *CommentSelect) error {
 	if selects == nil || len(records) == 0 {

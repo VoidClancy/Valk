@@ -1,6 +1,7 @@
 package category
 
 import (
+	"context"
 	"integration/valk"
 )
 
@@ -34,3 +35,24 @@ func Not(pred valk.PredicateOf[valk.Category]) valk.PredicateOf[valk.Category] {
 var Id = valk.UniqueField[valk.Category, int32]{Column: "id"}
 
 var Name = valk.StringUniqueField[valk.Category]{Column: "name"}
+
+type CreateInput = valk.CategoryCreate
+type CreateQuery = valk.CategoryCreateQuery
+type CreateHook = func(context.Context, *CreateInput, CreateQuery) (*valk.Category, error)
+
+type CreateManyQuery = valk.CategoryCreateManyQuery
+type CreateManyHook = func(context.Context, []*CreateInput, CreateManyQuery) (int64, error)
+
+type CreateManyAndReturnQuery = valk.CategoryCreateManyAndReturnQuery
+type CreateManyAndReturnHook = func(context.Context, []*CreateInput, CreateManyAndReturnQuery) ([]*valk.Category, error)
+
+type FindUniqueQuery = valk.CategoryFindUniqueQuery
+type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.Category], []valk.PredicateOf[valk.Category], *valk.CategorySelect, *valk.CategoryOmit, FindUniqueQuery) (*valk.Category, error)
+
+type FindFirstQuery = valk.CategoryFindFirstQuery
+type FindFirstHook = func(context.Context, valk.QueryParams[valk.Category], *valk.CategorySelect, *valk.CategoryOmit, FindFirstQuery) (*valk.Category, error)
+
+type FindManyQuery = valk.CategoryFindManyQuery
+type FindManyHook = func(context.Context, valk.QueryParams[valk.Category], *valk.CategorySelect, *valk.CategoryOmit, FindManyQuery) ([]*valk.Category, error)
+
+type Extension = valk.CategoryExtension

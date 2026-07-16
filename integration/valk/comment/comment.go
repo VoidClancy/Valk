@@ -1,6 +1,7 @@
 package comment
 
 import (
+	"context"
 	"encoding/json"
 	"integration/valk"
 )
@@ -47,3 +48,24 @@ var PostId = valk.StringField[valk.Comment]{Column: "postId"}
 var AuthorId = valk.StringField[valk.Comment]{Column: "authorId"}
 
 var Meta = valk.Field[valk.Comment, json.RawMessage]{Column: "meta"}
+
+type CreateInput = valk.CommentCreate
+type CreateQuery = valk.CommentCreateQuery
+type CreateHook = func(context.Context, *CreateInput, CreateQuery) (*valk.Comment, error)
+
+type CreateManyQuery = valk.CommentCreateManyQuery
+type CreateManyHook = func(context.Context, []*CreateInput, CreateManyQuery) (int64, error)
+
+type CreateManyAndReturnQuery = valk.CommentCreateManyAndReturnQuery
+type CreateManyAndReturnHook = func(context.Context, []*CreateInput, CreateManyAndReturnQuery) ([]*valk.Comment, error)
+
+type FindUniqueQuery = valk.CommentFindUniqueQuery
+type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.Comment], []valk.PredicateOf[valk.Comment], *valk.CommentSelect, *valk.CommentOmit, FindUniqueQuery) (*valk.Comment, error)
+
+type FindFirstQuery = valk.CommentFindFirstQuery
+type FindFirstHook = func(context.Context, valk.QueryParams[valk.Comment], *valk.CommentSelect, *valk.CommentOmit, FindFirstQuery) (*valk.Comment, error)
+
+type FindManyQuery = valk.CommentFindManyQuery
+type FindManyHook = func(context.Context, valk.QueryParams[valk.Comment], *valk.CommentSelect, *valk.CommentOmit, FindManyQuery) ([]*valk.Comment, error)
+
+type Extension = valk.CommentExtension

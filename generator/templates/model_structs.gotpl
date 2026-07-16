@@ -92,23 +92,29 @@ func (b *{{ .Model.Name }}QueryBuilder) GetRelationParams() (*{{ .Model.Name }}S
 	}
 }
 
+type {{ .Model.Name }}CreateQuery = func(ctx context.Context, args *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error)
+type {{ .Model.Name }}CreateManyQuery = func(ctx context.Context, args []*{{ .Model.Name }}Create) (int64, error)
+type {{ .Model.Name }}CreateManyAndReturnQuery = func(ctx context.Context, args []*{{ .Model.Name }}Create) ([]*{{ .Model.Name }}, error)
+type {{ .Model.Name }}FindUniqueQuery = func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
+type {{ .Model.Name }}FindFirstQuery = func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
+type {{ .Model.Name }}FindManyQuery = func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error)
+
+type {{ .Model.Name }}Extension struct {
+	Create              func(ctx context.Context, input *{{ .Model.Name }}Create, next {{ .Model.Name }}CreateQuery) (*{{ .Model.Name }}, error)
+	CreateMany          func(ctx context.Context, inputs []*{{ .Model.Name }}Create, next {{ .Model.Name }}CreateManyQuery) (int64, error)
+	CreateManyAndReturn func(ctx context.Context, inputs []*{{ .Model.Name }}Create, next {{ .Model.Name }}CreateManyAndReturnQuery) ([]*{{ .Model.Name }}, error)
+	FindUnique          func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindUniqueQuery) (*{{ .Model.Name }}, error)
+	FindFirst           func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindFirstQuery) (*{{ .Model.Name }}, error)
+	FindMany            func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindManyQuery) ([]*{{ .Model.Name }}, error)
+}
+
 type {{ .Model.Name }}Delegate struct {
-	client          *Queries
-	beforeCreate    func(context.Context, *{{ .Model.Name }}Create) error
-	afterCreate     func(context.Context, []*{{ .Model.Name }}) error
-	afterCreateMany func(context.Context, []{{ .Model.Name }}Create, int64) error
+	client     *Queries
+	extensions []{{ .Model.Name }}Extension
 }
 
-func (d *{{ .Model.Name }}Delegate) BeforeCreate(hook func(context.Context, *{{ .Model.Name }}Create) error) {
-	d.beforeCreate = hook
-}
-
-func (d *{{ .Model.Name }}Delegate) AfterCreate(hook func(context.Context, []*{{ .Model.Name }}) error) {
-	d.afterCreate = hook
-}
-
-func (d *{{ .Model.Name }}Delegate) AfterCreateMany(hook func(context.Context, []{{ .Model.Name }}Create, int64) error) {
-	d.afterCreateMany = hook
+func (d *{{ .Model.Name }}Delegate) Use(exts ...{{ .Model.Name }}Extension) {
+	d.extensions = append(d.extensions, exts...)
 }
 
 func (m *{{ .Model.Name }}) ScanFields(cols []string) []any {
