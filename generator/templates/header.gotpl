@@ -21,6 +21,7 @@ import (
 	"strconv"
 	{{- end }}
 	"sort"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -44,6 +45,7 @@ var _ = net.ParseIP
 {{- end }}
 var _ = json.RawMessage{}
 var _ = strings.Join
+var _ = slices.Clone[[]any]
 {{- if or .NeedUUID .NeedUUID7 }}
 var _ = uuid.New
 {{- end }}

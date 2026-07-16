@@ -264,66 +264,66 @@ func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
 func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*{{ .Model.Name }}, error) {
 	input := assignmentsTo{{ .Model.Name }}Create(assignments)
 
-	if q.{{ .Model.Name }}.beforeCreate != nil {
-		if err := q.{{ .Model.Name }}.beforeCreate(ctx, &input); err != nil {
+	curr := func(c context.Context, args *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error) {
+		if err := validate{{ .Model.Name }}Create(assignments); err != nil {
 			return nil, err
 		}
-	}
 
-	if err := validate{{ .Model.Name }}Create(assignments); err != nil {
-		return nil, err
-	}
+		rowMap := args.ToRowMap()
+		cols, vals := mapToColsVals(rowMap, {{ .Model.Name }}ColOrder)
 
-	rowMap := input.ToRowMap()
-	cols, vals := mapToColsVals(rowMap, {{ .Model.Name }}ColOrder)
+		returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
 
-	returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
+		scanFunc := func(res *{{ .Model.Name }}, cols []string) []any {
+			return res.ScanFields(cols)
+		}
 
-	scanFunc := func(res *{{ .Model.Name }}, cols []string) []any {
-		return res.ScanFields(cols)
-	}
-
-	pkCols := []string{
-		{{- if .Model.CompositePK }}
-			{{- range $col := .Model.CompositePK }}
-				"{{ $col }}",
-			{{- end }}
-		{{- else }}
-			{{- range $field := .Model.ScalarFields }}
-				{{- if $field.IsID }}
-					"{{ $field.EffectiveColName }}",
+		pkCols := []string{
+			{{- if .Model.CompositePK }}
+				{{- range $col := .Model.CompositePK }}
+					"{{ $col }}",
+				{{- end }}
+			{{- else }}
+				{{- range $field := .Model.ScalarFields }}
+					{{- if $field.IsID }}
+						"{{ $field.EffectiveColName }}",
+					{{- end }}
 				{{- end }}
 			{{- end }}
-		{{- end }}
-	}
+		}
 
-	hasRelations := selects.hasAnyRelation()
+		hasRelations := selects.hasAnyRelation()
 
-	var res *{{ .Model.Name }}
-	var err error
-	if hasRelations {
-		err = q.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = executeInsert(ctx, txQ, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-			if err != nil {
-				return err
-			}
-			return txQ.load{{ .Model.Name }}Relations(ctx, []*{{ .Model.Name }}{res}, selects)
-		})
-	} else {
-		res, err = executeInsert(ctx, q, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if q.{{ .Model.Name }}.afterCreate != nil {
-		if err := q.{{ .Model.Name }}.afterCreate(ctx, []*{{ .Model.Name }}{res}); err != nil {
+		var res *{{ .Model.Name }}
+		var err error
+		if hasRelations {
+			err = q.transaction(c, func(txQ *Queries) error {
+				var err error
+				res, err = executeInsert(c, txQ, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.load{{ .Model.Name }}Relations(c, []*{{ .Model.Name }}{res}, selects)
+			})
+		} else {
+			res, err = executeInsert(c, q, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+		}
+		if err != nil {
 			return nil, err
+		}
+		return res, nil
+	}
+
+	for _, ext := range slices.Backward(q.{{ .Model.Name }}.extensions) {
+		if ext.Create != nil {
+			next, hook := curr, ext.Create
+			curr = func(c context.Context, input *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error) {
+				return hook(c, input, next)
+			}
 		}
 	}
 
-	return res, nil
+	return curr(ctx, &input)
 }
 
 type {{ .Model.Name }}CreateManyBuilder struct {
@@ -385,91 +385,101 @@ func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(builders ...*{{ .Model.N
 }
 
 func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
-	rowMaps := make([]map[string]any, len(records))
-	inputs := make([]{{ .Model.Name }}Create, len(records))
+	inputs := make([]*{{ .Model.Name }}Create, len(records))
 	for i, rec := range records {
 		if err := validate{{ .Model.Name }}Create(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
-		if q.{{ .Model.Name }}.beforeCreate != nil {
-			if err := q.{{ .Model.Name }}.beforeCreate(ctx, &input); err != nil {
-				return 0, err
-			}
-		}
-		rowMaps[i] = input.ToRowMap()
-		inputs[i] = input
+		inputs[i] = &input
 	}
-	pkCols := []string{
-		{{- if .Model.CompositePK }}
-			{{- range $col := .Model.CompositePK }}
-				"{{ $col }}",
-			{{- end }}
-		{{- else }}
-			{{- range $field := .Model.ScalarFields }}
-				{{- if $field.IsID }}
-					"{{ $field.EffectiveColName }}",
+
+	curr := func(c context.Context, args []*{{ .Model.Name }}Create) (int64, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			{{- if .Model.CompositePK }}
+				{{- range $col := .Model.CompositePK }}
+					"{{ $col }}",
+				{{- end }}
+			{{- else }}
+				{{- range $field := .Model.ScalarFields }}
+					{{- if $field.IsID }}
+						"{{ $field.EffectiveColName }}",
+					{{- end }}
 				{{- end }}
 			{{- end }}
-		{{- end }}
+		}
+
+		return executeCreateMany(c, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, pkCols, conflictTarget, conflictAction)
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, pkCols, conflictTarget, conflictAction)
-	if err != nil {
-		return 0, err
-	}
-	if q.{{ .Model.Name }}.afterCreateMany != nil {
-		if err := q.{{ .Model.Name }}.afterCreateMany(ctx, inputs, count); err != nil {
-			return 0, err
+
+	for _, ext := range slices.Backward(q.{{ .Model.Name }}.extensions) {
+		if ext.CreateMany != nil {
+			next, hook := curr, ext.CreateMany
+			curr = func(c context.Context, inputs []*{{ .Model.Name }}Create) (int64, error) {
+				return hook(c, inputs, next)
+			}
 		}
 	}
-	return count, nil
+
+	return curr(ctx, inputs)
 }
 
 func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Context, records []RecordInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*{{ .Model.Name }}, error) {
-	rowMaps := make([]map[string]any, len(records))
-	pkCols := []string{
-		{{- if .Model.CompositePK }}
-			{{- range $col := .Model.CompositePK }}
-				"{{ $col }}",
-			{{- end }}
-		{{- else }}
-			{{- range $field := .Model.ScalarFields }}
-				{{- if $field.IsID }}
-					"{{ $field.EffectiveColName }}",
-				{{- end }}
-			{{- end }}
-		{{- end }}
-	}
+	inputs := make([]*{{ .Model.Name }}Create, len(records))
 	for i, rec := range records {
 		if err := validate{{ .Model.Name }}Create(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
-		if q.{{ .Model.Name }}.beforeCreate != nil {
-			if err := q.{{ .Model.Name }}.beforeCreate(ctx, &input); err != nil {
-				return nil, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*{{ .Model.Name }}Create) ([]*{{ .Model.Name }}, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			{{- if .Model.CompositePK }}
+				{{- range $col := .Model.CompositePK }}
+					"{{ $col }}",
+				{{- end }}
+			{{- else }}
+				{{- range $field := .Model.ScalarFields }}
+					{{- if $field.IsID }}
+						"{{ $field.EffectiveColName }}",
+					{{- end }}
+				{{- end }}
+			{{- end }}
+		}
+
+		return executeCreateManyAndReturn(c, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, selects, omits,
+			q.select{{ .Model.Name }}Cols,
+			q.load{{ .Model.Name }}Relations,
+			(*{{ .Model.Name }}).ScanFields,
+			(*{{ .Model.Name }}Select).hasAnyRelation,
+			pkCols,
+			conflictTarget,
+			conflictAction,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.{{ .Model.Name }}.extensions) {
+		if ext.CreateManyAndReturn != nil {
+			next, hook := curr, ext.CreateManyAndReturn
+			curr = func(c context.Context, inputs []*{{ .Model.Name }}Create) ([]*{{ .Model.Name }}, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
 	}
-	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, selects, omits,
-		q.select{{ .Model.Name }}Cols,
-		q.load{{ .Model.Name }}Relations,
-		(*{{ .Model.Name }}).ScanFields,
-		(*{{ .Model.Name }}Select).hasAnyRelation,
-		pkCols,
-		conflictTarget,
-		conflictAction,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if q.{{ .Model.Name }}.afterCreate != nil {
-		if err := q.{{ .Model.Name }}.afterCreate(ctx, results); err != nil {
-			return nil, err
-		}
-	}
-	return results, nil
+
+	return curr(ctx, inputs)
 }
 
 type {{ .Model.Name }}ConflictBuilder[B any] struct {

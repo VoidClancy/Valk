@@ -156,24 +156,10 @@ func main() {
 
 func seed(db *valk.DB, ctx context.Context) *SeedData {
 
-	db.User.BeforeCreate(func(ctx context.Context, user *valk.UserCreate) error {
-		user.Role = new(valk.UserRole.Admin)
-		return nil
-	})
-
-	db.User.AfterCreateMany(func(ctx context.Context, usersInput []valk.UserCreate, count int64) error {
-		var emails []string
-		for _, u := range usersInput {
-			emails = append(emails, u.Email)
-		}
-		fmt.Printf("AfterCreateMany: %d users created (emails: %v)\n", count, emails)
-		return nil
-	})
-	db.User.AfterCreate(func(ctx context.Context, users []*valk.User) error {
-		for _, u := range users {
-			fmt.Printf("AfterCreate: user %s (role=%s)\n", u.Email, u.Role)
-		}
-		return nil
+	db.User.Use(user.Extension{
+		Create: func(ctx context.Context, input *valk.UserCreate, next valk.UserCreateQuery) (*valk.User, error) {
+			return next(ctx, input)
+		},
 	})
 
 	var usersToCreate []*user.CreateBuilder

@@ -1,6 +1,7 @@
 package categoryToPost
 
 import (
+	"context"
 	"integration/valk"
 )
 
@@ -64,3 +65,24 @@ func PostIdCategoryIdUnique(postId string, categoryId int32) valk.UniquePredicat
 		).ToPredicateData(),
 	}
 }
+
+type CreateInput = valk.CategoryToPostCreate
+type CreateQuery = valk.CategoryToPostCreateQuery
+type CreateHook = func(context.Context, *CreateInput, CreateQuery) (*valk.CategoryToPost, error)
+
+type CreateManyQuery = valk.CategoryToPostCreateManyQuery
+type CreateManyHook = func(context.Context, []*CreateInput, CreateManyQuery) (int64, error)
+
+type CreateManyAndReturnQuery = valk.CategoryToPostCreateManyAndReturnQuery
+type CreateManyAndReturnHook = func(context.Context, []*CreateInput, CreateManyAndReturnQuery) ([]*valk.CategoryToPost, error)
+
+type FindUniqueQuery = valk.CategoryToPostFindUniqueQuery
+type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.CategoryToPost], []valk.PredicateOf[valk.CategoryToPost], *valk.CategoryToPostSelect, *valk.CategoryToPostOmit, FindUniqueQuery) (*valk.CategoryToPost, error)
+
+type FindFirstQuery = valk.CategoryToPostFindFirstQuery
+type FindFirstHook = func(context.Context, valk.QueryParams[valk.CategoryToPost], *valk.CategoryToPostSelect, *valk.CategoryToPostOmit, FindFirstQuery) (*valk.CategoryToPost, error)
+
+type FindManyQuery = valk.CategoryToPostFindManyQuery
+type FindManyHook = func(context.Context, valk.QueryParams[valk.CategoryToPost], *valk.CategoryToPostSelect, *valk.CategoryToPostOmit, FindManyQuery) ([]*valk.CategoryToPost, error)
+
+type Extension = valk.CategoryToPostExtension

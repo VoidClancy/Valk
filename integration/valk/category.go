@@ -92,23 +92,29 @@ func (b *CategoryQueryBuilder) GetRelationParams() (*CategorySelect, *CategoryOm
 	}
 }
 
+type CategoryCreateQuery = func(ctx context.Context, args *CategoryCreate) (*Category, error)
+type CategoryCreateManyQuery = func(ctx context.Context, args []*CategoryCreate) (int64, error)
+type CategoryCreateManyAndReturnQuery = func(ctx context.Context, args []*CategoryCreate) ([]*Category, error)
+type CategoryFindUniqueQuery = func(ctx context.Context, where UniquePredicate[Category], additional []PredicateOf[Category], selects *CategorySelect, omits *CategoryOmit) (*Category, error)
+type CategoryFindFirstQuery = func(ctx context.Context, params QueryParams[Category], selects *CategorySelect, omits *CategoryOmit) (*Category, error)
+type CategoryFindManyQuery = func(ctx context.Context, params QueryParams[Category], selects *CategorySelect, omits *CategoryOmit) ([]*Category, error)
+
+type CategoryExtension struct {
+	Create              func(ctx context.Context, input *CategoryCreate, next CategoryCreateQuery) (*Category, error)
+	CreateMany          func(ctx context.Context, inputs []*CategoryCreate, next CategoryCreateManyQuery) (int64, error)
+	CreateManyAndReturn func(ctx context.Context, inputs []*CategoryCreate, next CategoryCreateManyAndReturnQuery) ([]*Category, error)
+	FindUnique          func(ctx context.Context, where UniquePredicate[Category], additional []PredicateOf[Category], selects *CategorySelect, omits *CategoryOmit, next CategoryFindUniqueQuery) (*Category, error)
+	FindFirst           func(ctx context.Context, params QueryParams[Category], selects *CategorySelect, omits *CategoryOmit, next CategoryFindFirstQuery) (*Category, error)
+	FindMany            func(ctx context.Context, params QueryParams[Category], selects *CategorySelect, omits *CategoryOmit, next CategoryFindManyQuery) ([]*Category, error)
+}
+
 type CategoryDelegate struct {
-	client          *Queries
-	beforeCreate    func(context.Context, *CategoryCreate) error
-	afterCreate     func(context.Context, []*Category) error
-	afterCreateMany func(context.Context, []CategoryCreate, int64) error
+	client     *Queries
+	extensions []CategoryExtension
 }
 
-func (d *CategoryDelegate) BeforeCreate(hook func(context.Context, *CategoryCreate) error) {
-	d.beforeCreate = hook
-}
-
-func (d *CategoryDelegate) AfterCreate(hook func(context.Context, []*Category) error) {
-	d.afterCreate = hook
-}
-
-func (d *CategoryDelegate) AfterCreateMany(hook func(context.Context, []CategoryCreate, int64) error) {
-	d.afterCreateMany = hook
+func (d *CategoryDelegate) Use(exts ...CategoryExtension) {
+	d.extensions = append(d.extensions, exts...)
 }
 
 func (m *Category) ScanFields(cols []string) []any {
@@ -258,56 +264,56 @@ func (s *CategoryCreate) ToRowMap() map[string]any {
 func (q *Queries) executeCategoryCreate(ctx context.Context, assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*Category, error) {
 	input := assignmentsToCategoryCreate(assignments)
 
-	if q.Category.beforeCreate != nil {
-		if err := q.Category.beforeCreate(ctx, &input); err != nil {
+	curr := func(c context.Context, args *CategoryCreate) (*Category, error) {
+		if err := validateCategoryCreate(assignments); err != nil {
 			return nil, err
 		}
+
+		rowMap := args.ToRowMap()
+		cols, vals := mapToColsVals(rowMap, CategoryColOrder)
+
+		returningCols := q.selectCategoryCols(selects, omits)
+
+		scanFunc := func(res *Category, cols []string) []any {
+			return res.ScanFields(cols)
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		hasRelations := selects.hasAnyRelation()
+
+		var res *Category
+		var err error
+		if hasRelations {
+			err = q.transaction(c, func(txQ *Queries) error {
+				var err error
+				res, err = executeInsert(c, txQ, "Category", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.loadCategoryRelations(c, []*Category{res}, selects)
+			})
+		} else {
+			res, err = executeInsert(c, q, "Category", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
 	}
 
-	if err := validateCategoryCreate(assignments); err != nil {
-		return nil, err
-	}
-
-	rowMap := input.ToRowMap()
-	cols, vals := mapToColsVals(rowMap, CategoryColOrder)
-
-	returningCols := q.selectCategoryCols(selects, omits)
-
-	scanFunc := func(res *Category, cols []string) []any {
-		return res.ScanFields(cols)
-	}
-
-	pkCols := []string{
-		"id",
-	}
-
-	hasRelations := selects.hasAnyRelation()
-
-	var res *Category
-	var err error
-	if hasRelations {
-		err = q.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = executeInsert(ctx, txQ, "Category", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-			if err != nil {
-				return err
+	for _, ext := range slices.Backward(q.Category.extensions) {
+		if ext.Create != nil {
+			next, hook := curr, ext.Create
+			curr = func(c context.Context, input *CategoryCreate) (*Category, error) {
+				return hook(c, input, next)
 			}
-			return txQ.loadCategoryRelations(ctx, []*Category{res}, selects)
-		})
-	} else {
-		res, err = executeInsert(ctx, q, "Category", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if q.Category.afterCreate != nil {
-		if err := q.Category.afterCreate(ctx, []*Category{res}); err != nil {
-			return nil, err
 		}
 	}
 
-	return res, nil
+	return curr(ctx, &input)
 }
 
 type CategoryCreateManyBuilder struct {
@@ -369,71 +375,81 @@ func (d *CategoryDelegate) CreateManyAndReturn(builders ...*CategoryCreateBuilde
 }
 
 func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
-	rowMaps := make([]map[string]any, len(records))
-	inputs := make([]CategoryCreate, len(records))
+	inputs := make([]*CategoryCreate, len(records))
 	for i, rec := range records {
 		if err := validateCategoryCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToCategoryCreate(rec.Assignments)
-		if q.Category.beforeCreate != nil {
-			if err := q.Category.beforeCreate(ctx, &input); err != nil {
-				return 0, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*CategoryCreate) (int64, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		return executeCreateMany(c, q, rowMaps, "Category", CategoryColOrder, pkCols, conflictTarget, conflictAction)
+	}
+
+	for _, ext := range slices.Backward(q.Category.extensions) {
+		if ext.CreateMany != nil {
+			next, hook := curr, ext.CreateMany
+			curr = func(c context.Context, inputs []*CategoryCreate) (int64, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
-		inputs[i] = input
 	}
-	pkCols := []string{
-		"id",
-	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "Category", CategoryColOrder, pkCols, conflictTarget, conflictAction)
-	if err != nil {
-		return 0, err
-	}
-	if q.Category.afterCreateMany != nil {
-		if err := q.Category.afterCreateMany(ctx, inputs, count); err != nil {
-			return 0, err
-		}
-	}
-	return count, nil
+
+	return curr(ctx, inputs)
 }
 
 func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategorySelect, omits *CategoryOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Category, error) {
-	rowMaps := make([]map[string]any, len(records))
-	pkCols := []string{
-		"id",
-	}
+	inputs := make([]*CategoryCreate, len(records))
 	for i, rec := range records {
 		if err := validateCategoryCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToCategoryCreate(rec.Assignments)
-		if q.Category.beforeCreate != nil {
-			if err := q.Category.beforeCreate(ctx, &input); err != nil {
-				return nil, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*CategoryCreate) ([]*Category, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		return executeCreateManyAndReturn(c, q, rowMaps, "Category", CategoryColOrder, selects, omits,
+			q.selectCategoryCols,
+			q.loadCategoryRelations,
+			(*Category).ScanFields,
+			(*CategorySelect).hasAnyRelation,
+			pkCols,
+			conflictTarget,
+			conflictAction,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.Category.extensions) {
+		if ext.CreateManyAndReturn != nil {
+			next, hook := curr, ext.CreateManyAndReturn
+			curr = func(c context.Context, inputs []*CategoryCreate) ([]*Category, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
 	}
-	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "Category", CategoryColOrder, selects, omits,
-		q.selectCategoryCols,
-		q.loadCategoryRelations,
-		(*Category).ScanFields,
-		(*CategorySelect).hasAnyRelation,
-		pkCols,
-		conflictTarget,
-		conflictAction,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if q.Category.afterCreate != nil {
-		if err := q.Category.afterCreate(ctx, results); err != nil {
-			return nil, err
-		}
-	}
-	return results, nil
+
+	return curr(ctx, inputs)
 }
 
 type CategoryConflictBuilder[B any] struct {
@@ -504,30 +520,43 @@ func (d *CategoryDelegate) FindMany(preds ...PredicateOf[Category]) *FindManyBui
 }
 
 func (q *Queries) executeCategoryFindUnique(ctx context.Context, where UniquePredicate[Category], additional []PredicateOf[Category], selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+	curr := func(c context.Context, w UniquePredicate[Category], add []PredicateOf[Category], sel *CategorySelect, o *CategoryOmit) (*Category, error) {
+		if err := w.Validate(); err != nil {
+			return nil, err
+		}
+		for _, p := range add {
+			if p != nil {
+				if err := p.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		allPreds := append([]PredicateOf[Category]{w}, add...)
+		whereClause, vals := CompilePredicates(q.dialect, allPreds)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectCategoryCols(sel, o)
+		return executeSingleWithRelations(c, q, "Category", whereClause, vals, returningCols,
+			func(res *Category, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*Category) error {
+				return txQ.loadCategoryRelations(ctx, results, sel)
+			},
+			nil,
+		)
 	}
-	for _, p := range additional {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+
+	for _, ext := range slices.Backward(q.Category.extensions) {
+		if ext.FindUnique != nil {
+			next, hook := curr, ext.FindUnique
+			curr = func(c context.Context, w UniquePredicate[Category], add []PredicateOf[Category], sel *CategorySelect, o *CategoryOmit) (*Category, error) {
+				return hook(c, w, add, sel, o, next)
 			}
 		}
 	}
-	allPreds := append([]PredicateOf[Category]{where}, additional...)
-	whereClause, vals := CompilePredicates(q.dialect, allPreds)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectCategoryCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "Category", whereClause, vals, returningCols,
-		func(res *Category, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*Category) error {
-			return txQ.loadCategoryRelations(ctx, results, selects)
-		},
-		nil,
-	)
+
+	return curr(ctx, where, additional, selects, omits)
 }
 
 func (q *Queries) executeCategoryFindFirst(
@@ -536,26 +565,39 @@ func (q *Queries) executeCategoryFindFirst(
 	selects *CategorySelect,
 	omits *CategoryOmit,
 ) (*Category, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[Category], sel *CategorySelect, o *CategoryOmit) (*Category, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectCategoryCols(sel, o)
+		return executeSingleWithRelations(c, q, "Category", whereClause, vals, returningCols,
+			func(res *Category, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*Category) error {
+				return txQ.loadCategoryRelations(ctx, results, sel)
+			},
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.Category.extensions) {
+		if ext.FindFirst != nil {
+			next, hook := curr, ext.FindFirst
+			curr = func(c context.Context, p QueryParams[Category], sel *CategorySelect, o *CategoryOmit) (*Category, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectCategoryCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "Category", whereClause, vals, returningCols,
-		func(res *Category, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*Category) error {
-			return txQ.loadCategoryRelations(ctx, results, selects)
-		},
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 
 func (q *Queries) executeCategoryFindMany(
@@ -564,27 +606,40 @@ func (q *Queries) executeCategoryFindMany(
 	selects *CategorySelect,
 	omits *CategoryOmit,
 ) ([]*Category, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[Category], sel *CategorySelect, o *CategoryOmit) ([]*Category, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectCategoryCols(sel, o)
+		return executeManyWithRelations(c, q, "Category", whereClause, vals, returningCols,
+			func(res *Category, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*Category) error {
+				return txQ.loadCategoryRelations(ctx, results, sel)
+			},
+			p.Take,
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.Category.extensions) {
+		if ext.FindMany != nil {
+			next, hook := curr, ext.FindMany
+			curr = func(c context.Context, p QueryParams[Category], sel *CategorySelect, o *CategoryOmit) ([]*Category, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectCategoryCols(selects, omits)
-	return executeManyWithRelations(ctx, q, "Category", whereClause, vals, returningCols,
-		func(res *Category, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*Category) error {
-			return txQ.loadCategoryRelations(ctx, results, selects)
-		},
-		params.Take,
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 func (q *Queries) loadCategoryRelations(ctx context.Context, records []*Category, selects *CategorySelect) error {
 	if selects == nil || len(records) == 0 {

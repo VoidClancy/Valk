@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"integration/valk"
 )
 
@@ -76,3 +77,24 @@ func EmailPhoneUnique(email string, phoneNum string) valk.UniquePredicate[valk.U
 		).ToPredicateData(),
 	}
 }
+
+type CreateInput = valk.UserCreate
+type CreateQuery = valk.UserCreateQuery
+type CreateHook = func(context.Context, *CreateInput, CreateQuery) (*valk.User, error)
+
+type CreateManyQuery = valk.UserCreateManyQuery
+type CreateManyHook = func(context.Context, []*CreateInput, CreateManyQuery) (int64, error)
+
+type CreateManyAndReturnQuery = valk.UserCreateManyAndReturnQuery
+type CreateManyAndReturnHook = func(context.Context, []*CreateInput, CreateManyAndReturnQuery) ([]*valk.User, error)
+
+type FindUniqueQuery = valk.UserFindUniqueQuery
+type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.User], []valk.PredicateOf[valk.User], *valk.UserSelect, *valk.UserOmit, FindUniqueQuery) (*valk.User, error)
+
+type FindFirstQuery = valk.UserFindFirstQuery
+type FindFirstHook = func(context.Context, valk.QueryParams[valk.User], *valk.UserSelect, *valk.UserOmit, FindFirstQuery) (*valk.User, error)
+
+type FindManyQuery = valk.UserFindManyQuery
+type FindManyHook = func(context.Context, valk.QueryParams[valk.User], *valk.UserSelect, *valk.UserOmit, FindManyQuery) ([]*valk.User, error)
+
+type Extension = valk.UserExtension

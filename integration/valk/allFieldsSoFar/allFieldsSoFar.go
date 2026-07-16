@@ -1,6 +1,7 @@
 package allFieldsSoFar
 
 import (
+	"context"
 	"encoding/json"
 	"integration/valk"
 	"time"
@@ -140,3 +141,24 @@ var HstoreField = valk.Field[valk.AllFieldsSoFar, map[string]*string]{Column: "h
 var LtreeField = valk.Field[valk.AllFieldsSoFar, string]{Column: "ltreeField"}
 
 var CitextField = valk.Field[valk.AllFieldsSoFar, string]{Column: "citextField"}
+
+type CreateInput = valk.AllFieldsSoFarCreate
+type CreateQuery = valk.AllFieldsSoFarCreateQuery
+type CreateHook = func(context.Context, *CreateInput, CreateQuery) (*valk.AllFieldsSoFar, error)
+
+type CreateManyQuery = valk.AllFieldsSoFarCreateManyQuery
+type CreateManyHook = func(context.Context, []*CreateInput, CreateManyQuery) (int64, error)
+
+type CreateManyAndReturnQuery = valk.AllFieldsSoFarCreateManyAndReturnQuery
+type CreateManyAndReturnHook = func(context.Context, []*CreateInput, CreateManyAndReturnQuery) ([]*valk.AllFieldsSoFar, error)
+
+type FindUniqueQuery = valk.AllFieldsSoFarFindUniqueQuery
+type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.AllFieldsSoFar], []valk.PredicateOf[valk.AllFieldsSoFar], *valk.AllFieldsSoFarSelect, *valk.AllFieldsSoFarOmit, FindUniqueQuery) (*valk.AllFieldsSoFar, error)
+
+type FindFirstQuery = valk.AllFieldsSoFarFindFirstQuery
+type FindFirstHook = func(context.Context, valk.QueryParams[valk.AllFieldsSoFar], *valk.AllFieldsSoFarSelect, *valk.AllFieldsSoFarOmit, FindFirstQuery) (*valk.AllFieldsSoFar, error)
+
+type FindManyQuery = valk.AllFieldsSoFarFindManyQuery
+type FindManyHook = func(context.Context, valk.QueryParams[valk.AllFieldsSoFar], *valk.AllFieldsSoFarSelect, *valk.AllFieldsSoFarOmit, FindManyQuery) ([]*valk.AllFieldsSoFar, error)
+
+type Extension = valk.AllFieldsSoFarExtension

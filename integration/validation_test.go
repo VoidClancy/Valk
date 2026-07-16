@@ -451,21 +451,18 @@ func TestCreate_Hooks(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	db.User.BeforeCreate(func(ctx context.Context, input *valk.UserCreate) error {
-		if input.Email == "hook@example.com" {
-			input.PhoneNum = "+188888888"
-		}
-		return nil
-	})
-
 	var afterCalled bool
-	db.User.AfterCreate(func(ctx context.Context, users []*valk.User) error {
-		for _, u := range users {
-			if u.Email == "hook@example.com" {
+	db.User.Use(user.Extension{
+		Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
+			if input.Email == "hook@example.com" {
+				input.PhoneNum = "+188888888"
+			}
+			res, err := next(ctx, input)
+			if err == nil && res.Email == "hook@example.com" {
 				afterCalled = true
 			}
-		}
-		return nil
+			return res, err
+		},
 	})
 
 	u, err := db.User.Create(
@@ -491,13 +488,15 @@ func TestCreate_Hooks_PasswordHashing(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	db.User.BeforeCreate(func(ctx context.Context, input *valk.UserCreate) error {
-		if input.Email == "hash@example.com" && input.Password != nil {
-			h := sha256.Sum256([]byte(*input.Password))
-			hashed := hex.EncodeToString(h[:])
-			input.Password = &hashed
-		}
-		return nil
+	db.User.Use(user.Extension{
+		Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
+			if input.Email == "hash@example.com" && input.Password != nil {
+				h := sha256.Sum256([]byte(*input.Password))
+				hashed := hex.EncodeToString(h[:])
+				input.Password = &hashed
+			}
+			return next(ctx, input)
+		},
 	})
 
 	rawPassword := "12345678"

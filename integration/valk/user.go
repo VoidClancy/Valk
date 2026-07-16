@@ -124,23 +124,29 @@ func (b *UserQueryBuilder) GetRelationParams() (*UserSelect, *UserOmit, QueryPar
 	}
 }
 
+type UserCreateQuery = func(ctx context.Context, args *UserCreate) (*User, error)
+type UserCreateManyQuery = func(ctx context.Context, args []*UserCreate) (int64, error)
+type UserCreateManyAndReturnQuery = func(ctx context.Context, args []*UserCreate) ([]*User, error)
+type UserFindUniqueQuery = func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error)
+type UserFindFirstQuery = func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit) (*User, error)
+type UserFindManyQuery = func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit) ([]*User, error)
+
+type UserExtension struct {
+	Create              func(ctx context.Context, input *UserCreate, next UserCreateQuery) (*User, error)
+	CreateMany          func(ctx context.Context, inputs []*UserCreate, next UserCreateManyQuery) (int64, error)
+	CreateManyAndReturn func(ctx context.Context, inputs []*UserCreate, next UserCreateManyAndReturnQuery) ([]*User, error)
+	FindUnique          func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit, next UserFindUniqueQuery) (*User, error)
+	FindFirst           func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit, next UserFindFirstQuery) (*User, error)
+	FindMany            func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit, next UserFindManyQuery) ([]*User, error)
+}
+
 type UserDelegate struct {
-	client          *Queries
-	beforeCreate    func(context.Context, *UserCreate) error
-	afterCreate     func(context.Context, []*User) error
-	afterCreateMany func(context.Context, []UserCreate, int64) error
+	client     *Queries
+	extensions []UserExtension
 }
 
-func (d *UserDelegate) BeforeCreate(hook func(context.Context, *UserCreate) error) {
-	d.beforeCreate = hook
-}
-
-func (d *UserDelegate) AfterCreate(hook func(context.Context, []*User) error) {
-	d.afterCreate = hook
-}
-
-func (d *UserDelegate) AfterCreateMany(hook func(context.Context, []UserCreate, int64) error) {
-	d.afterCreateMany = hook
+func (d *UserDelegate) Use(exts ...UserExtension) {
+	d.extensions = append(d.extensions, exts...)
 }
 
 func (m *User) ScanFields(cols []string) []any {
@@ -433,56 +439,56 @@ func (s *UserCreate) ToRowMap() map[string]any {
 func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssignment, selects *UserSelect, omits *UserOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*User, error) {
 	input := assignmentsToUserCreate(assignments)
 
-	if q.User.beforeCreate != nil {
-		if err := q.User.beforeCreate(ctx, &input); err != nil {
+	curr := func(c context.Context, args *UserCreate) (*User, error) {
+		if err := validateUserCreate(assignments); err != nil {
 			return nil, err
 		}
+
+		rowMap := args.ToRowMap()
+		cols, vals := mapToColsVals(rowMap, UserColOrder)
+
+		returningCols := q.selectUserCols(selects, omits)
+
+		scanFunc := func(res *User, cols []string) []any {
+			return res.ScanFields(cols)
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		hasRelations := selects.hasAnyRelation()
+
+		var res *User
+		var err error
+		if hasRelations {
+			err = q.transaction(c, func(txQ *Queries) error {
+				var err error
+				res, err = executeInsert(c, txQ, "User", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.loadUserRelations(c, []*User{res}, selects)
+			})
+		} else {
+			res, err = executeInsert(c, q, "User", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
 	}
 
-	if err := validateUserCreate(assignments); err != nil {
-		return nil, err
-	}
-
-	rowMap := input.ToRowMap()
-	cols, vals := mapToColsVals(rowMap, UserColOrder)
-
-	returningCols := q.selectUserCols(selects, omits)
-
-	scanFunc := func(res *User, cols []string) []any {
-		return res.ScanFields(cols)
-	}
-
-	pkCols := []string{
-		"id",
-	}
-
-	hasRelations := selects.hasAnyRelation()
-
-	var res *User
-	var err error
-	if hasRelations {
-		err = q.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = executeInsert(ctx, txQ, "User", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-			if err != nil {
-				return err
+	for _, ext := range slices.Backward(q.User.extensions) {
+		if ext.Create != nil {
+			next, hook := curr, ext.Create
+			curr = func(c context.Context, input *UserCreate) (*User, error) {
+				return hook(c, input, next)
 			}
-			return txQ.loadUserRelations(ctx, []*User{res}, selects)
-		})
-	} else {
-		res, err = executeInsert(ctx, q, "User", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if q.User.afterCreate != nil {
-		if err := q.User.afterCreate(ctx, []*User{res}); err != nil {
-			return nil, err
 		}
 	}
 
-	return res, nil
+	return curr(ctx, &input)
 }
 
 type UserCreateManyBuilder struct {
@@ -544,71 +550,81 @@ func (d *UserDelegate) CreateManyAndReturn(builders ...*UserCreateBuilder) *User
 }
 
 func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
-	rowMaps := make([]map[string]any, len(records))
-	inputs := make([]UserCreate, len(records))
+	inputs := make([]*UserCreate, len(records))
 	for i, rec := range records {
 		if err := validateUserCreate(rec.Assignments); err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToUserCreate(rec.Assignments)
-		if q.User.beforeCreate != nil {
-			if err := q.User.beforeCreate(ctx, &input); err != nil {
-				return 0, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*UserCreate) (int64, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		return executeCreateMany(c, q, rowMaps, "User", UserColOrder, pkCols, conflictTarget, conflictAction)
+	}
+
+	for _, ext := range slices.Backward(q.User.extensions) {
+		if ext.CreateMany != nil {
+			next, hook := curr, ext.CreateMany
+			curr = func(c context.Context, inputs []*UserCreate) (int64, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
-		inputs[i] = input
 	}
-	pkCols := []string{
-		"id",
-	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "User", UserColOrder, pkCols, conflictTarget, conflictAction)
-	if err != nil {
-		return 0, err
-	}
-	if q.User.afterCreateMany != nil {
-		if err := q.User.afterCreateMany(ctx, inputs, count); err != nil {
-			return 0, err
-		}
-	}
-	return count, nil
+
+	return curr(ctx, inputs)
 }
 
 func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*User, error) {
-	rowMaps := make([]map[string]any, len(records))
-	pkCols := []string{
-		"id",
-	}
+	inputs := make([]*UserCreate, len(records))
 	for i, rec := range records {
 		if err := validateUserCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		input := assignmentsToUserCreate(rec.Assignments)
-		if q.User.beforeCreate != nil {
-			if err := q.User.beforeCreate(ctx, &input); err != nil {
-				return nil, err
+		inputs[i] = &input
+	}
+
+	curr := func(c context.Context, args []*UserCreate) ([]*User, error) {
+		rowMaps := make([]map[string]any, len(args))
+		for i, input := range args {
+			rowMaps[i] = input.ToRowMap()
+		}
+
+		pkCols := []string{
+			"id",
+		}
+
+		return executeCreateManyAndReturn(c, q, rowMaps, "User", UserColOrder, selects, omits,
+			q.selectUserCols,
+			q.loadUserRelations,
+			(*User).ScanFields,
+			(*UserSelect).hasAnyRelation,
+			pkCols,
+			conflictTarget,
+			conflictAction,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.User.extensions) {
+		if ext.CreateManyAndReturn != nil {
+			next, hook := curr, ext.CreateManyAndReturn
+			curr = func(c context.Context, inputs []*UserCreate) ([]*User, error) {
+				return hook(c, inputs, next)
 			}
 		}
-		rowMaps[i] = input.ToRowMap()
 	}
-	results, err := executeCreateManyAndReturn(ctx, q, rowMaps, "User", UserColOrder, selects, omits,
-		q.selectUserCols,
-		q.loadUserRelations,
-		(*User).ScanFields,
-		(*UserSelect).hasAnyRelation,
-		pkCols,
-		conflictTarget,
-		conflictAction,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if q.User.afterCreate != nil {
-		if err := q.User.afterCreate(ctx, results); err != nil {
-			return nil, err
-		}
-	}
-	return results, nil
+
+	return curr(ctx, inputs)
 }
 
 type UserConflictBuilder[B any] struct {
@@ -691,30 +707,43 @@ func (d *UserDelegate) FindMany(preds ...PredicateOf[User]) *FindManyBuilder[Use
 }
 
 func (q *Queries) executeUserFindUnique(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+	curr := func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], sel *UserSelect, o *UserOmit) (*User, error) {
+		if err := w.Validate(); err != nil {
+			return nil, err
+		}
+		for _, p := range add {
+			if p != nil {
+				if err := p.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		allPreds := append([]PredicateOf[User]{w}, add...)
+		whereClause, vals := CompilePredicates(q.dialect, allPreds)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectUserCols(sel, o)
+		return executeSingleWithRelations(c, q, "User", whereClause, vals, returningCols,
+			func(res *User, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*User) error {
+				return txQ.loadUserRelations(ctx, results, sel)
+			},
+			nil,
+		)
 	}
-	for _, p := range additional {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+
+	for _, ext := range slices.Backward(q.User.extensions) {
+		if ext.FindUnique != nil {
+			next, hook := curr, ext.FindUnique
+			curr = func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], sel *UserSelect, o *UserOmit) (*User, error) {
+				return hook(c, w, add, sel, o, next)
 			}
 		}
 	}
-	allPreds := append([]PredicateOf[User]{where}, additional...)
-	whereClause, vals := CompilePredicates(q.dialect, allPreds)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectUserCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "User", whereClause, vals, returningCols,
-		func(res *User, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*User) error {
-			return txQ.loadUserRelations(ctx, results, selects)
-		},
-		nil,
-	)
+
+	return curr(ctx, where, additional, selects, omits)
 }
 
 func (q *Queries) executeUserFindFirst(
@@ -723,26 +752,39 @@ func (q *Queries) executeUserFindFirst(
 	selects *UserSelect,
 	omits *UserOmit,
 ) (*User, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[User], sel *UserSelect, o *UserOmit) (*User, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectUserCols(sel, o)
+		return executeSingleWithRelations(c, q, "User", whereClause, vals, returningCols,
+			func(res *User, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*User) error {
+				return txQ.loadUserRelations(ctx, results, sel)
+			},
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.User.extensions) {
+		if ext.FindFirst != nil {
+			next, hook := curr, ext.FindFirst
+			curr = func(c context.Context, p QueryParams[User], sel *UserSelect, o *UserOmit) (*User, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectUserCols(selects, omits)
-	return executeSingleWithRelations(ctx, q, "User", whereClause, vals, returningCols,
-		func(res *User, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*User) error {
-			return txQ.loadUserRelations(ctx, results, selects)
-		},
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 
 func (q *Queries) executeUserFindMany(
@@ -751,27 +793,40 @@ func (q *Queries) executeUserFindMany(
 	selects *UserSelect,
 	omits *UserOmit,
 ) ([]*User, error) {
-	for _, p := range params.Where {
-		if p != nil {
-			if err := p.Validate(); err != nil {
-				return nil, err
+	curr := func(c context.Context, p QueryParams[User], sel *UserSelect, o *UserOmit) ([]*User, error) {
+		for _, pr := range p.Where {
+			if pr != nil {
+				if err := pr.Validate(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		if whereClause != "" {
+			whereClause = " WHERE " + whereClause
+		}
+		returningCols := q.selectUserCols(sel, o)
+		return executeManyWithRelations(c, q, "User", whereClause, vals, returningCols,
+			func(res *User, cols []string) []any { return res.ScanFields(cols) },
+			sel.hasAnyRelation(),
+			func(ctx context.Context, txQ *Queries, results []*User) error {
+				return txQ.loadUserRelations(ctx, results, sel)
+			},
+			p.Take,
+			p.Skip,
+		)
+	}
+
+	for _, ext := range slices.Backward(q.User.extensions) {
+		if ext.FindMany != nil {
+			next, hook := curr, ext.FindMany
+			curr = func(c context.Context, p QueryParams[User], sel *UserSelect, o *UserOmit) ([]*User, error) {
+				return hook(c, p, sel, o, next)
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(q.dialect, params.Where)
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	returningCols := q.selectUserCols(selects, omits)
-	return executeManyWithRelations(ctx, q, "User", whereClause, vals, returningCols,
-		func(res *User, cols []string) []any { return res.ScanFields(cols) },
-		selects.hasAnyRelation(),
-		func(ctx context.Context, txQ *Queries, results []*User) error {
-			return txQ.loadUserRelations(ctx, results, selects)
-		},
-		params.Take,
-		params.Skip,
-	)
+
+	return curr(ctx, params, selects, omits)
 }
 func (q *Queries) loadUserRelations(ctx context.Context, records []*User, selects *UserSelect) error {
 	if selects == nil || len(records) == 0 {

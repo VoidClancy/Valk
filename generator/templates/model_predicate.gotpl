@@ -1,6 +1,7 @@
 package {{ .PackageName }}
 
 import (
+	"context"
 	{{- if hasJsonField .Model }}
 	"encoding/json"
 	{{- end }}
@@ -139,4 +140,25 @@ func {{ $pkVarName }}Unique(
 	}
 }
 {{- end }}
+
+type CreateInput = {{ $.ParentPackageName }}.{{ $.Model.Name }}Create
+type CreateQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateQuery
+type CreateHook = func(context.Context, *CreateInput, CreateQuery) (*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
+
+type CreateManyQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateManyQuery
+type CreateManyHook = func(context.Context, []*CreateInput, CreateManyQuery) (int64, error)
+
+type CreateManyAndReturnQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateManyAndReturnQuery
+type CreateManyAndReturnHook = func(context.Context, []*CreateInput, CreateManyAndReturnQuery) ([]*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
+
+type FindUniqueQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}FindUniqueQuery
+type FindUniqueHook = func(context.Context, {{ $.ParentPackageName }}.UniquePredicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}], []{{ $.ParentPackageName }}.PredicateOf[{{ $.ParentPackageName }}.{{ $.Model.Name }}], *{{ $.ParentPackageName }}.{{ $.Model.Name }}Select, *{{ $.ParentPackageName }}.{{ $.Model.Name }}Omit, FindUniqueQuery) (*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
+
+type FindFirstQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}FindFirstQuery
+type FindFirstHook = func(context.Context, {{ $.ParentPackageName }}.QueryParams[{{ $.ParentPackageName }}.{{ $.Model.Name }}], *{{ $.ParentPackageName }}.{{ $.Model.Name }}Select, *{{ $.ParentPackageName }}.{{ $.Model.Name }}Omit, FindFirstQuery) (*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
+
+type FindManyQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}FindManyQuery
+type FindManyHook = func(context.Context, {{ $.ParentPackageName }}.QueryParams[{{ $.ParentPackageName }}.{{ $.Model.Name }}], *{{ $.ParentPackageName }}.{{ $.Model.Name }}Select, *{{ $.ParentPackageName }}.{{ $.Model.Name }}Omit, FindManyQuery) ([]*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
+
+type Extension = {{ $.ParentPackageName }}.{{ $.Model.Name }}Extension
 

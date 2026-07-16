@@ -892,12 +892,14 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 		db, cleanup := setupTestDB(t)
 		defer cleanup()
 
-		db.AllFieldsSoFar.BeforeCreate(func(ctx context.Context, input *valk.AllFieldsSoFarCreate) error {
-			if input.StringReq == "mutate-me" {
-				s := "mutated"
-				input.StringReq = s
-			}
-			return nil
+		db.AllFieldsSoFar.Use(allFieldsSoFar.Extension{
+			Create: func(ctx context.Context, input *allFieldsSoFar.CreateInput, next allFieldsSoFar.CreateQuery) (*valk.AllFieldsSoFar, error) {
+				if input.StringReq == "mutate-me" {
+					s := "mutated"
+					input.StringReq = s
+				}
+				return next(ctx, input)
+			},
 		})
 
 		base := baseAllFields(t)
@@ -918,11 +920,13 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 		db, cleanup := setupTestDB(t)
 		defer cleanup()
 
-		db.AllFieldsSoFar.BeforeCreate(func(ctx context.Context, input *valk.AllFieldsSoFarCreate) error {
-			if input.StringReq == "abort" {
-				return fmt.Errorf("hook aborted: %s", input.StringReq)
-			}
-			return nil
+		db.AllFieldsSoFar.Use(allFieldsSoFar.Extension{
+			Create: func(ctx context.Context, input *allFieldsSoFar.CreateInput, next allFieldsSoFar.CreateQuery) (*valk.AllFieldsSoFar, error) {
+				if input.StringReq == "abort" {
+					return nil, fmt.Errorf("hook aborted: %s", input.StringReq)
+				}
+				return next(ctx, input)
+			},
 		})
 
 		base := baseAllFields(t)
@@ -944,10 +948,18 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 			inputs []valk.AllFieldsSoFarCreate
 			count  int64
 		}
-		db.AllFieldsSoFar.AfterCreateMany(func(ctx context.Context, inputs []valk.AllFieldsSoFarCreate, count int64) error {
-			captured.inputs = inputs
-			captured.count = count
-			return nil
+		db.AllFieldsSoFar.Use(allFieldsSoFar.Extension{
+			CreateMany: func(ctx context.Context, args []*allFieldsSoFar.CreateInput, next allFieldsSoFar.CreateManyQuery) (int64, error) {
+				count, err := next(ctx, args)
+				if err == nil {
+					captured.inputs = make([]valk.AllFieldsSoFarCreate, len(args))
+					for i, a := range args {
+						captured.inputs[i] = *a
+					}
+					captured.count = count
+				}
+				return count, err
+			},
 		})
 
 		base := baseAllFields(t)
