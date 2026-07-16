@@ -8,6 +8,8 @@ type Select = valk.UserSelect
 type Omit = valk.UserOmit
 type QueryBuilder = valk.UserQueryBuilder
 type CreateBuilder = valk.UserCreateBuilder
+type Upsert = valk.UserUpsert
+type ConflictBuilder[B any] = valk.UserConflictBuilder[B]
 
 func Query() *QueryBuilder {
 	return &QueryBuilder{}
@@ -41,12 +43,22 @@ var Role = valk.Field[valk.User, valk.UserRoleType]{Column: "role"}
 
 var RoleOptional = valk.Field[valk.User, valk.UserRoleType]{Column: "roleOptional"}
 
+var LoginCount = valk.Field[valk.User, int32]{Column: "loginCount"}
+
 var ReferredById = valk.StringField[valk.User]{Column: "referredById"}
+
+var EmailPhone = valk.CompositeUniqueConstraint[valk.User]{
+	Name: "emailPhone",
+	Columns: []string{
+		"email",
+		"phoneNum",
+	},
+}
 
 // Helper for compound unique constraint: emailPhone
 func EmailPhoneUnique(email string, phoneNum string) valk.UniquePredicate[valk.User] {
 	return valk.UniquePredicate[valk.User]{
-		Data: valk.And[valk.User](
+		Data: valk.And(
 			valk.Predicate[valk.User]{
 				Data: valk.PredicateData{
 					Column:   "email",

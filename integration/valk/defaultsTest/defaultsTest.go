@@ -9,6 +9,8 @@ type Select = valk.DefaultsTestSelect
 type Omit = valk.DefaultsTestOmit
 type QueryBuilder = valk.DefaultsTestQueryBuilder
 type CreateBuilder = valk.DefaultsTestCreateBuilder
+type Upsert = valk.DefaultsTestUpsert
+type ConflictBuilder[B any] = valk.DefaultsTestConflictBuilder[B]
 
 func Query() *QueryBuilder {
 	return &QueryBuilder{}

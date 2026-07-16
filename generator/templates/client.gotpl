@@ -17,12 +17,8 @@ func (postgresDialect) FormatLimitOffset(take *int, skip *int) string {
 	return ""
 }
 func (postgresDialect) SupportsDefaultKeyword() bool  { return true }
-func (postgresDialect) InsertPrefix(skipDuplicates bool) string { return "INSERT INTO" }
-func (postgresDialect) ConflictClause(skipDuplicates bool) string {
-	if skipDuplicates {
-		return " ON CONFLICT DO NOTHING"
-	}
-	return ""
+func (postgresDialect) ConflictClause(conflictCols []string, action *ConflictAction, nonConflictCols []string, startParamIndex int) (string, []any) {
+	return buildConflictClause(postgresDialect{}.Quote, postgresDialect{}.BindVar, conflictCols, action, nonConflictCols, startParamIndex)
 }
 
 {{- end }}
@@ -46,13 +42,9 @@ func (sqliteDialect) FormatLimitOffset(take *int, skip *int) string {
 	return ""
 }
 func (sqliteDialect) SupportsDefaultKeyword() bool    { return false }
-func (sqliteDialect) InsertPrefix(skipDuplicates bool) string {
-	if skipDuplicates {
-		return "INSERT OR IGNORE INTO"
-	}
-	return "INSERT INTO"
+func (sqliteDialect) ConflictClause(conflictCols []string, action *ConflictAction, nonConflictCols []string, startParamIndex int) (string, []any) {
+	return buildConflictClause(sqliteDialect{}.Quote, sqliteDialect{}.BindVar, conflictCols, action, nonConflictCols, startParamIndex)
 }
-func (sqliteDialect) ConflictClause(skipDuplicates bool) string { return "" }
 
 {{- end }}
 
@@ -529,6 +521,10 @@ type UniqueField[M any, T any] struct {
 	Column string
 }
 
+func (f UniqueField[M, T]) UniqueColumns() []string {
+	return []string{f.Column}
+}
+
 func (f UniqueField[M, T]) Set(val T) FieldAssignment {
 	return FieldAssignment{Col: f.Column, Val: val}
 }
@@ -755,6 +751,10 @@ func (f StringField[M]) Desc() OrderBy[M] {
 
 type StringUniqueField[M any] struct {
 	Column string
+}
+
+func (f StringUniqueField[M]) UniqueColumns() []string {
+	return []string{f.Column}
 }
 
 func (f StringUniqueField[M]) Set(val string) FieldAssignment {

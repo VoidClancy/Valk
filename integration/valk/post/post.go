@@ -8,6 +8,8 @@ type Select = valk.PostSelect
 type Omit = valk.PostOmit
 type QueryBuilder = valk.PostQueryBuilder
 type CreateBuilder = valk.PostCreateBuilder
+type Upsert = valk.PostUpsert
+type ConflictBuilder[B any] = valk.PostConflictBuilder[B]
 
 func Query() *QueryBuilder {
 	return &QueryBuilder{}

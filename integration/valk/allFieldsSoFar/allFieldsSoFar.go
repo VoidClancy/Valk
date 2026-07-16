@@ -10,6 +10,8 @@ type Select = valk.AllFieldsSoFarSelect
 type Omit = valk.AllFieldsSoFarOmit
 type QueryBuilder = valk.AllFieldsSoFarQueryBuilder
 type CreateBuilder = valk.AllFieldsSoFarCreateBuilder
+type Upsert = valk.AllFieldsSoFarUpsert
+type ConflictBuilder[B any] = valk.AllFieldsSoFarConflictBuilder[B]
 
 func Query() *QueryBuilder {
 	return &QueryBuilder{}

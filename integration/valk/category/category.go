@@ -8,6 +8,8 @@ type Select = valk.CategorySelect
 type Omit = valk.CategoryOmit
 type QueryBuilder = valk.CategoryQueryBuilder
 type CreateBuilder = valk.CategoryCreateBuilder
+type Upsert = valk.CategoryUpsert
+type ConflictBuilder[B any] = valk.CategoryConflictBuilder[B]
 
 func Query() *QueryBuilder {
 	return &QueryBuilder{}

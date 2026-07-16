@@ -168,6 +168,17 @@ type CategoryCreateBuilder struct {
 	*CreateBuilder[Category, CategorySelect, CategoryOmit]
 }
 
+func (b *CategoryCreateBuilder) OnConflict(target UniqueConstraintTarget) *CategoryConflictBuilder[CategoryCreateBuilder] {
+	return &CategoryConflictBuilder[CategoryCreateBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
 func (b *CategoryCreateBuilder) SetId(v int32) *CategoryCreateBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
 	return b
@@ -244,7 +255,7 @@ func (s *CategoryCreate) ToRowMap() map[string]any {
 	return m
 }
 
-func (q *Queries) executeCategoryCreate(ctx context.Context, assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+func (q *Queries) executeCategoryCreate(ctx context.Context, assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*Category, error) {
 	input := assignmentsToCategoryCreate(assignments)
 
 	if q.Category.beforeCreate != nil {
@@ -266,7 +277,9 @@ func (q *Queries) executeCategoryCreate(ctx context.Context, assignments []Field
 		return res.ScanFields(cols)
 	}
 
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 
 	hasRelations := selects.hasAnyRelation()
 
@@ -275,14 +288,14 @@ func (q *Queries) executeCategoryCreate(ctx context.Context, assignments []Field
 	if hasRelations {
 		err = q.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = executeInsert(ctx, txQ, "Category", cols, vals, returningCols, idCol, scanFunc)
+			res, err = executeInsert(ctx, txQ, "Category", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 			if err != nil {
 				return err
 			}
 			return txQ.loadCategoryRelations(ctx, []*Category{res}, selects)
 		})
 	} else {
-		res, err = executeInsert(ctx, q, "Category", cols, vals, returningCols, idCol, scanFunc)
+		res, err = executeInsert(ctx, q, "Category", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 	}
 	if err != nil {
 		return nil, err
@@ -297,31 +310,65 @@ func (q *Queries) executeCategoryCreate(ctx context.Context, assignments []Field
 	return res, nil
 }
 
-func (d *CategoryDelegate) CreateMany(builders ...*CategoryCreateBuilder) *CreateManyBuilder[Category] {
+type CategoryCreateManyBuilder struct {
+	*CreateManyBuilder[Category]
+}
+
+func (b *CategoryCreateManyBuilder) OnConflict(target UniqueConstraintTarget) *CategoryConflictBuilder[CategoryCreateManyBuilder] {
+	return &CategoryConflictBuilder[CategoryCreateManyBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+type CategoryCreateManyAndReturnBuilder struct {
+	*CreateManyAndReturnBuilder[Category, CategorySelect, CategoryOmit]
+}
+
+func (b *CategoryCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *CategoryConflictBuilder[CategoryCreateManyAndReturnBuilder] {
+	return &CategoryConflictBuilder[CategoryCreateManyAndReturnBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+func (d *CategoryDelegate) CreateMany(builders ...*CategoryCreateBuilder) *CategoryCreateManyBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyBuilder[Category]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeCategoryCreateMany,
+	return &CategoryCreateManyBuilder{
+		CreateManyBuilder: &CreateManyBuilder[Category]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeCategoryCreateMany,
+		},
 	}
 }
 
-func (d *CategoryDelegate) CreateManyAndReturn(builders ...*CategoryCreateBuilder) *CreateManyAndReturnBuilder[Category, CategorySelect, CategoryOmit] {
+func (d *CategoryDelegate) CreateManyAndReturn(builders ...*CategoryCreateBuilder) *CategoryCreateManyAndReturnBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyAndReturnBuilder[Category, CategorySelect, CategoryOmit]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeCategoryCreateManyAndReturn,
+	return &CategoryCreateManyAndReturnBuilder{
+		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[Category, CategorySelect, CategoryOmit]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeCategoryCreateManyAndReturn,
+		},
 	}
 }
 
-func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
+func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]CategoryCreate, len(records))
 	for i, rec := range records {
@@ -337,7 +384,10 @@ func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []Recor
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "Category", CategoryColOrder, skipDuplicates)
+	pkCols := []string{
+		"id",
+	}
+	count, err := executeCreateMany(ctx, q, rowMaps, "Category", CategoryColOrder, pkCols, conflictTarget, conflictAction)
 	if err != nil {
 		return 0, err
 	}
@@ -349,9 +399,11 @@ func (q *Queries) executeCategoryCreateMany(ctx context.Context, records []Recor
 	return count, nil
 }
 
-func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategorySelect, omits *CategoryOmit, skipDuplicates bool) ([]*Category, error) {
+func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategorySelect, omits *CategoryOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Category, error) {
 	rowMaps := make([]map[string]any, len(records))
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 	for i, rec := range records {
 		if err := validateCategoryCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -369,8 +421,9 @@ func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, record
 		q.loadCategoryRelations,
 		(*Category).ScanFields,
 		(*CategorySelect).hasAnyRelation,
-		idCol,
-		skipDuplicates,
+		pkCols,
+		conflictTarget,
+		conflictAction,
 	)
 	if err != nil {
 		return nil, err
@@ -381,6 +434,49 @@ func (q *Queries) executeCategoryCreateManyAndReturn(ctx context.Context, record
 		}
 	}
 	return results, nil
+}
+
+type CategoryConflictBuilder[B any] struct {
+	builder        *B
+	setAction      func(ConflictAction, UniqueConstraintTarget)
+	conflictTarget UniqueConstraintTarget
+}
+
+func (cb *CategoryConflictBuilder[B]) Ignore() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionIgnore}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *CategoryConflictBuilder[B]) UpdateNewValues() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionUpdateNewValues}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *CategoryConflictBuilder[B]) Update(fn func(u *CategoryUpsert)) *B {
+	var up ConflictUpdate
+	u := newCategoryUpsert(&up)
+	fn(u)
+	cb.setAction(ConflictAction{
+		Type:        ConflictActionUpdateCustom,
+		Assignments: up.assignments,
+		Args:        up.args,
+	}, cb.conflictTarget)
+	return cb.builder
+}
+
+type CategoryUpsert struct {
+	Id   numericFieldUpsert[int32]
+	Name fieldUpsert[string]
+}
+
+func newCategoryUpsert(up *ConflictUpdate) *CategoryUpsert {
+	return &CategoryUpsert{
+		Id: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "id", update: up},
+			tableName:   "Category",
+		},
+		Name: fieldUpsert[string]{column: "name", update: up},
+	}
 }
 func (d *CategoryDelegate) FindUnique(where UniquePredicate[Category], additional ...PredicateOf[Category]) *FindUniqueBuilder[Category, CategorySelect, CategoryOmit] {
 	return &FindUniqueBuilder[Category, CategorySelect, CategoryOmit]{

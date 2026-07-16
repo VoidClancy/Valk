@@ -199,6 +199,17 @@ type PostCreateBuilder struct {
 	*CreateBuilder[Post, PostSelect, PostOmit]
 }
 
+func (b *PostCreateBuilder) OnConflict(target UniqueConstraintTarget) *PostConflictBuilder[PostCreateBuilder] {
+	return &PostConflictBuilder[PostCreateBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
 func (b *PostCreateBuilder) SetId(v string) *PostCreateBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
 	return b
@@ -329,7 +340,7 @@ func (s *PostCreate) ToRowMap() map[string]any {
 	return m
 }
 
-func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error) {
+func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssignment, selects *PostSelect, omits *PostOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*Post, error) {
 	input := assignmentsToPostCreate(assignments)
 
 	if q.Post.beforeCreate != nil {
@@ -351,7 +362,9 @@ func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssi
 		return res.ScanFields(cols)
 	}
 
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 
 	hasRelations := selects.hasAnyRelation()
 
@@ -360,14 +373,14 @@ func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssi
 	if hasRelations {
 		err = q.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = executeInsert(ctx, txQ, "Post", cols, vals, returningCols, idCol, scanFunc)
+			res, err = executeInsert(ctx, txQ, "Post", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 			if err != nil {
 				return err
 			}
 			return txQ.loadPostRelations(ctx, []*Post{res}, selects)
 		})
 	} else {
-		res, err = executeInsert(ctx, q, "Post", cols, vals, returningCols, idCol, scanFunc)
+		res, err = executeInsert(ctx, q, "Post", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 	}
 	if err != nil {
 		return nil, err
@@ -382,31 +395,65 @@ func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssi
 	return res, nil
 }
 
-func (d *PostDelegate) CreateMany(builders ...*PostCreateBuilder) *CreateManyBuilder[Post] {
+type PostCreateManyBuilder struct {
+	*CreateManyBuilder[Post]
+}
+
+func (b *PostCreateManyBuilder) OnConflict(target UniqueConstraintTarget) *PostConflictBuilder[PostCreateManyBuilder] {
+	return &PostConflictBuilder[PostCreateManyBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+type PostCreateManyAndReturnBuilder struct {
+	*CreateManyAndReturnBuilder[Post, PostSelect, PostOmit]
+}
+
+func (b *PostCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *PostConflictBuilder[PostCreateManyAndReturnBuilder] {
+	return &PostConflictBuilder[PostCreateManyAndReturnBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+func (d *PostDelegate) CreateMany(builders ...*PostCreateBuilder) *PostCreateManyBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyBuilder[Post]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executePostCreateMany,
+	return &PostCreateManyBuilder{
+		CreateManyBuilder: &CreateManyBuilder[Post]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executePostCreateMany,
+		},
 	}
 }
 
-func (d *PostDelegate) CreateManyAndReturn(builders ...*PostCreateBuilder) *CreateManyAndReturnBuilder[Post, PostSelect, PostOmit] {
+func (d *PostDelegate) CreateManyAndReturn(builders ...*PostCreateBuilder) *PostCreateManyAndReturnBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyAndReturnBuilder[Post, PostSelect, PostOmit]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executePostCreateManyAndReturn,
+	return &PostCreateManyAndReturnBuilder{
+		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[Post, PostSelect, PostOmit]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executePostCreateManyAndReturn,
+		},
 	}
 }
 
-func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
+func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]PostCreate, len(records))
 	for i, rec := range records {
@@ -422,7 +469,10 @@ func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInp
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "Post", PostColOrder, skipDuplicates)
+	pkCols := []string{
+		"id",
+	}
+	count, err := executeCreateMany(ctx, q, rowMaps, "Post", PostColOrder, pkCols, conflictTarget, conflictAction)
 	if err != nil {
 		return 0, err
 	}
@@ -434,9 +484,11 @@ func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInp
 	return count, nil
 }
 
-func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *PostSelect, omits *PostOmit, skipDuplicates bool) ([]*Post, error) {
+func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *PostSelect, omits *PostOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Post, error) {
 	rowMaps := make([]map[string]any, len(records))
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 	for i, rec := range records {
 		if err := validatePostCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -454,8 +506,9 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []
 		q.loadPostRelations,
 		(*Post).ScanFields,
 		(*PostSelect).hasAnyRelation,
-		idCol,
-		skipDuplicates,
+		pkCols,
+		conflictTarget,
+		conflictAction,
 	)
 	if err != nil {
 		return nil, err
@@ -466,6 +519,52 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []
 		}
 	}
 	return results, nil
+}
+
+type PostConflictBuilder[B any] struct {
+	builder        *B
+	setAction      func(ConflictAction, UniqueConstraintTarget)
+	conflictTarget UniqueConstraintTarget
+}
+
+func (cb *PostConflictBuilder[B]) Ignore() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionIgnore}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *PostConflictBuilder[B]) UpdateNewValues() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionUpdateNewValues}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *PostConflictBuilder[B]) Update(fn func(u *PostUpsert)) *B {
+	var up ConflictUpdate
+	u := newPostUpsert(&up)
+	fn(u)
+	cb.setAction(ConflictAction{
+		Type:        ConflictActionUpdateCustom,
+		Assignments: up.assignments,
+		Args:        up.args,
+	}, cb.conflictTarget)
+	return cb.builder
+}
+
+type PostUpsert struct {
+	Id        fieldUpsert[string]
+	Title     fieldUpsert[string]
+	Content   fieldUpsert[*string]
+	Published fieldUpsert[bool]
+	AuthorId  fieldUpsert[string]
+}
+
+func newPostUpsert(up *ConflictUpdate) *PostUpsert {
+	return &PostUpsert{
+		Id:        fieldUpsert[string]{column: "id", update: up},
+		Title:     fieldUpsert[string]{column: "title", update: up},
+		Content:   fieldUpsert[*string]{column: "content", update: up},
+		Published: fieldUpsert[bool]{column: "published", update: up},
+		AuthorId:  fieldUpsert[string]{column: "authorId", update: up},
+	}
 }
 func (d *PostDelegate) FindUnique(where UniquePredicate[Post], additional ...PredicateOf[Post]) *FindUniqueBuilder[Post, PostSelect, PostOmit] {
 	return &FindUniqueBuilder[Post, PostSelect, PostOmit]{

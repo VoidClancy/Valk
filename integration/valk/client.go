@@ -144,6 +144,75 @@ func (e UserRoleType) IsValid() bool {
 	return false
 }
 
+type UniqueConstraintTarget interface {
+	UniqueColumns() []string
+}
+
+type CompositeUniqueConstraint[M any] struct {
+	Name    string
+	Columns []string
+}
+
+func (c CompositeUniqueConstraint[M]) UniqueColumns() []string {
+	return c.Columns
+}
+
+type ConflictActionType int
+
+const (
+	ConflictActionIgnore ConflictActionType = iota
+	ConflictActionUpdateNewValues
+	ConflictActionUpdateCustom
+)
+
+type ConflictAction struct {
+	Type        ConflictActionType
+	Assignments []string
+	Args        []any
+}
+
+type ConflictUpdate struct {
+	assignments []string
+	args        []any
+}
+
+type fieldUpsert[T any] struct {
+	column string
+	update *ConflictUpdate
+}
+
+func (f fieldUpsert[T]) Update() {
+	f.update.assignments = append(f.update.assignments, fmt.Sprintf(`"%s" = EXCLUDED."%s"`, f.column, f.column))
+}
+
+func (f fieldUpsert[T]) Set(val T) {
+	f.update.assignments = append(f.update.assignments, fmt.Sprintf(`"%s" = ?`, f.column))
+	f.update.args = append(f.update.args, val)
+}
+
+type numericFieldUpsert[T any] struct {
+	fieldUpsert[T]
+	tableName string
+}
+
+func (f numericFieldUpsert[T]) Add(val T) {
+	f.update.assignments = append(f.update.assignments, fmt.Sprintf(`"%s" = "%s"."%s" + ?`, f.column, f.tableName, f.column))
+	f.update.args = append(f.update.args, val)
+}
+
+func (f numericFieldUpsert[T]) Sub(val T) {
+	f.update.assignments = append(f.update.assignments, fmt.Sprintf(`"%s" = "%s"."%s" - ?`, f.column, f.tableName, f.column))
+	f.update.args = append(f.update.args, val)
+}
+
+func (f numericFieldUpsert[T]) Inc(val T) {
+	f.Add(val)
+}
+
+func (f numericFieldUpsert[T]) Dec(val T) {
+	f.Sub(val)
+}
+
 type Dialect interface {
 	Quote(ident string) string
 	BindVar(idx int) string
@@ -151,8 +220,7 @@ type Dialect interface {
 	SupportsBulkInsert() bool
 	FormatLimitOffset(take *int, skip *int) string
 	SupportsDefaultKeyword() bool
-	InsertPrefix(skipDuplicates bool) string
-	ConflictClause(skipDuplicates bool) string
+	ConflictClause(conflictCols []string, action *ConflictAction, nonConflictCols []string, startParamIndex int) (string, []any)
 }
 
 type rawDefault struct{}
@@ -346,6 +414,81 @@ type QueryParams[M any] struct {
 	OrderBy []OrderBy[M]
 }
 
+func computeNonConflictCols(allCols []string, conflictCols []string, pkCols []string) []string {
+	exclude := make(map[string]bool, len(conflictCols)+len(pkCols))
+	for _, c := range conflictCols {
+		exclude[c] = true
+	}
+	for _, c := range pkCols {
+		exclude[c] = true
+	}
+	var result []string
+	for _, c := range allCols {
+		if !exclude[c] {
+			result = append(result, c)
+		}
+	}
+	return result
+}
+
+func buildConflictClause(
+	quoteFn func(string) string,
+	bindVarFn func(int) string,
+	conflictCols []string,
+	action *ConflictAction,
+	nonConflictCols []string,
+	startParamIndex int,
+) (string, []any) {
+	if action == nil {
+		return "", nil
+	}
+	var colsStr string
+	if len(conflictCols) > 0 {
+		var quoted []string
+		for _, col := range conflictCols {
+			quoted = append(quoted, quoteFn(col))
+		}
+		colsStr = " (" + strings.Join(quoted, ", ") + ")"
+	}
+	switch action.Type {
+	case ConflictActionIgnore:
+		return " ON CONFLICT" + colsStr + " DO NOTHING", nil
+	case ConflictActionUpdateNewValues:
+		if len(nonConflictCols) == 0 {
+			return " ON CONFLICT" + colsStr + " DO NOTHING", nil
+		}
+		var sets []string
+		for _, col := range nonConflictCols {
+			sets = append(sets, fmt.Sprintf(`%s = EXCLUDED.%s`, quoteFn(col), quoteFn(col)))
+		}
+		return " ON CONFLICT" + colsStr + " DO UPDATE SET " + strings.Join(sets, ", "), nil
+	case ConflictActionUpdateCustom:
+		if len(action.Assignments) == 0 {
+			return " ON CONFLICT" + colsStr + " DO NOTHING", nil
+		}
+		var assignments []string
+		paramIdx := startParamIndex
+		for _, assignment := range action.Assignments {
+			var sb strings.Builder
+			src := assignment
+			for {
+				idx := strings.Index(src, "?")
+				if idx == -1 {
+					sb.WriteString(src)
+					break
+				}
+				sb.WriteString(src[:idx])
+				sb.WriteString(bindVarFn(paramIdx))
+				paramIdx++
+				src = src[idx+1:]
+			}
+			assignments = append(assignments, sb.String())
+		}
+		return " ON CONFLICT" + colsStr + " DO UPDATE SET " + strings.Join(assignments, ", "), action.Args
+	}
+	return "", nil
+}
+
 type postgresDialect struct{}
 
 func (postgresDialect) Quote(ident string) string { return `"` + ident + `"` }
@@ -364,13 +507,9 @@ func (postgresDialect) FormatLimitOffset(take *int, skip *int) string {
 	}
 	return ""
 }
-func (postgresDialect) SupportsDefaultKeyword() bool            { return true }
-func (postgresDialect) InsertPrefix(skipDuplicates bool) string { return "INSERT INTO" }
-func (postgresDialect) ConflictClause(skipDuplicates bool) string {
-	if skipDuplicates {
-		return " ON CONFLICT DO NOTHING"
-	}
-	return ""
+func (postgresDialect) SupportsDefaultKeyword() bool { return true }
+func (postgresDialect) ConflictClause(conflictCols []string, action *ConflictAction, nonConflictCols []string, startParamIndex int) (string, []any) {
+	return buildConflictClause(postgresDialect{}.Quote, postgresDialect{}.BindVar, conflictCols, action, nonConflictCols, startParamIndex)
 }
 
 type Queries struct {
@@ -385,6 +524,7 @@ type Queries struct {
 	//   password     string   optional
 	//   role         UserRole default: STUDENT
 	//   roleOptional UserRole optional
+	//   loginCount   int32    default: 0
 	//   referredById string   optional
 	User *UserDelegate
 	// Profile provides CRUD operations for Profile.
@@ -910,6 +1050,10 @@ type UniqueField[M any, T any] struct {
 	Column string
 }
 
+func (f UniqueField[M, T]) UniqueColumns() []string {
+	return []string{f.Column}
+}
+
 func (f UniqueField[M, T]) Set(val T) FieldAssignment {
 	return FieldAssignment{Col: f.Column, Val: val}
 }
@@ -1136,6 +1280,10 @@ func (f StringField[M]) Desc() OrderBy[M] {
 
 type StringUniqueField[M any] struct {
 	Column string
+}
+
+func (f StringUniqueField[M]) UniqueColumns() []string {
+	return []string{f.Column}
 }
 
 func (f StringUniqueField[M]) Set(val string) FieldAssignment {
@@ -1494,9 +1642,11 @@ func (db *DB) Transaction(ctx context.Context, fn func(tx *Tx) error) error {
 }
 
 type CreateBuilder[M any, S any, O any] struct {
-	client      *Queries
-	assignments []FieldAssignment
-	execFunc    func(ctx context.Context, assignments []FieldAssignment, s *S, o *O) (*M, error)
+	client         *Queries
+	assignments    []FieldAssignment
+	execFunc       func(ctx context.Context, assignments []FieldAssignment, s *S, o *O, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*M, error)
+	conflictAction *ConflictAction
+	conflictTarget UniqueConstraintTarget
 }
 
 func (b *CreateBuilder[M, S, O]) Select(s S) *CreateSelectBuilder[M, S, O] {
@@ -1508,7 +1658,7 @@ func (b *CreateBuilder[M, S, O]) Omit(o O) *CreateOmitBuilder[M, S, O] {
 }
 
 func (b *CreateBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.execFunc(ctx, b.assignments, nil, nil)
+	return b.execFunc(ctx, b.assignments, nil, nil, b.conflictTarget, b.conflictAction)
 }
 
 type CreateSelectBuilder[M any, S any, O any] struct {
@@ -1517,7 +1667,7 @@ type CreateSelectBuilder[M any, S any, O any] struct {
 }
 
 func (b *CreateSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.assignments, &b.selects, nil)
+	return b.builder.execFunc(ctx, b.builder.assignments, &b.selects, nil, b.builder.conflictTarget, b.builder.conflictAction)
 }
 
 type CreateOmitBuilder[M any, S any, O any] struct {
@@ -1526,34 +1676,36 @@ type CreateOmitBuilder[M any, S any, O any] struct {
 }
 
 func (b *CreateOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.assignments, nil, &b.omits)
+	return b.builder.execFunc(ctx, b.builder.assignments, nil, &b.omits, b.builder.conflictTarget, b.builder.conflictAction)
 }
 
 type CreateManyBuilder[M any] struct {
 	client         *Queries
 	records        []RecordInput
-	execFunc       func(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error)
-	skipDuplicates bool
+	execFunc       func(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error)
+	conflictAction *ConflictAction
+	conflictTarget UniqueConstraintTarget
 }
 
 func (b *CreateManyBuilder[M]) SkipDuplicates() *CreateManyBuilder[M] {
-	b.skipDuplicates = true
+	b.conflictAction = &ConflictAction{Type: ConflictActionIgnore}
 	return b
 }
 
 func (b *CreateManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
-	return b.execFunc(ctx, b.records, b.skipDuplicates)
+	return b.execFunc(ctx, b.records, b.conflictTarget, b.conflictAction)
 }
 
 type CreateManyAndReturnBuilder[M any, S any, O any] struct {
 	client         *Queries
 	records        []RecordInput
-	execFunc       func(ctx context.Context, records []RecordInput, s *S, o *O, skipDuplicates bool) ([]*M, error)
-	skipDuplicates bool
+	execFunc       func(ctx context.Context, records []RecordInput, s *S, o *O, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*M, error)
+	conflictAction *ConflictAction
+	conflictTarget UniqueConstraintTarget
 }
 
 func (b *CreateManyAndReturnBuilder[M, S, O]) SkipDuplicates() *CreateManyAndReturnBuilder[M, S, O] {
-	b.skipDuplicates = true
+	b.conflictAction = &ConflictAction{Type: ConflictActionIgnore}
 	return b
 }
 
@@ -1566,7 +1718,7 @@ func (b *CreateManyAndReturnBuilder[M, S, O]) Omit(o O) *CreateManyAndReturnOmit
 }
 
 func (b *CreateManyAndReturnBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.execFunc(ctx, b.records, nil, nil, b.skipDuplicates)
+	return b.execFunc(ctx, b.records, nil, nil, b.conflictTarget, b.conflictAction)
 }
 
 type CreateManyAndReturnSelectBuilder[M any, S any, O any] struct {
@@ -1575,7 +1727,7 @@ type CreateManyAndReturnSelectBuilder[M any, S any, O any] struct {
 }
 
 func (b *CreateManyAndReturnSelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.builder.execFunc(ctx, b.builder.records, &b.selects, nil, b.builder.skipDuplicates)
+	return b.builder.execFunc(ctx, b.builder.records, &b.selects, nil, b.builder.conflictTarget, b.builder.conflictAction)
 }
 
 type CreateManyAndReturnOmitBuilder[M any, S any, O any] struct {
@@ -1584,7 +1736,7 @@ type CreateManyAndReturnOmitBuilder[M any, S any, O any] struct {
 }
 
 func (b *CreateManyAndReturnOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.builder.execFunc(ctx, b.builder.records, nil, &b.omits, b.builder.skipDuplicates)
+	return b.builder.execFunc(ctx, b.builder.records, nil, &b.omits, b.builder.conflictTarget, b.builder.conflictAction)
 }
 
 func executeInsert[M any](
@@ -1594,8 +1746,10 @@ func executeInsert[M any](
 	cols []string,
 	vals []any,
 	returningCols []string,
-	idCol string,
+	pkCols []string,
 	scanFunc func(record *M, cols []string) []any,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
 ) (*M, error) {
 	var sb strings.Builder
 	sb.Grow(128 + len(table) + len(cols)*15 + len(returningCols)*15)
@@ -1618,6 +1772,22 @@ func executeInsert[M any](
 	}
 	sb.WriteString(")")
 
+	var conflictCols []string
+	if conflictTarget != nil {
+		conflictCols = conflictTarget.UniqueColumns()
+	}
+
+	var nonConflictCols []string
+	if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+		nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+	}
+
+	clause, clauseArgs := q.dialect.ConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+	sb.WriteString(clause)
+	if len(clauseArgs) > 0 {
+		vals = append(vals, clauseArgs...)
+	}
+
 	if q.dialect.SupportsReturning() && len(returningCols) > 0 {
 		sb.WriteString(" RETURNING ")
 		for i, col := range returningCols {
@@ -1631,13 +1801,20 @@ func executeInsert[M any](
 
 	var res M
 	if q.dialect.SupportsReturning() {
-		row := q.queryRow(ctx, query, vals...)
-
-		scanTargets := scanFunc(&res, returningCols)
-		if err := row.Scan(scanTargets...); err != nil {
+		rows, err := q.query(ctx, query, vals...)
+		if err != nil {
 			return nil, err
 		}
-		return &res, nil
+		defer rows.Close()
+
+		if rows.Next() {
+			scanTargets := scanFunc(&res, returningCols)
+			if err := rows.Scan(scanTargets...); err != nil {
+				return nil, err
+			}
+			return &res, nil
+		}
+		return nil, rows.Err()
 	}
 
 	// Fallback for dialects without RETURNING (MySQL)
@@ -1646,23 +1823,27 @@ func executeInsert[M any](
 		return nil, err
 	}
 
-	var idVal any
-	for i, c := range cols {
-		if c == idCol {
-			idVal = vals[i]
-			break
+	var pkVals []any
+	for _, pkCol := range pkCols {
+		var val any
+		for i, c := range cols {
+			if c == pkCol {
+				val = vals[i]
+				break
+			}
 		}
-	}
-	if idVal == nil {
-		lastID, err := result.LastInsertId()
-		if err != nil {
-			return nil, err
+		if val == nil && len(pkCols) == 1 {
+			lastID, err := result.LastInsertId()
+			if err != nil {
+				return nil, err
+			}
+			val = lastID
 		}
-		idVal = lastID
+		pkVals = append(pkVals, val)
 	}
 
 	var selectSb strings.Builder
-	selectSb.Grow(64 + len(returningCols)*15 + len(table) + len(idCol))
+	selectSb.Grow(64 + len(returningCols)*15 + len(table) + len(pkCols)*15)
 	selectSb.WriteString("SELECT ")
 	for i, col := range returningCols {
 		if i > 0 {
@@ -1673,15 +1854,28 @@ func executeInsert[M any](
 	selectSb.WriteString(" FROM ")
 	selectSb.WriteString(q.dialect.Quote(table))
 	selectSb.WriteString(" WHERE ")
-	selectSb.WriteString(q.dialect.Quote(idCol))
-	selectSb.WriteString(" = ?")
+	for i, pkCol := range pkCols {
+		if i > 0 {
+			selectSb.WriteString(" AND ")
+		}
+		selectSb.WriteString(q.dialect.Quote(pkCol))
+		selectSb.WriteString(" = ?")
+	}
 
-	row := q.queryRow(ctx, selectSb.String(), idVal)
-	scanTargets := scanFunc(&res, returningCols)
-	if err := row.Scan(scanTargets...); err != nil {
+	rows, err := q.query(ctx, selectSb.String(), pkVals...)
+	if err != nil {
 		return nil, err
 	}
-	return &res, nil
+	defer rows.Close()
+
+	if rows.Next() {
+		scanTargets := scanFunc(&res, returningCols)
+		if err := rows.Scan(scanTargets...); err != nil {
+			return nil, err
+		}
+		return &res, nil
+	}
+	return nil, rows.Err()
 }
 
 func executeCreateMany(
@@ -1690,7 +1884,9 @@ func executeCreateMany(
 	rowMaps []map[string]any,
 	tableName string,
 	colOrder []string,
-	skipDuplicates bool,
+	pkCols []string,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
 ) (int64, error) {
 	if len(rowMaps) == 0 {
 		return 0, nil
@@ -1698,7 +1894,7 @@ func executeCreateMany(
 
 	batches := partitionRowMaps(q.dialect, rowMaps)
 	if len(batches) == 1 {
-		query, vals := buildBulkInsertSQL(q.dialect, tableName, batches[0], colOrder, nil, skipDuplicates)
+		query, vals := buildBulkInsertSQL(q.dialect, tableName, batches[0], colOrder, nil, pkCols, conflictTarget, conflictAction)
 		res, err := q.exec(ctx, query, vals...)
 		if err != nil {
 			return 0, err
@@ -1709,7 +1905,7 @@ func executeCreateMany(
 	var count int64
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		for _, batch := range batches {
-			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, batch, colOrder, nil, skipDuplicates)
+			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, batch, colOrder, nil, pkCols, conflictTarget, conflictAction)
 			res, err := txQ.exec(ctx, query, vals...)
 			if err != nil {
 				return err
@@ -1737,8 +1933,9 @@ func executeCreateManyAndReturn[M any, S any, O any](
 	loadRelationsFn func(context.Context, []*M, *S) error,
 	scanFunc func(*M, []string) []any,
 	hasRelationsFn func(*S) bool,
-	idCol string,
-	skipDuplicates bool,
+	pkCols []string,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
 ) ([]*M, error) {
 	if len(rowMaps) == 0 {
 		return nil, nil
@@ -1752,7 +1949,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 		err := q.transaction(ctx, func(txQ *Queries) error {
 			for _, rowMap := range rowMaps {
 				cols, vals := mapToColsVals(rowMap, colOrder)
-				res, err := executeInsert(ctx, txQ, tableName, cols, vals, returningCols, idCol, scanFunc)
+				res, err := executeInsert(ctx, txQ, tableName, cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
@@ -1772,7 +1969,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 	batches := partitionRowMaps(q.dialect, rowMaps)
 	recordsOut := make([]*M, 0)
 	if len(batches) == 1 && !hasRelations {
-		query, vals := buildBulkInsertSQL(q.dialect, tableName, batches[0], colOrder, returningCols, skipDuplicates)
+		query, vals := buildBulkInsertSQL(q.dialect, tableName, batches[0], colOrder, returningCols, pkCols, conflictTarget, conflictAction)
 		rows, err := q.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
@@ -1793,7 +1990,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 
 	err := q.transaction(ctx, func(txQ *Queries) error {
 		for _, batch := range batches {
-			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, batch, colOrder, returningCols, skipDuplicates)
+			query, vals := buildBulkInsertSQL(txQ.dialect, tableName, batch, colOrder, returningCols, pkCols, conflictTarget, conflictAction)
 			err := func() error {
 				rows, err := txQ.query(ctx, query, vals...)
 				if err != nil {
@@ -2421,7 +2618,16 @@ func mapToColsVals(m map[string]any, colOrder []string) (cols []string, vals []a
 	return
 }
 
-func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any, colOrder []string, returningCols []string, skipDuplicates bool) (string, []any) {
+func buildBulkInsertSQL(
+	dialect Dialect,
+	table string,
+	rowMaps []map[string]any,
+	colOrder []string,
+	returningCols []string,
+	pkCols []string,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) (string, []any) {
 	colsSet := make(map[string]bool)
 	for _, rMap := range rowMaps {
 		for col := range rMap {
@@ -2437,8 +2643,7 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 
 	var vals []any
 	var sb strings.Builder
-	sb.WriteString(dialect.InsertPrefix(skipDuplicates))
-	sb.WriteString(" ")
+	sb.WriteString("INSERT INTO ")
 	sb.WriteString(dialect.Quote(table))
 	sb.WriteString(" (")
 	for i, col := range cols {
@@ -2473,7 +2678,19 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 		sb.WriteString(")")
 	}
 
-	sb.WriteString(dialect.ConflictClause(skipDuplicates))
+	var conflictCols []string
+	if conflictTarget != nil {
+		conflictCols = conflictTarget.UniqueColumns()
+	}
+
+	var nonConflictCols []string
+	if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+		nonConflictCols = computeNonConflictCols(colOrder, conflictCols, pkCols)
+	}
+
+	conflictClause, conflictArgs := dialect.ConflictClause(conflictCols, conflictAction, nonConflictCols, paramIndex)
+	sb.WriteString(conflictClause)
+	vals = append(vals, conflictArgs...)
 
 	if dialect.SupportsReturning() && len(returningCols) > 0 {
 		sb.WriteString(" RETURNING ")

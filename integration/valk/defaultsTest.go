@@ -230,6 +230,17 @@ type DefaultsTestCreateBuilder struct {
 	*CreateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]
 }
 
+func (b *DefaultsTestCreateBuilder) OnConflict(target UniqueConstraintTarget) *DefaultsTestConflictBuilder[DefaultsTestCreateBuilder] {
+	return &DefaultsTestConflictBuilder[DefaultsTestCreateBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
 func (b *DefaultsTestCreateBuilder) SetUuid4(v string) *DefaultsTestCreateBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid4", Val: v})
 	return b
@@ -440,7 +451,7 @@ func (s *DefaultsTestCreate) ToRowMap() map[string]any {
 	return m
 }
 
-func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*DefaultsTest, error) {
 	input := assignmentsToDefaultsTestCreate(assignments)
 
 	if q.DefaultsTest.beforeCreate != nil {
@@ -462,7 +473,9 @@ func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []F
 		return res.ScanFields(cols)
 	}
 
-	idCol := "uuid4"
+	pkCols := []string{
+		"uuid4",
+	}
 
 	hasRelations := selects.hasAnyRelation()
 
@@ -471,14 +484,14 @@ func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []F
 	if hasRelations {
 		err = q.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = executeInsert(ctx, txQ, "DefaultsTest", cols, vals, returningCols, idCol, scanFunc)
+			res, err = executeInsert(ctx, txQ, "DefaultsTest", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 			if err != nil {
 				return err
 			}
 			return txQ.loadDefaultsTestRelations(ctx, []*DefaultsTest{res}, selects)
 		})
 	} else {
-		res, err = executeInsert(ctx, q, "DefaultsTest", cols, vals, returningCols, idCol, scanFunc)
+		res, err = executeInsert(ctx, q, "DefaultsTest", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 	}
 	if err != nil {
 		return nil, err
@@ -493,31 +506,65 @@ func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []F
 	return res, nil
 }
 
-func (d *DefaultsTestDelegate) CreateMany(builders ...*DefaultsTestCreateBuilder) *CreateManyBuilder[DefaultsTest] {
+type DefaultsTestCreateManyBuilder struct {
+	*CreateManyBuilder[DefaultsTest]
+}
+
+func (b *DefaultsTestCreateManyBuilder) OnConflict(target UniqueConstraintTarget) *DefaultsTestConflictBuilder[DefaultsTestCreateManyBuilder] {
+	return &DefaultsTestConflictBuilder[DefaultsTestCreateManyBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+type DefaultsTestCreateManyAndReturnBuilder struct {
+	*CreateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]
+}
+
+func (b *DefaultsTestCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *DefaultsTestConflictBuilder[DefaultsTestCreateManyAndReturnBuilder] {
+	return &DefaultsTestConflictBuilder[DefaultsTestCreateManyAndReturnBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+func (d *DefaultsTestDelegate) CreateMany(builders ...*DefaultsTestCreateBuilder) *DefaultsTestCreateManyBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyBuilder[DefaultsTest]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeDefaultsTestCreateMany,
+	return &DefaultsTestCreateManyBuilder{
+		CreateManyBuilder: &CreateManyBuilder[DefaultsTest]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeDefaultsTestCreateMany,
+		},
 	}
 }
 
-func (d *DefaultsTestDelegate) CreateManyAndReturn(builders ...*DefaultsTestCreateBuilder) *CreateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
+func (d *DefaultsTestDelegate) CreateManyAndReturn(builders ...*DefaultsTestCreateBuilder) *DefaultsTestCreateManyAndReturnBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeDefaultsTestCreateManyAndReturn,
+	return &DefaultsTestCreateManyAndReturnBuilder{
+		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeDefaultsTestCreateManyAndReturn,
+		},
 	}
 }
 
-func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
+func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]DefaultsTestCreate, len(records))
 	for i, rec := range records {
@@ -533,7 +580,10 @@ func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []R
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "DefaultsTest", DefaultsTestColOrder, skipDuplicates)
+	pkCols := []string{
+		"uuid4",
+	}
+	count, err := executeCreateMany(ctx, q, rowMaps, "DefaultsTest", DefaultsTestColOrder, pkCols, conflictTarget, conflictAction)
 	if err != nil {
 		return 0, err
 	}
@@ -545,9 +595,11 @@ func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []R
 	return count, nil
 }
 
-func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *DefaultsTestSelect, omits *DefaultsTestOmit, skipDuplicates bool) ([]*DefaultsTest, error) {
+func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *DefaultsTestSelect, omits *DefaultsTestOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*DefaultsTest, error) {
 	rowMaps := make([]map[string]any, len(records))
-	idCol := "uuid4"
+	pkCols := []string{
+		"uuid4",
+	}
 	for i, rec := range records {
 		if err := validateDefaultsTestCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -565,8 +617,9 @@ func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, re
 		q.loadDefaultsTestRelations,
 		(*DefaultsTest).ScanFields,
 		(*DefaultsTestSelect).hasAnyRelation,
-		idCol,
-		skipDuplicates,
+		pkCols,
+		conflictTarget,
+		conflictAction,
 	)
 	if err != nil {
 		return nil, err
@@ -577,6 +630,60 @@ func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, re
 		}
 	}
 	return results, nil
+}
+
+type DefaultsTestConflictBuilder[B any] struct {
+	builder        *B
+	setAction      func(ConflictAction, UniqueConstraintTarget)
+	conflictTarget UniqueConstraintTarget
+}
+
+func (cb *DefaultsTestConflictBuilder[B]) Ignore() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionIgnore}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *DefaultsTestConflictBuilder[B]) UpdateNewValues() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionUpdateNewValues}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *DefaultsTestConflictBuilder[B]) Update(fn func(u *DefaultsTestUpsert)) *B {
+	var up ConflictUpdate
+	u := newDefaultsTestUpsert(&up)
+	fn(u)
+	cb.setAction(ConflictAction{
+		Type:        ConflictActionUpdateCustom,
+		Assignments: up.assignments,
+		Args:        up.args,
+	}, cb.conflictTarget)
+	return cb.builder
+}
+
+type DefaultsTestUpsert struct {
+	Uuid4      fieldUpsert[string]
+	Uuid7      fieldUpsert[string]
+	UuidNoArgs fieldUpsert[string]
+	Cuid1      fieldUpsert[string]
+	Cuid2      fieldUpsert[string]
+	CuidNoArgs fieldUpsert[string]
+	Ulid       fieldUpsert[string]
+	Nanoid     fieldUpsert[string]
+	Now        fieldUpsert[time.Time]
+}
+
+func newDefaultsTestUpsert(up *ConflictUpdate) *DefaultsTestUpsert {
+	return &DefaultsTestUpsert{
+		Uuid4:      fieldUpsert[string]{column: "uuid4", update: up},
+		Uuid7:      fieldUpsert[string]{column: "uuid7", update: up},
+		UuidNoArgs: fieldUpsert[string]{column: "uuidNoArgs", update: up},
+		Cuid1:      fieldUpsert[string]{column: "cuid1", update: up},
+		Cuid2:      fieldUpsert[string]{column: "cuid2", update: up},
+		CuidNoArgs: fieldUpsert[string]{column: "cuidNoArgs", update: up},
+		Ulid:       fieldUpsert[string]{column: "ulid", update: up},
+		Nanoid:     fieldUpsert[string]{column: "nanoid", update: up},
+		Now:        fieldUpsert[time.Time]{column: "now", update: up},
+	}
 }
 func (d *DefaultsTestDelegate) FindUnique(where UniquePredicate[DefaultsTest], additional ...PredicateOf[DefaultsTest]) *FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
 	return &FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{

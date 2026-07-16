@@ -19,6 +19,17 @@ type {{ .Model.Name }}CreateBuilder struct {
 	*CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]
 }
 
+func (b *{{ .Model.Name }}CreateBuilder) OnConflict(target UniqueConstraintTarget) *{{ .Model.Name }}ConflictBuilder[{{ .Model.Name }}CreateBuilder] {
+	return &{{ .Model.Name }}ConflictBuilder[{{ .Model.Name }}CreateBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
 {{ range $field := .Model.ScalarFields }}
 {{- $fieldType := trimPrefix $field.GoType "*" }}
 {{- if $field.EnumRef }}
@@ -250,7 +261,7 @@ func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
 	return m
 }
 
-func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*{{ .Model.Name }}, error) {
 	input := assignmentsTo{{ .Model.Name }}Create(assignments)
 
 	if q.{{ .Model.Name }}.beforeCreate != nil {
@@ -272,7 +283,19 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 		return res.ScanFields(cols)
 	}
 
-	idCol := "{{ range $field := .Model.ScalarFields }}{{ if $field.IsID }}{{ $field.EffectiveColName }}{{ end }}{{ end }}"
+	pkCols := []string{
+		{{- if .Model.CompositePK }}
+			{{- range $col := .Model.CompositePK }}
+				"{{ $col }}",
+			{{- end }}
+		{{- else }}
+			{{- range $field := .Model.ScalarFields }}
+				{{- if $field.IsID }}
+					"{{ $field.EffectiveColName }}",
+				{{- end }}
+			{{- end }}
+		{{- end }}
+	}
 
 	hasRelations := selects.hasAnyRelation()
 
@@ -281,14 +304,14 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 	if hasRelations {
 		err = q.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = executeInsert(ctx, txQ, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, idCol, scanFunc)
+			res, err = executeInsert(ctx, txQ, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 			if err != nil {
 				return err
 			}
 			return txQ.load{{ .Model.Name }}Relations(ctx, []*{{ .Model.Name }}{res}, selects)
 		})
 	} else {
-		res, err = executeInsert(ctx, q, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, idCol, scanFunc)
+		res, err = executeInsert(ctx, q, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 	}
 	if err != nil {
 		return nil, err
@@ -303,31 +326,65 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 	return res, nil
 }
 
-func (d *{{ .Model.Name }}Delegate) CreateMany(builders ...*{{ .Model.Name }}CreateBuilder) *CreateManyBuilder[{{ .Model.Name }}] {
+type {{ .Model.Name }}CreateManyBuilder struct {
+	*CreateManyBuilder[{{ .Model.Name }}]
+}
+
+func (b *{{ .Model.Name }}CreateManyBuilder) OnConflict(target UniqueConstraintTarget) *{{ .Model.Name }}ConflictBuilder[{{ .Model.Name }}CreateManyBuilder] {
+	return &{{ .Model.Name }}ConflictBuilder[{{ .Model.Name }}CreateManyBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+type {{ .Model.Name }}CreateManyAndReturnBuilder struct {
+	*CreateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]
+}
+
+func (b *{{ .Model.Name }}CreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *{{ .Model.Name }}ConflictBuilder[{{ .Model.Name }}CreateManyAndReturnBuilder] {
+	return &{{ .Model.Name }}ConflictBuilder[{{ .Model.Name }}CreateManyAndReturnBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+func (d *{{ .Model.Name }}Delegate) CreateMany(builders ...*{{ .Model.Name }}CreateBuilder) *{{ .Model.Name }}CreateManyBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyBuilder[{{ .Model.Name }}]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.execute{{ .Model.Name }}CreateMany,
+	return &{{ .Model.Name }}CreateManyBuilder{
+		CreateManyBuilder: &CreateManyBuilder[{{ .Model.Name }}]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.execute{{ .Model.Name }}CreateMany,
+		},
 	}
 }
 
-func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(builders ...*{{ .Model.Name }}CreateBuilder) *CreateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
+func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(builders ...*{{ .Model.Name }}CreateBuilder) *{{ .Model.Name }}CreateManyAndReturnBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.execute{{ .Model.Name }}CreateManyAndReturn,
+	return &{{ .Model.Name }}CreateManyAndReturnBuilder{
+		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.execute{{ .Model.Name }}CreateManyAndReturn,
+		},
 	}
 }
 
-func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
+func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]{{ .Model.Name }}Create, len(records))
 	for i, rec := range records {
@@ -343,7 +400,20 @@ func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, record
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, skipDuplicates)
+	pkCols := []string{
+		{{- if .Model.CompositePK }}
+			{{- range $col := .Model.CompositePK }}
+				"{{ $col }}",
+			{{- end }}
+		{{- else }}
+			{{- range $field := .Model.ScalarFields }}
+				{{- if $field.IsID }}
+					"{{ $field.EffectiveColName }}",
+				{{- end }}
+			{{- end }}
+		{{- end }}
+	}
+	count, err := executeCreateMany(ctx, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, pkCols, conflictTarget, conflictAction)
 	if err != nil {
 		return 0, err
 	}
@@ -355,9 +425,21 @@ func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, record
 	return count, nil
 }
 
-func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Context, records []RecordInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, skipDuplicates bool) ([]*{{ .Model.Name }}, error) {
+func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Context, records []RecordInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*{{ .Model.Name }}, error) {
 	rowMaps := make([]map[string]any, len(records))
-	idCol := "{{ range $field := .Model.ScalarFields }}{{ if $field.IsID }}{{ $field.EffectiveColName }}{{ end }}{{ end }}"
+	pkCols := []string{
+		{{- if .Model.CompositePK }}
+			{{- range $col := .Model.CompositePK }}
+				"{{ $col }}",
+			{{- end }}
+		{{- else }}
+			{{- range $field := .Model.ScalarFields }}
+				{{- if $field.IsID }}
+					"{{ $field.EffectiveColName }}",
+				{{- end }}
+			{{- end }}
+		{{- end }}
+	}
 	for i, rec := range records {
 		if err := validate{{ .Model.Name }}Create(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -375,8 +457,9 @@ func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Contex
 		q.load{{ .Model.Name }}Relations,
 		(*{{ .Model.Name }}).ScanFields,
 		(*{{ .Model.Name }}Select).hasAnyRelation,
-		idCol,
-		skipDuplicates,
+		pkCols,
+		conflictTarget,
+		conflictAction,
 	)
 	if err != nil {
 		return nil, err
@@ -387,4 +470,59 @@ func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Contex
 		}
 	}
 	return results, nil
+}
+
+type {{ .Model.Name }}ConflictBuilder[B any] struct {
+	builder        *B
+	setAction      func(ConflictAction, UniqueConstraintTarget)
+	conflictTarget UniqueConstraintTarget
+}
+
+func (cb *{{ .Model.Name }}ConflictBuilder[B]) Ignore() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionIgnore}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *{{ .Model.Name }}ConflictBuilder[B]) UpdateNewValues() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionUpdateNewValues}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *{{ .Model.Name }}ConflictBuilder[B]) Update(fn func(u *{{ .Model.Name }}Upsert)) *B {
+	var up ConflictUpdate
+	u := new{{ .Model.Name }}Upsert(&up)
+	fn(u)
+	cb.setAction(ConflictAction{
+		Type:        ConflictActionUpdateCustom,
+		Assignments: up.assignments,
+		Args:        up.args,
+	}, cb.conflictTarget)
+	return cb.builder
+}
+
+type {{ .Model.Name }}Upsert struct {
+{{- range $field := .Model.ScalarFields }}
+{{- $col := $field.EffectiveColName }}
+{{- if or (eq $field.Type "Int") (eq $field.Type "BigInt") (eq $field.Type "Float") (eq $field.Type "Decimal") }}
+	{{ capitalize $field.Name }} numericFieldUpsert[{{ $field.GoType }}]
+{{- else }}
+	{{ capitalize $field.Name }} fieldUpsert[{{ $field.GoType }}]
+{{- end }}
+{{- end }}
+}
+
+func new{{ .Model.Name }}Upsert(up *ConflictUpdate) *{{ .Model.Name }}Upsert {
+	return &{{ .Model.Name }}Upsert{
+{{- range $field := .Model.ScalarFields }}
+{{- $col := $field.EffectiveColName }}
+{{- if or (eq $field.Type "Int") (eq $field.Type "BigInt") (eq $field.Type "Float") (eq $field.Type "Decimal") }}
+		{{ capitalize $field.Name }}: numericFieldUpsert[{{ $field.GoType }}]{
+			fieldUpsert: fieldUpsert[{{ $field.GoType }}]{column: "{{ $col }}", update: up},
+			tableName:   "{{ $.Model.EffectiveTableName }}",
+		},
+{{- else }}
+		{{ capitalize $field.Name }}: fieldUpsert[{{ $field.GoType }}]{column: "{{ $col }}", update: up},
+{{- end }}
+{{- end }}
+	}
 }

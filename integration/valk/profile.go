@@ -187,6 +187,17 @@ type ProfileCreateBuilder struct {
 	*CreateBuilder[Profile, ProfileSelect, ProfileOmit]
 }
 
+func (b *ProfileCreateBuilder) OnConflict(target UniqueConstraintTarget) *ProfileConflictBuilder[ProfileCreateBuilder] {
+	return &ProfileConflictBuilder[ProfileCreateBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
 func (b *ProfileCreateBuilder) SetId(v string) *ProfileCreateBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
 	return b
@@ -299,7 +310,7 @@ func (s *ProfileCreate) ToRowMap() map[string]any {
 	return m
 }
 
-func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*Profile, error) {
 	input := assignmentsToProfileCreate(assignments)
 
 	if q.Profile.beforeCreate != nil {
@@ -321,7 +332,9 @@ func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldA
 		return res.ScanFields(cols)
 	}
 
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 
 	hasRelations := selects.hasAnyRelation()
 
@@ -330,14 +343,14 @@ func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldA
 	if hasRelations {
 		err = q.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = executeInsert(ctx, txQ, "Profile", cols, vals, returningCols, idCol, scanFunc)
+			res, err = executeInsert(ctx, txQ, "Profile", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 			if err != nil {
 				return err
 			}
 			return txQ.loadProfileRelations(ctx, []*Profile{res}, selects)
 		})
 	} else {
-		res, err = executeInsert(ctx, q, "Profile", cols, vals, returningCols, idCol, scanFunc)
+		res, err = executeInsert(ctx, q, "Profile", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 	}
 	if err != nil {
 		return nil, err
@@ -352,31 +365,65 @@ func (q *Queries) executeProfileCreate(ctx context.Context, assignments []FieldA
 	return res, nil
 }
 
-func (d *ProfileDelegate) CreateMany(builders ...*ProfileCreateBuilder) *CreateManyBuilder[Profile] {
+type ProfileCreateManyBuilder struct {
+	*CreateManyBuilder[Profile]
+}
+
+func (b *ProfileCreateManyBuilder) OnConflict(target UniqueConstraintTarget) *ProfileConflictBuilder[ProfileCreateManyBuilder] {
+	return &ProfileConflictBuilder[ProfileCreateManyBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+type ProfileCreateManyAndReturnBuilder struct {
+	*CreateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit]
+}
+
+func (b *ProfileCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *ProfileConflictBuilder[ProfileCreateManyAndReturnBuilder] {
+	return &ProfileConflictBuilder[ProfileCreateManyAndReturnBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+func (d *ProfileDelegate) CreateMany(builders ...*ProfileCreateBuilder) *ProfileCreateManyBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyBuilder[Profile]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeProfileCreateMany,
+	return &ProfileCreateManyBuilder{
+		CreateManyBuilder: &CreateManyBuilder[Profile]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeProfileCreateMany,
+		},
 	}
 }
 
-func (d *ProfileDelegate) CreateManyAndReturn(builders ...*ProfileCreateBuilder) *CreateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit] {
+func (d *ProfileDelegate) CreateManyAndReturn(builders ...*ProfileCreateBuilder) *ProfileCreateManyAndReturnBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeProfileCreateManyAndReturn,
+	return &ProfileCreateManyAndReturnBuilder{
+		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeProfileCreateManyAndReturn,
+		},
 	}
 }
 
-func (q *Queries) executeProfileCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
+func (q *Queries) executeProfileCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]ProfileCreate, len(records))
 	for i, rec := range records {
@@ -392,7 +439,10 @@ func (q *Queries) executeProfileCreateMany(ctx context.Context, records []Record
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "Profile", ProfileColOrder, skipDuplicates)
+	pkCols := []string{
+		"id",
+	}
+	count, err := executeCreateMany(ctx, q, rowMaps, "Profile", ProfileColOrder, pkCols, conflictTarget, conflictAction)
 	if err != nil {
 		return 0, err
 	}
@@ -404,9 +454,11 @@ func (q *Queries) executeProfileCreateMany(ctx context.Context, records []Record
 	return count, nil
 }
 
-func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *ProfileSelect, omits *ProfileOmit, skipDuplicates bool) ([]*Profile, error) {
+func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *ProfileSelect, omits *ProfileOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Profile, error) {
 	rowMaps := make([]map[string]any, len(records))
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 	for i, rec := range records {
 		if err := validateProfileCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -424,8 +476,9 @@ func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records
 		q.loadProfileRelations,
 		(*Profile).ScanFields,
 		(*ProfileSelect).hasAnyRelation,
-		idCol,
-		skipDuplicates,
+		pkCols,
+		conflictTarget,
+		conflictAction,
 	)
 	if err != nil {
 		return nil, err
@@ -436,6 +489,50 @@ func (q *Queries) executeProfileCreateManyAndReturn(ctx context.Context, records
 		}
 	}
 	return results, nil
+}
+
+type ProfileConflictBuilder[B any] struct {
+	builder        *B
+	setAction      func(ConflictAction, UniqueConstraintTarget)
+	conflictTarget UniqueConstraintTarget
+}
+
+func (cb *ProfileConflictBuilder[B]) Ignore() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionIgnore}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *ProfileConflictBuilder[B]) UpdateNewValues() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionUpdateNewValues}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *ProfileConflictBuilder[B]) Update(fn func(u *ProfileUpsert)) *B {
+	var up ConflictUpdate
+	u := newProfileUpsert(&up)
+	fn(u)
+	cb.setAction(ConflictAction{
+		Type:        ConflictActionUpdateCustom,
+		Assignments: up.assignments,
+		Args:        up.args,
+	}, cb.conflictTarget)
+	return cb.builder
+}
+
+type ProfileUpsert struct {
+	Id        fieldUpsert[string]
+	Bio       fieldUpsert[*string]
+	UserId    fieldUpsert[string]
+	CreatedAt fieldUpsert[time.Time]
+}
+
+func newProfileUpsert(up *ConflictUpdate) *ProfileUpsert {
+	return &ProfileUpsert{
+		Id:        fieldUpsert[string]{column: "id", update: up},
+		Bio:       fieldUpsert[*string]{column: "bio", update: up},
+		UserId:    fieldUpsert[string]{column: "userId", update: up},
+		CreatedAt: fieldUpsert[time.Time]{column: "createdAt", update: up},
+	}
 }
 func (d *ProfileDelegate) FindUnique(where UniquePredicate[Profile], additional ...PredicateOf[Profile]) *FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit] {
 	return &FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit]{
