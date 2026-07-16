@@ -64,35 +64,35 @@ func main() {
 	ctx := context.Background()
 
 	runMigrations(db, ctx)
-	_, err = db.User.Create().SetEmail("c@y.com").SetPhoneNum("+1111").SetId("1234").Exec(ctx)
-	foundUser, err := db.User.FindUnique(
-		user.EmailPhoneUnique("c@y.com", "+1111"),
-		user.And(
-			user.PhoneNum.Contains("1111"),
-			user.Id.Contains("234"),
-		),
-	).Select(user.Select{
-		Id:    true,
-		Email: true,
+	// _, err = db.User.Create().SetEmail("c@y.com").SetPhoneNum("+1111").SetId("1234").Exec(ctx)
+	// foundUser, err := db.User.FindUnique(
+	// 	user.EmailPhoneUnique("c@y.com", "+1111"),
+	// 	user.And(
+	// 		user.PhoneNum.Contains("1111"),
+	// 		user.Id.Contains("234"),
+	// 	),
+	// ).Select(user.Select{
+	// 	Id:    true,
+	// 	Email: true,
 
-		Profile: &profile.Select{
-			Id:  true,
-			Bio: true,
-		},
+	// 	Profile: &profile.Select{
+	// 		Id:  true,
+	// 		Bio: true,
+	// 	},
 
-		Posts: post.Query().
-			Where(post.AuthorId.Contains("234")).
-			Select(post.Select{
-				Id:    true,
-				Title: true,
-			}),
-	}).
-		Exec(ctx)
+	// 	Posts: post.Query().
+	// 		Where(post.AuthorId.Contains("234")).
+	// 		Select(post.Select{
+	// 			Id:    true,
+	// 			Title: true,
+	// 		}),
+	// }).
+	// 	Exec(ctx)
 
-	if err != nil {
-		log.Fatal(err)
-	}
-	printJSON(foundUser)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// printJSON(foundUser)
 
 	// _, err = db.Post.FindMany(post.Id.Contains("xx")).Select(post.Select{}).Exec(ctx)
 	// if err != nil {
@@ -117,24 +117,40 @@ func main() {
 	// }
 	// printJSON(bulkUsers)
 
-	var builders []*user.CreateBuilder
-	for i := range 20 {
-		builder := db.User.Create().
-			SetEmail("user@gmail.com").
-			SetPassword(fmt.Sprintf("pass%d", i)).
-			SetPhoneNum(fmt.Sprintf("+1111%d", i))
-		if i%2 == 0 {
-			builder.SetRole(valk.UserRole.Admin)
-		}
+	// var builders []*user.CreateBuilder
+	// for i := range 20 {
+	// 	builder := db.User.Create().
+	// 		SetEmail(fmt.Sprintf("user%d@gmail.com", i)).
+	// 		SetPassword(fmt.Sprintf("pass%d", i)).
+	// 		SetPhoneNum(fmt.Sprintf("+1111%d", i))
+	// 	if i%2 == 0 {
+	// 		builder.SetRole(valk.UserRole.Admin)
 
-		builders = append(builders, builder)
-	}
-	count, err := db.User.CreateMany(builders...).SkipDuplicates().Exec(ctx)
+	// 	}
+
+	// 	builders = append(builders, builder)
+	// }
+	// count, err := db.User.CreateMany(builders...).
+	// 	OnConflict(user.Email).Update(func(u *valk.UserUpsert) {
+	// 	u.Role.Set(string(valk.UserRole.Admin))
+	// }).SkipDuplicates().
+	// 	Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to seed users: %v", err)
+	// }
+
+	// printJSON(count)
+
+	user1, err := db.User.Create().SetEmail("a").SetPhoneNum("11").Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to seed users: %v", err)
 	}
-
-	printJSON(count)
+	user2, err := db.User.Create().SetEmail("a").SetPhoneNum("11").OnConflict(user.EmailPhone).Ignore().Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to seed users: %v", err)
+	}
+	printJSON(user1)
+	printJSON(user2)
 
 }
 

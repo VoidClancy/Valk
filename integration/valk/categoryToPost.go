@@ -170,6 +170,17 @@ type CategoryToPostCreateBuilder struct {
 	*CreateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]
 }
 
+func (b *CategoryToPostCreateBuilder) OnConflict(target UniqueConstraintTarget) *CategoryToPostConflictBuilder[CategoryToPostCreateBuilder] {
+	return &CategoryToPostConflictBuilder[CategoryToPostCreateBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
 func (b *CategoryToPostCreateBuilder) SetPostId(v string) *CategoryToPostCreateBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "postId", Val: v})
 	return b
@@ -247,7 +258,7 @@ func (s *CategoryToPostCreate) ToRowMap() map[string]any {
 	return m
 }
 
-func (q *Queries) executeCategoryToPostCreate(ctx context.Context, assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+func (q *Queries) executeCategoryToPostCreate(ctx context.Context, assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*CategoryToPost, error) {
 	input := assignmentsToCategoryToPostCreate(assignments)
 
 	if q.CategoryToPost.beforeCreate != nil {
@@ -269,7 +280,10 @@ func (q *Queries) executeCategoryToPostCreate(ctx context.Context, assignments [
 		return res.ScanFields(cols)
 	}
 
-	idCol := ""
+	pkCols := []string{
+		"postId",
+		"categoryId",
+	}
 
 	hasRelations := selects.hasAnyRelation()
 
@@ -278,14 +292,14 @@ func (q *Queries) executeCategoryToPostCreate(ctx context.Context, assignments [
 	if hasRelations {
 		err = q.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = executeInsert(ctx, txQ, "CategoryToPost", cols, vals, returningCols, idCol, scanFunc)
+			res, err = executeInsert(ctx, txQ, "CategoryToPost", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 			if err != nil {
 				return err
 			}
 			return txQ.loadCategoryToPostRelations(ctx, []*CategoryToPost{res}, selects)
 		})
 	} else {
-		res, err = executeInsert(ctx, q, "CategoryToPost", cols, vals, returningCols, idCol, scanFunc)
+		res, err = executeInsert(ctx, q, "CategoryToPost", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 	}
 	if err != nil {
 		return nil, err
@@ -300,31 +314,65 @@ func (q *Queries) executeCategoryToPostCreate(ctx context.Context, assignments [
 	return res, nil
 }
 
-func (d *CategoryToPostDelegate) CreateMany(builders ...*CategoryToPostCreateBuilder) *CreateManyBuilder[CategoryToPost] {
+type CategoryToPostCreateManyBuilder struct {
+	*CreateManyBuilder[CategoryToPost]
+}
+
+func (b *CategoryToPostCreateManyBuilder) OnConflict(target UniqueConstraintTarget) *CategoryToPostConflictBuilder[CategoryToPostCreateManyBuilder] {
+	return &CategoryToPostConflictBuilder[CategoryToPostCreateManyBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+type CategoryToPostCreateManyAndReturnBuilder struct {
+	*CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]
+}
+
+func (b *CategoryToPostCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *CategoryToPostConflictBuilder[CategoryToPostCreateManyAndReturnBuilder] {
+	return &CategoryToPostConflictBuilder[CategoryToPostCreateManyAndReturnBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+func (d *CategoryToPostDelegate) CreateMany(builders ...*CategoryToPostCreateBuilder) *CategoryToPostCreateManyBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyBuilder[CategoryToPost]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeCategoryToPostCreateMany,
+	return &CategoryToPostCreateManyBuilder{
+		CreateManyBuilder: &CreateManyBuilder[CategoryToPost]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeCategoryToPostCreateMany,
+		},
 	}
 }
 
-func (d *CategoryToPostDelegate) CreateManyAndReturn(builders ...*CategoryToPostCreateBuilder) *CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+func (d *CategoryToPostDelegate) CreateManyAndReturn(builders ...*CategoryToPostCreateBuilder) *CategoryToPostCreateManyAndReturnBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeCategoryToPostCreateManyAndReturn,
+	return &CategoryToPostCreateManyAndReturnBuilder{
+		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeCategoryToPostCreateManyAndReturn,
+		},
 	}
 }
 
-func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
+func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]CategoryToPostCreate, len(records))
 	for i, rec := range records {
@@ -340,7 +388,11 @@ func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records [
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "CategoryToPost", CategoryToPostColOrder, skipDuplicates)
+	pkCols := []string{
+		"postId",
+		"categoryId",
+	}
+	count, err := executeCreateMany(ctx, q, rowMaps, "CategoryToPost", CategoryToPostColOrder, pkCols, conflictTarget, conflictAction)
 	if err != nil {
 		return 0, err
 	}
@@ -352,9 +404,12 @@ func (q *Queries) executeCategoryToPostCreateMany(ctx context.Context, records [
 	return count, nil
 }
 
-func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit, skipDuplicates bool) ([]*CategoryToPost, error) {
+func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategoryToPostSelect, omits *CategoryToPostOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*CategoryToPost, error) {
 	rowMaps := make([]map[string]any, len(records))
-	idCol := ""
+	pkCols := []string{
+		"postId",
+		"categoryId",
+	}
 	for i, rec := range records {
 		if err := validateCategoryToPostCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -372,8 +427,9 @@ func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, 
 		q.loadCategoryToPostRelations,
 		(*CategoryToPost).ScanFields,
 		(*CategoryToPostSelect).hasAnyRelation,
-		idCol,
-		skipDuplicates,
+		pkCols,
+		conflictTarget,
+		conflictAction,
 	)
 	if err != nil {
 		return nil, err
@@ -384,6 +440,49 @@ func (q *Queries) executeCategoryToPostCreateManyAndReturn(ctx context.Context, 
 		}
 	}
 	return results, nil
+}
+
+type CategoryToPostConflictBuilder[B any] struct {
+	builder        *B
+	setAction      func(ConflictAction, UniqueConstraintTarget)
+	conflictTarget UniqueConstraintTarget
+}
+
+func (cb *CategoryToPostConflictBuilder[B]) Ignore() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionIgnore}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *CategoryToPostConflictBuilder[B]) UpdateNewValues() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionUpdateNewValues}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *CategoryToPostConflictBuilder[B]) Update(fn func(u *CategoryToPostUpsert)) *B {
+	var up ConflictUpdate
+	u := newCategoryToPostUpsert(&up)
+	fn(u)
+	cb.setAction(ConflictAction{
+		Type:        ConflictActionUpdateCustom,
+		Assignments: up.assignments,
+		Args:        up.args,
+	}, cb.conflictTarget)
+	return cb.builder
+}
+
+type CategoryToPostUpsert struct {
+	PostId     fieldUpsert[string]
+	CategoryId numericFieldUpsert[int32]
+}
+
+func newCategoryToPostUpsert(up *ConflictUpdate) *CategoryToPostUpsert {
+	return &CategoryToPostUpsert{
+		PostId: fieldUpsert[string]{column: "postId", update: up},
+		CategoryId: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "categoryId", update: up},
+			tableName:   "CategoryToPost",
+		},
+	}
 }
 func (d *CategoryToPostDelegate) FindUnique(where UniquePredicate[CategoryToPost], additional ...PredicateOf[CategoryToPost]) *FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
 	return &FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{

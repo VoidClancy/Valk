@@ -14,6 +14,7 @@ type User struct {
 	Password     *string       `db:"password" json:"password,omitempty"`
 	Role         UserRoleType  `db:"role" json:"role"`
 	RoleOptional *UserRoleType `db:"roleOptional" json:"roleOptional,omitempty"`
+	LoginCount   int32         `db:"loginCount" json:"loginCount"`
 	ReferredById *string       `db:"referredById" json:"referredById,omitempty"`
 	Profile      *Profile      `json:"profile,omitempty"`
 	Posts        []*Post       `json:"posts,omitempty"`
@@ -30,6 +31,7 @@ type UserCreate struct {
 	Password     *string       `json:"password"`
 	Role         *UserRoleType `json:"role"`
 	RoleOptional *UserRoleType `json:"roleOptional"`
+	LoginCount   *int32        `json:"loginCount"`
 	ReferredById *string       `json:"referredById"`
 }
 
@@ -41,6 +43,7 @@ type UserSelect struct {
 	Password     bool               `json:"password"`
 	Role         bool               `json:"role"`
 	RoleOptional bool               `json:"roleOptional"`
+	LoginCount   bool               `json:"loginCount"`
 	ReferredById bool               `json:"referredById"`
 	Profile      ProfileSelectQuery `json:"profile,omitempty"`
 	Posts        PostSelectQuery    `json:"posts,omitempty"`
@@ -57,6 +60,7 @@ type UserOmit struct {
 	Password     bool `json:"password"`
 	Role         bool `json:"role"`
 	RoleOptional bool `json:"roleOptional"`
+	LoginCount   bool `json:"loginCount"`
 	ReferredById bool `json:"referredById"`
 }
 
@@ -155,6 +159,8 @@ func (m *User) ScanFields(cols []string) []any {
 			targets[i] = &m.Role
 		case "roleOptional":
 			targets[i] = &m.RoleOptional
+		case "loginCount":
+			targets[i] = &m.LoginCount
 		case "referredById":
 			targets[i] = &m.ReferredById
 		}
@@ -169,6 +175,7 @@ var userDefaultCols = []string{
 	"password",
 	"role",
 	"roleOptional",
+	"loginCount",
 	"referredById",
 }
 
@@ -177,7 +184,7 @@ func (q *Queries) selectUserCols(selects *UserSelect, omits *UserOmit, forceCols
 		return userDefaultCols
 	}
 
-	anySelected := selects != nil && (selects.Id || selects.Email || selects.PhoneNum || selects.Password || selects.Role || selects.RoleOptional || selects.ReferredById || selects.Profile != nil || selects.Posts != nil || selects.Comments != nil || selects.ReferredBy != nil || selects.Referrals != nil)
+	anySelected := selects != nil && (selects.Id || selects.Email || selects.PhoneNum || selects.Password || selects.Role || selects.RoleOptional || selects.LoginCount || selects.ReferredById || selects.Profile != nil || selects.Posts != nil || selects.Comments != nil || selects.ReferredBy != nil || selects.Referrals != nil)
 
 	specs := []colSpec{
 		{"id", selects != nil && selects.Id, omits != nil && omits.Id, selects != nil && selects.hasAnyRelation()},
@@ -186,6 +193,7 @@ func (q *Queries) selectUserCols(selects *UserSelect, omits *UserOmit, forceCols
 		{"password", selects != nil && selects.Password, omits != nil && omits.Password, false},
 		{"role", selects != nil && selects.Role, omits != nil && omits.Role, false},
 		{"roleOptional", selects != nil && selects.RoleOptional, omits != nil && omits.RoleOptional, false},
+		{"loginCount", selects != nil && selects.LoginCount, omits != nil && omits.LoginCount, false},
 		{"referredById", selects != nil && selects.ReferredById, omits != nil && omits.ReferredById, selects != nil && selects.ReferredBy != nil},
 	}
 
@@ -207,6 +215,7 @@ var UserColOrder = []string{
 	"password",
 	"role",
 	"roleOptional",
+	"loginCount",
 	"referredById",
 }
 
@@ -219,6 +228,17 @@ func (s *UserSelect) hasAnyRelation() bool {
 
 type UserCreateBuilder struct {
 	*CreateBuilder[User, UserSelect, UserOmit]
+}
+
+func (b *UserCreateBuilder) OnConflict(target UniqueConstraintTarget) *UserConflictBuilder[UserCreateBuilder] {
+	return &UserConflictBuilder[UserCreateBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
 }
 
 func (b *UserCreateBuilder) SetId(v string) *UserCreateBuilder {
@@ -243,6 +263,10 @@ func (b *UserCreateBuilder) SetRole(v UserRoleType) *UserCreateBuilder {
 }
 func (b *UserCreateBuilder) SetRoleOptional(v UserRoleType) *UserCreateBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "roleOptional", Val: v})
+	return b
+}
+func (b *UserCreateBuilder) SetLoginCount(v int32) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "loginCount", Val: v})
 	return b
 }
 func (b *UserCreateBuilder) SetReferredById(v string) *UserCreateBuilder {
@@ -307,6 +331,12 @@ func validateUserCreate(assignments []FieldAssignment) error {
 			} else {
 				errs.Add("roleOptional", a.Val, "type", "field roleOptional must be of type UserRoleType")
 			}
+		case "loginCount":
+			if v, ok := a.Val.(int32); ok {
+				ValidateInt32(errs, "loginCount", v, "")
+			} else {
+				errs.Add("loginCount", a.Val, "type", "field loginCount must be of type int32")
+			}
 		case "referredById":
 			if v, ok := a.Val.(string); ok {
 				ValidateString(errs, "referredById", v, false, 0, false, false)
@@ -356,6 +386,10 @@ func assignmentsToUserCreate(assignments []FieldAssignment) UserCreate {
 			if v, ok := a.Val.(UserRoleType); ok {
 				input.RoleOptional = &v
 			}
+		case "loginCount":
+			if v, ok := a.Val.(int32); ok {
+				input.LoginCount = &v
+			}
 		case "referredById":
 			if v, ok := a.Val.(string); ok {
 				input.ReferredById = &v
@@ -366,7 +400,7 @@ func assignmentsToUserCreate(assignments []FieldAssignment) UserCreate {
 }
 
 func (s *UserCreate) ToRowMap() map[string]any {
-	m := make(map[string]any, 7)
+	m := make(map[string]any, 8)
 	if s.Id != nil {
 		m["id"] = *s.Id
 	} else {
@@ -385,13 +419,18 @@ func (s *UserCreate) ToRowMap() map[string]any {
 	if s.RoleOptional != nil {
 		m["roleOptional"] = *s.RoleOptional
 	}
+	if s.LoginCount != nil {
+		m["loginCount"] = *s.LoginCount
+	} else {
+		m["loginCount"] = rawDefault{}
+	}
 	if s.ReferredById != nil {
 		m["referredById"] = *s.ReferredById
 	}
 	return m
 }
 
-func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error) {
+func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssignment, selects *UserSelect, omits *UserOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*User, error) {
 	input := assignmentsToUserCreate(assignments)
 
 	if q.User.beforeCreate != nil {
@@ -413,7 +452,9 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 		return res.ScanFields(cols)
 	}
 
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 
 	hasRelations := selects.hasAnyRelation()
 
@@ -422,14 +463,14 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 	if hasRelations {
 		err = q.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = executeInsert(ctx, txQ, "User", cols, vals, returningCols, idCol, scanFunc)
+			res, err = executeInsert(ctx, txQ, "User", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 			if err != nil {
 				return err
 			}
 			return txQ.loadUserRelations(ctx, []*User{res}, selects)
 		})
 	} else {
-		res, err = executeInsert(ctx, q, "User", cols, vals, returningCols, idCol, scanFunc)
+		res, err = executeInsert(ctx, q, "User", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 	}
 	if err != nil {
 		return nil, err
@@ -444,31 +485,65 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 	return res, nil
 }
 
-func (d *UserDelegate) CreateMany(builders ...*UserCreateBuilder) *CreateManyBuilder[User] {
+type UserCreateManyBuilder struct {
+	*CreateManyBuilder[User]
+}
+
+func (b *UserCreateManyBuilder) OnConflict(target UniqueConstraintTarget) *UserConflictBuilder[UserCreateManyBuilder] {
+	return &UserConflictBuilder[UserCreateManyBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+type UserCreateManyAndReturnBuilder struct {
+	*CreateManyAndReturnBuilder[User, UserSelect, UserOmit]
+}
+
+func (b *UserCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *UserConflictBuilder[UserCreateManyAndReturnBuilder] {
+	return &UserConflictBuilder[UserCreateManyAndReturnBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+func (d *UserDelegate) CreateMany(builders ...*UserCreateBuilder) *UserCreateManyBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyBuilder[User]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeUserCreateMany,
+	return &UserCreateManyBuilder{
+		CreateManyBuilder: &CreateManyBuilder[User]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeUserCreateMany,
+		},
 	}
 }
 
-func (d *UserDelegate) CreateManyAndReturn(builders ...*UserCreateBuilder) *CreateManyAndReturnBuilder[User, UserSelect, UserOmit] {
+func (d *UserDelegate) CreateManyAndReturn(builders ...*UserCreateBuilder) *UserCreateManyAndReturnBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyAndReturnBuilder[User, UserSelect, UserOmit]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeUserCreateManyAndReturn,
+	return &UserCreateManyAndReturnBuilder{
+		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[User, UserSelect, UserOmit]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeUserCreateManyAndReturn,
+		},
 	}
 }
 
-func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
+func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]UserCreate, len(records))
 	for i, rec := range records {
@@ -484,7 +559,10 @@ func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInp
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "User", UserColOrder, skipDuplicates)
+	pkCols := []string{
+		"id",
+	}
+	count, err := executeCreateMany(ctx, q, rowMaps, "User", UserColOrder, pkCols, conflictTarget, conflictAction)
 	if err != nil {
 		return 0, err
 	}
@@ -496,9 +574,11 @@ func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInp
 	return count, nil
 }
 
-func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit, skipDuplicates bool) ([]*User, error) {
+func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*User, error) {
 	rowMaps := make([]map[string]any, len(records))
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 	for i, rec := range records {
 		if err := validateUserCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -516,8 +596,9 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []
 		q.loadUserRelations,
 		(*User).ScanFields,
 		(*UserSelect).hasAnyRelation,
-		idCol,
-		skipDuplicates,
+		pkCols,
+		conflictTarget,
+		conflictAction,
 	)
 	if err != nil {
 		return nil, err
@@ -528,6 +609,61 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []
 		}
 	}
 	return results, nil
+}
+
+type UserConflictBuilder[B any] struct {
+	builder        *B
+	setAction      func(ConflictAction, UniqueConstraintTarget)
+	conflictTarget UniqueConstraintTarget
+}
+
+func (cb *UserConflictBuilder[B]) Ignore() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionIgnore}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *UserConflictBuilder[B]) UpdateNewValues() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionUpdateNewValues}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *UserConflictBuilder[B]) Update(fn func(u *UserUpsert)) *B {
+	var up ConflictUpdate
+	u := newUserUpsert(&up)
+	fn(u)
+	cb.setAction(ConflictAction{
+		Type:        ConflictActionUpdateCustom,
+		Assignments: up.assignments,
+		Args:        up.args,
+	}, cb.conflictTarget)
+	return cb.builder
+}
+
+type UserUpsert struct {
+	Id           fieldUpsert[string]
+	Email        fieldUpsert[string]
+	PhoneNum     fieldUpsert[string]
+	Password     fieldUpsert[*string]
+	Role         fieldUpsert[string]
+	RoleOptional fieldUpsert[*string]
+	LoginCount   numericFieldUpsert[int32]
+	ReferredById fieldUpsert[*string]
+}
+
+func newUserUpsert(up *ConflictUpdate) *UserUpsert {
+	return &UserUpsert{
+		Id:           fieldUpsert[string]{column: "id", update: up},
+		Email:        fieldUpsert[string]{column: "email", update: up},
+		PhoneNum:     fieldUpsert[string]{column: "phoneNum", update: up},
+		Password:     fieldUpsert[*string]{column: "password", update: up},
+		Role:         fieldUpsert[string]{column: "role", update: up},
+		RoleOptional: fieldUpsert[*string]{column: "roleOptional", update: up},
+		LoginCount: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "loginCount", update: up},
+			tableName:   "User",
+		},
+		ReferredById: fieldUpsert[*string]{column: "referredById", update: up},
+	}
 }
 func (d *UserDelegate) FindUnique(where UniquePredicate[User], additional ...PredicateOf[User]) *FindUniqueBuilder[User, UserSelect, UserOmit] {
 	return &FindUniqueBuilder[User, UserSelect, UserOmit]{

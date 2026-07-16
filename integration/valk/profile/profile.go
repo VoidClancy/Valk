@@ -9,6 +9,8 @@ type Select = valk.ProfileSelect
 type Omit = valk.ProfileOmit
 type QueryBuilder = valk.ProfileQueryBuilder
 type CreateBuilder = valk.ProfileCreateBuilder
+type Upsert = valk.ProfileUpsert
+type ConflictBuilder[B any] = valk.ProfileConflictBuilder[B]
 
 func Query() *QueryBuilder {
 	return &QueryBuilder{}

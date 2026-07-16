@@ -14,6 +14,8 @@ type Select = {{ .ParentPackageName }}.{{ .Model.Name }}Select
 type Omit = {{ .ParentPackageName }}.{{ .Model.Name }}Omit
 type QueryBuilder = {{ .ParentPackageName }}.{{ .Model.Name }}QueryBuilder
 type CreateBuilder = {{ .ParentPackageName }}.{{ .Model.Name }}CreateBuilder
+type Upsert = {{ .ParentPackageName }}.{{ .Model.Name }}Upsert
+type ConflictBuilder[B any] = {{ .ParentPackageName }}.{{ .Model.Name }}ConflictBuilder[B]
 
 func Query() *QueryBuilder {
 	return &QueryBuilder{}
@@ -65,6 +67,15 @@ var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.Field[{{ $.ParentPa
 		{{- end }}
 	{{- end }}
 {{- end }}
+var {{ capitalize $constraintName }} = {{ $.ParentPackageName }}.CompositeUniqueConstraint[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
+	Name:    "{{ $constraintName }}",
+	Columns: []string{
+		{{- range $fName := $index.Fields }}
+		"{{ ($.Model.GetField $fName).EffectiveColName }}",
+		{{- end }}
+	},
+}
+
 // Helper for compound unique constraint: {{ $constraintName }}
 func {{ capitalize $constraintName }}Unique(
 	{{- range $i, $fName := $index.Fields -}}
@@ -74,7 +85,7 @@ func {{ capitalize $constraintName }}Unique(
 	{{- end -}}
 ) {{ $.ParentPackageName }}.UniquePredicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}] {
 	return {{ $.ParentPackageName }}.UniquePredicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
-		Data: {{ $.ParentPackageName }}.And[{{ $.ParentPackageName }}.{{ $.Model.Name }}](
+		Data: {{ $.ParentPackageName }}.And(
 			{{- range $fName := $index.Fields }}
 			{{- $field := $.Model.GetField $fName }}
 			{{ $.ParentPackageName }}.Predicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
@@ -89,3 +100,43 @@ func {{ capitalize $constraintName }}Unique(
 	}
 }
 {{- end }}
+
+{{- if .Model.CompositePK }}
+{{- $pkVarName := "" }}
+{{- range $f := .Model.CompositePK }}
+	{{- $pkVarName = printf "%s%s" $pkVarName (capitalize $f) }}
+{{- end }}
+var {{ $pkVarName }} = {{ $.ParentPackageName }}.CompositeUniqueConstraint[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
+	Name:    "{{ $pkVarName }}",
+	Columns: []string{
+		{{- range $fName := .Model.CompositePK }}
+		"{{ ($.Model.GetField $fName).EffectiveColName }}",
+		{{- end }}
+	},
+}
+
+// Helper for compound primary key: {{ $pkVarName }}
+func {{ $pkVarName }}Unique(
+	{{- range $i, $fName := .Model.CompositePK -}}
+		{{- $field := $.Model.GetField $fName -}}
+		{{- if $i }}, {{ end -}}
+		{{- lowercase $field.Name }} {{ fieldPredType $field $.ParentPackageName -}}
+	{{- end -}}
+) {{ $.ParentPackageName }}.UniquePredicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}] {
+	return {{ $.ParentPackageName }}.UniquePredicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
+		Data: {{ $.ParentPackageName }}.And(
+			{{- range $fName := .Model.CompositePK }}
+			{{- $field := $.Model.GetField $fName }}
+			{{ $.ParentPackageName }}.Predicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
+				Data: {{ $.ParentPackageName }}.PredicateData{
+					Column:   "{{ $field.EffectiveColName }}",
+					Operator: "=",
+					Value:    {{ lowercase $field.Name }},
+				},
+			},
+			{{- end }}
+		).ToPredicateData(),
+	}
+}
+{{- end }}
+

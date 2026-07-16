@@ -636,6 +636,17 @@ type AllFieldsSoFarCreateBuilder struct {
 	*CreateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]
 }
 
+func (b *AllFieldsSoFarCreateBuilder) OnConflict(target UniqueConstraintTarget) *AllFieldsSoFarConflictBuilder[AllFieldsSoFarCreateBuilder] {
+	return &AllFieldsSoFarConflictBuilder[AllFieldsSoFarCreateBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
 func (b *AllFieldsSoFarCreateBuilder) SetId(v int32) *AllFieldsSoFarCreateBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
 	return b
@@ -1609,7 +1620,7 @@ func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
 	return m
 }
 
-func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*AllFieldsSoFar, error) {
 	input := assignmentsToAllFieldsSoFarCreate(assignments)
 
 	if q.AllFieldsSoFar.beforeCreate != nil {
@@ -1631,7 +1642,9 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 		return res.ScanFields(cols)
 	}
 
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 
 	hasRelations := selects.hasAnyRelation()
 
@@ -1640,14 +1653,14 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 	if hasRelations {
 		err = q.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = executeInsert(ctx, txQ, "AllFieldsSoFar", cols, vals, returningCols, idCol, scanFunc)
+			res, err = executeInsert(ctx, txQ, "AllFieldsSoFar", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 			if err != nil {
 				return err
 			}
 			return txQ.loadAllFieldsSoFarRelations(ctx, []*AllFieldsSoFar{res}, selects)
 		})
 	} else {
-		res, err = executeInsert(ctx, q, "AllFieldsSoFar", cols, vals, returningCols, idCol, scanFunc)
+		res, err = executeInsert(ctx, q, "AllFieldsSoFar", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 	}
 	if err != nil {
 		return nil, err
@@ -1662,31 +1675,65 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 	return res, nil
 }
 
-func (d *AllFieldsSoFarDelegate) CreateMany(builders ...*AllFieldsSoFarCreateBuilder) *CreateManyBuilder[AllFieldsSoFar] {
+type AllFieldsSoFarCreateManyBuilder struct {
+	*CreateManyBuilder[AllFieldsSoFar]
+}
+
+func (b *AllFieldsSoFarCreateManyBuilder) OnConflict(target UniqueConstraintTarget) *AllFieldsSoFarConflictBuilder[AllFieldsSoFarCreateManyBuilder] {
+	return &AllFieldsSoFarConflictBuilder[AllFieldsSoFarCreateManyBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+type AllFieldsSoFarCreateManyAndReturnBuilder struct {
+	*CreateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]
+}
+
+func (b *AllFieldsSoFarCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *AllFieldsSoFarConflictBuilder[AllFieldsSoFarCreateManyAndReturnBuilder] {
+	return &AllFieldsSoFarConflictBuilder[AllFieldsSoFarCreateManyAndReturnBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+func (d *AllFieldsSoFarDelegate) CreateMany(builders ...*AllFieldsSoFarCreateBuilder) *AllFieldsSoFarCreateManyBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyBuilder[AllFieldsSoFar]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeAllFieldsSoFarCreateMany,
+	return &AllFieldsSoFarCreateManyBuilder{
+		CreateManyBuilder: &CreateManyBuilder[AllFieldsSoFar]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeAllFieldsSoFarCreateMany,
+		},
 	}
 }
 
-func (d *AllFieldsSoFarDelegate) CreateManyAndReturn(builders ...*AllFieldsSoFarCreateBuilder) *CreateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
+func (d *AllFieldsSoFarDelegate) CreateManyAndReturn(builders ...*AllFieldsSoFarCreateBuilder) *AllFieldsSoFarCreateManyAndReturnBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeAllFieldsSoFarCreateManyAndReturn,
+	return &AllFieldsSoFarCreateManyAndReturnBuilder{
+		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeAllFieldsSoFarCreateManyAndReturn,
+		},
 	}
 }
 
-func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
+func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]AllFieldsSoFarCreate, len(records))
 	for i, rec := range records {
@@ -1702,7 +1749,10 @@ func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records [
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "AllFieldsSoFar", AllFieldsSoFarColOrder, skipDuplicates)
+	pkCols := []string{
+		"id",
+	}
+	count, err := executeCreateMany(ctx, q, rowMaps, "AllFieldsSoFar", AllFieldsSoFarColOrder, pkCols, conflictTarget, conflictAction)
 	if err != nil {
 		return 0, err
 	}
@@ -1714,9 +1764,11 @@ func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records [
 	return count, nil
 }
 
-func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, skipDuplicates bool) ([]*AllFieldsSoFar, error) {
+func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*AllFieldsSoFar, error) {
 	rowMaps := make([]map[string]any, len(records))
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 	for i, rec := range records {
 		if err := validateAllFieldsSoFarCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -1734,8 +1786,9 @@ func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, 
 		q.loadAllFieldsSoFarRelations,
 		(*AllFieldsSoFar).ScanFields,
 		(*AllFieldsSoFarSelect).hasAnyRelation,
-		idCol,
-		skipDuplicates,
+		pkCols,
+		conflictTarget,
+		conflictAction,
 	)
 	if err != nil {
 		return nil, err
@@ -1746,6 +1799,201 @@ func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, 
 		}
 	}
 	return results, nil
+}
+
+type AllFieldsSoFarConflictBuilder[B any] struct {
+	builder        *B
+	setAction      func(ConflictAction, UniqueConstraintTarget)
+	conflictTarget UniqueConstraintTarget
+}
+
+func (cb *AllFieldsSoFarConflictBuilder[B]) Ignore() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionIgnore}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *AllFieldsSoFarConflictBuilder[B]) UpdateNewValues() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionUpdateNewValues}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *AllFieldsSoFarConflictBuilder[B]) Update(fn func(u *AllFieldsSoFarUpsert)) *B {
+	var up ConflictUpdate
+	u := newAllFieldsSoFarUpsert(&up)
+	fn(u)
+	cb.setAction(ConflictAction{
+		Type:        ConflictActionUpdateCustom,
+		Assignments: up.assignments,
+		Args:        up.args,
+	}, cb.conflictTarget)
+	return cb.builder
+}
+
+type AllFieldsSoFarUpsert struct {
+	Id              numericFieldUpsert[int32]
+	StringReq       fieldUpsert[string]
+	StringOpt       fieldUpsert[*string]
+	StringDefault   fieldUpsert[string]
+	StringVarchar   fieldUpsert[string]
+	StringChar      fieldUpsert[string]
+	BitVal          fieldUpsert[string]
+	VarBitVal       fieldUpsert[string]
+	InetVal         fieldUpsert[string]
+	XmlVal          fieldUpsert[string]
+	CuidDefault     fieldUpsert[string]
+	Cuid1Default    fieldUpsert[string]
+	Cuid2Default    fieldUpsert[string]
+	UuidDefault     fieldUpsert[string]
+	Uuid4Default    fieldUpsert[string]
+	Uuid7Default    fieldUpsert[string]
+	UlidDefault     fieldUpsert[string]
+	NanoidDefault   fieldUpsert[string]
+	UuidDb          fieldUpsert[string]
+	IntReq          numericFieldUpsert[int32]
+	IntOpt          numericFieldUpsert[*int32]
+	IntDefault      numericFieldUpsert[int32]
+	IntegerVal      numericFieldUpsert[int32]
+	SmallInt        numericFieldUpsert[int32]
+	TinyInt         numericFieldUpsert[int32]
+	OidVal          numericFieldUpsert[int32]
+	BigIntReq       numericFieldUpsert[int64]
+	BigIntOpt       numericFieldUpsert[*int64]
+	FloatReq        numericFieldUpsert[float64]
+	FloatOpt        numericFieldUpsert[*float64]
+	RealVal         numericFieldUpsert[float64]
+	DecimalReq      numericFieldUpsert[string]
+	DecimalOpt      numericFieldUpsert[*string]
+	DecimalPrecise  numericFieldUpsert[string]
+	MoneyVal        numericFieldUpsert[string]
+	BoolReq         fieldUpsert[bool]
+	BoolOpt         fieldUpsert[*bool]
+	BoolDefault     fieldUpsert[bool]
+	DateTimeReq     fieldUpsert[time.Time]
+	DateTimeOpt     fieldUpsert[*time.Time]
+	DateTimeDefault fieldUpsert[time.Time]
+	UpdatedAt       fieldUpsert[time.Time]
+	DateTimeTz      fieldUpsert[time.Time]
+	TimestampVal    fieldUpsert[time.Time]
+	TimeVal         fieldUpsert[time.Time]
+	TimetzVal       fieldUpsert[time.Time]
+	JsonReq         fieldUpsert[json.RawMessage]
+	JsonOpt         fieldUpsert[*json.RawMessage]
+	JsonVal         fieldUpsert[json.RawMessage]
+	BytesReq        fieldUpsert[[]byte]
+	BytesOpt        fieldUpsert[*[]byte]
+	HstoreField     fieldUpsert[*map[string]*string]
+	LtreeField      fieldUpsert[string]
+	CitextField     fieldUpsert[*string]
+}
+
+func newAllFieldsSoFarUpsert(up *ConflictUpdate) *AllFieldsSoFarUpsert {
+	return &AllFieldsSoFarUpsert{
+		Id: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "id", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		StringReq:     fieldUpsert[string]{column: "stringReq", update: up},
+		StringOpt:     fieldUpsert[*string]{column: "stringOpt", update: up},
+		StringDefault: fieldUpsert[string]{column: "stringDefault", update: up},
+		StringVarchar: fieldUpsert[string]{column: "stringVarchar", update: up},
+		StringChar:    fieldUpsert[string]{column: "stringChar", update: up},
+		BitVal:        fieldUpsert[string]{column: "bitVal", update: up},
+		VarBitVal:     fieldUpsert[string]{column: "varBitVal", update: up},
+		InetVal:       fieldUpsert[string]{column: "inetVal", update: up},
+		XmlVal:        fieldUpsert[string]{column: "xmlVal", update: up},
+		CuidDefault:   fieldUpsert[string]{column: "cuidDefault", update: up},
+		Cuid1Default:  fieldUpsert[string]{column: "cuid1Default", update: up},
+		Cuid2Default:  fieldUpsert[string]{column: "cuid2Default", update: up},
+		UuidDefault:   fieldUpsert[string]{column: "uuidDefault", update: up},
+		Uuid4Default:  fieldUpsert[string]{column: "uuid4Default", update: up},
+		Uuid7Default:  fieldUpsert[string]{column: "uuid7Default", update: up},
+		UlidDefault:   fieldUpsert[string]{column: "ulidDefault", update: up},
+		NanoidDefault: fieldUpsert[string]{column: "nanoidDefault", update: up},
+		UuidDb:        fieldUpsert[string]{column: "uuidDb", update: up},
+		IntReq: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "intReq", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		IntOpt: numericFieldUpsert[*int32]{
+			fieldUpsert: fieldUpsert[*int32]{column: "intOpt", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		IntDefault: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "intDefault", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		IntegerVal: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "integerVal", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		SmallInt: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "smallInt", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		TinyInt: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "tinyInt", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		OidVal: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "oidVal", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		BigIntReq: numericFieldUpsert[int64]{
+			fieldUpsert: fieldUpsert[int64]{column: "bigIntReq", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		BigIntOpt: numericFieldUpsert[*int64]{
+			fieldUpsert: fieldUpsert[*int64]{column: "bigIntOpt", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		FloatReq: numericFieldUpsert[float64]{
+			fieldUpsert: fieldUpsert[float64]{column: "floatReq", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		FloatOpt: numericFieldUpsert[*float64]{
+			fieldUpsert: fieldUpsert[*float64]{column: "floatOpt", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		RealVal: numericFieldUpsert[float64]{
+			fieldUpsert: fieldUpsert[float64]{column: "realVal", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		DecimalReq: numericFieldUpsert[string]{
+			fieldUpsert: fieldUpsert[string]{column: "decimalReq", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		DecimalOpt: numericFieldUpsert[*string]{
+			fieldUpsert: fieldUpsert[*string]{column: "decimalOpt", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		DecimalPrecise: numericFieldUpsert[string]{
+			fieldUpsert: fieldUpsert[string]{column: "decimalPrecise", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		MoneyVal: numericFieldUpsert[string]{
+			fieldUpsert: fieldUpsert[string]{column: "moneyVal", update: up},
+			tableName:   "AllFieldsSoFar",
+		},
+		BoolReq:         fieldUpsert[bool]{column: "boolReq", update: up},
+		BoolOpt:         fieldUpsert[*bool]{column: "boolOpt", update: up},
+		BoolDefault:     fieldUpsert[bool]{column: "boolDefault", update: up},
+		DateTimeReq:     fieldUpsert[time.Time]{column: "dateTimeReq", update: up},
+		DateTimeOpt:     fieldUpsert[*time.Time]{column: "dateTimeOpt", update: up},
+		DateTimeDefault: fieldUpsert[time.Time]{column: "dateTimeDefault", update: up},
+		UpdatedAt:       fieldUpsert[time.Time]{column: "updatedAt", update: up},
+		DateTimeTz:      fieldUpsert[time.Time]{column: "dateTimeTz", update: up},
+		TimestampVal:    fieldUpsert[time.Time]{column: "timestampVal", update: up},
+		TimeVal:         fieldUpsert[time.Time]{column: "timeVal", update: up},
+		TimetzVal:       fieldUpsert[time.Time]{column: "timetzVal", update: up},
+		JsonReq:         fieldUpsert[json.RawMessage]{column: "jsonReq", update: up},
+		JsonOpt:         fieldUpsert[*json.RawMessage]{column: "jsonOpt", update: up},
+		JsonVal:         fieldUpsert[json.RawMessage]{column: "jsonVal", update: up},
+		BytesReq:        fieldUpsert[[]byte]{column: "bytesReq", update: up},
+		BytesOpt:        fieldUpsert[*[]byte]{column: "bytesOpt", update: up},
+		HstoreField:     fieldUpsert[*map[string]*string]{column: "hstoreField", update: up},
+		LtreeField:      fieldUpsert[string]{column: "ltreeField", update: up},
+		CitextField:     fieldUpsert[*string]{column: "citextField", update: up},
+	}
 }
 func (d *AllFieldsSoFarDelegate) FindUnique(where UniquePredicate[AllFieldsSoFar], additional ...PredicateOf[AllFieldsSoFar]) *FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
 	return &FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{

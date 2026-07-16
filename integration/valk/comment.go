@@ -225,6 +225,17 @@ type CommentCreateBuilder struct {
 	*CreateBuilder[Comment, CommentSelect, CommentOmit]
 }
 
+func (b *CommentCreateBuilder) OnConflict(target UniqueConstraintTarget) *CommentConflictBuilder[CommentCreateBuilder] {
+	return &CommentConflictBuilder[CommentCreateBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
 func (b *CommentCreateBuilder) SetId(v string) *CommentCreateBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
 	return b
@@ -408,7 +419,7 @@ func (s *CommentCreate) ToRowMap() map[string]any {
 	return m
 }
 
-func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*Comment, error) {
 	input := assignmentsToCommentCreate(assignments)
 
 	if q.Comment.beforeCreate != nil {
@@ -430,7 +441,9 @@ func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldA
 		return res.ScanFields(cols)
 	}
 
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 
 	hasRelations := selects.hasAnyRelation()
 
@@ -439,14 +452,14 @@ func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldA
 	if hasRelations {
 		err = q.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = executeInsert(ctx, txQ, "Comment", cols, vals, returningCols, idCol, scanFunc)
+			res, err = executeInsert(ctx, txQ, "Comment", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 			if err != nil {
 				return err
 			}
 			return txQ.loadCommentRelations(ctx, []*Comment{res}, selects)
 		})
 	} else {
-		res, err = executeInsert(ctx, q, "Comment", cols, vals, returningCols, idCol, scanFunc)
+		res, err = executeInsert(ctx, q, "Comment", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 	}
 	if err != nil {
 		return nil, err
@@ -461,31 +474,65 @@ func (q *Queries) executeCommentCreate(ctx context.Context, assignments []FieldA
 	return res, nil
 }
 
-func (d *CommentDelegate) CreateMany(builders ...*CommentCreateBuilder) *CreateManyBuilder[Comment] {
+type CommentCreateManyBuilder struct {
+	*CreateManyBuilder[Comment]
+}
+
+func (b *CommentCreateManyBuilder) OnConflict(target UniqueConstraintTarget) *CommentConflictBuilder[CommentCreateManyBuilder] {
+	return &CommentConflictBuilder[CommentCreateManyBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+type CommentCreateManyAndReturnBuilder struct {
+	*CreateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit]
+}
+
+func (b *CommentCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *CommentConflictBuilder[CommentCreateManyAndReturnBuilder] {
+	return &CommentConflictBuilder[CommentCreateManyAndReturnBuilder]{
+		builder:        b,
+		conflictTarget: target,
+		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
+			b.conflictAction = &action
+			b.conflictTarget = target
+		},
+	}
+}
+
+func (d *CommentDelegate) CreateMany(builders ...*CommentCreateBuilder) *CommentCreateManyBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyBuilder[Comment]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeCommentCreateMany,
+	return &CommentCreateManyBuilder{
+		CreateManyBuilder: &CreateManyBuilder[Comment]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeCommentCreateMany,
+		},
 	}
 }
 
-func (d *CommentDelegate) CreateManyAndReturn(builders ...*CommentCreateBuilder) *CreateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit] {
+func (d *CommentDelegate) CreateManyAndReturn(builders ...*CommentCreateBuilder) *CommentCreateManyAndReturnBuilder {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
-	return &CreateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit]{
-		client:   d.client,
-		records:  records,
-		execFunc: d.client.executeCommentCreateManyAndReturn,
+	return &CommentCreateManyAndReturnBuilder{
+		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit]{
+			client:   d.client,
+			records:  records,
+			execFunc: d.client.executeCommentCreateManyAndReturn,
+		},
 	}
 }
 
-func (q *Queries) executeCommentCreateMany(ctx context.Context, records []RecordInput, skipDuplicates bool) (int64, error) {
+func (q *Queries) executeCommentCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	rowMaps := make([]map[string]any, len(records))
 	inputs := make([]CommentCreate, len(records))
 	for i, rec := range records {
@@ -501,7 +548,10 @@ func (q *Queries) executeCommentCreateMany(ctx context.Context, records []Record
 		rowMaps[i] = input.ToRowMap()
 		inputs[i] = input
 	}
-	count, err := executeCreateMany(ctx, q, rowMaps, "Comment", CommentColOrder, skipDuplicates)
+	pkCols := []string{
+		"id",
+	}
+	count, err := executeCreateMany(ctx, q, rowMaps, "Comment", CommentColOrder, pkCols, conflictTarget, conflictAction)
 	if err != nil {
 		return 0, err
 	}
@@ -513,9 +563,11 @@ func (q *Queries) executeCommentCreateMany(ctx context.Context, records []Record
 	return count, nil
 }
 
-func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CommentSelect, omits *CommentOmit, skipDuplicates bool) ([]*Comment, error) {
+func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CommentSelect, omits *CommentOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Comment, error) {
 	rowMaps := make([]map[string]any, len(records))
-	idCol := "id"
+	pkCols := []string{
+		"id",
+	}
 	for i, rec := range records {
 		if err := validateCommentCreate(rec.Assignments); err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
@@ -533,8 +585,9 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records
 		q.loadCommentRelations,
 		(*Comment).ScanFields,
 		(*CommentSelect).hasAnyRelation,
-		idCol,
-		skipDuplicates,
+		pkCols,
+		conflictTarget,
+		conflictAction,
 	)
 	if err != nil {
 		return nil, err
@@ -545,6 +598,64 @@ func (q *Queries) executeCommentCreateManyAndReturn(ctx context.Context, records
 		}
 	}
 	return results, nil
+}
+
+type CommentConflictBuilder[B any] struct {
+	builder        *B
+	setAction      func(ConflictAction, UniqueConstraintTarget)
+	conflictTarget UniqueConstraintTarget
+}
+
+func (cb *CommentConflictBuilder[B]) Ignore() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionIgnore}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *CommentConflictBuilder[B]) UpdateNewValues() *B {
+	cb.setAction(ConflictAction{Type: ConflictActionUpdateNewValues}, cb.conflictTarget)
+	return cb.builder
+}
+
+func (cb *CommentConflictBuilder[B]) Update(fn func(u *CommentUpsert)) *B {
+	var up ConflictUpdate
+	u := newCommentUpsert(&up)
+	fn(u)
+	cb.setAction(ConflictAction{
+		Type:        ConflictActionUpdateCustom,
+		Assignments: up.assignments,
+		Args:        up.args,
+	}, cb.conflictTarget)
+	return cb.builder
+}
+
+type CommentUpsert struct {
+	Id       fieldUpsert[string]
+	Textify  numericFieldUpsert[int32]
+	Dummy3   fieldUpsert[string]
+	Dummy1   numericFieldUpsert[int32]
+	Dummy2   fieldUpsert[string]
+	PostId   fieldUpsert[string]
+	AuthorId fieldUpsert[string]
+	Meta     fieldUpsert[*json.RawMessage]
+}
+
+func newCommentUpsert(up *ConflictUpdate) *CommentUpsert {
+	return &CommentUpsert{
+		Id: fieldUpsert[string]{column: "id", update: up},
+		Textify: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "textify", update: up},
+			tableName:   "Comment",
+		},
+		Dummy3: fieldUpsert[string]{column: "dummy3", update: up},
+		Dummy1: numericFieldUpsert[int32]{
+			fieldUpsert: fieldUpsert[int32]{column: "dummy1", update: up},
+			tableName:   "Comment",
+		},
+		Dummy2:   fieldUpsert[string]{column: "dummy2", update: up},
+		PostId:   fieldUpsert[string]{column: "postId", update: up},
+		AuthorId: fieldUpsert[string]{column: "authorId", update: up},
+		Meta:     fieldUpsert[*json.RawMessage]{column: "meta", update: up},
+	}
 }
 func (d *CommentDelegate) FindUnique(where UniquePredicate[Comment], additional ...PredicateOf[Comment]) *FindUniqueBuilder[Comment, CommentSelect, CommentOmit] {
 	return &FindUniqueBuilder[Comment, CommentSelect, CommentOmit]{

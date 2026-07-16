@@ -75,7 +75,16 @@ func mapToColsVals(m map[string]any, colOrder []string) (cols []string, vals []a
 	return
 }
 
-func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any, colOrder []string, returningCols []string, skipDuplicates bool) (string, []any) {
+func buildBulkInsertSQL(
+	dialect Dialect,
+	table string,
+	rowMaps []map[string]any,
+	colOrder []string,
+	returningCols []string,
+	pkCols []string,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) (string, []any) {
 	colsSet := make(map[string]bool)
 	for _, rMap := range rowMaps {
 		for col := range rMap {
@@ -91,8 +100,7 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 
 	var vals []any
 	var sb strings.Builder
-	sb.WriteString(dialect.InsertPrefix(skipDuplicates))
-	sb.WriteString(" ")
+	sb.WriteString("INSERT INTO ")
 	sb.WriteString(dialect.Quote(table))
 	sb.WriteString(" (")
 	for i, col := range cols {
@@ -127,7 +135,19 @@ func buildBulkInsertSQL(dialect Dialect, table string, rowMaps []map[string]any,
 		sb.WriteString(")")
 	}
 
-	sb.WriteString(dialect.ConflictClause(skipDuplicates))
+	var conflictCols []string
+	if conflictTarget != nil {
+		conflictCols = conflictTarget.UniqueColumns()
+	}
+
+	var nonConflictCols []string
+	if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+		nonConflictCols = computeNonConflictCols(colOrder, conflictCols, pkCols)
+	}
+
+	conflictClause, conflictArgs := dialect.ConflictClause(conflictCols, conflictAction, nonConflictCols, paramIndex)
+	sb.WriteString(conflictClause)
+	vals = append(vals, conflictArgs...)
 
 	if dialect.SupportsReturning() && len(returningCols) > 0 {
 		sb.WriteString(" RETURNING ")

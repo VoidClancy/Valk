@@ -9,6 +9,8 @@ type Select = valk.CommentSelect
 type Omit = valk.CommentOmit
 type QueryBuilder = valk.CommentQueryBuilder
 type CreateBuilder = valk.CommentCreateBuilder
+type Upsert = valk.CommentUpsert
+type ConflictBuilder[B any] = valk.CommentConflictBuilder[B]
 
 func Query() *QueryBuilder {
 	return &QueryBuilder{}

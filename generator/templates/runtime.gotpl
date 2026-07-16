@@ -1,3 +1,72 @@
+type UniqueConstraintTarget interface {
+	UniqueColumns() []string
+}
+
+type CompositeUniqueConstraint[M any] struct {
+	Name    string
+	Columns []string
+}
+
+func (c CompositeUniqueConstraint[M]) UniqueColumns() []string {
+	return c.Columns
+}
+
+type ConflictActionType int
+
+const (
+	ConflictActionIgnore ConflictActionType = iota
+	ConflictActionUpdateNewValues
+	ConflictActionUpdateCustom
+)
+
+type ConflictAction struct {
+	Type        ConflictActionType
+	Assignments []string
+	Args        []any
+}
+
+type ConflictUpdate struct {
+	assignments []string
+	args        []any
+}
+
+type fieldUpsert[T any] struct {
+	column string
+	update *ConflictUpdate
+}
+
+func (f fieldUpsert[T]) Update() {
+	f.update.assignments = append(f.update.assignments, fmt.Sprintf(`"%s" = EXCLUDED."%s"`, f.column, f.column))
+}
+
+func (f fieldUpsert[T]) Set(val T) {
+	f.update.assignments = append(f.update.assignments, fmt.Sprintf(`"%s" = ?`, f.column))
+	f.update.args = append(f.update.args, val)
+}
+
+type numericFieldUpsert[T any] struct {
+	fieldUpsert[T]
+	tableName string
+}
+
+func (f numericFieldUpsert[T]) Add(val T) {
+	f.update.assignments = append(f.update.assignments, fmt.Sprintf(`"%s" = "%s"."%s" + ?`, f.column, f.tableName, f.column))
+	f.update.args = append(f.update.args, val)
+}
+
+func (f numericFieldUpsert[T]) Sub(val T) {
+	f.update.assignments = append(f.update.assignments, fmt.Sprintf(`"%s" = "%s"."%s" - ?`, f.column, f.tableName, f.column))
+	f.update.args = append(f.update.args, val)
+}
+
+func (f numericFieldUpsert[T]) Inc(val T) {
+	f.Add(val)
+}
+
+func (f numericFieldUpsert[T]) Dec(val T) {
+	f.Sub(val)
+}
+
 type Dialect interface {
 	Quote(ident string) string
 	BindVar(idx int) string
@@ -5,8 +74,7 @@ type Dialect interface {
 	SupportsBulkInsert() bool
 	FormatLimitOffset(take *int, skip *int) string
 	SupportsDefaultKeyword() bool
-	InsertPrefix(skipDuplicates bool) string
-	ConflictClause(skipDuplicates bool) string
+	ConflictClause(conflictCols []string, action *ConflictAction, nonConflictCols []string, startParamIndex int) (string, []any)
 }
 
 type rawDefault struct{}
@@ -202,4 +270,79 @@ type QueryParams[M any] struct {
 	Take    *int
 	Skip    *int
 	OrderBy []OrderBy[M]
+}
+
+func computeNonConflictCols(allCols []string, conflictCols []string, pkCols []string) []string {
+	exclude := make(map[string]bool, len(conflictCols)+len(pkCols))
+	for _, c := range conflictCols {
+		exclude[c] = true
+	}
+	for _, c := range pkCols {
+		exclude[c] = true
+	}
+	var result []string
+	for _, c := range allCols {
+		if !exclude[c] {
+			result = append(result, c)
+		}
+	}
+	return result
+}
+
+func buildConflictClause(
+	quoteFn func(string) string,
+	bindVarFn func(int) string,
+	conflictCols []string,
+	action *ConflictAction,
+	nonConflictCols []string,
+	startParamIndex int,
+) (string, []any) {
+	if action == nil {
+		return "", nil
+	}
+	var colsStr string
+	if len(conflictCols) > 0 {
+		var quoted []string
+		for _, col := range conflictCols {
+			quoted = append(quoted, quoteFn(col))
+		}
+		colsStr = " (" + strings.Join(quoted, ", ") + ")"
+	}
+	switch action.Type {
+	case ConflictActionIgnore:
+		return " ON CONFLICT" + colsStr + " DO NOTHING", nil
+	case ConflictActionUpdateNewValues:
+		if len(nonConflictCols) == 0 {
+			return " ON CONFLICT" + colsStr + " DO NOTHING", nil
+		}
+		var sets []string
+		for _, col := range nonConflictCols {
+			sets = append(sets, fmt.Sprintf(`%s = EXCLUDED.%s`, quoteFn(col), quoteFn(col)))
+		}
+		return " ON CONFLICT" + colsStr + " DO UPDATE SET " + strings.Join(sets, ", "), nil
+	case ConflictActionUpdateCustom:
+		if len(action.Assignments) == 0 {
+			return " ON CONFLICT" + colsStr + " DO NOTHING", nil
+		}
+		var assignments []string
+		paramIdx := startParamIndex
+		for _, assignment := range action.Assignments {
+			var sb strings.Builder
+			src := assignment
+			for {
+				idx := strings.Index(src, "?")
+				if idx == -1 {
+					sb.WriteString(src)
+					break
+				}
+				sb.WriteString(src[:idx])
+				sb.WriteString(bindVarFn(paramIdx))
+				paramIdx++
+				src = src[idx+1:]
+			}
+			assignments = append(assignments, sb.String())
+		}
+		return " ON CONFLICT" + colsStr + " DO UPDATE SET " + strings.Join(assignments, ", "), action.Args
+	}
+	return "", nil
 }

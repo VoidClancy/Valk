@@ -11,6 +11,7 @@ CREATE TABLE "public"."User" (
   "password" text NULL,
   "role" "public"."user_roles" NOT NULL DEFAULT 'student',
   "roleOptional" "public"."user_roles" NULL,
+  "loginCount" integer NOT NULL DEFAULT 0,
   "referredById" text NULL,
   PRIMARY KEY ("id"),
   CONSTRAINT "User_referredById_fkey" FOREIGN KEY ("referredById") REFERENCES "public"."User" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION
