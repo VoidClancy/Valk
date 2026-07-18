@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq/hstore"
 	"github.com/pressly/goose/v3"
-	"log"
 	"net"
 	"slices"
 	"sort"
@@ -704,7 +703,6 @@ func (db *DB) Raw() *sql.DB {
 
 // RunMigrations runs all pending migrations from the embedded folder.
 func (db *DB) RunMigrations(ctx context.Context) error {
-	log.Println("Running migrations...")
 	if err := goose.SetDialect(db.provider); err != nil {
 		return err
 	}
@@ -712,10 +710,8 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 	goose.SetBaseFS(migrationsFS)
 	err := goose.UpContext(ctx, db.sqlDB, "migrations")
 	if err != nil {
-		log.Printf("Migrations failed: %v", err)
 		return err
 	}
-	log.Println("Migrations completed successfully.")
 	return nil
 }
 
@@ -735,25 +731,16 @@ func (q *Queries) bindVars(count int) string {
 }
 
 func (q *Queries) query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	log.Printf("[%s] SQL Query: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	res, err := q.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
-	}
 	return res, err
 }
 
 func (q *Queries) queryRow(ctx context.Context, query string, args ...any) *sql.Row {
-	log.Printf("[%s] SQL QueryRow: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	return q.db.QueryRowContext(ctx, query, args...)
 }
 
 func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	log.Printf("[%s] SQL Exec: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	res, err := q.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
-	}
 	return res, err
 }
 
@@ -768,7 +755,6 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 	if !ok {
 		return fn(q)
 	}
-	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(q.provider))
 	tx, err := starter.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -776,7 +762,6 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 
 	defer func() {
 		if p := recover(); p != nil {
-			log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
 			_ = tx.Rollback()
 			panic(p)
 		}
@@ -792,11 +777,9 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 	txQueries.copyHooksFrom(q)
 
 	if err := fn(txQueries); err != nil {
-		log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
 		_ = tx.Rollback()
 		return err
 	}
-	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(q.provider))
 	return tx.Commit()
 }
 
@@ -1577,7 +1560,6 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(db.provider))
 	q := &Queries{
 		db:       sqlTx,
 		provider: db.provider,
@@ -1594,13 +1576,11 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 
 // Commit commits the transaction.
 func (tx *Tx) Commit() error {
-	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(tx.provider))
 	return tx.tx.Commit()
 }
 
 // Rollback aborts the transaction.
 func (tx *Tx) Rollback() error {
-	log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(tx.provider))
 	return tx.tx.Rollback()
 }
 
@@ -1636,7 +1616,6 @@ func (db *DB) Transaction(ctx context.Context, fn func(tx *Tx) error) error {
 }
 
 type CreateBuilder[M any, S any, O any] struct {
-	client         *Queries
 	assignments    []FieldAssignment
 	execFunc       func(ctx context.Context, assignments []FieldAssignment, s *S, o *O, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*M, error)
 	conflictAction *ConflictAction
@@ -1674,7 +1653,6 @@ func (b *CreateOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 }
 
 type CreateManyBuilder[M any] struct {
-	client         *Queries
 	records        []RecordInput
 	execFunc       func(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error)
 	conflictAction *ConflictAction
@@ -1691,7 +1669,6 @@ func (b *CreateManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
 }
 
 type CreateManyAndReturnBuilder[M any, S any, O any] struct {
-	client         *Queries
 	records        []RecordInput
 	execFunc       func(ctx context.Context, records []RecordInput, s *S, o *O, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*M, error)
 	conflictAction *ConflictAction
@@ -1924,7 +1901,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 	selects *S,
 	omits *O,
 	selectColsFn func(*S, *O, ...string) []string,
-	loadRelationsFn func(context.Context, []*M, *S) error,
+	loadRelationsFn func(context.Context, *Queries, []*M, *S) error,
 	scanFunc func(*M, []string) []any,
 	hasRelationsFn func(*S) bool,
 	pkCols []string,
@@ -1950,7 +1927,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 				recordsOut = append(recordsOut, res)
 			}
 			if hasRelations {
-				return loadRelationsFn(ctx, recordsOut, selects)
+				return loadRelationsFn(ctx, txQ, recordsOut, selects)
 			}
 			return nil
 		})
@@ -2005,7 +1982,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 			}
 		}
 		if hasRelations {
-			return loadRelationsFn(ctx, recordsOut, selects)
+			return loadRelationsFn(ctx, txQ, recordsOut, selects)
 		}
 		return nil
 	})
@@ -2236,7 +2213,6 @@ func partitionRowMaps(dialect Dialect, rowMaps []map[string]any) [][]map[string]
 }
 
 type FindUniqueBuilder[M any, S any, O any] struct {
-	client     *Queries
 	where      UniquePredicate[M]
 	additional []PredicateOf[M]
 	execFunc   func(ctx context.Context, where UniquePredicate[M], additional []PredicateOf[M], s *S, o *O) (*M, error)
@@ -2273,7 +2249,6 @@ func (b *FindUniqueOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 }
 
 type FindFirstBuilder[M any, S any, O any] struct {
-	client   *Queries
 	where    []PredicateOf[M]
 	skip     *int
 	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) (*M, error)
@@ -2327,7 +2302,6 @@ func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 }
 
 type FindManyBuilder[M any, S any, O any] struct {
-	client   *Queries
 	where    []PredicateOf[M]
 	take     *int
 	skip     *int

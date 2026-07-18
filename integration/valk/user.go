@@ -185,7 +185,7 @@ var userDefaultCols = []string{
 	"referredById",
 }
 
-func (q *Queries) selectUserCols(selects *UserSelect, omits *UserOmit, forceCols ...string) []string {
+func selectUserCols(selects *UserSelect, omits *UserOmit, forceCols ...string) []string {
 	if selects == nil && omits == nil && len(forceCols) == 0 {
 		return userDefaultCols
 	}
@@ -212,17 +212,6 @@ func (q *Queries) selectUserCols(selects *UserSelect, omits *UserOmit, forceCols
 	}
 
 	return cols
-}
-
-var UserColOrder = []string{
-	"id",
-	"email",
-	"phoneNum",
-	"password",
-	"role",
-	"roleOptional",
-	"loginCount",
-	"referredById",
 }
 
 func (s *UserSelect) hasAnyRelation() bool {
@@ -283,46 +272,66 @@ func (b *UserCreateBuilder) SetReferredById(v string) *UserCreateBuilder {
 func (d *UserDelegate) Create(assignments ...FieldAssignment) *UserCreateBuilder {
 	return &UserCreateBuilder{
 		CreateBuilder: &CreateBuilder[User, UserSelect, UserOmit]{
-			client:      d.client,
 			assignments: assignments,
-			execFunc:    d.client.executeUserCreate,
+			execFunc:    d.executeCreate,
 		},
 	}
 }
 
-func validateUserCreate(assignments []FieldAssignment) error {
-	errs := &ValidationError{}
+const (
+	providedUserId           uint64 = 1 << 0
+	providedUserEmail        uint64 = 1 << 1
+	providedUserPhoneNum     uint64 = 1 << 2
+	providedUserPassword     uint64 = 1 << 3
+	providedUserRole         uint64 = 1 << 4
+	providedUserRoleOptional uint64 = 1 << 5
+	providedUserLoginCount   uint64 = 1 << 6
+	providedUserReferredById uint64 = 1 << 7
+)
 
-	provided := make(map[string]bool)
+func assignmentsToUserCreate(assignments []FieldAssignment) (UserCreate, error) {
+	var input UserCreate
+	var errs ValidationError
+	var provided uint64
+
 	for _, a := range assignments {
-		provided[a.Col] = true
 		switch a.Col {
 		case "id":
+			provided |= providedUserId
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "id", v, false, 0, false, false)
+				input.Id = &v
+				ValidateString(&errs, "id", v, false, 0, false, false)
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
 		case "email":
+			provided |= providedUserEmail
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "email", v, true, 0, false, false)
+				input.Email = v
+				ValidateString(&errs, "email", v, true, 0, false, false)
 			} else {
 				errs.Add("email", a.Val, "type", "field email must be of type string")
 			}
 		case "phoneNum":
+			provided |= providedUserPhoneNum
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "phoneNum", v, true, 0, false, false)
+				input.PhoneNum = v
+				ValidateString(&errs, "phoneNum", v, true, 0, false, false)
 			} else {
 				errs.Add("phoneNum", a.Val, "type", "field phoneNum must be of type string")
 			}
 		case "password":
+			provided |= providedUserPassword
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "password", v, false, 0, false, false)
+				input.Password = &v
+				ValidateString(&errs, "password", v, false, 0, false, false)
 			} else {
 				errs.Add("password", a.Val, "type", "field password must be of type string")
 			}
 		case "role":
+			provided |= providedUserRole
 			if v, ok := a.Val.(UserRoleType); ok {
+				input.Role = &v
 				if !v.IsValid() {
 					errs.Add("role", v, "enum", fmt.Sprintf("invalid enum value %q for field role", v))
 				}
@@ -330,7 +339,9 @@ func validateUserCreate(assignments []FieldAssignment) error {
 				errs.Add("role", a.Val, "type", "field role must be of type UserRoleType")
 			}
 		case "roleOptional":
+			provided |= providedUserRoleOptional
 			if v, ok := a.Val.(UserRoleType); ok {
+				input.RoleOptional = &v
 				if !v.IsValid() {
 					errs.Add("roleOptional", v, "enum", fmt.Sprintf("invalid enum value %q for field roleOptional", v))
 				}
@@ -338,116 +349,91 @@ func validateUserCreate(assignments []FieldAssignment) error {
 				errs.Add("roleOptional", a.Val, "type", "field roleOptional must be of type UserRoleType")
 			}
 		case "loginCount":
+			provided |= providedUserLoginCount
 			if v, ok := a.Val.(int32); ok {
-				ValidateInt32(errs, "loginCount", v, "")
+				input.LoginCount = &v
+				ValidateInt32(&errs, "loginCount", v, "")
 			} else {
 				errs.Add("loginCount", a.Val, "type", "field loginCount must be of type int32")
 			}
 		case "referredById":
+			provided |= providedUserReferredById
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "referredById", v, false, 0, false, false)
+				input.ReferredById = &v
+				ValidateString(&errs, "referredById", v, false, 0, false, false)
 			} else {
 				errs.Add("referredById", a.Val, "type", "field referredById must be of type string")
 			}
 		}
 	}
-	if !provided["email"] {
+	if provided&providedUserEmail == 0 {
 		errs.Add("email", "", "required", "field Email is required")
 	}
-	if !provided["phoneNum"] {
+	if provided&providedUserPhoneNum == 0 {
 		errs.Add("phoneNum", "", "required", "field PhoneNum is required")
 	}
 
 	if errs.HasErrors() {
-		return *errs
+		return input, errs
 	}
-	return nil
+	return input, nil
 }
 
-func assignmentsToUserCreate(assignments []FieldAssignment) UserCreate {
-	var input UserCreate
-	for _, a := range assignments {
-		switch a.Col {
-		case "id":
-			if v, ok := a.Val.(string); ok {
-				input.Id = &v
-			}
-		case "email":
-			if v, ok := a.Val.(string); ok {
-				input.Email = v
-			}
-		case "phoneNum":
-			if v, ok := a.Val.(string); ok {
-				input.PhoneNum = v
-			}
-		case "password":
-			if v, ok := a.Val.(string); ok {
-				input.Password = &v
-			}
-		case "role":
-			if v, ok := a.Val.(UserRoleType); ok {
-				input.Role = &v
-			}
-		case "roleOptional":
-			if v, ok := a.Val.(UserRoleType); ok {
-				input.RoleOptional = &v
-			}
-		case "loginCount":
-			if v, ok := a.Val.(int32); ok {
-				input.LoginCount = &v
-			}
-		case "referredById":
-			if v, ok := a.Val.(string); ok {
-				input.ReferredById = &v
-			}
-		}
+func (s *UserCreate) ToColsVals() (cols []string, vals []any) {
+	cols = make([]string, 0, 8)
+	vals = make([]any, 0, 8)
+	cols = append(cols, "id")
+	if s.Id != nil {
+		vals = append(vals, *s.Id)
+	} else {
+		vals = append(vals, generateCUID())
 	}
-	return input
+	cols = append(cols, "email")
+	vals = append(vals, s.Email)
+	cols = append(cols, "phoneNum")
+	vals = append(vals, s.PhoneNum)
+	if s.Password != nil {
+		cols = append(cols, "password")
+		vals = append(vals, *s.Password)
+	}
+	if s.Role != nil {
+		cols = append(cols, "role")
+		vals = append(vals, *s.Role)
+	}
+	if s.RoleOptional != nil {
+		cols = append(cols, "roleOptional")
+		vals = append(vals, *s.RoleOptional)
+	}
+	if s.LoginCount != nil {
+		cols = append(cols, "loginCount")
+		vals = append(vals, *s.LoginCount)
+	}
+	if s.ReferredById != nil {
+		cols = append(cols, "referredById")
+		vals = append(vals, *s.ReferredById)
+	}
+	return
 }
 
 func (s *UserCreate) ToRowMap() map[string]any {
-	m := make(map[string]any, 8)
-	if s.Id != nil {
-		m["id"] = *s.Id
-	} else {
-		m["id"] = generateCUID()
-	}
-	m["email"] = s.Email
-	m["phoneNum"] = s.PhoneNum
-	if s.Password != nil {
-		m["password"] = *s.Password
-	}
-	if s.Role != nil {
-		m["role"] = *s.Role
-	} else {
-		m["role"] = rawDefault{}
-	}
-	if s.RoleOptional != nil {
-		m["roleOptional"] = *s.RoleOptional
-	}
-	if s.LoginCount != nil {
-		m["loginCount"] = *s.LoginCount
-	} else {
-		m["loginCount"] = rawDefault{}
-	}
-	if s.ReferredById != nil {
-		m["referredById"] = *s.ReferredById
+	cols, vals := s.ToColsVals()
+	m := make(map[string]any, len(cols))
+	for i, c := range cols {
+		m[c] = vals[i]
 	}
 	return m
 }
 
-func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssignment, selects *UserSelect, omits *UserOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*User, error) {
-	input := assignmentsToUserCreate(assignments)
+func (d *UserDelegate) executeCreate(ctx context.Context, assignments []FieldAssignment, selects *UserSelect, omits *UserOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*User, error) {
+	input, err := assignmentsToUserCreate(assignments)
+	if err != nil {
+		return nil, err
+	}
 
 	curr := func(c context.Context, args *UserCreate) (*User, error) {
-		if err := validateUserCreate(assignments); err != nil {
-			return nil, err
-		}
+		cols, vals := args.ToColsVals()
 
-		rowMap := args.ToRowMap()
-		cols, vals := mapToColsVals(rowMap, UserColOrder)
-
-		returningCols := q.selectUserCols(selects, omits)
+		returningCols := selectUserCols(selects, omits)
 
 		scanFunc := func(res *User, cols []string) []any {
 			return res.ScanFields(cols)
@@ -462,16 +448,16 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 		var res *User
 		var err error
 		if hasRelations {
-			err = q.transaction(c, func(txQ *Queries) error {
+			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
 				res, err = executeInsert(c, txQ, "User", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
-				return txQ.loadUserRelations(c, []*User{res}, selects)
+				return txQ.User.loadRelations(c, []*User{res}, selects)
 			})
 		} else {
-			res, err = executeInsert(c, q, "User", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+			res, err = executeInsert(c, d.client, "User", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -479,7 +465,7 @@ func (q *Queries) executeUserCreate(ctx context.Context, assignments []FieldAssi
 		return res, nil
 	}
 
-	for _, ext := range slices.Backward(q.User.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
 			curr = func(c context.Context, input *UserCreate) (*User, error) {
@@ -528,9 +514,8 @@ func (d *UserDelegate) CreateMany(builders ...*UserCreateBuilder) *UserCreateMan
 	}
 	return &UserCreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[User]{
-			client:   d.client,
 			records:  records,
-			execFunc: d.client.executeUserCreateMany,
+			execFunc: d.executeCreateMany,
 		},
 	}
 }
@@ -542,20 +527,19 @@ func (d *UserDelegate) CreateManyAndReturn(builders ...*UserCreateBuilder) *User
 	}
 	return &UserCreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[User, UserSelect, UserOmit]{
-			client:   d.client,
 			records:  records,
-			execFunc: d.client.executeUserCreateManyAndReturn,
+			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func (d *UserDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	inputs := make([]*UserCreate, len(records))
 	for i, rec := range records {
-		if err := validateUserCreate(rec.Assignments); err != nil {
+		input, err := assignmentsToUserCreate(rec.Assignments)
+		if err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		input := assignmentsToUserCreate(rec.Assignments)
 		inputs[i] = &input
 	}
 
@@ -569,10 +553,10 @@ func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInp
 			"id",
 		}
 
-		return executeCreateMany(c, q, rowMaps, "User", UserColOrder, pkCols, conflictTarget, conflictAction)
+		return executeCreateMany(c, d.client, rowMaps, "User", userDefaultCols, pkCols, conflictTarget, conflictAction)
 	}
 
-	for _, ext := range slices.Backward(q.User.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
 			curr = func(c context.Context, inputs []*UserCreate) (int64, error) {
@@ -584,13 +568,13 @@ func (q *Queries) executeUserCreateMany(ctx context.Context, records []RecordInp
 	return curr(ctx, inputs)
 }
 
-func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*User, error) {
+func (d *UserDelegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*User, error) {
 	inputs := make([]*UserCreate, len(records))
 	for i, rec := range records {
-		if err := validateUserCreate(rec.Assignments); err != nil {
+		input, err := assignmentsToUserCreate(rec.Assignments)
+		if err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		input := assignmentsToUserCreate(rec.Assignments)
 		inputs[i] = &input
 	}
 
@@ -604,9 +588,11 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []
 			"id",
 		}
 
-		return executeCreateManyAndReturn(c, q, rowMaps, "User", UserColOrder, selects, omits,
-			q.selectUserCols,
-			q.loadUserRelations,
+		return executeCreateManyAndReturn(c, d.client, rowMaps, "User", userDefaultCols, selects, omits,
+			selectUserCols,
+			func(ctx context.Context, txQ *Queries, results []*User, sel *UserSelect) error {
+				return txQ.User.loadRelations(ctx, results, sel)
+			},
 			(*User).ScanFields,
 			(*UserSelect).hasAnyRelation,
 			pkCols,
@@ -615,7 +601,7 @@ func (q *Queries) executeUserCreateManyAndReturn(ctx context.Context, records []
 		)
 	}
 
-	for _, ext := range slices.Backward(q.User.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
 			curr = func(c context.Context, inputs []*UserCreate) ([]*User, error) {
@@ -683,30 +669,27 @@ func newUserUpsert(up *ConflictUpdate) *UserUpsert {
 }
 func (d *UserDelegate) FindUnique(where UniquePredicate[User], additional ...PredicateOf[User]) *FindUniqueBuilder[User, UserSelect, UserOmit] {
 	return &FindUniqueBuilder[User, UserSelect, UserOmit]{
-		client:     d.client,
 		where:      where,
 		additional: additional,
-		execFunc:   d.client.executeUserFindUnique,
+		execFunc:   d.executeFindUnique,
 	}
 }
 
 func (d *UserDelegate) FindFirst(preds ...PredicateOf[User]) *FindFirstBuilder[User, UserSelect, UserOmit] {
 	return &FindFirstBuilder[User, UserSelect, UserOmit]{
-		client:   d.client,
 		where:    preds,
-		execFunc: d.client.executeUserFindFirst,
+		execFunc: d.executeFindFirst,
 	}
 }
 
 func (d *UserDelegate) FindMany(preds ...PredicateOf[User]) *FindManyBuilder[User, UserSelect, UserOmit] {
 	return &FindManyBuilder[User, UserSelect, UserOmit]{
-		client:   d.client,
 		where:    preds,
-		execFunc: d.client.executeUserFindMany,
+		execFunc: d.executeFindMany,
 	}
 }
 
-func (q *Queries) executeUserFindUnique(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error) {
+func (d *UserDelegate) executeFindUnique(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error) {
 	curr := func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], sel *UserSelect, o *UserOmit) (*User, error) {
 		if err := w.Validate(); err != nil {
 			return nil, err
@@ -719,22 +702,22 @@ func (q *Queries) executeUserFindUnique(ctx context.Context, where UniquePredica
 			}
 		}
 		allPreds := append([]PredicateOf[User]{w}, add...)
-		whereClause, vals := CompilePredicates(q.dialect, allPreds)
+		whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectUserCols(sel, o)
-		return executeSingleWithRelations(c, q, "User", whereClause, vals, returningCols,
+		returningCols := selectUserCols(sel, o)
+		return executeSingleWithRelations(c, d.client, "User", whereClause, vals, returningCols,
 			func(res *User, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*User) error {
-				return txQ.loadUserRelations(ctx, results, sel)
+				return txQ.User.loadRelations(ctx, results, sel)
 			},
 			nil,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.User.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
 			curr = func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], sel *UserSelect, o *UserOmit) (*User, error) {
@@ -746,7 +729,7 @@ func (q *Queries) executeUserFindUnique(ctx context.Context, where UniquePredica
 	return curr(ctx, where, additional, selects, omits)
 }
 
-func (q *Queries) executeUserFindFirst(
+func (d *UserDelegate) executeFindFirst(
 	ctx context.Context,
 	params QueryParams[User],
 	selects *UserSelect,
@@ -760,22 +743,22 @@ func (q *Queries) executeUserFindFirst(
 				}
 			}
 		}
-		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectUserCols(sel, o)
-		return executeSingleWithRelations(c, q, "User", whereClause, vals, returningCols,
+		returningCols := selectUserCols(sel, o)
+		return executeSingleWithRelations(c, d.client, "User", whereClause, vals, returningCols,
 			func(res *User, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*User) error {
-				return txQ.loadUserRelations(ctx, results, sel)
+				return txQ.User.loadRelations(ctx, results, sel)
 			},
 			p.Skip,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.User.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
 			curr = func(c context.Context, p QueryParams[User], sel *UserSelect, o *UserOmit) (*User, error) {
@@ -787,7 +770,7 @@ func (q *Queries) executeUserFindFirst(
 	return curr(ctx, params, selects, omits)
 }
 
-func (q *Queries) executeUserFindMany(
+func (d *UserDelegate) executeFindMany(
 	ctx context.Context,
 	params QueryParams[User],
 	selects *UserSelect,
@@ -801,23 +784,23 @@ func (q *Queries) executeUserFindMany(
 				}
 			}
 		}
-		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectUserCols(sel, o)
-		return executeManyWithRelations(c, q, "User", whereClause, vals, returningCols,
+		returningCols := selectUserCols(sel, o)
+		return executeManyWithRelations(c, d.client, "User", whereClause, vals, returningCols,
 			func(res *User, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*User) error {
-				return txQ.loadUserRelations(ctx, results, sel)
+				return txQ.User.loadRelations(ctx, results, sel)
 			},
 			p.Take,
 			p.Skip,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.User.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
 			curr = func(c context.Context, p QueryParams[User], sel *UserSelect, o *UserOmit) ([]*User, error) {
@@ -828,16 +811,16 @@ func (q *Queries) executeUserFindMany(
 
 	return curr(ctx, params, selects, omits)
 }
-func (q *Queries) loadUserRelations(ctx context.Context, records []*User, selects *UserSelect) error {
+func (d *UserDelegate) loadRelations(ctx context.Context, records []*User, selects *UserSelect) error {
 	if selects == nil || len(records) == 0 {
 		return nil
 	}
 	if selects.Profile != nil {
 		relationSelects, relationOmits, relationParams := selects.Profile.GetRelationParams()
-		returningCols := q.selectProfileCols(relationSelects, relationOmits, "userId")
+		returningCols := selectProfileCols(relationSelects, relationOmits, "userId")
 		// Inverse holds the FK: Profile.userId
 		allChildren, err := loadRelation(
-			ctx, q, records,
+			ctx, d.client, records,
 			directKey(func(p *User) string { return p.Id }),
 			"Profile",
 			"userId",
@@ -850,16 +833,16 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 		if err != nil {
 			return fmt.Errorf("loading profile: %w", err)
 		}
-		if err := q.loadProfileRelations(ctx, allChildren, relationSelects); err != nil {
+		if err := d.client.Profile.loadRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.Posts != nil {
 		relationSelects, relationOmits, relationParams := selects.Posts.GetRelationParams()
-		returningCols := q.selectPostCols(relationSelects, relationOmits, "authorId")
+		returningCols := selectPostCols(relationSelects, relationOmits, "authorId")
 		// Inverse holds the FK: Post.authorId
 		allChildren, err := loadRelation(
-			ctx, q, records,
+			ctx, d.client, records,
 			directKey(func(p *User) string { return p.Id }),
 			"Post",
 			"authorId",
@@ -872,16 +855,16 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 		if err != nil {
 			return fmt.Errorf("loading posts: %w", err)
 		}
-		if err := q.loadPostRelations(ctx, allChildren, relationSelects); err != nil {
+		if err := d.client.Post.loadRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.Comments != nil {
 		relationSelects, relationOmits, relationParams := selects.Comments.GetRelationParams()
-		returningCols := q.selectCommentCols(relationSelects, relationOmits, "authorId")
+		returningCols := selectCommentCols(relationSelects, relationOmits, "authorId")
 		// Inverse holds the FK: Comment.authorId
 		allChildren, err := loadRelation(
-			ctx, q, records,
+			ctx, d.client, records,
 			directKey(func(p *User) string { return p.Id }),
 			"Comment",
 			"authorId",
@@ -894,16 +877,16 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 		if err != nil {
 			return fmt.Errorf("loading comments: %w", err)
 		}
-		if err := q.loadCommentRelations(ctx, allChildren, relationSelects); err != nil {
+		if err := d.client.Comment.loadRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.ReferredBy != nil {
 		relationSelects, relationOmits, relationParams := selects.ReferredBy.GetRelationParams()
-		returningCols := q.selectUserCols(relationSelects, relationOmits, "id")
+		returningCols := selectUserCols(relationSelects, relationOmits, "id")
 		// Current model holds the FK: User.referredById
 		allChildren, err := loadRelation(
-			ctx, q, records,
+			ctx, d.client, records,
 			optionalKey(func(p *User) *string { return p.ReferredById }),
 			"User",
 			"id",
@@ -916,16 +899,16 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 		if err != nil {
 			return fmt.Errorf("loading referredBy: %w", err)
 		}
-		if err := q.loadUserRelations(ctx, allChildren, relationSelects); err != nil {
+		if err := d.client.User.loadRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.Referrals != nil {
 		relationSelects, relationOmits, relationParams := selects.Referrals.GetRelationParams()
-		returningCols := q.selectUserCols(relationSelects, relationOmits, "referredById")
+		returningCols := selectUserCols(relationSelects, relationOmits, "referredById")
 		// Inverse holds the FK: User.referredById
 		allChildren, err := loadRelation(
-			ctx, q, records,
+			ctx, d.client, records,
 			directKey(func(p *User) string { return p.Id }),
 			"User",
 			"referredById",
@@ -938,7 +921,7 @@ func (q *Queries) loadUserRelations(ctx context.Context, records []*User, select
 		if err != nil {
 			return fmt.Errorf("loading referrals: %w", err)
 		}
-		if err := q.loadUserRelations(ctx, allChildren, relationSelects); err != nil {
+		if err := d.client.User.loadRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}

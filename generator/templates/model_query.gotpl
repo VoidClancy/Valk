@@ -37,7 +37,7 @@ func (d *{{ .Model.Name }}Delegate) executeFindUnique(ctx context.Context, where
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := d.selectCols(sel, o)
+		returningCols := select{{ .Model.Name }}Cols(sel, o)
 		return executeSingleWithRelations(c, d.client, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
 			func(res *{{ .Model.Name }}, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
@@ -78,7 +78,7 @@ func (d *{{ .Model.Name }}Delegate) executeFindFirst(
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := d.selectCols(sel, o)
+		returningCols := select{{ .Model.Name }}Cols(sel, o)
 		return executeSingleWithRelations(c, d.client, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
 			func(res *{{ .Model.Name }}, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
@@ -119,7 +119,7 @@ func (d *{{ .Model.Name }}Delegate) executeFindMany(
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := d.selectCols(sel, o)
+		returningCols := select{{ .Model.Name }}Cols(sel, o)
 		return executeManyWithRelations(c, d.client, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
 			func(res *{{ .Model.Name }}, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
