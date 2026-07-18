@@ -1,9 +1,3 @@
-var {{ .Model.Name }}ColOrder = []string{
-{{- range $field := .Model.ScalarFields }}
-	"{{ $field.EffectiveColName }}",
-{{- end }}
-}
-
 func (s *{{ .Model.Name }}Select) hasAnyRelation() bool {
 	if s == nil {
 		return false
@@ -264,7 +258,7 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 	curr := func(c context.Context, args *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error) {
 		cols, vals := args.ToColsVals()
 
-		returningCols := d.selectCols(selects, omits)
+		returningCols := select{{ .Model.Name }}Cols(selects, omits)
 
 		scanFunc := func(res *{{ .Model.Name }}, cols []string) []any {
 			return res.ScanFields(cols)
@@ -404,7 +398,7 @@ func (d *{{ .Model.Name }}Delegate) executeCreateMany(ctx context.Context, recor
 			{{- end }}
 		}
 
-		return executeCreateMany(c, d.client, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, pkCols, conflictTarget, conflictAction)
+		return executeCreateMany(c, d.client, rowMaps, "{{ .Model.EffectiveTableName }}", {{ lowercase .Model.Name }}DefaultCols, pkCols, conflictTarget, conflictAction)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -449,8 +443,8 @@ func (d *{{ .Model.Name }}Delegate) executeCreateManyAndReturn(ctx context.Conte
 			{{- end }}
 		}
 
-		return executeCreateManyAndReturn(c, d.client, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, selects, omits,
-			d.selectCols,
+		return executeCreateManyAndReturn(c, d.client, rowMaps, "{{ .Model.EffectiveTableName }}", {{ lowercase .Model.Name }}DefaultCols, selects, omits,
+			select{{ .Model.Name }}Cols,
 			func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}, sel *{{ .Model.Name }}Select) error {
 				return txQ.{{ .Model.Name }}.loadRelations(ctx, results, sel)
 			},

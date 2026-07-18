@@ -5,20 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"integration/valk"
-	"integration/valk/category"
-	"integration/valk/categoryToPost"
-	"integration/valk/comment"
 	"integration/valk/post"
-	"integration/valk/profile"
 	"integration/valk/user"
 	"os"
-	"time"
 
 	"log"
 
+	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	_ "modernc.org/sqlite"
 )
 
 type SeedData struct {
@@ -140,7 +136,7 @@ func main() {
 	// }
 
 	// printJSON(count)
-
+	db.Category.Create()
 	user1, err := db.User.Create().SetEmail("a").SetPhoneNum("11").Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to seed users: %v", err)
@@ -154,178 +150,178 @@ func main() {
 
 }
 
-func seed(db *valk.DB, ctx context.Context) *SeedData {
+// func seed(db *valk.DB, ctx context.Context) *SeedData {
 
-	db.User.Use(user.Extension{
-		Create: func(ctx context.Context, input *valk.UserCreate, next valk.UserCreateQuery) (*valk.User, error) {
-			return next(ctx, input)
-		},
-	})
+// 	db.User.Use(user.Extension{
+// 		Create: func(ctx context.Context, input *valk.UserCreate, next valk.UserCreateQuery) (*valk.User, error) {
+// 			return next(ctx, input)
+// 		},
+// 	})
 
-	var usersToCreate []*user.CreateBuilder
+// 	var usersToCreate []*user.CreateBuilder
 
-	for i := range 20 {
-		usersToCreate = append(usersToCreate, db.User.Create().
-			SetEmail(fmt.Sprintf("email-%d", i)).
-			SetPhoneNum(fmt.Sprintf("555-%d", i)).
-			SetPassword(fmt.Sprintf("password-%d", i)),
-		)
-	}
+// 	for i := range 20 {
+// 		usersToCreate = append(usersToCreate, db.User.Create().
+// 			SetEmail(fmt.Sprintf("email-%d", i)).
+// 			SetPhoneNum(fmt.Sprintf("555-%d", i)).
+// 			SetPassword(fmt.Sprintf("password-%d", i)),
+// 		)
+// 	}
 
-	_, err := db.User.FindUnique(
-		user.EmailPhoneUnique("x@y.com", "+1111"),
-	).Select(user.Select{
-		Id:       true,
-		Email:    true,
-		PhoneNum: true,
-		Profile:  &profile.Select{},
+// 	_, err := db.User.FindUnique(
+// 		user.EmailPhoneUnique("x@y.com", "+1111"),
+// 	).Select(user.Select{
+// 		Id:       true,
+// 		Email:    true,
+// 		PhoneNum: true,
+// 		Profile:  &profile.Select{},
 
-		Posts: post.Query().Where(post.And(
-			post.Title.Contains("super-cool-post"),
-			post.Published.EQ(true),
-		)).
-			Select(post.Select{
-				Id:    true,
-				Title: true,
-				Comments: comment.Query().Where(comment.Or(
-					comment.AuthorId.Contains("xyz"),
-					comment.AuthorId.Contains("abc"),
-				)),
-			}),
-	}).
-		Exec(ctx)
+// 		Posts: post.Query().Where(post.And(
+// 			post.Title.Contains("super-cool-post"),
+// 			post.Published.EQ(true),
+// 		)).
+// 			Select(post.Select{
+// 				Id:    true,
+// 				Title: true,
+// 				Comments: comment.Query().Where(comment.Or(
+// 					comment.AuthorId.Contains("xyz"),
+// 					comment.AuthorId.Contains("abc"),
+// 				)),
+// 			}),
+// 	}).
+// 		Exec(ctx)
 
-	users, err := db.User.CreateManyAndReturn(usersToCreate...).Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create users: %v", err)
-	}
-	fmt.Printf("CreateManyAndReturn: %d users returned with auto-generated IDs\n", len(users))
+// 	users, err := db.User.CreateManyAndReturn(usersToCreate...).Exec(ctx)
+// 	if err != nil {
+// 		log.Fatalf("failed to create users: %v", err)
+// 	}
+// 	fmt.Printf("CreateManyAndReturn: %d users returned with auto-generated IDs\n", len(users))
 
-	if _, err := db.User.CreateMany(
-		db.User.Create().
-			SetEmail("test").
-			SetPhoneNum("555-test").
-			SetPassword("passwd"),
-		db.User.Create().
-			SetEmail("again").
-			SetPhoneNum("555-again").
-			SetPassword("123456"),
-	).Exec(ctx); err != nil {
-		log.Fatalf("failed to CreateMany: %v", err)
-	}
-	referrer, err := db.User.Create(
-		user.Email.Set("referrer@example.com"),
-		user.PhoneNum.Set("555-0001"),
-		user.Password.Set("pass123"),
-		user.Role.Set(valk.UserRole.Student),
-	).Select(user.Select{
-		Id:    true,
-		Email: true,
-	}).
-		Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create referrer: %v", err)
-	}
+// 	if _, err := db.User.CreateMany(
+// 		db.User.Create().
+// 			SetEmail("test").
+// 			SetPhoneNum("555-test").
+// 			SetPassword("passwd"),
+// 		db.User.Create().
+// 			SetEmail("again").
+// 			SetPhoneNum("555-again").
+// 			SetPassword("123456"),
+// 	).Exec(ctx); err != nil {
+// 		log.Fatalf("failed to CreateMany: %v", err)
+// 	}
+// 	referrer, err := db.User.Create(
+// 		user.Email.Set("referrer@example.com"),
+// 		user.PhoneNum.Set("555-0001"),
+// 		user.Password.Set("pass123"),
+// 		user.Role.Set(valk.UserRole.Student),
+// 	).Select(user.Select{
+// 		Id:    true,
+// 		Email: true,
+// 	}).
+// 		Exec(ctx)
+// 	if err != nil {
+// 		log.Fatalf("failed to create referrer: %v", err)
+// 	}
 
-	referred, err := db.User.Create(
-		user.Email.Set("referred@example.com"),
-		user.PhoneNum.Set("555-0002"),
-		user.Password.Set("pass456"),
-		user.Role.Set(valk.UserRole.Student),
-		user.ReferredById.Set(referrer.Id),
-	).Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create referred: %v", err)
-	}
+// 	referred, err := db.User.Create(
+// 		user.Email.Set("referred@example.com"),
+// 		user.PhoneNum.Set("555-0002"),
+// 		user.Password.Set("pass456"),
+// 		user.Role.Set(valk.UserRole.Student),
+// 		user.ReferredById.Set(referrer.Id),
+// 	).Exec(ctx)
+// 	if err != nil {
+// 		log.Fatalf("failed to create referred: %v", err)
+// 	}
 
-	prof, err := db.Profile.Create(
-		profile.Bio.Set("BLEH"),
-		profile.UserId.Set(referred.Id),
-		profile.CreatedAt.Set(time.Now()),
-	).Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create profile: %v", err)
-	}
-	fmt.Println("PROFILE:")
-	printJSON(prof)
+// 	prof, err := db.Profile.Create(
+// 		profile.Bio.Set("BLEH"),
+// 		profile.UserId.Set(referred.Id),
+// 		profile.CreatedAt.Set(time.Now()),
+// 	).Exec(ctx)
+// 	if err != nil {
+// 		log.Fatalf("failed to create profile: %v", err)
+// 	}
+// 	fmt.Println("PROFILE:")
+// 	printJSON(prof)
 
-	categoryTest, err := db.Category.Create(
-		category.Name.Set("TEST"),
-	).Exec(ctx)
+// 	categoryTest, err := db.Category.Create(
+// 		category.Name.Set("TEST"),
+// 	).Exec(ctx)
 
-	if err != nil {
-		log.Fatalf("failed to create category: %v", err)
-	}
-	fmt.Println("CATEGORY:")
-	printJSON(categoryTest)
+// 	if err != nil {
+// 		log.Fatalf("failed to create category: %v", err)
+// 	}
+// 	fmt.Println("CATEGORY:")
+// 	printJSON(categoryTest)
 
-	p, err := db.Post.Create(
-		post.Title.Set("Valkyrie ORM Deep Dive"),
-		post.Content.Set("skrrrt"),
-		post.AuthorId.Set(referred.Id),
-	).Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create post: %v", err)
-	}
+// 	p, err := db.Post.Create(
+// 		post.Title.Set("Valkyrie ORM Deep Dive"),
+// 		post.Content.Set("skrrrt"),
+// 		post.AuthorId.Set(referred.Id),
+// 	).Exec(ctx)
+// 	if err != nil {
+// 		log.Fatalf("failed to create post: %v", err)
+// 	}
 
-	cat, err := db.Category.Create(
-		category.Name.Set("Programming"),
-	).Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create category: %v", err)
-	}
+// 	cat, err := db.Category.Create(
+// 		category.Name.Set("Programming"),
+// 	).Exec(ctx)
+// 	if err != nil {
+// 		log.Fatalf("failed to create category: %v", err)
+// 	}
 
-	_, err = db.CategoryToPost.Create(
-		categoryToPost.PostId.Set(p.Id),
-		categoryToPost.CategoryId.Set(cat.Id),
-	).Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create CategoryToPost: %v", err)
-	}
+// 	_, err = db.CategoryToPost.Create(
+// 		categoryToPost.PostId.Set(p.Id),
+// 		categoryToPost.CategoryId.Set(cat.Id),
+// 	).Exec(ctx)
+// 	if err != nil {
+// 		log.Fatalf("failed to create CategoryToPost: %v", err)
+// 	}
 
-	meta1 := json.RawMessage(`{"rating":5,"verified":true}`)
-	_, err = db.Comment.Create(
-		comment.Textify.Set(100),
-		comment.Dummy3.Set("dummy_val_1"),
-		comment.Dummy1.Set(42),
-		comment.Dummy2.Set("dummy_val_2"),
-		comment.PostId.Set(p.Id),
-		comment.AuthorId.Set(referrer.Id),
-		comment.Meta.Set(meta1),
-	).Select(comment.Select{
-		Post: &post.Select{
-			Id:     true,
-			Title:  true,
-			Author: user.Query().Where(user.Id.EQ(p.Id)).OrderBy(user.Id.Asc()),
-		},
-	}).
-		Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create comment 1: %v", err)
-	}
+// 	meta1 := json.RawMessage(`{"rating":5,"verified":true}`)
+// 	_, err = db.Comment.Create(
+// 		comment.Textify.Set(100),
+// 		comment.Dummy3.Set("dummy_val_1"),
+// 		comment.Dummy1.Set(42),
+// 		comment.Dummy2.Set("dummy_val_2"),
+// 		comment.PostId.Set(p.Id),
+// 		comment.AuthorId.Set(referrer.Id),
+// 		comment.Meta.Set(meta1),
+// 	).Select(comment.Select{
+// 		Post: &post.Select{
+// 			Id:     true,
+// 			Title:  true,
+// 			Author: user.Query().Where(user.Id.EQ(p.Id)).OrderBy(user.Id.Asc()),
+// 		},
+// 	}).
+// 		Exec(ctx)
+// 	if err != nil {
+// 		log.Fatalf("failed to create comment 1: %v", err)
+// 	}
 
-	meta2 := json.RawMessage(`{"rating":4,"verified":false}`)
-	_, err = db.Comment.Create(
-		comment.Textify.Set(200),
-		comment.Dummy3.Set("dummy_val_3"),
-		comment.Dummy1.Set(84),
-		comment.Dummy2.Set("dummy_val_4"),
-		comment.PostId.Set(p.Id),
-		comment.AuthorId.Set(referred.Id),
-		comment.Meta.Set(meta2),
-	).Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create comment 2: %v", err)
-	}
+// 	meta2 := json.RawMessage(`{"rating":4,"verified":false}`)
+// 	_, err = db.Comment.Create(
+// 		comment.Textify.Set(200),
+// 		comment.Dummy3.Set("dummy_val_3"),
+// 		comment.Dummy1.Set(84),
+// 		comment.Dummy2.Set("dummy_val_4"),
+// 		comment.PostId.Set(p.Id),
+// 		comment.AuthorId.Set(referred.Id),
+// 		comment.Meta.Set(meta2),
+// 	).Exec(ctx)
+// 	if err != nil {
+// 		log.Fatalf("failed to create comment 2: %v", err)
+// 	}
 
-	return &SeedData{
-		ReferrerId: referrer.Id,
-		ReferredId: referred.Id,
-		PostId:     p.Id,
-		Meta1:      meta1,
-		Meta2:      meta2,
-	}
-}
+// 	return &SeedData{
+// 		ReferrerId: referrer.Id,
+// 		ReferredId: referred.Id,
+// 		PostId:     p.Id,
+// 		Meta1:      meta1,
+// 		Meta2:      meta2,
+// 	}
+// }
 
 func openConn() *valk.DB {
 	db, err := valk.Open("sqlite", "file::memory:?_pragma=foreign_keys(1)&_time_format=sqlite")

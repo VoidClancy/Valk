@@ -183,7 +183,7 @@ var defaultsTestDefaultCols = []string{
 	"now",
 }
 
-func (q *Queries) selectDefaultsTestCols(selects *DefaultsTestSelect, omits *DefaultsTestOmit, forceCols ...string) []string {
+func selectDefaultsTestCols(selects *DefaultsTestSelect, omits *DefaultsTestOmit, forceCols ...string) []string {
 	if selects == nil && omits == nil && len(forceCols) == 0 {
 		return defaultsTestDefaultCols
 	}
@@ -211,18 +211,6 @@ func (q *Queries) selectDefaultsTestCols(selects *DefaultsTestSelect, omits *Def
 	}
 
 	return cols
-}
-
-var DefaultsTestColOrder = []string{
-	"uuid4",
-	"uuid7",
-	"uuidNoArgs",
-	"cuid1",
-	"cuid2",
-	"cuidNoArgs",
-	"ulid",
-	"nanoid",
-	"now",
 }
 
 func (s *DefaultsTestSelect) hasAnyRelation() bool {
@@ -287,188 +275,190 @@ func (b *DefaultsTestCreateBuilder) SetNow(v time.Time) *DefaultsTestCreateBuild
 func (d *DefaultsTestDelegate) Create(assignments ...FieldAssignment) *DefaultsTestCreateBuilder {
 	return &DefaultsTestCreateBuilder{
 		CreateBuilder: &CreateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
-			client:      d.client,
 			assignments: assignments,
-			execFunc:    d.client.executeDefaultsTestCreate,
+			execFunc:    d.executeCreate,
 		},
 	}
 }
 
-func validateDefaultsTestCreate(assignments []FieldAssignment) error {
-	errs := &ValidationError{}
+const (
+	providedDefaultsTestUuid4      uint64 = 1 << 0
+	providedDefaultsTestUuid7      uint64 = 1 << 1
+	providedDefaultsTestUuidNoArgs uint64 = 1 << 2
+	providedDefaultsTestCuid1      uint64 = 1 << 3
+	providedDefaultsTestCuid2      uint64 = 1 << 4
+	providedDefaultsTestCuidNoArgs uint64 = 1 << 5
+	providedDefaultsTestUlid       uint64 = 1 << 6
+	providedDefaultsTestNanoid     uint64 = 1 << 7
+	providedDefaultsTestNow        uint64 = 1 << 8
+)
 
-	provided := make(map[string]bool)
+func assignmentsToDefaultsTestCreate(assignments []FieldAssignment) (DefaultsTestCreate, error) {
+	var input DefaultsTestCreate
+	var errs ValidationError
+	var provided uint64
+
 	for _, a := range assignments {
-		provided[a.Col] = true
 		switch a.Col {
 		case "uuid4":
+			provided |= providedDefaultsTestUuid4
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "uuid4", v, false, 0, false, false)
+				input.Uuid4 = &v
+				ValidateString(&errs, "uuid4", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid4", a.Val, "type", "field uuid4 must be of type string")
 			}
 		case "uuid7":
+			provided |= providedDefaultsTestUuid7
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "uuid7", v, false, 0, false, false)
+				input.Uuid7 = &v
+				ValidateString(&errs, "uuid7", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid7", a.Val, "type", "field uuid7 must be of type string")
 			}
 		case "uuidNoArgs":
+			provided |= providedDefaultsTestUuidNoArgs
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "uuidNoArgs", v, false, 0, false, false)
+				input.UuidNoArgs = &v
+				ValidateString(&errs, "uuidNoArgs", v, false, 0, false, false)
 			} else {
 				errs.Add("uuidNoArgs", a.Val, "type", "field uuidNoArgs must be of type string")
 			}
 		case "cuid1":
+			provided |= providedDefaultsTestCuid1
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "cuid1", v, false, 0, false, false)
+				input.Cuid1 = &v
+				ValidateString(&errs, "cuid1", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid1", a.Val, "type", "field cuid1 must be of type string")
 			}
 		case "cuid2":
+			provided |= providedDefaultsTestCuid2
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "cuid2", v, false, 0, false, false)
+				input.Cuid2 = &v
+				ValidateString(&errs, "cuid2", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid2", a.Val, "type", "field cuid2 must be of type string")
 			}
 		case "cuidNoArgs":
+			provided |= providedDefaultsTestCuidNoArgs
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "cuidNoArgs", v, false, 0, false, false)
+				input.CuidNoArgs = &v
+				ValidateString(&errs, "cuidNoArgs", v, false, 0, false, false)
 			} else {
 				errs.Add("cuidNoArgs", a.Val, "type", "field cuidNoArgs must be of type string")
 			}
 		case "ulid":
+			provided |= providedDefaultsTestUlid
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "ulid", v, false, 0, false, false)
+				input.Ulid = &v
+				ValidateString(&errs, "ulid", v, false, 0, false, false)
 			} else {
 				errs.Add("ulid", a.Val, "type", "field ulid must be of type string")
 			}
 		case "nanoid":
+			provided |= providedDefaultsTestNanoid
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "nanoid", v, false, 0, false, false)
+				input.Nanoid = &v
+				ValidateString(&errs, "nanoid", v, false, 0, false, false)
 			} else {
 				errs.Add("nanoid", a.Val, "type", "field nanoid must be of type string")
 			}
 		case "now":
-			if _, ok := a.Val.(time.Time); !ok {
+			provided |= providedDefaultsTestNow
+			if v, ok := a.Val.(time.Time); ok {
+				input.Now = &v
+			} else {
 				errs.Add("now", a.Val, "type", "field now must be of type time.Time")
 			}
 		}
 	}
 
 	if errs.HasErrors() {
-		return *errs
+		return input, errs
 	}
-	return nil
+	return input, nil
 }
 
-func assignmentsToDefaultsTestCreate(assignments []FieldAssignment) DefaultsTestCreate {
-	var input DefaultsTestCreate
-	for _, a := range assignments {
-		switch a.Col {
-		case "uuid4":
-			if v, ok := a.Val.(string); ok {
-				input.Uuid4 = &v
-			}
-		case "uuid7":
-			if v, ok := a.Val.(string); ok {
-				input.Uuid7 = &v
-			}
-		case "uuidNoArgs":
-			if v, ok := a.Val.(string); ok {
-				input.UuidNoArgs = &v
-			}
-		case "cuid1":
-			if v, ok := a.Val.(string); ok {
-				input.Cuid1 = &v
-			}
-		case "cuid2":
-			if v, ok := a.Val.(string); ok {
-				input.Cuid2 = &v
-			}
-		case "cuidNoArgs":
-			if v, ok := a.Val.(string); ok {
-				input.CuidNoArgs = &v
-			}
-		case "ulid":
-			if v, ok := a.Val.(string); ok {
-				input.Ulid = &v
-			}
-		case "nanoid":
-			if v, ok := a.Val.(string); ok {
-				input.Nanoid = &v
-			}
-		case "now":
-			if v, ok := a.Val.(time.Time); ok {
-				input.Now = &v
-			}
-		}
+func (s *DefaultsTestCreate) ToColsVals() (cols []string, vals []any) {
+	cols = make([]string, 0, 9)
+	vals = make([]any, 0, 9)
+	cols = append(cols, "uuid4")
+	if s.Uuid4 != nil {
+		vals = append(vals, *s.Uuid4)
+	} else {
+		vals = append(vals, generateUUID())
 	}
-	return input
+	cols = append(cols, "uuid7")
+	if s.Uuid7 != nil {
+		vals = append(vals, *s.Uuid7)
+	} else {
+		vals = append(vals, generateUUID7())
+	}
+	cols = append(cols, "uuidNoArgs")
+	if s.UuidNoArgs != nil {
+		vals = append(vals, *s.UuidNoArgs)
+	} else {
+		vals = append(vals, generateUUID())
+	}
+	cols = append(cols, "cuid1")
+	if s.Cuid1 != nil {
+		vals = append(vals, *s.Cuid1)
+	} else {
+		vals = append(vals, generateCUID())
+	}
+	cols = append(cols, "cuid2")
+	if s.Cuid2 != nil {
+		vals = append(vals, *s.Cuid2)
+	} else {
+		vals = append(vals, generateCUID2())
+	}
+	cols = append(cols, "cuidNoArgs")
+	if s.CuidNoArgs != nil {
+		vals = append(vals, *s.CuidNoArgs)
+	} else {
+		vals = append(vals, generateCUID())
+	}
+	cols = append(cols, "ulid")
+	if s.Ulid != nil {
+		vals = append(vals, *s.Ulid)
+	} else {
+		vals = append(vals, generateULID())
+	}
+	cols = append(cols, "nanoid")
+	if s.Nanoid != nil {
+		vals = append(vals, *s.Nanoid)
+	} else {
+		vals = append(vals, generateNanoID())
+	}
+	cols = append(cols, "now")
+	if s.Now != nil {
+		vals = append(vals, *s.Now)
+	} else {
+		vals = append(vals, time.Now())
+	}
+	return
 }
 
 func (s *DefaultsTestCreate) ToRowMap() map[string]any {
-	m := make(map[string]any, 9)
-	if s.Uuid4 != nil {
-		m["uuid4"] = *s.Uuid4
-	} else {
-		m["uuid4"] = generateUUID()
-	}
-	if s.Uuid7 != nil {
-		m["uuid7"] = *s.Uuid7
-	} else {
-		m["uuid7"] = generateUUID7()
-	}
-	if s.UuidNoArgs != nil {
-		m["uuidNoArgs"] = *s.UuidNoArgs
-	} else {
-		m["uuidNoArgs"] = generateUUID()
-	}
-	if s.Cuid1 != nil {
-		m["cuid1"] = *s.Cuid1
-	} else {
-		m["cuid1"] = generateCUID()
-	}
-	if s.Cuid2 != nil {
-		m["cuid2"] = *s.Cuid2
-	} else {
-		m["cuid2"] = generateCUID2()
-	}
-	if s.CuidNoArgs != nil {
-		m["cuidNoArgs"] = *s.CuidNoArgs
-	} else {
-		m["cuidNoArgs"] = generateCUID()
-	}
-	if s.Ulid != nil {
-		m["ulid"] = *s.Ulid
-	} else {
-		m["ulid"] = generateULID()
-	}
-	if s.Nanoid != nil {
-		m["nanoid"] = *s.Nanoid
-	} else {
-		m["nanoid"] = generateNanoID()
-	}
-	if s.Now != nil {
-		m["now"] = *s.Now
-	} else {
-		m["now"] = time.Now()
+	cols, vals := s.ToColsVals()
+	m := make(map[string]any, len(cols))
+	for i, c := range cols {
+		m[c] = vals[i]
 	}
 	return m
 }
 
-func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*DefaultsTest, error) {
-	input := assignmentsToDefaultsTestCreate(assignments)
+func (d *DefaultsTestDelegate) executeCreate(ctx context.Context, assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*DefaultsTest, error) {
+	input, err := assignmentsToDefaultsTestCreate(assignments)
+	if err != nil {
+		return nil, err
+	}
 
 	curr := func(c context.Context, args *DefaultsTestCreate) (*DefaultsTest, error) {
-		if err := validateDefaultsTestCreate(assignments); err != nil {
-			return nil, err
-		}
+		cols, vals := args.ToColsVals()
 
-		rowMap := args.ToRowMap()
-		cols, vals := mapToColsVals(rowMap, DefaultsTestColOrder)
-
-		returningCols := q.selectDefaultsTestCols(selects, omits)
+		returningCols := selectDefaultsTestCols(selects, omits)
 
 		scanFunc := func(res *DefaultsTest, cols []string) []any {
 			return res.ScanFields(cols)
@@ -483,16 +473,16 @@ func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []F
 		var res *DefaultsTest
 		var err error
 		if hasRelations {
-			err = q.transaction(c, func(txQ *Queries) error {
+			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
 				res, err = executeInsert(c, txQ, "DefaultsTest", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
-				return txQ.loadDefaultsTestRelations(c, []*DefaultsTest{res}, selects)
+				return txQ.DefaultsTest.loadRelations(c, []*DefaultsTest{res}, selects)
 			})
 		} else {
-			res, err = executeInsert(c, q, "DefaultsTest", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+			res, err = executeInsert(c, d.client, "DefaultsTest", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -500,7 +490,7 @@ func (q *Queries) executeDefaultsTestCreate(ctx context.Context, assignments []F
 		return res, nil
 	}
 
-	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
 			curr = func(c context.Context, input *DefaultsTestCreate) (*DefaultsTest, error) {
@@ -549,9 +539,8 @@ func (d *DefaultsTestDelegate) CreateMany(builders ...*DefaultsTestCreateBuilder
 	}
 	return &DefaultsTestCreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[DefaultsTest]{
-			client:   d.client,
 			records:  records,
-			execFunc: d.client.executeDefaultsTestCreateMany,
+			execFunc: d.executeCreateMany,
 		},
 	}
 }
@@ -563,20 +552,19 @@ func (d *DefaultsTestDelegate) CreateManyAndReturn(builders ...*DefaultsTestCrea
 	}
 	return &DefaultsTestCreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
-			client:   d.client,
 			records:  records,
-			execFunc: d.client.executeDefaultsTestCreateManyAndReturn,
+			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func (d *DefaultsTestDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	inputs := make([]*DefaultsTestCreate, len(records))
 	for i, rec := range records {
-		if err := validateDefaultsTestCreate(rec.Assignments); err != nil {
+		input, err := assignmentsToDefaultsTestCreate(rec.Assignments)
+		if err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		input := assignmentsToDefaultsTestCreate(rec.Assignments)
 		inputs[i] = &input
 	}
 
@@ -590,10 +578,10 @@ func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []R
 			"uuid4",
 		}
 
-		return executeCreateMany(c, q, rowMaps, "DefaultsTest", DefaultsTestColOrder, pkCols, conflictTarget, conflictAction)
+		return executeCreateMany(c, d.client, rowMaps, "DefaultsTest", defaultsTestDefaultCols, pkCols, conflictTarget, conflictAction)
 	}
 
-	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
 			curr = func(c context.Context, inputs []*DefaultsTestCreate) (int64, error) {
@@ -605,13 +593,13 @@ func (q *Queries) executeDefaultsTestCreateMany(ctx context.Context, records []R
 	return curr(ctx, inputs)
 }
 
-func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *DefaultsTestSelect, omits *DefaultsTestOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*DefaultsTest, error) {
+func (d *DefaultsTestDelegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *DefaultsTestSelect, omits *DefaultsTestOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*DefaultsTest, error) {
 	inputs := make([]*DefaultsTestCreate, len(records))
 	for i, rec := range records {
-		if err := validateDefaultsTestCreate(rec.Assignments); err != nil {
+		input, err := assignmentsToDefaultsTestCreate(rec.Assignments)
+		if err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		input := assignmentsToDefaultsTestCreate(rec.Assignments)
 		inputs[i] = &input
 	}
 
@@ -625,9 +613,11 @@ func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, re
 			"uuid4",
 		}
 
-		return executeCreateManyAndReturn(c, q, rowMaps, "DefaultsTest", DefaultsTestColOrder, selects, omits,
-			q.selectDefaultsTestCols,
-			q.loadDefaultsTestRelations,
+		return executeCreateManyAndReturn(c, d.client, rowMaps, "DefaultsTest", defaultsTestDefaultCols, selects, omits,
+			selectDefaultsTestCols,
+			func(ctx context.Context, txQ *Queries, results []*DefaultsTest, sel *DefaultsTestSelect) error {
+				return txQ.DefaultsTest.loadRelations(ctx, results, sel)
+			},
 			(*DefaultsTest).ScanFields,
 			(*DefaultsTestSelect).hasAnyRelation,
 			pkCols,
@@ -636,7 +626,7 @@ func (q *Queries) executeDefaultsTestCreateManyAndReturn(ctx context.Context, re
 		)
 	}
 
-	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
 			curr = func(c context.Context, inputs []*DefaultsTestCreate) ([]*DefaultsTest, error) {
@@ -703,30 +693,27 @@ func newDefaultsTestUpsert(up *ConflictUpdate) *DefaultsTestUpsert {
 }
 func (d *DefaultsTestDelegate) FindUnique(where UniquePredicate[DefaultsTest], additional ...PredicateOf[DefaultsTest]) *FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
 	return &FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
-		client:     d.client,
 		where:      where,
 		additional: additional,
-		execFunc:   d.client.executeDefaultsTestFindUnique,
+		execFunc:   d.executeFindUnique,
 	}
 }
 
 func (d *DefaultsTestDelegate) FindFirst(preds ...PredicateOf[DefaultsTest]) *FindFirstBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
 	return &FindFirstBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
-		client:   d.client,
 		where:    preds,
-		execFunc: d.client.executeDefaultsTestFindFirst,
+		execFunc: d.executeFindFirst,
 	}
 }
 
 func (d *DefaultsTestDelegate) FindMany(preds ...PredicateOf[DefaultsTest]) *FindManyBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
 	return &FindManyBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
-		client:   d.client,
 		where:    preds,
-		execFunc: d.client.executeDefaultsTestFindMany,
+		execFunc: d.executeFindMany,
 	}
 }
 
-func (q *Queries) executeDefaultsTestFindUnique(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+func (d *DefaultsTestDelegate) executeFindUnique(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
 	curr := func(c context.Context, w UniquePredicate[DefaultsTest], add []PredicateOf[DefaultsTest], sel *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
 		if err := w.Validate(); err != nil {
 			return nil, err
@@ -739,22 +726,22 @@ func (q *Queries) executeDefaultsTestFindUnique(ctx context.Context, where Uniqu
 			}
 		}
 		allPreds := append([]PredicateOf[DefaultsTest]{w}, add...)
-		whereClause, vals := CompilePredicates(q.dialect, allPreds)
+		whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectDefaultsTestCols(sel, o)
-		return executeSingleWithRelations(c, q, "DefaultsTest", whereClause, vals, returningCols,
+		returningCols := selectDefaultsTestCols(sel, o)
+		return executeSingleWithRelations(c, d.client, "DefaultsTest", whereClause, vals, returningCols,
 			func(res *DefaultsTest, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
-				return txQ.loadDefaultsTestRelations(ctx, results, sel)
+				return txQ.DefaultsTest.loadRelations(ctx, results, sel)
 			},
 			nil,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
 			curr = func(c context.Context, w UniquePredicate[DefaultsTest], add []PredicateOf[DefaultsTest], sel *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
@@ -766,7 +753,7 @@ func (q *Queries) executeDefaultsTestFindUnique(ctx context.Context, where Uniqu
 	return curr(ctx, where, additional, selects, omits)
 }
 
-func (q *Queries) executeDefaultsTestFindFirst(
+func (d *DefaultsTestDelegate) executeFindFirst(
 	ctx context.Context,
 	params QueryParams[DefaultsTest],
 	selects *DefaultsTestSelect,
@@ -780,22 +767,22 @@ func (q *Queries) executeDefaultsTestFindFirst(
 				}
 			}
 		}
-		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectDefaultsTestCols(sel, o)
-		return executeSingleWithRelations(c, q, "DefaultsTest", whereClause, vals, returningCols,
+		returningCols := selectDefaultsTestCols(sel, o)
+		return executeSingleWithRelations(c, d.client, "DefaultsTest", whereClause, vals, returningCols,
 			func(res *DefaultsTest, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
-				return txQ.loadDefaultsTestRelations(ctx, results, sel)
+				return txQ.DefaultsTest.loadRelations(ctx, results, sel)
 			},
 			p.Skip,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
 			curr = func(c context.Context, p QueryParams[DefaultsTest], sel *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
@@ -807,7 +794,7 @@ func (q *Queries) executeDefaultsTestFindFirst(
 	return curr(ctx, params, selects, omits)
 }
 
-func (q *Queries) executeDefaultsTestFindMany(
+func (d *DefaultsTestDelegate) executeFindMany(
 	ctx context.Context,
 	params QueryParams[DefaultsTest],
 	selects *DefaultsTestSelect,
@@ -821,23 +808,23 @@ func (q *Queries) executeDefaultsTestFindMany(
 				}
 			}
 		}
-		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectDefaultsTestCols(sel, o)
-		return executeManyWithRelations(c, q, "DefaultsTest", whereClause, vals, returningCols,
+		returningCols := selectDefaultsTestCols(sel, o)
+		return executeManyWithRelations(c, d.client, "DefaultsTest", whereClause, vals, returningCols,
 			func(res *DefaultsTest, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*DefaultsTest) error {
-				return txQ.loadDefaultsTestRelations(ctx, results, sel)
+				return txQ.DefaultsTest.loadRelations(ctx, results, sel)
 			},
 			p.Take,
 			p.Skip,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.DefaultsTest.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
 			curr = func(c context.Context, p QueryParams[DefaultsTest], sel *DefaultsTestSelect, o *DefaultsTestOmit) ([]*DefaultsTest, error) {
@@ -848,7 +835,8 @@ func (q *Queries) executeDefaultsTestFindMany(
 
 	return curr(ctx, params, selects, omits)
 }
-func (q *Queries) loadDefaultsTestRelations(ctx context.Context, records []*DefaultsTest, selects *DefaultsTestSelect) error {
+func (d *DefaultsTestDelegate) loadRelations(ctx context.Context, records []*DefaultsTest, selects *DefaultsTestSelect) error {
+	_ = ctx
 	if selects == nil || len(records) == 0 {
 		return nil
 	}

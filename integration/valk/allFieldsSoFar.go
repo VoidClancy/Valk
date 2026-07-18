@@ -499,7 +499,7 @@ var allFieldsSoFarDefaultCols = []string{
 	"citextField",
 }
 
-func (q *Queries) selectAllFieldsSoFarCols(selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, forceCols ...string) []string {
+func selectAllFieldsSoFarCols(selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, forceCols ...string) []string {
 	if selects == nil && omits == nil && len(forceCols) == 0 {
 		return allFieldsSoFarDefaultCols
 	}
@@ -572,63 +572,6 @@ func (q *Queries) selectAllFieldsSoFarCols(selects *AllFieldsSoFarSelect, omits 
 	}
 
 	return cols
-}
-
-var AllFieldsSoFarColOrder = []string{
-	"id",
-	"stringReq",
-	"stringOpt",
-	"stringDefault",
-	"stringVarchar",
-	"stringChar",
-	"bitVal",
-	"varBitVal",
-	"inetVal",
-	"xmlVal",
-	"cuidDefault",
-	"cuid1Default",
-	"cuid2Default",
-	"uuidDefault",
-	"uuid4Default",
-	"uuid7Default",
-	"ulidDefault",
-	"nanoidDefault",
-	"uuidDb",
-	"intReq",
-	"intOpt",
-	"intDefault",
-	"integerVal",
-	"smallInt",
-	"tinyInt",
-	"oidVal",
-	"bigIntReq",
-	"bigIntOpt",
-	"floatReq",
-	"floatOpt",
-	"realVal",
-	"decimalReq",
-	"decimalOpt",
-	"decimalPrecise",
-	"moneyVal",
-	"boolReq",
-	"boolOpt",
-	"boolDefault",
-	"dateTimeReq",
-	"dateTimeOpt",
-	"dateTimeDefault",
-	"updatedAt",
-	"dateTimeTz",
-	"timestampVal",
-	"timeVal",
-	"timetzVal",
-	"jsonReq",
-	"jsonOpt",
-	"jsonVal",
-	"bytesReq",
-	"bytesOpt",
-	"hstoreField",
-	"ltreeField",
-	"citextField",
 }
 
 func (s *AllFieldsSoFarSelect) hasAnyRelation() bool {
@@ -873,771 +816,786 @@ func (b *AllFieldsSoFarCreateBuilder) SetCitextField(v string) *AllFieldsSoFarCr
 func (d *AllFieldsSoFarDelegate) Create(assignments ...FieldAssignment) *AllFieldsSoFarCreateBuilder {
 	return &AllFieldsSoFarCreateBuilder{
 		CreateBuilder: &CreateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
-			client:      d.client,
 			assignments: assignments,
-			execFunc:    d.client.executeAllFieldsSoFarCreate,
+			execFunc:    d.executeCreate,
 		},
 	}
 }
 
-func validateAllFieldsSoFarCreate(assignments []FieldAssignment) error {
-	errs := &ValidationError{}
+const (
+	providedAllFieldsSoFarId              uint64 = 1 << 0
+	providedAllFieldsSoFarStringReq       uint64 = 1 << 1
+	providedAllFieldsSoFarStringOpt       uint64 = 1 << 2
+	providedAllFieldsSoFarStringDefault   uint64 = 1 << 3
+	providedAllFieldsSoFarStringVarchar   uint64 = 1 << 4
+	providedAllFieldsSoFarStringChar      uint64 = 1 << 5
+	providedAllFieldsSoFarBitVal          uint64 = 1 << 6
+	providedAllFieldsSoFarVarBitVal       uint64 = 1 << 7
+	providedAllFieldsSoFarInetVal         uint64 = 1 << 8
+	providedAllFieldsSoFarXmlVal          uint64 = 1 << 9
+	providedAllFieldsSoFarCuidDefault     uint64 = 1 << 10
+	providedAllFieldsSoFarCuid1Default    uint64 = 1 << 11
+	providedAllFieldsSoFarCuid2Default    uint64 = 1 << 12
+	providedAllFieldsSoFarUuidDefault     uint64 = 1 << 13
+	providedAllFieldsSoFarUuid4Default    uint64 = 1 << 14
+	providedAllFieldsSoFarUuid7Default    uint64 = 1 << 15
+	providedAllFieldsSoFarUlidDefault     uint64 = 1 << 16
+	providedAllFieldsSoFarNanoidDefault   uint64 = 1 << 17
+	providedAllFieldsSoFarUuidDb          uint64 = 1 << 18
+	providedAllFieldsSoFarIntReq          uint64 = 1 << 19
+	providedAllFieldsSoFarIntOpt          uint64 = 1 << 20
+	providedAllFieldsSoFarIntDefault      uint64 = 1 << 21
+	providedAllFieldsSoFarIntegerVal      uint64 = 1 << 22
+	providedAllFieldsSoFarSmallInt        uint64 = 1 << 23
+	providedAllFieldsSoFarTinyInt         uint64 = 1 << 24
+	providedAllFieldsSoFarOidVal          uint64 = 1 << 25
+	providedAllFieldsSoFarBigIntReq       uint64 = 1 << 26
+	providedAllFieldsSoFarBigIntOpt       uint64 = 1 << 27
+	providedAllFieldsSoFarFloatReq        uint64 = 1 << 28
+	providedAllFieldsSoFarFloatOpt        uint64 = 1 << 29
+	providedAllFieldsSoFarRealVal         uint64 = 1 << 30
+	providedAllFieldsSoFarDecimalReq      uint64 = 1 << 31
+	providedAllFieldsSoFarDecimalOpt      uint64 = 1 << 32
+	providedAllFieldsSoFarDecimalPrecise  uint64 = 1 << 33
+	providedAllFieldsSoFarMoneyVal        uint64 = 1 << 34
+	providedAllFieldsSoFarBoolReq         uint64 = 1 << 35
+	providedAllFieldsSoFarBoolOpt         uint64 = 1 << 36
+	providedAllFieldsSoFarBoolDefault     uint64 = 1 << 37
+	providedAllFieldsSoFarDateTimeReq     uint64 = 1 << 38
+	providedAllFieldsSoFarDateTimeOpt     uint64 = 1 << 39
+	providedAllFieldsSoFarDateTimeDefault uint64 = 1 << 40
+	providedAllFieldsSoFarUpdatedAt       uint64 = 1 << 41
+	providedAllFieldsSoFarDateTimeTz      uint64 = 1 << 42
+	providedAllFieldsSoFarTimestampVal    uint64 = 1 << 43
+	providedAllFieldsSoFarTimeVal         uint64 = 1 << 44
+	providedAllFieldsSoFarTimetzVal       uint64 = 1 << 45
+	providedAllFieldsSoFarJsonReq         uint64 = 1 << 46
+	providedAllFieldsSoFarJsonOpt         uint64 = 1 << 47
+	providedAllFieldsSoFarJsonVal         uint64 = 1 << 48
+	providedAllFieldsSoFarBytesReq        uint64 = 1 << 49
+	providedAllFieldsSoFarBytesOpt        uint64 = 1 << 50
+	providedAllFieldsSoFarHstoreField     uint64 = 1 << 51
+	providedAllFieldsSoFarLtreeField      uint64 = 1 << 52
+	providedAllFieldsSoFarCitextField     uint64 = 1 << 53
+)
 
-	provided := make(map[string]bool)
+func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFieldsSoFarCreate, error) {
+	var input AllFieldsSoFarCreate
+	var errs ValidationError
+	var provided uint64
+
 	for _, a := range assignments {
-		provided[a.Col] = true
 		switch a.Col {
 		case "id":
+			provided |= providedAllFieldsSoFarId
 			if v, ok := a.Val.(int32); ok {
-				ValidateInt32(errs, "id", v, "")
+				input.Id = &v
+				ValidateInt32(&errs, "id", v, "")
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type int32")
 			}
 		case "stringReq":
+			provided |= providedAllFieldsSoFarStringReq
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "stringReq", v, true, 0, false, false)
+				input.StringReq = v
+				ValidateString(&errs, "stringReq", v, true, 0, false, false)
 			} else {
 				errs.Add("stringReq", a.Val, "type", "field stringReq must be of type string")
 			}
 		case "stringOpt":
+			provided |= providedAllFieldsSoFarStringOpt
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "stringOpt", v, false, 0, false, false)
+				input.StringOpt = &v
+				ValidateString(&errs, "stringOpt", v, false, 0, false, false)
 			} else {
 				errs.Add("stringOpt", a.Val, "type", "field stringOpt must be of type string")
 			}
 		case "stringDefault":
+			provided |= providedAllFieldsSoFarStringDefault
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "stringDefault", v, false, 0, false, false)
+				input.StringDefault = &v
+				ValidateString(&errs, "stringDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("stringDefault", a.Val, "type", "field stringDefault must be of type string")
 			}
 		case "stringVarchar":
+			provided |= providedAllFieldsSoFarStringVarchar
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "stringVarchar", v, true, 255, false, false)
+				input.StringVarchar = v
+				ValidateString(&errs, "stringVarchar", v, true, 255, false, false)
 			} else {
 				errs.Add("stringVarchar", a.Val, "type", "field stringVarchar must be of type string")
 			}
 		case "stringChar":
+			provided |= providedAllFieldsSoFarStringChar
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "stringChar", v, true, 10, false, false)
+				input.StringChar = v
+				ValidateString(&errs, "stringChar", v, true, 10, false, false)
 			} else {
 				errs.Add("stringChar", a.Val, "type", "field stringChar must be of type string")
 			}
 		case "bitVal":
+			provided |= providedAllFieldsSoFarBitVal
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "bitVal", v, true, 0, true, false)
+				input.BitVal = v
+				ValidateString(&errs, "bitVal", v, true, 0, true, false)
 			} else {
 				errs.Add("bitVal", a.Val, "type", "field bitVal must be of type string")
 			}
 		case "varBitVal":
+			provided |= providedAllFieldsSoFarVarBitVal
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "varBitVal", v, true, 0, true, false)
+				input.VarBitVal = v
+				ValidateString(&errs, "varBitVal", v, true, 0, true, false)
 			} else {
 				errs.Add("varBitVal", a.Val, "type", "field varBitVal must be of type string")
 			}
 		case "inetVal":
+			provided |= providedAllFieldsSoFarInetVal
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "inetVal", v, true, 0, false, true)
+				input.InetVal = v
+				ValidateString(&errs, "inetVal", v, true, 0, false, true)
 			} else {
 				errs.Add("inetVal", a.Val, "type", "field inetVal must be of type string")
 			}
 		case "xmlVal":
+			provided |= providedAllFieldsSoFarXmlVal
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "xmlVal", v, true, 0, false, false)
+				input.XmlVal = v
+				ValidateString(&errs, "xmlVal", v, true, 0, false, false)
 			} else {
 				errs.Add("xmlVal", a.Val, "type", "field xmlVal must be of type string")
 			}
 		case "cuidDefault":
+			provided |= providedAllFieldsSoFarCuidDefault
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "cuidDefault", v, false, 0, false, false)
+				input.CuidDefault = &v
+				ValidateString(&errs, "cuidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("cuidDefault", a.Val, "type", "field cuidDefault must be of type string")
 			}
 		case "cuid1Default":
+			provided |= providedAllFieldsSoFarCuid1Default
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "cuid1Default", v, false, 0, false, false)
+				input.Cuid1Default = &v
+				ValidateString(&errs, "cuid1Default", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid1Default", a.Val, "type", "field cuid1Default must be of type string")
 			}
 		case "cuid2Default":
+			provided |= providedAllFieldsSoFarCuid2Default
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "cuid2Default", v, false, 0, false, false)
+				input.Cuid2Default = &v
+				ValidateString(&errs, "cuid2Default", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid2Default", a.Val, "type", "field cuid2Default must be of type string")
 			}
 		case "uuidDefault":
+			provided |= providedAllFieldsSoFarUuidDefault
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "uuidDefault", v, false, 0, false, false)
+				input.UuidDefault = &v
+				ValidateString(&errs, "uuidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("uuidDefault", a.Val, "type", "field uuidDefault must be of type string")
 			}
 		case "uuid4Default":
+			provided |= providedAllFieldsSoFarUuid4Default
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "uuid4Default", v, false, 0, false, false)
+				input.Uuid4Default = &v
+				ValidateString(&errs, "uuid4Default", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid4Default", a.Val, "type", "field uuid4Default must be of type string")
 			}
 		case "uuid7Default":
+			provided |= providedAllFieldsSoFarUuid7Default
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "uuid7Default", v, false, 0, false, false)
+				input.Uuid7Default = &v
+				ValidateString(&errs, "uuid7Default", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid7Default", a.Val, "type", "field uuid7Default must be of type string")
 			}
 		case "ulidDefault":
+			provided |= providedAllFieldsSoFarUlidDefault
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "ulidDefault", v, false, 0, false, false)
+				input.UlidDefault = &v
+				ValidateString(&errs, "ulidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("ulidDefault", a.Val, "type", "field ulidDefault must be of type string")
 			}
 		case "nanoidDefault":
+			provided |= providedAllFieldsSoFarNanoidDefault
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "nanoidDefault", v, false, 0, false, false)
+				input.NanoidDefault = &v
+				ValidateString(&errs, "nanoidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("nanoidDefault", a.Val, "type", "field nanoidDefault must be of type string")
 			}
 		case "uuidDb":
+			provided |= providedAllFieldsSoFarUuidDb
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "uuidDb", v, true, 0, false, false)
+				input.UuidDb = v
+				ValidateString(&errs, "uuidDb", v, true, 0, false, false)
 			} else {
 				errs.Add("uuidDb", a.Val, "type", "field uuidDb must be of type string")
 			}
 		case "intReq":
+			provided |= providedAllFieldsSoFarIntReq
 			if v, ok := a.Val.(int32); ok {
-				ValidateInt32(errs, "intReq", v, "")
+				input.IntReq = v
+				ValidateInt32(&errs, "intReq", v, "")
 			} else {
 				errs.Add("intReq", a.Val, "type", "field intReq must be of type int32")
 			}
 		case "intOpt":
+			provided |= providedAllFieldsSoFarIntOpt
 			if v, ok := a.Val.(int32); ok {
-				ValidateInt32(errs, "intOpt", v, "")
+				input.IntOpt = &v
+				ValidateInt32(&errs, "intOpt", v, "")
 			} else {
 				errs.Add("intOpt", a.Val, "type", "field intOpt must be of type int32")
 			}
 		case "intDefault":
+			provided |= providedAllFieldsSoFarIntDefault
 			if v, ok := a.Val.(int32); ok {
-				ValidateInt32(errs, "intDefault", v, "")
+				input.IntDefault = &v
+				ValidateInt32(&errs, "intDefault", v, "")
 			} else {
 				errs.Add("intDefault", a.Val, "type", "field intDefault must be of type int32")
 			}
 		case "integerVal":
+			provided |= providedAllFieldsSoFarIntegerVal
 			if v, ok := a.Val.(int32); ok {
-				ValidateInt32(errs, "integerVal", v, "")
+				input.IntegerVal = v
+				ValidateInt32(&errs, "integerVal", v, "")
 			} else {
 				errs.Add("integerVal", a.Val, "type", "field integerVal must be of type int32")
 			}
 		case "smallInt":
+			provided |= providedAllFieldsSoFarSmallInt
 			if v, ok := a.Val.(int32); ok {
-				ValidateInt32(errs, "smallInt", v, "SmallInt")
+				input.SmallInt = v
+				ValidateInt32(&errs, "smallInt", v, "SmallInt")
 			} else {
 				errs.Add("smallInt", a.Val, "type", "field smallInt must be of type int32")
 			}
 		case "tinyInt":
+			provided |= providedAllFieldsSoFarTinyInt
 			if v, ok := a.Val.(int32); ok {
-				ValidateInt32(errs, "tinyInt", v, "")
+				input.TinyInt = v
+				ValidateInt32(&errs, "tinyInt", v, "")
 			} else {
 				errs.Add("tinyInt", a.Val, "type", "field tinyInt must be of type int32")
 			}
 		case "oidVal":
+			provided |= providedAllFieldsSoFarOidVal
 			if v, ok := a.Val.(int32); ok {
-				ValidateInt32(errs, "oidVal", v, "Oid")
+				input.OidVal = v
+				ValidateInt32(&errs, "oidVal", v, "Oid")
 			} else {
 				errs.Add("oidVal", a.Val, "type", "field oidVal must be of type int32")
 			}
 		case "bigIntReq":
+			provided |= providedAllFieldsSoFarBigIntReq
 			if v, ok := a.Val.(int64); ok {
-				ValidateInt64(errs, "bigIntReq", v, "")
+				input.BigIntReq = v
+				ValidateInt64(&errs, "bigIntReq", v, "")
 			} else {
 				errs.Add("bigIntReq", a.Val, "type", "field bigIntReq must be of type int64")
 			}
 		case "bigIntOpt":
+			provided |= providedAllFieldsSoFarBigIntOpt
 			if v, ok := a.Val.(int64); ok {
-				ValidateInt64(errs, "bigIntOpt", v, "")
+				input.BigIntOpt = &v
+				ValidateInt64(&errs, "bigIntOpt", v, "")
 			} else {
 				errs.Add("bigIntOpt", a.Val, "type", "field bigIntOpt must be of type int64")
 			}
 		case "floatReq":
-			if _, ok := a.Val.(float64); !ok {
+			provided |= providedAllFieldsSoFarFloatReq
+			if v, ok := a.Val.(float64); ok {
+				input.FloatReq = v
+			} else {
 				errs.Add("floatReq", a.Val, "type", "field floatReq must be of type float64")
 			}
 		case "floatOpt":
-			if _, ok := a.Val.(float64); !ok {
+			provided |= providedAllFieldsSoFarFloatOpt
+			if v, ok := a.Val.(float64); ok {
+				input.FloatOpt = &v
+			} else {
 				errs.Add("floatOpt", a.Val, "type", "field floatOpt must be of type float64")
 			}
 		case "realVal":
-			if _, ok := a.Val.(float64); !ok {
+			provided |= providedAllFieldsSoFarRealVal
+			if v, ok := a.Val.(float64); ok {
+				input.RealVal = v
+			} else {
 				errs.Add("realVal", a.Val, "type", "field realVal must be of type float64")
 			}
 		case "decimalReq":
+			provided |= providedAllFieldsSoFarDecimalReq
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "decimalReq", v, true, 0, false, false)
+				input.DecimalReq = v
+				ValidateString(&errs, "decimalReq", v, true, 0, false, false)
 			} else {
 				errs.Add("decimalReq", a.Val, "type", "field decimalReq must be of type string")
 			}
 		case "decimalOpt":
+			provided |= providedAllFieldsSoFarDecimalOpt
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "decimalOpt", v, false, 0, false, false)
+				input.DecimalOpt = &v
+				ValidateString(&errs, "decimalOpt", v, false, 0, false, false)
 			} else {
 				errs.Add("decimalOpt", a.Val, "type", "field decimalOpt must be of type string")
 			}
 		case "decimalPrecise":
+			provided |= providedAllFieldsSoFarDecimalPrecise
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "decimalPrecise", v, true, 0, false, false)
+				input.DecimalPrecise = v
+				ValidateString(&errs, "decimalPrecise", v, true, 0, false, false)
 			} else {
 				errs.Add("decimalPrecise", a.Val, "type", "field decimalPrecise must be of type string")
 			}
 		case "moneyVal":
+			provided |= providedAllFieldsSoFarMoneyVal
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "moneyVal", v, true, 0, false, false)
+				input.MoneyVal = v
+				ValidateString(&errs, "moneyVal", v, true, 0, false, false)
 			} else {
 				errs.Add("moneyVal", a.Val, "type", "field moneyVal must be of type string")
 			}
 		case "boolReq":
-			if _, ok := a.Val.(bool); !ok {
+			provided |= providedAllFieldsSoFarBoolReq
+			if v, ok := a.Val.(bool); ok {
+				input.BoolReq = v
+			} else {
 				errs.Add("boolReq", a.Val, "type", "field boolReq must be of type bool")
 			}
 		case "boolOpt":
-			if _, ok := a.Val.(bool); !ok {
+			provided |= providedAllFieldsSoFarBoolOpt
+			if v, ok := a.Val.(bool); ok {
+				input.BoolOpt = &v
+			} else {
 				errs.Add("boolOpt", a.Val, "type", "field boolOpt must be of type bool")
 			}
 		case "boolDefault":
-			if _, ok := a.Val.(bool); !ok {
+			provided |= providedAllFieldsSoFarBoolDefault
+			if v, ok := a.Val.(bool); ok {
+				input.BoolDefault = &v
+			} else {
 				errs.Add("boolDefault", a.Val, "type", "field boolDefault must be of type bool")
 			}
 		case "dateTimeReq":
-			if _, ok := a.Val.(time.Time); !ok {
+			provided |= providedAllFieldsSoFarDateTimeReq
+			if v, ok := a.Val.(time.Time); ok {
+				input.DateTimeReq = v
+			} else {
 				errs.Add("dateTimeReq", a.Val, "type", "field dateTimeReq must be of type time.Time")
 			}
 		case "dateTimeOpt":
-			if _, ok := a.Val.(time.Time); !ok {
+			provided |= providedAllFieldsSoFarDateTimeOpt
+			if v, ok := a.Val.(time.Time); ok {
+				input.DateTimeOpt = &v
+			} else {
 				errs.Add("dateTimeOpt", a.Val, "type", "field dateTimeOpt must be of type time.Time")
 			}
 		case "dateTimeDefault":
-			if _, ok := a.Val.(time.Time); !ok {
+			provided |= providedAllFieldsSoFarDateTimeDefault
+			if v, ok := a.Val.(time.Time); ok {
+				input.DateTimeDefault = &v
+			} else {
 				errs.Add("dateTimeDefault", a.Val, "type", "field dateTimeDefault must be of type time.Time")
 			}
 		case "updatedAt":
-			if _, ok := a.Val.(time.Time); !ok {
+			provided |= providedAllFieldsSoFarUpdatedAt
+			if v, ok := a.Val.(time.Time); ok {
+				input.UpdatedAt = v
+			} else {
 				errs.Add("updatedAt", a.Val, "type", "field updatedAt must be of type time.Time")
 			}
 		case "dateTimeTz":
-			if _, ok := a.Val.(time.Time); !ok {
+			provided |= providedAllFieldsSoFarDateTimeTz
+			if v, ok := a.Val.(time.Time); ok {
+				input.DateTimeTz = v
+			} else {
 				errs.Add("dateTimeTz", a.Val, "type", "field dateTimeTz must be of type time.Time")
 			}
 		case "timestampVal":
-			if _, ok := a.Val.(time.Time); !ok {
+			provided |= providedAllFieldsSoFarTimestampVal
+			if v, ok := a.Val.(time.Time); ok {
+				input.TimestampVal = v
+			} else {
 				errs.Add("timestampVal", a.Val, "type", "field timestampVal must be of type time.Time")
 			}
 		case "timeVal":
-			if _, ok := a.Val.(time.Time); !ok {
+			provided |= providedAllFieldsSoFarTimeVal
+			if v, ok := a.Val.(time.Time); ok {
+				input.TimeVal = v
+			} else {
 				errs.Add("timeVal", a.Val, "type", "field timeVal must be of type time.Time")
 			}
 		case "timetzVal":
-			if _, ok := a.Val.(time.Time); !ok {
+			provided |= providedAllFieldsSoFarTimetzVal
+			if v, ok := a.Val.(time.Time); ok {
+				input.TimetzVal = v
+			} else {
 				errs.Add("timetzVal", a.Val, "type", "field timetzVal must be of type time.Time")
 			}
 		case "jsonReq":
-			if _, ok := a.Val.(json.RawMessage); !ok {
+			provided |= providedAllFieldsSoFarJsonReq
+			if v, ok := a.Val.(json.RawMessage); ok {
+				input.JsonReq = v
+			} else {
 				errs.Add("jsonReq", a.Val, "type", "field jsonReq must be of type json.RawMessage")
 			}
 		case "jsonOpt":
-			if _, ok := a.Val.(json.RawMessage); !ok {
+			provided |= providedAllFieldsSoFarJsonOpt
+			if v, ok := a.Val.(json.RawMessage); ok {
+				input.JsonOpt = &v
+			} else {
 				errs.Add("jsonOpt", a.Val, "type", "field jsonOpt must be of type json.RawMessage")
 			}
 		case "jsonVal":
-			if _, ok := a.Val.(json.RawMessage); !ok {
+			provided |= providedAllFieldsSoFarJsonVal
+			if v, ok := a.Val.(json.RawMessage); ok {
+				input.JsonVal = v
+			} else {
 				errs.Add("jsonVal", a.Val, "type", "field jsonVal must be of type json.RawMessage")
 			}
 		case "bytesReq":
-			if _, ok := a.Val.([]byte); !ok {
+			provided |= providedAllFieldsSoFarBytesReq
+			if v, ok := a.Val.([]byte); ok {
+				input.BytesReq = v
+			} else {
 				errs.Add("bytesReq", a.Val, "type", "field bytesReq must be of type []byte")
 			}
 		case "bytesOpt":
-			if _, ok := a.Val.([]byte); !ok {
+			provided |= providedAllFieldsSoFarBytesOpt
+			if v, ok := a.Val.([]byte); ok {
+				input.BytesOpt = &v
+			} else {
 				errs.Add("bytesOpt", a.Val, "type", "field bytesOpt must be of type []byte")
 			}
 		case "hstoreField":
-			if _, ok := a.Val.(map[string]*string); !ok {
+			provided |= providedAllFieldsSoFarHstoreField
+			if v, ok := a.Val.(map[string]*string); ok {
+				input.HstoreField = &v
+			} else {
 				errs.Add("hstoreField", a.Val, "type", "field hstoreField must be of type map[string]*string")
 			}
 		case "ltreeField":
+			provided |= providedAllFieldsSoFarLtreeField
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "ltreeField", v, true, 0, false, false)
+				input.LtreeField = v
+				ValidateString(&errs, "ltreeField", v, true, 0, false, false)
 			} else {
 				errs.Add("ltreeField", a.Val, "type", "field ltreeField must be of type string")
 			}
 		case "citextField":
+			provided |= providedAllFieldsSoFarCitextField
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "citextField", v, false, 0, false, false)
+				input.CitextField = &v
+				ValidateString(&errs, "citextField", v, false, 0, false, false)
 			} else {
 				errs.Add("citextField", a.Val, "type", "field citextField must be of type string")
 			}
 		}
 	}
-	if !provided["stringReq"] {
+	if provided&providedAllFieldsSoFarStringReq == 0 {
 		errs.Add("stringReq", "", "required", "field StringReq is required")
 	}
-	if !provided["stringVarchar"] {
+	if provided&providedAllFieldsSoFarStringVarchar == 0 {
 		errs.Add("stringVarchar", "", "required", "field StringVarchar is required")
 	}
-	if !provided["stringChar"] {
+	if provided&providedAllFieldsSoFarStringChar == 0 {
 		errs.Add("stringChar", "", "required", "field StringChar is required")
 	}
-	if !provided["bitVal"] {
+	if provided&providedAllFieldsSoFarBitVal == 0 {
 		errs.Add("bitVal", "", "required", "field BitVal is required")
 	}
-	if !provided["varBitVal"] {
+	if provided&providedAllFieldsSoFarVarBitVal == 0 {
 		errs.Add("varBitVal", "", "required", "field VarBitVal is required")
 	}
-	if !provided["inetVal"] {
+	if provided&providedAllFieldsSoFarInetVal == 0 {
 		errs.Add("inetVal", "", "required", "field InetVal is required")
 	}
-	if !provided["xmlVal"] {
+	if provided&providedAllFieldsSoFarXmlVal == 0 {
 		errs.Add("xmlVal", "", "required", "field XmlVal is required")
 	}
-	if !provided["uuidDb"] {
+	if provided&providedAllFieldsSoFarUuidDb == 0 {
 		errs.Add("uuidDb", "", "required", "field UuidDb is required")
 	}
-	if !provided["intReq"] {
+	if provided&providedAllFieldsSoFarIntReq == 0 {
 		errs.Add("intReq", nil, "required", "field IntReq is required")
 	}
-	if !provided["integerVal"] {
+	if provided&providedAllFieldsSoFarIntegerVal == 0 {
 		errs.Add("integerVal", nil, "required", "field IntegerVal is required")
 	}
-	if !provided["smallInt"] {
+	if provided&providedAllFieldsSoFarSmallInt == 0 {
 		errs.Add("smallInt", nil, "required", "field SmallInt is required")
 	}
-	if !provided["tinyInt"] {
+	if provided&providedAllFieldsSoFarTinyInt == 0 {
 		errs.Add("tinyInt", nil, "required", "field TinyInt is required")
 	}
-	if !provided["oidVal"] {
+	if provided&providedAllFieldsSoFarOidVal == 0 {
 		errs.Add("oidVal", nil, "required", "field OidVal is required")
 	}
-	if !provided["bigIntReq"] {
+	if provided&providedAllFieldsSoFarBigIntReq == 0 {
 		errs.Add("bigIntReq", nil, "required", "field BigIntReq is required")
 	}
-	if !provided["floatReq"] {
+	if provided&providedAllFieldsSoFarFloatReq == 0 {
 		errs.Add("floatReq", nil, "required", "field FloatReq is required")
 	}
-	if !provided["realVal"] {
+	if provided&providedAllFieldsSoFarRealVal == 0 {
 		errs.Add("realVal", nil, "required", "field RealVal is required")
 	}
-	if !provided["decimalReq"] {
+	if provided&providedAllFieldsSoFarDecimalReq == 0 {
 		errs.Add("decimalReq", "", "required", "field DecimalReq is required")
 	}
-	if !provided["decimalPrecise"] {
+	if provided&providedAllFieldsSoFarDecimalPrecise == 0 {
 		errs.Add("decimalPrecise", "", "required", "field DecimalPrecise is required")
 	}
-	if !provided["moneyVal"] {
+	if provided&providedAllFieldsSoFarMoneyVal == 0 {
 		errs.Add("moneyVal", "", "required", "field MoneyVal is required")
 	}
-	if !provided["boolReq"] {
+	if provided&providedAllFieldsSoFarBoolReq == 0 {
 		errs.Add("boolReq", nil, "required", "field BoolReq is required")
 	}
-	if !provided["dateTimeReq"] {
+	if provided&providedAllFieldsSoFarDateTimeReq == 0 {
 		errs.Add("dateTimeReq", nil, "required", "field DateTimeReq is required")
 	}
-	if !provided["updatedAt"] {
+	if provided&providedAllFieldsSoFarUpdatedAt == 0 {
 		errs.Add("updatedAt", nil, "required", "field UpdatedAt is required")
 	}
-	if !provided["dateTimeTz"] {
+	if provided&providedAllFieldsSoFarDateTimeTz == 0 {
 		errs.Add("dateTimeTz", nil, "required", "field DateTimeTz is required")
 	}
-	if !provided["timestampVal"] {
+	if provided&providedAllFieldsSoFarTimestampVal == 0 {
 		errs.Add("timestampVal", nil, "required", "field TimestampVal is required")
 	}
-	if !provided["timeVal"] {
+	if provided&providedAllFieldsSoFarTimeVal == 0 {
 		errs.Add("timeVal", nil, "required", "field TimeVal is required")
 	}
-	if !provided["timetzVal"] {
+	if provided&providedAllFieldsSoFarTimetzVal == 0 {
 		errs.Add("timetzVal", nil, "required", "field TimetzVal is required")
 	}
-	if !provided["jsonReq"] {
+	if provided&providedAllFieldsSoFarJsonReq == 0 {
 		errs.Add("jsonReq", nil, "required", "field JsonReq is required")
 	}
-	if !provided["jsonVal"] {
+	if provided&providedAllFieldsSoFarJsonVal == 0 {
 		errs.Add("jsonVal", nil, "required", "field JsonVal is required")
 	}
-	if !provided["bytesReq"] {
+	if provided&providedAllFieldsSoFarBytesReq == 0 {
 		errs.Add("bytesReq", nil, "required", "field BytesReq is required")
 	}
-	if !provided["ltreeField"] {
+	if provided&providedAllFieldsSoFarLtreeField == 0 {
 		errs.Add("ltreeField", "", "required", "field LtreeField is required")
 	}
 
 	if errs.HasErrors() {
-		return *errs
+		return input, errs
 	}
-	return nil
+	return input, nil
 }
 
-func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) AllFieldsSoFarCreate {
-	var input AllFieldsSoFarCreate
-	for _, a := range assignments {
-		switch a.Col {
-		case "id":
-			if v, ok := a.Val.(int32); ok {
-				input.Id = &v
-			}
-		case "stringReq":
-			if v, ok := a.Val.(string); ok {
-				input.StringReq = v
-			}
-		case "stringOpt":
-			if v, ok := a.Val.(string); ok {
-				input.StringOpt = &v
-			}
-		case "stringDefault":
-			if v, ok := a.Val.(string); ok {
-				input.StringDefault = &v
-			}
-		case "stringVarchar":
-			if v, ok := a.Val.(string); ok {
-				input.StringVarchar = v
-			}
-		case "stringChar":
-			if v, ok := a.Val.(string); ok {
-				input.StringChar = v
-			}
-		case "bitVal":
-			if v, ok := a.Val.(string); ok {
-				input.BitVal = v
-			}
-		case "varBitVal":
-			if v, ok := a.Val.(string); ok {
-				input.VarBitVal = v
-			}
-		case "inetVal":
-			if v, ok := a.Val.(string); ok {
-				input.InetVal = v
-			}
-		case "xmlVal":
-			if v, ok := a.Val.(string); ok {
-				input.XmlVal = v
-			}
-		case "cuidDefault":
-			if v, ok := a.Val.(string); ok {
-				input.CuidDefault = &v
-			}
-		case "cuid1Default":
-			if v, ok := a.Val.(string); ok {
-				input.Cuid1Default = &v
-			}
-		case "cuid2Default":
-			if v, ok := a.Val.(string); ok {
-				input.Cuid2Default = &v
-			}
-		case "uuidDefault":
-			if v, ok := a.Val.(string); ok {
-				input.UuidDefault = &v
-			}
-		case "uuid4Default":
-			if v, ok := a.Val.(string); ok {
-				input.Uuid4Default = &v
-			}
-		case "uuid7Default":
-			if v, ok := a.Val.(string); ok {
-				input.Uuid7Default = &v
-			}
-		case "ulidDefault":
-			if v, ok := a.Val.(string); ok {
-				input.UlidDefault = &v
-			}
-		case "nanoidDefault":
-			if v, ok := a.Val.(string); ok {
-				input.NanoidDefault = &v
-			}
-		case "uuidDb":
-			if v, ok := a.Val.(string); ok {
-				input.UuidDb = v
-			}
-		case "intReq":
-			if v, ok := a.Val.(int32); ok {
-				input.IntReq = v
-			}
-		case "intOpt":
-			if v, ok := a.Val.(int32); ok {
-				input.IntOpt = &v
-			}
-		case "intDefault":
-			if v, ok := a.Val.(int32); ok {
-				input.IntDefault = &v
-			}
-		case "integerVal":
-			if v, ok := a.Val.(int32); ok {
-				input.IntegerVal = v
-			}
-		case "smallInt":
-			if v, ok := a.Val.(int32); ok {
-				input.SmallInt = v
-			}
-		case "tinyInt":
-			if v, ok := a.Val.(int32); ok {
-				input.TinyInt = v
-			}
-		case "oidVal":
-			if v, ok := a.Val.(int32); ok {
-				input.OidVal = v
-			}
-		case "bigIntReq":
-			if v, ok := a.Val.(int64); ok {
-				input.BigIntReq = v
-			}
-		case "bigIntOpt":
-			if v, ok := a.Val.(int64); ok {
-				input.BigIntOpt = &v
-			}
-		case "floatReq":
-			if v, ok := a.Val.(float64); ok {
-				input.FloatReq = v
-			}
-		case "floatOpt":
-			if v, ok := a.Val.(float64); ok {
-				input.FloatOpt = &v
-			}
-		case "realVal":
-			if v, ok := a.Val.(float64); ok {
-				input.RealVal = v
-			}
-		case "decimalReq":
-			if v, ok := a.Val.(string); ok {
-				input.DecimalReq = v
-			}
-		case "decimalOpt":
-			if v, ok := a.Val.(string); ok {
-				input.DecimalOpt = &v
-			}
-		case "decimalPrecise":
-			if v, ok := a.Val.(string); ok {
-				input.DecimalPrecise = v
-			}
-		case "moneyVal":
-			if v, ok := a.Val.(string); ok {
-				input.MoneyVal = v
-			}
-		case "boolReq":
-			if v, ok := a.Val.(bool); ok {
-				input.BoolReq = v
-			}
-		case "boolOpt":
-			if v, ok := a.Val.(bool); ok {
-				input.BoolOpt = &v
-			}
-		case "boolDefault":
-			if v, ok := a.Val.(bool); ok {
-				input.BoolDefault = &v
-			}
-		case "dateTimeReq":
-			if v, ok := a.Val.(time.Time); ok {
-				input.DateTimeReq = v
-			}
-		case "dateTimeOpt":
-			if v, ok := a.Val.(time.Time); ok {
-				input.DateTimeOpt = &v
-			}
-		case "dateTimeDefault":
-			if v, ok := a.Val.(time.Time); ok {
-				input.DateTimeDefault = &v
-			}
-		case "updatedAt":
-			if v, ok := a.Val.(time.Time); ok {
-				input.UpdatedAt = v
-			}
-		case "dateTimeTz":
-			if v, ok := a.Val.(time.Time); ok {
-				input.DateTimeTz = v
-			}
-		case "timestampVal":
-			if v, ok := a.Val.(time.Time); ok {
-				input.TimestampVal = v
-			}
-		case "timeVal":
-			if v, ok := a.Val.(time.Time); ok {
-				input.TimeVal = v
-			}
-		case "timetzVal":
-			if v, ok := a.Val.(time.Time); ok {
-				input.TimetzVal = v
-			}
-		case "jsonReq":
-			if v, ok := a.Val.(json.RawMessage); ok {
-				input.JsonReq = v
-			}
-		case "jsonOpt":
-			if v, ok := a.Val.(json.RawMessage); ok {
-				input.JsonOpt = &v
-			}
-		case "jsonVal":
-			if v, ok := a.Val.(json.RawMessage); ok {
-				input.JsonVal = v
-			}
-		case "bytesReq":
-			if v, ok := a.Val.([]byte); ok {
-				input.BytesReq = v
-			}
-		case "bytesOpt":
-			if v, ok := a.Val.([]byte); ok {
-				input.BytesOpt = &v
-			}
-		case "hstoreField":
-			if v, ok := a.Val.(map[string]*string); ok {
-				input.HstoreField = &v
-			}
-		case "ltreeField":
-			if v, ok := a.Val.(string); ok {
-				input.LtreeField = v
-			}
-		case "citextField":
-			if v, ok := a.Val.(string); ok {
-				input.CitextField = &v
-			}
-		}
+func (s *AllFieldsSoFarCreate) ToColsVals() (cols []string, vals []any) {
+	cols = make([]string, 0, 54)
+	vals = make([]any, 0, 54)
+	if s.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, *s.Id)
 	}
-	return input
+	cols = append(cols, "stringReq")
+	vals = append(vals, s.StringReq)
+	if s.StringOpt != nil {
+		cols = append(cols, "stringOpt")
+		vals = append(vals, *s.StringOpt)
+	}
+	if s.StringDefault != nil {
+		cols = append(cols, "stringDefault")
+		vals = append(vals, *s.StringDefault)
+	}
+	cols = append(cols, "stringVarchar")
+	vals = append(vals, s.StringVarchar)
+	cols = append(cols, "stringChar")
+	vals = append(vals, s.StringChar)
+	cols = append(cols, "bitVal")
+	vals = append(vals, s.BitVal)
+	cols = append(cols, "varBitVal")
+	vals = append(vals, s.VarBitVal)
+	cols = append(cols, "inetVal")
+	vals = append(vals, s.InetVal)
+	cols = append(cols, "xmlVal")
+	vals = append(vals, s.XmlVal)
+	cols = append(cols, "cuidDefault")
+	if s.CuidDefault != nil {
+		vals = append(vals, *s.CuidDefault)
+	} else {
+		vals = append(vals, generateCUID())
+	}
+	cols = append(cols, "cuid1Default")
+	if s.Cuid1Default != nil {
+		vals = append(vals, *s.Cuid1Default)
+	} else {
+		vals = append(vals, generateCUID())
+	}
+	cols = append(cols, "cuid2Default")
+	if s.Cuid2Default != nil {
+		vals = append(vals, *s.Cuid2Default)
+	} else {
+		vals = append(vals, generateCUID2())
+	}
+	cols = append(cols, "uuidDefault")
+	if s.UuidDefault != nil {
+		vals = append(vals, *s.UuidDefault)
+	} else {
+		vals = append(vals, generateUUID())
+	}
+	cols = append(cols, "uuid4Default")
+	if s.Uuid4Default != nil {
+		vals = append(vals, *s.Uuid4Default)
+	} else {
+		vals = append(vals, generateUUID())
+	}
+	cols = append(cols, "uuid7Default")
+	if s.Uuid7Default != nil {
+		vals = append(vals, *s.Uuid7Default)
+	} else {
+		vals = append(vals, generateUUID7())
+	}
+	cols = append(cols, "ulidDefault")
+	if s.UlidDefault != nil {
+		vals = append(vals, *s.UlidDefault)
+	} else {
+		vals = append(vals, generateULID())
+	}
+	cols = append(cols, "nanoidDefault")
+	if s.NanoidDefault != nil {
+		vals = append(vals, *s.NanoidDefault)
+	} else {
+		vals = append(vals, generateNanoID())
+	}
+	cols = append(cols, "uuidDb")
+	vals = append(vals, s.UuidDb)
+	cols = append(cols, "intReq")
+	vals = append(vals, s.IntReq)
+	if s.IntOpt != nil {
+		cols = append(cols, "intOpt")
+		vals = append(vals, *s.IntOpt)
+	}
+	if s.IntDefault != nil {
+		cols = append(cols, "intDefault")
+		vals = append(vals, *s.IntDefault)
+	}
+	cols = append(cols, "integerVal")
+	vals = append(vals, s.IntegerVal)
+	cols = append(cols, "smallInt")
+	vals = append(vals, s.SmallInt)
+	cols = append(cols, "tinyInt")
+	vals = append(vals, s.TinyInt)
+	cols = append(cols, "oidVal")
+	vals = append(vals, s.OidVal)
+	cols = append(cols, "bigIntReq")
+	vals = append(vals, s.BigIntReq)
+	if s.BigIntOpt != nil {
+		cols = append(cols, "bigIntOpt")
+		vals = append(vals, *s.BigIntOpt)
+	}
+	cols = append(cols, "floatReq")
+	vals = append(vals, s.FloatReq)
+	if s.FloatOpt != nil {
+		cols = append(cols, "floatOpt")
+		vals = append(vals, *s.FloatOpt)
+	}
+	cols = append(cols, "realVal")
+	vals = append(vals, s.RealVal)
+	cols = append(cols, "decimalReq")
+	vals = append(vals, s.DecimalReq)
+	if s.DecimalOpt != nil {
+		cols = append(cols, "decimalOpt")
+		vals = append(vals, *s.DecimalOpt)
+	}
+	cols = append(cols, "decimalPrecise")
+	vals = append(vals, s.DecimalPrecise)
+	cols = append(cols, "moneyVal")
+	vals = append(vals, s.MoneyVal)
+	cols = append(cols, "boolReq")
+	vals = append(vals, s.BoolReq)
+	if s.BoolOpt != nil {
+		cols = append(cols, "boolOpt")
+		vals = append(vals, *s.BoolOpt)
+	}
+	if s.BoolDefault != nil {
+		cols = append(cols, "boolDefault")
+		vals = append(vals, *s.BoolDefault)
+	}
+	cols = append(cols, "dateTimeReq")
+	vals = append(vals, s.DateTimeReq)
+	if s.DateTimeOpt != nil {
+		cols = append(cols, "dateTimeOpt")
+		vals = append(vals, *s.DateTimeOpt)
+	}
+	cols = append(cols, "dateTimeDefault")
+	if s.DateTimeDefault != nil {
+		vals = append(vals, *s.DateTimeDefault)
+	} else {
+		vals = append(vals, time.Now())
+	}
+	cols = append(cols, "updatedAt")
+	vals = append(vals, s.UpdatedAt)
+	cols = append(cols, "dateTimeTz")
+	vals = append(vals, s.DateTimeTz)
+	cols = append(cols, "timestampVal")
+	vals = append(vals, s.TimestampVal)
+	cols = append(cols, "timeVal")
+	vals = append(vals, s.TimeVal)
+	cols = append(cols, "timetzVal")
+	vals = append(vals, s.TimetzVal)
+	cols = append(cols, "jsonReq")
+	vals = append(vals, s.JsonReq)
+	if s.JsonOpt != nil {
+		cols = append(cols, "jsonOpt")
+		vals = append(vals, *s.JsonOpt)
+	}
+	cols = append(cols, "jsonVal")
+	vals = append(vals, s.JsonVal)
+	cols = append(cols, "bytesReq")
+	vals = append(vals, s.BytesReq)
+	if s.BytesOpt != nil {
+		cols = append(cols, "bytesOpt")
+		vals = append(vals, *s.BytesOpt)
+	}
+	if s.HstoreField != nil {
+		cols = append(cols, "hstoreField")
+		vals = append(vals, ToHstore(*s.HstoreField))
+	}
+	cols = append(cols, "ltreeField")
+	vals = append(vals, s.LtreeField)
+	if s.CitextField != nil {
+		cols = append(cols, "citextField")
+		vals = append(vals, *s.CitextField)
+	}
+	return
 }
 
 func (s *AllFieldsSoFarCreate) ToRowMap() map[string]any {
-	m := make(map[string]any, 54)
-	if s.Id != nil {
-		m["id"] = *s.Id
-	}
-	m["stringReq"] = s.StringReq
-	if s.StringOpt != nil {
-		m["stringOpt"] = *s.StringOpt
-	}
-	if s.StringDefault != nil {
-		m["stringDefault"] = *s.StringDefault
-	} else {
-		m["stringDefault"] = rawDefault{}
-	}
-	m["stringVarchar"] = s.StringVarchar
-	m["stringChar"] = s.StringChar
-	m["bitVal"] = s.BitVal
-	m["varBitVal"] = s.VarBitVal
-	m["inetVal"] = s.InetVal
-	m["xmlVal"] = s.XmlVal
-	if s.CuidDefault != nil {
-		m["cuidDefault"] = *s.CuidDefault
-	} else {
-		m["cuidDefault"] = generateCUID()
-	}
-	if s.Cuid1Default != nil {
-		m["cuid1Default"] = *s.Cuid1Default
-	} else {
-		m["cuid1Default"] = generateCUID()
-	}
-	if s.Cuid2Default != nil {
-		m["cuid2Default"] = *s.Cuid2Default
-	} else {
-		m["cuid2Default"] = generateCUID2()
-	}
-	if s.UuidDefault != nil {
-		m["uuidDefault"] = *s.UuidDefault
-	} else {
-		m["uuidDefault"] = generateUUID()
-	}
-	if s.Uuid4Default != nil {
-		m["uuid4Default"] = *s.Uuid4Default
-	} else {
-		m["uuid4Default"] = generateUUID()
-	}
-	if s.Uuid7Default != nil {
-		m["uuid7Default"] = *s.Uuid7Default
-	} else {
-		m["uuid7Default"] = generateUUID7()
-	}
-	if s.UlidDefault != nil {
-		m["ulidDefault"] = *s.UlidDefault
-	} else {
-		m["ulidDefault"] = generateULID()
-	}
-	if s.NanoidDefault != nil {
-		m["nanoidDefault"] = *s.NanoidDefault
-	} else {
-		m["nanoidDefault"] = generateNanoID()
-	}
-	m["uuidDb"] = s.UuidDb
-	m["intReq"] = s.IntReq
-	if s.IntOpt != nil {
-		m["intOpt"] = *s.IntOpt
-	}
-	if s.IntDefault != nil {
-		m["intDefault"] = *s.IntDefault
-	} else {
-		m["intDefault"] = rawDefault{}
-	}
-	m["integerVal"] = s.IntegerVal
-	m["smallInt"] = s.SmallInt
-	m["tinyInt"] = s.TinyInt
-	m["oidVal"] = s.OidVal
-	m["bigIntReq"] = s.BigIntReq
-	if s.BigIntOpt != nil {
-		m["bigIntOpt"] = *s.BigIntOpt
-	}
-	m["floatReq"] = s.FloatReq
-	if s.FloatOpt != nil {
-		m["floatOpt"] = *s.FloatOpt
-	}
-	m["realVal"] = s.RealVal
-	m["decimalReq"] = s.DecimalReq
-	if s.DecimalOpt != nil {
-		m["decimalOpt"] = *s.DecimalOpt
-	}
-	m["decimalPrecise"] = s.DecimalPrecise
-	m["moneyVal"] = s.MoneyVal
-	m["boolReq"] = s.BoolReq
-	if s.BoolOpt != nil {
-		m["boolOpt"] = *s.BoolOpt
-	}
-	if s.BoolDefault != nil {
-		m["boolDefault"] = *s.BoolDefault
-	} else {
-		m["boolDefault"] = rawDefault{}
-	}
-	m["dateTimeReq"] = s.DateTimeReq
-	if s.DateTimeOpt != nil {
-		m["dateTimeOpt"] = *s.DateTimeOpt
-	}
-	if s.DateTimeDefault != nil {
-		m["dateTimeDefault"] = *s.DateTimeDefault
-	} else {
-		m["dateTimeDefault"] = time.Now()
-	}
-	m["updatedAt"] = s.UpdatedAt
-	m["dateTimeTz"] = s.DateTimeTz
-	m["timestampVal"] = s.TimestampVal
-	m["timeVal"] = s.TimeVal
-	m["timetzVal"] = s.TimetzVal
-	m["jsonReq"] = s.JsonReq
-	if s.JsonOpt != nil {
-		m["jsonOpt"] = *s.JsonOpt
-	}
-	m["jsonVal"] = s.JsonVal
-	m["bytesReq"] = s.BytesReq
-	if s.BytesOpt != nil {
-		m["bytesOpt"] = *s.BytesOpt
-	}
-	if s.HstoreField != nil {
-		m["hstoreField"] = ToHstore(*s.HstoreField)
-	}
-	m["ltreeField"] = s.LtreeField
-	if s.CitextField != nil {
-		m["citextField"] = *s.CitextField
+	cols, vals := s.ToColsVals()
+	m := make(map[string]any, len(cols))
+	for i, c := range cols {
+		m[c] = vals[i]
 	}
 	return m
 }
 
-func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*AllFieldsSoFar, error) {
-	input := assignmentsToAllFieldsSoFarCreate(assignments)
+func (d *AllFieldsSoFarDelegate) executeCreate(ctx context.Context, assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*AllFieldsSoFar, error) {
+	input, err := assignmentsToAllFieldsSoFarCreate(assignments)
+	if err != nil {
+		return nil, err
+	}
 
 	curr := func(c context.Context, args *AllFieldsSoFarCreate) (*AllFieldsSoFar, error) {
-		if err := validateAllFieldsSoFarCreate(assignments); err != nil {
-			return nil, err
-		}
+		cols, vals := args.ToColsVals()
 
-		rowMap := args.ToRowMap()
-		cols, vals := mapToColsVals(rowMap, AllFieldsSoFarColOrder)
-
-		returningCols := q.selectAllFieldsSoFarCols(selects, omits)
+		returningCols := selectAllFieldsSoFarCols(selects, omits)
 
 		scanFunc := func(res *AllFieldsSoFar, cols []string) []any {
 			return res.ScanFields(cols)
@@ -1652,16 +1610,16 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 		var res *AllFieldsSoFar
 		var err error
 		if hasRelations {
-			err = q.transaction(c, func(txQ *Queries) error {
+			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
 				res, err = executeInsert(c, txQ, "AllFieldsSoFar", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
-				return txQ.loadAllFieldsSoFarRelations(c, []*AllFieldsSoFar{res}, selects)
+				return txQ.AllFieldsSoFar.loadRelations(c, []*AllFieldsSoFar{res}, selects)
 			})
 		} else {
-			res, err = executeInsert(c, q, "AllFieldsSoFar", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+			res, err = executeInsert(c, d.client, "AllFieldsSoFar", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -1669,7 +1627,7 @@ func (q *Queries) executeAllFieldsSoFarCreate(ctx context.Context, assignments [
 		return res, nil
 	}
 
-	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
 			curr = func(c context.Context, input *AllFieldsSoFarCreate) (*AllFieldsSoFar, error) {
@@ -1718,9 +1676,8 @@ func (d *AllFieldsSoFarDelegate) CreateMany(builders ...*AllFieldsSoFarCreateBui
 	}
 	return &AllFieldsSoFarCreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[AllFieldsSoFar]{
-			client:   d.client,
 			records:  records,
-			execFunc: d.client.executeAllFieldsSoFarCreateMany,
+			execFunc: d.executeCreateMany,
 		},
 	}
 }
@@ -1732,20 +1689,19 @@ func (d *AllFieldsSoFarDelegate) CreateManyAndReturn(builders ...*AllFieldsSoFar
 	}
 	return &AllFieldsSoFarCreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
-			client:   d.client,
 			records:  records,
-			execFunc: d.client.executeAllFieldsSoFarCreateManyAndReturn,
+			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func (d *AllFieldsSoFarDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	inputs := make([]*AllFieldsSoFarCreate, len(records))
 	for i, rec := range records {
-		if err := validateAllFieldsSoFarCreate(rec.Assignments); err != nil {
+		input, err := assignmentsToAllFieldsSoFarCreate(rec.Assignments)
+		if err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		input := assignmentsToAllFieldsSoFarCreate(rec.Assignments)
 		inputs[i] = &input
 	}
 
@@ -1759,10 +1715,10 @@ func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records [
 			"id",
 		}
 
-		return executeCreateMany(c, q, rowMaps, "AllFieldsSoFar", AllFieldsSoFarColOrder, pkCols, conflictTarget, conflictAction)
+		return executeCreateMany(c, d.client, rowMaps, "AllFieldsSoFar", allFieldsSoFarDefaultCols, pkCols, conflictTarget, conflictAction)
 	}
 
-	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
 			curr = func(c context.Context, inputs []*AllFieldsSoFarCreate) (int64, error) {
@@ -1774,13 +1730,13 @@ func (q *Queries) executeAllFieldsSoFarCreateMany(ctx context.Context, records [
 	return curr(ctx, inputs)
 }
 
-func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*AllFieldsSoFar, error) {
+func (d *AllFieldsSoFarDelegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*AllFieldsSoFar, error) {
 	inputs := make([]*AllFieldsSoFarCreate, len(records))
 	for i, rec := range records {
-		if err := validateAllFieldsSoFarCreate(rec.Assignments); err != nil {
+		input, err := assignmentsToAllFieldsSoFarCreate(rec.Assignments)
+		if err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		input := assignmentsToAllFieldsSoFarCreate(rec.Assignments)
 		inputs[i] = &input
 	}
 
@@ -1794,9 +1750,11 @@ func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, 
 			"id",
 		}
 
-		return executeCreateManyAndReturn(c, q, rowMaps, "AllFieldsSoFar", AllFieldsSoFarColOrder, selects, omits,
-			q.selectAllFieldsSoFarCols,
-			q.loadAllFieldsSoFarRelations,
+		return executeCreateManyAndReturn(c, d.client, rowMaps, "AllFieldsSoFar", allFieldsSoFarDefaultCols, selects, omits,
+			selectAllFieldsSoFarCols,
+			func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar, sel *AllFieldsSoFarSelect) error {
+				return txQ.AllFieldsSoFar.loadRelations(ctx, results, sel)
+			},
 			(*AllFieldsSoFar).ScanFields,
 			(*AllFieldsSoFarSelect).hasAnyRelation,
 			pkCols,
@@ -1805,7 +1763,7 @@ func (q *Queries) executeAllFieldsSoFarCreateManyAndReturn(ctx context.Context, 
 		)
 	}
 
-	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
 			curr = func(c context.Context, inputs []*AllFieldsSoFarCreate) ([]*AllFieldsSoFar, error) {
@@ -2013,30 +1971,27 @@ func newAllFieldsSoFarUpsert(up *ConflictUpdate) *AllFieldsSoFarUpsert {
 }
 func (d *AllFieldsSoFarDelegate) FindUnique(where UniquePredicate[AllFieldsSoFar], additional ...PredicateOf[AllFieldsSoFar]) *FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
 	return &FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
-		client:     d.client,
 		where:      where,
 		additional: additional,
-		execFunc:   d.client.executeAllFieldsSoFarFindUnique,
+		execFunc:   d.executeFindUnique,
 	}
 }
 
 func (d *AllFieldsSoFarDelegate) FindFirst(preds ...PredicateOf[AllFieldsSoFar]) *FindFirstBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
 	return &FindFirstBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
-		client:   d.client,
 		where:    preds,
-		execFunc: d.client.executeAllFieldsSoFarFindFirst,
+		execFunc: d.executeFindFirst,
 	}
 }
 
 func (d *AllFieldsSoFarDelegate) FindMany(preds ...PredicateOf[AllFieldsSoFar]) *FindManyBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
 	return &FindManyBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
-		client:   d.client,
 		where:    preds,
-		execFunc: d.client.executeAllFieldsSoFarFindMany,
+		execFunc: d.executeFindMany,
 	}
 }
 
-func (q *Queries) executeAllFieldsSoFarFindUnique(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+func (d *AllFieldsSoFarDelegate) executeFindUnique(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
 	curr := func(c context.Context, w UniquePredicate[AllFieldsSoFar], add []PredicateOf[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
 		if err := w.Validate(); err != nil {
 			return nil, err
@@ -2049,22 +2004,22 @@ func (q *Queries) executeAllFieldsSoFarFindUnique(ctx context.Context, where Uni
 			}
 		}
 		allPreds := append([]PredicateOf[AllFieldsSoFar]{w}, add...)
-		whereClause, vals := CompilePredicates(q.dialect, allPreds)
+		whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectAllFieldsSoFarCols(sel, o)
-		return executeSingleWithRelations(c, q, "AllFieldsSoFar", whereClause, vals, returningCols,
+		returningCols := selectAllFieldsSoFarCols(sel, o)
+		return executeSingleWithRelations(c, d.client, "AllFieldsSoFar", whereClause, vals, returningCols,
 			func(res *AllFieldsSoFar, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
-				return txQ.loadAllFieldsSoFarRelations(ctx, results, sel)
+				return txQ.AllFieldsSoFar.loadRelations(ctx, results, sel)
 			},
 			nil,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
 			curr = func(c context.Context, w UniquePredicate[AllFieldsSoFar], add []PredicateOf[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
@@ -2076,7 +2031,7 @@ func (q *Queries) executeAllFieldsSoFarFindUnique(ctx context.Context, where Uni
 	return curr(ctx, where, additional, selects, omits)
 }
 
-func (q *Queries) executeAllFieldsSoFarFindFirst(
+func (d *AllFieldsSoFarDelegate) executeFindFirst(
 	ctx context.Context,
 	params QueryParams[AllFieldsSoFar],
 	selects *AllFieldsSoFarSelect,
@@ -2090,22 +2045,22 @@ func (q *Queries) executeAllFieldsSoFarFindFirst(
 				}
 			}
 		}
-		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectAllFieldsSoFarCols(sel, o)
-		return executeSingleWithRelations(c, q, "AllFieldsSoFar", whereClause, vals, returningCols,
+		returningCols := selectAllFieldsSoFarCols(sel, o)
+		return executeSingleWithRelations(c, d.client, "AllFieldsSoFar", whereClause, vals, returningCols,
 			func(res *AllFieldsSoFar, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
-				return txQ.loadAllFieldsSoFarRelations(ctx, results, sel)
+				return txQ.AllFieldsSoFar.loadRelations(ctx, results, sel)
 			},
 			p.Skip,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
 			curr = func(c context.Context, p QueryParams[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
@@ -2117,7 +2072,7 @@ func (q *Queries) executeAllFieldsSoFarFindFirst(
 	return curr(ctx, params, selects, omits)
 }
 
-func (q *Queries) executeAllFieldsSoFarFindMany(
+func (d *AllFieldsSoFarDelegate) executeFindMany(
 	ctx context.Context,
 	params QueryParams[AllFieldsSoFar],
 	selects *AllFieldsSoFarSelect,
@@ -2131,23 +2086,23 @@ func (q *Queries) executeAllFieldsSoFarFindMany(
 				}
 			}
 		}
-		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectAllFieldsSoFarCols(sel, o)
-		return executeManyWithRelations(c, q, "AllFieldsSoFar", whereClause, vals, returningCols,
+		returningCols := selectAllFieldsSoFarCols(sel, o)
+		return executeManyWithRelations(c, d.client, "AllFieldsSoFar", whereClause, vals, returningCols,
 			func(res *AllFieldsSoFar, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*AllFieldsSoFar) error {
-				return txQ.loadAllFieldsSoFarRelations(ctx, results, sel)
+				return txQ.AllFieldsSoFar.loadRelations(ctx, results, sel)
 			},
 			p.Take,
 			p.Skip,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.AllFieldsSoFar.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
 			curr = func(c context.Context, p QueryParams[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
@@ -2158,7 +2113,8 @@ func (q *Queries) executeAllFieldsSoFarFindMany(
 
 	return curr(ctx, params, selects, omits)
 }
-func (q *Queries) loadAllFieldsSoFarRelations(ctx context.Context, records []*AllFieldsSoFar, selects *AllFieldsSoFarSelect) error {
+func (d *AllFieldsSoFarDelegate) loadRelations(ctx context.Context, records []*AllFieldsSoFar, selects *AllFieldsSoFarSelect) error {
+	_ = ctx
 	if selects == nil || len(records) == 0 {
 		return nil
 	}

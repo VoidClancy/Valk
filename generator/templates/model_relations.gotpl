@@ -1,4 +1,7 @@
 func (d *{{ .Model.Name }}Delegate) loadRelations(ctx context.Context, records []*{{ .Model.Name }}, selects *{{ .Model.Name }}Select) error {
+	{{- if not .Model.RelationFields }}
+	_ = ctx
+	{{- end }}
 	if selects == nil || len(records) == 0 {
 		return nil
 	}
@@ -12,7 +15,7 @@ func (d *{{ .Model.Name }}Delegate) loadRelations(ctx context.Context, records [
 			{{- $forceCol = (index $relation.Inverse.FKFields 0).EffectiveColName }}
 		{{- end }}
 		relationSelects, relationOmits, relationParams := selects.{{ capitalize $relation.Name }}.GetRelationParams()
-		returningCols := d.client.{{ $relation.TargetModelName }}.selectCols(relationSelects, relationOmits, "{{ $forceCol }}")
+		returningCols := select{{ $relation.TargetModelName }}Cols(relationSelects, relationOmits, "{{ $forceCol }}")
 
 		{{- if gt (len $relation.FKFields) 0 }}
 		// Current model holds the FK: {{ $.Model.Name }}.{{ (index $relation.FKFields 0).Name }}

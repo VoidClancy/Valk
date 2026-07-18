@@ -160,7 +160,7 @@ var postDefaultCols = []string{
 	"authorId",
 }
 
-func (q *Queries) selectPostCols(selects *PostSelect, omits *PostOmit, forceCols ...string) []string {
+func selectPostCols(selects *PostSelect, omits *PostOmit, forceCols ...string) []string {
 	if selects == nil && omits == nil && len(forceCols) == 0 {
 		return postDefaultCols
 	}
@@ -184,14 +184,6 @@ func (q *Queries) selectPostCols(selects *PostSelect, omits *PostOmit, forceCols
 	}
 
 	return cols
-}
-
-var PostColOrder = []string{
-	"id",
-	"title",
-	"content",
-	"published",
-	"authorId",
 }
 
 func (s *PostSelect) hasAnyRelation() bool {
@@ -240,124 +232,124 @@ func (b *PostCreateBuilder) SetAuthorId(v string) *PostCreateBuilder {
 func (d *PostDelegate) Create(assignments ...FieldAssignment) *PostCreateBuilder {
 	return &PostCreateBuilder{
 		CreateBuilder: &CreateBuilder[Post, PostSelect, PostOmit]{
-			client:      d.client,
 			assignments: assignments,
-			execFunc:    d.client.executePostCreate,
+			execFunc:    d.executeCreate,
 		},
 	}
 }
 
-func validatePostCreate(assignments []FieldAssignment) error {
-	errs := &ValidationError{}
+const (
+	providedPostId        uint64 = 1 << 0
+	providedPostTitle     uint64 = 1 << 1
+	providedPostContent   uint64 = 1 << 2
+	providedPostPublished uint64 = 1 << 3
+	providedPostAuthorId  uint64 = 1 << 4
+)
 
-	provided := make(map[string]bool)
+func assignmentsToPostCreate(assignments []FieldAssignment) (PostCreate, error) {
+	var input PostCreate
+	var errs ValidationError
+	var provided uint64
+
 	for _, a := range assignments {
-		provided[a.Col] = true
 		switch a.Col {
 		case "id":
+			provided |= providedPostId
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "id", v, false, 0, false, false)
+				input.Id = &v
+				ValidateString(&errs, "id", v, false, 0, false, false)
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
 		case "title":
+			provided |= providedPostTitle
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "title", v, true, 0, false, false)
+				input.Title = v
+				ValidateString(&errs, "title", v, true, 0, false, false)
 			} else {
 				errs.Add("title", a.Val, "type", "field title must be of type string")
 			}
 		case "content":
+			provided |= providedPostContent
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "content", v, false, 0, false, false)
+				input.Content = &v
+				ValidateString(&errs, "content", v, false, 0, false, false)
 			} else {
 				errs.Add("content", a.Val, "type", "field content must be of type string")
 			}
 		case "published":
-			if _, ok := a.Val.(bool); !ok {
+			provided |= providedPostPublished
+			if v, ok := a.Val.(bool); ok {
+				input.Published = &v
+			} else {
 				errs.Add("published", a.Val, "type", "field published must be of type bool")
 			}
 		case "authorId":
+			provided |= providedPostAuthorId
 			if v, ok := a.Val.(string); ok {
-				ValidateString(errs, "authorId", v, true, 0, false, false)
+				input.AuthorId = v
+				ValidateString(&errs, "authorId", v, true, 0, false, false)
 			} else {
 				errs.Add("authorId", a.Val, "type", "field authorId must be of type string")
 			}
 		}
 	}
-	if !provided["title"] {
+	if provided&providedPostTitle == 0 {
 		errs.Add("title", "", "required", "field Title is required")
 	}
-	if !provided["authorId"] {
+	if provided&providedPostAuthorId == 0 {
 		errs.Add("authorId", "", "required", "field AuthorId is required")
 	}
 
 	if errs.HasErrors() {
-		return *errs
+		return input, errs
 	}
-	return nil
+	return input, nil
 }
 
-func assignmentsToPostCreate(assignments []FieldAssignment) PostCreate {
-	var input PostCreate
-	for _, a := range assignments {
-		switch a.Col {
-		case "id":
-			if v, ok := a.Val.(string); ok {
-				input.Id = &v
-			}
-		case "title":
-			if v, ok := a.Val.(string); ok {
-				input.Title = v
-			}
-		case "content":
-			if v, ok := a.Val.(string); ok {
-				input.Content = &v
-			}
-		case "published":
-			if v, ok := a.Val.(bool); ok {
-				input.Published = &v
-			}
-		case "authorId":
-			if v, ok := a.Val.(string); ok {
-				input.AuthorId = v
-			}
-		}
+func (s *PostCreate) ToColsVals() (cols []string, vals []any) {
+	cols = make([]string, 0, 5)
+	vals = make([]any, 0, 5)
+	cols = append(cols, "id")
+	if s.Id != nil {
+		vals = append(vals, *s.Id)
+	} else {
+		vals = append(vals, generateCUID())
 	}
-	return input
+	cols = append(cols, "title")
+	vals = append(vals, s.Title)
+	if s.Content != nil {
+		cols = append(cols, "content")
+		vals = append(vals, *s.Content)
+	}
+	if s.Published != nil {
+		cols = append(cols, "published")
+		vals = append(vals, *s.Published)
+	}
+	cols = append(cols, "authorId")
+	vals = append(vals, s.AuthorId)
+	return
 }
 
 func (s *PostCreate) ToRowMap() map[string]any {
-	m := make(map[string]any, 5)
-	if s.Id != nil {
-		m["id"] = *s.Id
-	} else {
-		m["id"] = generateCUID()
+	cols, vals := s.ToColsVals()
+	m := make(map[string]any, len(cols))
+	for i, c := range cols {
+		m[c] = vals[i]
 	}
-	m["title"] = s.Title
-	if s.Content != nil {
-		m["content"] = *s.Content
-	}
-	if s.Published != nil {
-		m["published"] = *s.Published
-	} else {
-		m["published"] = rawDefault{}
-	}
-	m["authorId"] = s.AuthorId
 	return m
 }
 
-func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssignment, selects *PostSelect, omits *PostOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*Post, error) {
-	input := assignmentsToPostCreate(assignments)
+func (d *PostDelegate) executeCreate(ctx context.Context, assignments []FieldAssignment, selects *PostSelect, omits *PostOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*Post, error) {
+	input, err := assignmentsToPostCreate(assignments)
+	if err != nil {
+		return nil, err
+	}
 
 	curr := func(c context.Context, args *PostCreate) (*Post, error) {
-		if err := validatePostCreate(assignments); err != nil {
-			return nil, err
-		}
+		cols, vals := args.ToColsVals()
 
-		rowMap := args.ToRowMap()
-		cols, vals := mapToColsVals(rowMap, PostColOrder)
-
-		returningCols := q.selectPostCols(selects, omits)
+		returningCols := selectPostCols(selects, omits)
 
 		scanFunc := func(res *Post, cols []string) []any {
 			return res.ScanFields(cols)
@@ -372,16 +364,16 @@ func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssi
 		var res *Post
 		var err error
 		if hasRelations {
-			err = q.transaction(c, func(txQ *Queries) error {
+			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
 				res, err = executeInsert(c, txQ, "Post", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
-				return txQ.loadPostRelations(c, []*Post{res}, selects)
+				return txQ.Post.loadRelations(c, []*Post{res}, selects)
 			})
 		} else {
-			res, err = executeInsert(c, q, "Post", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+			res, err = executeInsert(c, d.client, "Post", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -389,7 +381,7 @@ func (q *Queries) executePostCreate(ctx context.Context, assignments []FieldAssi
 		return res, nil
 	}
 
-	for _, ext := range slices.Backward(q.Post.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
 			curr = func(c context.Context, input *PostCreate) (*Post, error) {
@@ -438,9 +430,8 @@ func (d *PostDelegate) CreateMany(builders ...*PostCreateBuilder) *PostCreateMan
 	}
 	return &PostCreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[Post]{
-			client:   d.client,
 			records:  records,
-			execFunc: d.client.executePostCreateMany,
+			execFunc: d.executeCreateMany,
 		},
 	}
 }
@@ -452,20 +443,19 @@ func (d *PostDelegate) CreateManyAndReturn(builders ...*PostCreateBuilder) *Post
 	}
 	return &PostCreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[Post, PostSelect, PostOmit]{
-			client:   d.client,
 			records:  records,
-			execFunc: d.client.executePostCreateManyAndReturn,
+			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func (d *PostDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	inputs := make([]*PostCreate, len(records))
 	for i, rec := range records {
-		if err := validatePostCreate(rec.Assignments); err != nil {
+		input, err := assignmentsToPostCreate(rec.Assignments)
+		if err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		input := assignmentsToPostCreate(rec.Assignments)
 		inputs[i] = &input
 	}
 
@@ -479,10 +469,10 @@ func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInp
 			"id",
 		}
 
-		return executeCreateMany(c, q, rowMaps, "Post", PostColOrder, pkCols, conflictTarget, conflictAction)
+		return executeCreateMany(c, d.client, rowMaps, "Post", postDefaultCols, pkCols, conflictTarget, conflictAction)
 	}
 
-	for _, ext := range slices.Backward(q.Post.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
 			curr = func(c context.Context, inputs []*PostCreate) (int64, error) {
@@ -494,13 +484,13 @@ func (q *Queries) executePostCreateMany(ctx context.Context, records []RecordInp
 	return curr(ctx, inputs)
 }
 
-func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *PostSelect, omits *PostOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Post, error) {
+func (d *PostDelegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *PostSelect, omits *PostOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Post, error) {
 	inputs := make([]*PostCreate, len(records))
 	for i, rec := range records {
-		if err := validatePostCreate(rec.Assignments); err != nil {
+		input, err := assignmentsToPostCreate(rec.Assignments)
+		if err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		input := assignmentsToPostCreate(rec.Assignments)
 		inputs[i] = &input
 	}
 
@@ -514,9 +504,11 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []
 			"id",
 		}
 
-		return executeCreateManyAndReturn(c, q, rowMaps, "Post", PostColOrder, selects, omits,
-			q.selectPostCols,
-			q.loadPostRelations,
+		return executeCreateManyAndReturn(c, d.client, rowMaps, "Post", postDefaultCols, selects, omits,
+			selectPostCols,
+			func(ctx context.Context, txQ *Queries, results []*Post, sel *PostSelect) error {
+				return txQ.Post.loadRelations(ctx, results, sel)
+			},
 			(*Post).ScanFields,
 			(*PostSelect).hasAnyRelation,
 			pkCols,
@@ -525,7 +517,7 @@ func (q *Queries) executePostCreateManyAndReturn(ctx context.Context, records []
 		)
 	}
 
-	for _, ext := range slices.Backward(q.Post.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
 			curr = func(c context.Context, inputs []*PostCreate) ([]*Post, error) {
@@ -584,30 +576,27 @@ func newPostUpsert(up *ConflictUpdate) *PostUpsert {
 }
 func (d *PostDelegate) FindUnique(where UniquePredicate[Post], additional ...PredicateOf[Post]) *FindUniqueBuilder[Post, PostSelect, PostOmit] {
 	return &FindUniqueBuilder[Post, PostSelect, PostOmit]{
-		client:     d.client,
 		where:      where,
 		additional: additional,
-		execFunc:   d.client.executePostFindUnique,
+		execFunc:   d.executeFindUnique,
 	}
 }
 
 func (d *PostDelegate) FindFirst(preds ...PredicateOf[Post]) *FindFirstBuilder[Post, PostSelect, PostOmit] {
 	return &FindFirstBuilder[Post, PostSelect, PostOmit]{
-		client:   d.client,
 		where:    preds,
-		execFunc: d.client.executePostFindFirst,
+		execFunc: d.executeFindFirst,
 	}
 }
 
 func (d *PostDelegate) FindMany(preds ...PredicateOf[Post]) *FindManyBuilder[Post, PostSelect, PostOmit] {
 	return &FindManyBuilder[Post, PostSelect, PostOmit]{
-		client:   d.client,
 		where:    preds,
-		execFunc: d.client.executePostFindMany,
+		execFunc: d.executeFindMany,
 	}
 }
 
-func (q *Queries) executePostFindUnique(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], selects *PostSelect, omits *PostOmit) (*Post, error) {
+func (d *PostDelegate) executeFindUnique(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], selects *PostSelect, omits *PostOmit) (*Post, error) {
 	curr := func(c context.Context, w UniquePredicate[Post], add []PredicateOf[Post], sel *PostSelect, o *PostOmit) (*Post, error) {
 		if err := w.Validate(); err != nil {
 			return nil, err
@@ -620,22 +609,22 @@ func (q *Queries) executePostFindUnique(ctx context.Context, where UniquePredica
 			}
 		}
 		allPreds := append([]PredicateOf[Post]{w}, add...)
-		whereClause, vals := CompilePredicates(q.dialect, allPreds)
+		whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectPostCols(sel, o)
-		return executeSingleWithRelations(c, q, "Post", whereClause, vals, returningCols,
+		returningCols := selectPostCols(sel, o)
+		return executeSingleWithRelations(c, d.client, "Post", whereClause, vals, returningCols,
 			func(res *Post, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*Post) error {
-				return txQ.loadPostRelations(ctx, results, sel)
+				return txQ.Post.loadRelations(ctx, results, sel)
 			},
 			nil,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.Post.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
 			curr = func(c context.Context, w UniquePredicate[Post], add []PredicateOf[Post], sel *PostSelect, o *PostOmit) (*Post, error) {
@@ -647,7 +636,7 @@ func (q *Queries) executePostFindUnique(ctx context.Context, where UniquePredica
 	return curr(ctx, where, additional, selects, omits)
 }
 
-func (q *Queries) executePostFindFirst(
+func (d *PostDelegate) executeFindFirst(
 	ctx context.Context,
 	params QueryParams[Post],
 	selects *PostSelect,
@@ -661,22 +650,22 @@ func (q *Queries) executePostFindFirst(
 				}
 			}
 		}
-		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectPostCols(sel, o)
-		return executeSingleWithRelations(c, q, "Post", whereClause, vals, returningCols,
+		returningCols := selectPostCols(sel, o)
+		return executeSingleWithRelations(c, d.client, "Post", whereClause, vals, returningCols,
 			func(res *Post, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*Post) error {
-				return txQ.loadPostRelations(ctx, results, sel)
+				return txQ.Post.loadRelations(ctx, results, sel)
 			},
 			p.Skip,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.Post.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
 			curr = func(c context.Context, p QueryParams[Post], sel *PostSelect, o *PostOmit) (*Post, error) {
@@ -688,7 +677,7 @@ func (q *Queries) executePostFindFirst(
 	return curr(ctx, params, selects, omits)
 }
 
-func (q *Queries) executePostFindMany(
+func (d *PostDelegate) executeFindMany(
 	ctx context.Context,
 	params QueryParams[Post],
 	selects *PostSelect,
@@ -702,23 +691,23 @@ func (q *Queries) executePostFindMany(
 				}
 			}
 		}
-		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.selectPostCols(sel, o)
-		return executeManyWithRelations(c, q, "Post", whereClause, vals, returningCols,
+		returningCols := selectPostCols(sel, o)
+		return executeManyWithRelations(c, d.client, "Post", whereClause, vals, returningCols,
 			func(res *Post, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*Post) error {
-				return txQ.loadPostRelations(ctx, results, sel)
+				return txQ.Post.loadRelations(ctx, results, sel)
 			},
 			p.Take,
 			p.Skip,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.Post.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
 			curr = func(c context.Context, p QueryParams[Post], sel *PostSelect, o *PostOmit) ([]*Post, error) {
@@ -729,16 +718,16 @@ func (q *Queries) executePostFindMany(
 
 	return curr(ctx, params, selects, omits)
 }
-func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, selects *PostSelect) error {
+func (d *PostDelegate) loadRelations(ctx context.Context, records []*Post, selects *PostSelect) error {
 	if selects == nil || len(records) == 0 {
 		return nil
 	}
 	if selects.Author != nil {
 		relationSelects, relationOmits, relationParams := selects.Author.GetRelationParams()
-		returningCols := q.selectUserCols(relationSelects, relationOmits, "id")
+		returningCols := selectUserCols(relationSelects, relationOmits, "id")
 		// Current model holds the FK: Post.authorId
 		allChildren, err := loadRelation(
-			ctx, q, records,
+			ctx, d.client, records,
 			directKey(func(p *Post) string { return p.AuthorId }),
 			"User",
 			"id",
@@ -751,16 +740,16 @@ func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, select
 		if err != nil {
 			return fmt.Errorf("loading author: %w", err)
 		}
-		if err := q.loadUserRelations(ctx, allChildren, relationSelects); err != nil {
+		if err := d.client.User.loadRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.Comments != nil {
 		relationSelects, relationOmits, relationParams := selects.Comments.GetRelationParams()
-		returningCols := q.selectCommentCols(relationSelects, relationOmits, "postId")
+		returningCols := selectCommentCols(relationSelects, relationOmits, "postId")
 		// Inverse holds the FK: Comment.postId
 		allChildren, err := loadRelation(
-			ctx, q, records,
+			ctx, d.client, records,
 			directKey(func(p *Post) string { return p.Id }),
 			"Comment",
 			"postId",
@@ -773,16 +762,16 @@ func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, select
 		if err != nil {
 			return fmt.Errorf("loading comments: %w", err)
 		}
-		if err := q.loadCommentRelations(ctx, allChildren, relationSelects); err != nil {
+		if err := d.client.Comment.loadRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
 	if selects.Categories != nil {
 		relationSelects, relationOmits, relationParams := selects.Categories.GetRelationParams()
-		returningCols := q.selectCategoryToPostCols(relationSelects, relationOmits, "postId")
+		returningCols := selectCategoryToPostCols(relationSelects, relationOmits, "postId")
 		// Inverse holds the FK: CategoryToPost.postId
 		allChildren, err := loadRelation(
-			ctx, q, records,
+			ctx, d.client, records,
 			directKey(func(p *Post) string { return p.Id }),
 			"CategoryToPost",
 			"postId",
@@ -795,7 +784,7 @@ func (q *Queries) loadPostRelations(ctx context.Context, records []*Post, select
 		if err != nil {
 			return fmt.Errorf("loading categories: %w", err)
 		}
-		if err := q.loadCategoryToPostRelations(ctx, allChildren, relationSelects); err != nil {
+		if err := d.client.CategoryToPost.loadRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}
