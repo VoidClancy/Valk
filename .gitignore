@@ -5,3 +5,4 @@ bin
 .vscode
 docker-compose.yml
 api-example.gotpl
+*.bak

@@ -55,20 +55,30 @@ func (d *{{ .Model.Name }}Delegate) Create(assignments ...FieldAssignment) *{{ .
 	}
 }
 
-func validate{{ .Model.Name }}Create(assignments []FieldAssignment) error {
-	errs := &ValidationError{}
+const (
+	{{- range $i, $field := .Model.ScalarFields }}
+	provided{{ $.Model.Name }}{{ capitalize $field.Name }} uint64 = 1 << {{ $i }}
+	{{- end }}
+)
 
-	provided := make(map[string]bool)
+func assignmentsTo{{ .Model.Name }}Create(assignments []FieldAssignment) ({{ .Model.Name }}Create, error) {
+	var input {{ .Model.Name }}Create
+	var errs ValidationError
+	var provided uint64
+
 	for _, a := range assignments {
-		provided[a.Col] = true
 		switch a.Col {
 		{{- range $field := .Model.ScalarFields }}
 		{{- $col := $field.EffectiveColName }}
+		{{- $coreType := trimPrefix $field.GoType "*" }}
+		{{- $isPointer := or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType) }}
 		case "{{ $col }}":
+			provided |= provided{{ $.Model.Name }}{{ capitalize $field.Name }}
 			{{- if $field.EnumRef }}
-			{{- $enumType := printf "%sType" $field.EnumRef.Name }}
-			{{- if $field.IsArray }}
+				{{- $enumType := printf "%sType" $field.EnumRef.Name }}
+				{{- if $field.IsArray }}
 			if v, ok := a.Val.([]{{ $enumType }}); ok {
+				input.{{ capitalize $field.Name }} = v
 				for i, val := range v {
 					if !val.IsValid() {
 						errs.Add(fmt.Sprintf("{{ $field.Name }}[%d]", i), val, "enum", fmt.Sprintf("invalid enum value %q for field {{ $field.Name }}", val))
@@ -77,17 +87,25 @@ func validate{{ .Model.Name }}Create(assignments []FieldAssignment) error {
 			} else {
 				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type []{{ $enumType }}")
 			}
-			{{- else }}
+				{{- else }}
 			if v, ok := a.Val.({{ $enumType }}); ok {
+				input.{{ capitalize $field.Name }} = &v
 				if !v.IsValid() {
 					errs.Add("{{ $field.Name }}", v, "enum", fmt.Sprintf("invalid enum value %q for field {{ $field.Name }}", v))
 				}
 			} else {
 				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ $enumType }}")
 			}
-			{{- end }}
-			{{- else if eq (trimPrefix $field.GoType "*") "string" }}
+				{{- end }}
+			{{- else if eq $coreType "string" }}
 			if v, ok := a.Val.(string); ok {
+				{{- if $field.IsArray }}
+				input.{{ capitalize $field.Name }} = v
+				{{- else if $isPointer }}
+				input.{{ capitalize $field.Name }} = &v
+				{{- else }}
+				input.{{ capitalize $field.Name }} = v
+				{{- end }}
 				{{- $isRequired := and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
 				{{- $maxLen := 0 }}
 				{{- if and $field.NativeType (or (eq $field.NativeType.Name "VarChar") (eq $field.NativeType.Name "Char")) }}
@@ -101,23 +119,38 @@ func validate{{ .Model.Name }}Create(assignments []FieldAssignment) error {
 				{{- if and $field.NativeType (eq $field.NativeType.Name "Inet") }}
 					{{- $isInet = true }}
 				{{- end }}
-				ValidateString(errs, "{{ $field.Name }}", v, {{ $isRequired }}, {{ $maxLen }}, {{ $isBit }}, {{ $isInet }})
+				ValidateString(&errs, "{{ $field.Name }}", v, {{ $isRequired }}, {{ $maxLen }}, {{ $isBit }}, {{ $isInet }})
 			} else {
 				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type string")
 			}
-			{{- else if or (eq (trimPrefix $field.GoType "*") "int32") (eq (trimPrefix $field.GoType "*") "int64") (eq (trimPrefix $field.GoType "*") "int") }}
-			if v, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); ok {
+			{{- else if or (eq $coreType "int32") (eq $coreType "int64") (eq $coreType "int") }}
+			if v, ok := a.Val.({{ $coreType }}); ok {
+				{{- if $field.IsArray }}
+				input.{{ capitalize $field.Name }} = v
+				{{- else if $isPointer }}
+				input.{{ capitalize $field.Name }} = &v
+				{{- else }}
+				input.{{ capitalize $field.Name }} = v
+				{{- end }}
 				{{- $rule := "" }}
 				{{- if and $field.NativeType (or (eq $field.NativeType.Name "SmallInt") (eq $field.NativeType.Name "TinyInt") (eq $field.NativeType.Name "Oid")) }}
 					{{- $rule = $field.NativeType.Name }}
 				{{- end }}
-				Validate{{ capitalize (trimPrefix $field.GoType "*") }}(errs, "{{ $field.Name }}", v, "{{ $rule }}")
+				Validate{{ capitalize $coreType }}(&errs, "{{ $field.Name }}", v, "{{ $rule }}")
 			} else {
-				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ trimPrefix $field.GoType "*" }}")
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ $coreType }}")
 			}
-			{{- else if ne (trimPrefix $field.GoType "*") "any" }}
-			if _, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); !ok {
-				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ trimPrefix $field.GoType "*" }}")
+			{{- else if ne $coreType "any" }}
+			if v, ok := a.Val.({{ $coreType }}); ok {
+				{{- if $field.IsArray }}
+				input.{{ capitalize $field.Name }} = v
+				{{- else if $isPointer }}
+				input.{{ capitalize $field.Name }} = &v
+				{{- else }}
+				input.{{ capitalize $field.Name }} = v
+				{{- end }}
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ $coreType }}")
 			}
 			{{- end }}
 		{{- end }}
@@ -125,152 +158,112 @@ func validate{{ .Model.Name }}Create(assignments []FieldAssignment) error {
 	}
 
 	{{- range $field := .Model.ScalarFields }}
-	{{- $col := $field.EffectiveColName }}
 	{{- $fieldName := capitalize $field.Name }}
-	{{- if $field.EnumRef }}
-		{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
-	if !provided["{{ $col }}"] {
-		errs.Add("{{ $field.Name }}", nil, "required", "field {{ $fieldName }} is required")
-	}
+	{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
+	if provided&provided{{ $.Model.Name }}{{ $fieldName }} == 0 {
+		{{- if or $field.EnumRef (ne $field.GoType "string") }}
+		errs.Add("{{ $field.EffectiveColName }}", nil, "required", "field {{ $fieldName }} is required")
+		{{- else }}
+		errs.Add("{{ $field.EffectiveColName }}", "", "required", "field {{ $fieldName }} is required")
 		{{- end }}
-	{{- else if eq $field.GoType "string" }}
-		{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
-	if !provided["{{ $col }}"] {
-		errs.Add("{{ $field.Name }}", "", "required", "field {{ $fieldName }} is required")
 	}
-		{{- end }}
-	{{- else }}
-		{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
-	if !provided["{{ $col }}"] {
-		errs.Add("{{ $field.Name }}", nil, "required", "field {{ $fieldName }} is required")
-	}
-		{{- end }}
 	{{- end }}
 	{{- end }}
 
 	if errs.HasErrors() {
-		return *errs
+		return input, errs
 	}
-	return nil
+	return input, nil
 }
 
-func assignmentsTo{{ .Model.Name }}Create(assignments []FieldAssignment) {{ .Model.Name }}Create {
-	var input {{ .Model.Name }}Create
-	for _, a := range assignments {
-		switch a.Col {
-		{{- range $field := .Model.ScalarFields }}
-		case "{{ $field.EffectiveColName }}":
-			{{- if $field.EnumRef }}
-				{{- if $field.IsArray }}
-				if v, ok := a.Val.([]{{ $field.EnumRef.Name }}Type); ok {
-					input.{{ capitalize $field.Name }} = v
-				}
-				{{- else }}
-				if v, ok := a.Val.({{ $field.EnumRef.Name }}Type); ok {
-					input.{{ capitalize $field.Name }} = &v
-				}
-				{{- end }}
-		{{- else if and $field.IsArray (ne (trimPrefix $field.GoType "*") "any") }}
-			if v, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); ok {
-				input.{{ capitalize $field.Name }} = v
-			}
-		{{- else if $field.IsArray }}
-			input.{{ capitalize $field.Name }} = a.Val.([]any)
-		{{- else if and (or (ne $field.Default nil) $field.Optional) (ne (trimPrefix $field.GoType "*") "any") }}
-			if v, ok := a.Val.({{ trimPrefix $field.GoType "*" }}); ok {
-				input.{{ capitalize $field.Name }} = &v
-			}
-		{{- else if or (ne $field.Default nil) $field.Optional }}
-			input.{{ capitalize $field.Name }} = &a.Val
-		{{- else if ne $field.GoType "any" }}
-			if v, ok := a.Val.({{ $field.GoType }}); ok {
-				input.{{ capitalize $field.Name }} = v
-			}
-		{{- else }}
-			input.{{ capitalize $field.Name }} = a.Val
-		{{- end }}
-		{{- end }}
-		}
-	}
-	return input
-}
-
-func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
-	m := make(map[string]any, {{ len .Model.ScalarFields }})
+func (s *{{ .Model.Name }}Create) ToColsVals() (cols []string, vals []any) {
+	cols = make([]string, 0, {{ len .Model.ScalarFields }})
+	vals = make([]any, 0, {{ len .Model.ScalarFields }})
 	{{- range $field := .Model.ScalarFields }}
 	{{- $col := $field.EffectiveColName }}
 	{{- $fieldName := capitalize $field.Name }}
 	{{- if $field.EnumRef }}
 		{{- if $field.IsArray }}
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = s.{{ $fieldName }}
+		cols = append(cols, "{{ $col }}")
+		vals = append(vals, s.{{ $fieldName }})
 	}
 		{{- else }}
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = *s.{{ $fieldName }}
-	}{{- if ne $field.Default nil }} else {
-		m["{{ $col }}"] = rawDefault{}
-	}{{- end }}
+		cols = append(cols, "{{ $col }}")
+		vals = append(vals, *s.{{ $fieldName }})
+	}
 		{{- end }}
 	{{- else if $field.IsArray }}
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = s.{{ $fieldName }}
+		cols = append(cols, "{{ $col }}")
+		vals = append(vals, s.{{ $fieldName }})
 	}
 	{{- else }}
 		{{- if and $field.Default (eq $field.Default.Kind.String "Func") }}
 			{{- if eq $field.Default.FuncName "autoincrement" }}
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
+		cols = append(cols, "{{ $col }}")
+		vals = append(vals, {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }})
 	}
 			{{- else if $field.Default.FuncName | isKnownDefaultFunc }}
+	cols = append(cols, "{{ $col }}")
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
+		vals = append(vals, {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }})
 	} else {
-		m["{{ $col }}"] = {{ defaultFuncCall $field.Default.FuncName }}
+		vals = append(vals, {{ defaultFuncCall $field.Default.FuncName }})
 	}
 			{{- else }}
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
-	} else {
-		m["{{ $col }}"] = rawDefault{}
+		cols = append(cols, "{{ $col }}")
+		vals = append(vals, {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }})
 	}
 			{{- end }}
 		{{- else if ne $field.Default nil }}
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
-	} else {
-		m["{{ $col }}"] = rawDefault{}
+		cols = append(cols, "{{ $col }}")
+		vals = append(vals, {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }})
 	}
 		{{- else if $field.Optional }}
 	if s.{{ $fieldName }} != nil {
-		m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }}
+		cols = append(cols, "{{ $col }}")
+		vals = append(vals, {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }})
 	}
 		{{- else }}
 			{{- if and $field.IsID (eq $field.GoType "string") }}
+	cols = append(cols, "{{ $col }}")
 	if s.{{ $fieldName }} != "" {
-		m["{{ $col }}"] = s.{{ $fieldName }}
+		vals = append(vals, s.{{ $fieldName }})
 	} else {
-		m["{{ $col }}"] = generateCUID()
+		vals = append(vals, generateCUID())
 	}
 			{{- else }}
-	m["{{ $col }}"] = {{ hstoreExpr $field.GoType (printf "s.%s" $fieldName) }}
+	cols = append(cols, "{{ $col }}")
+	vals = append(vals, {{ hstoreExpr $field.GoType (printf "s.%s" $fieldName) }})
 			{{- end }}
 		{{- end }}
 	{{- end }}
 	{{- end }}
+	return
+}
+
+func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
+	cols, vals := s.ToColsVals()
+	m := make(map[string]any, len(cols))
+	for i, c := range cols {
+		m[c] = vals[i]
+	}
 	return m
 }
 
 func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*{{ .Model.Name }}, error) {
-	input := assignmentsTo{{ .Model.Name }}Create(assignments)
+	input, err := assignmentsTo{{ .Model.Name }}Create(assignments)
+	if err != nil {
+		return nil, err
+	}
 
 	curr := func(c context.Context, args *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error) {
-		if err := validate{{ .Model.Name }}Create(assignments); err != nil {
-			return nil, err
-		}
-
-		rowMap := args.ToRowMap()
-		cols, vals := mapToColsVals(rowMap, {{ .Model.Name }}ColOrder)
+		cols, vals := args.ToColsVals()
 
 		returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
 
@@ -387,10 +380,10 @@ func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(builders ...*{{ .Model.N
 func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	inputs := make([]*{{ .Model.Name }}Create, len(records))
 	for i, rec := range records {
-		if err := validate{{ .Model.Name }}Create(rec.Assignments); err != nil {
+		input, err := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
+		if err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		input := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
 		inputs[i] = &input
 	}
 
@@ -432,10 +425,10 @@ func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, record
 func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Context, records []RecordInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*{{ .Model.Name }}, error) {
 	inputs := make([]*{{ .Model.Name }}Create, len(records))
 	for i, rec := range records {
-		if err := validate{{ .Model.Name }}Create(rec.Assignments); err != nil {
+		input, err := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
+		if err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		input := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
 		inputs[i] = &input
 	}
 
