@@ -1,29 +1,26 @@
 func (d *{{ .Model.Name }}Delegate) FindUnique(where UniquePredicate[{{ .Model.Name }}], additional ...PredicateOf[{{ .Model.Name }}]) *FindUniqueBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
 	return &FindUniqueBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
-		client:     d.client,
 		where:      where,
 		additional: additional,
-		execFunc:   d.client.execute{{ .Model.Name }}FindUnique,
+		execFunc:   d.executeFindUnique,
 	}
 }
 
 func (d *{{ .Model.Name }}Delegate) FindFirst(preds ...PredicateOf[{{ .Model.Name }}]) *FindFirstBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
 	return &FindFirstBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
-		client:   d.client,
 		where:    preds,
-		execFunc: d.client.execute{{ .Model.Name }}FindFirst,
+		execFunc: d.executeFindFirst,
 	}
 }
 
 func (d *{{ .Model.Name }}Delegate) FindMany(preds ...PredicateOf[{{ .Model.Name }}]) *FindManyBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
 	return &FindManyBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
-		client:   d.client,
 		where:    preds,
-		execFunc: d.client.execute{{ .Model.Name }}FindMany,
+		execFunc: d.executeFindMany,
 	}
 }
 
-func (q *Queries) execute{{ .Model.Name }}FindUnique(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+func (d *{{ .Model.Name }}Delegate) executeFindUnique(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
 	curr := func(c context.Context, w UniquePredicate[{{ .Model.Name }}], add []PredicateOf[{{ .Model.Name }}], sel *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
 		if err := w.Validate(); err != nil {
 			return nil, err
@@ -36,22 +33,22 @@ func (q *Queries) execute{{ .Model.Name }}FindUnique(ctx context.Context, where 
 			}
 		}
 		allPreds := append([]PredicateOf[{{ .Model.Name }}]{w}, add...)
-		whereClause, vals := CompilePredicates(q.dialect, allPreds)
+		whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.select{{ .Model.Name }}Cols(sel, o)
-		return executeSingleWithRelations(c, q, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
+		returningCols := d.selectCols(sel, o)
+		return executeSingleWithRelations(c, d.client, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
 			func(res *{{ .Model.Name }}, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}) error {
-				return txQ.load{{ .Model.Name }}Relations(ctx, results, sel)
+				return txQ.{{ .Model.Name }}.loadRelations(ctx, results, sel)
 			},
 			nil,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.{{ .Model.Name }}.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
 			curr = func(c context.Context, w UniquePredicate[{{ .Model.Name }}], add []PredicateOf[{{ .Model.Name }}], sel *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
@@ -63,7 +60,7 @@ func (q *Queries) execute{{ .Model.Name }}FindUnique(ctx context.Context, where 
 	return curr(ctx, where, additional, selects, omits)
 }
 
-func (q *Queries) execute{{ .Model.Name }}FindFirst(
+func (d *{{ .Model.Name }}Delegate) executeFindFirst(
 	ctx context.Context,
 	params QueryParams[{{ .Model.Name }}],
 	selects *{{ .Model.Name }}Select,
@@ -77,22 +74,22 @@ func (q *Queries) execute{{ .Model.Name }}FindFirst(
 				}
 			}
 		}
-		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.select{{ .Model.Name }}Cols(sel, o)
-		return executeSingleWithRelations(c, q, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
+		returningCols := d.selectCols(sel, o)
+		return executeSingleWithRelations(c, d.client, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
 			func(res *{{ .Model.Name }}, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}) error {
-				return txQ.load{{ .Model.Name }}Relations(ctx, results, sel)
+				return txQ.{{ .Model.Name }}.loadRelations(ctx, results, sel)
 			},
 			p.Skip,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.{{ .Model.Name }}.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
 			curr = func(c context.Context, p QueryParams[{{ .Model.Name }}], sel *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
@@ -104,7 +101,7 @@ func (q *Queries) execute{{ .Model.Name }}FindFirst(
 	return curr(ctx, params, selects, omits)
 }
 
-func (q *Queries) execute{{ .Model.Name }}FindMany(
+func (d *{{ .Model.Name }}Delegate) executeFindMany(
 	ctx context.Context,
 	params QueryParams[{{ .Model.Name }}],
 	selects *{{ .Model.Name }}Select,
@@ -118,23 +115,23 @@ func (q *Queries) execute{{ .Model.Name }}FindMany(
 				}
 			}
 		}
-		whereClause, vals := CompilePredicates(q.dialect, p.Where)
+		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
 		if whereClause != "" {
 			whereClause = " WHERE " + whereClause
 		}
-		returningCols := q.select{{ .Model.Name }}Cols(sel, o)
-		return executeManyWithRelations(c, q, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
+		returningCols := d.selectCols(sel, o)
+		return executeManyWithRelations(c, d.client, "{{ .Model.EffectiveTableName }}", whereClause, vals, returningCols,
 			func(res *{{ .Model.Name }}, cols []string) []any { return res.ScanFields(cols) },
 			sel.hasAnyRelation(),
 			func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}) error {
-				return txQ.load{{ .Model.Name }}Relations(ctx, results, sel)
+				return txQ.{{ .Model.Name }}.loadRelations(ctx, results, sel)
 			},
 			p.Take,
 			p.Skip,
 		)
 	}
 
-	for _, ext := range slices.Backward(q.{{ .Model.Name }}.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
 			curr = func(c context.Context, p QueryParams[{{ .Model.Name }}], sel *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {

@@ -1,5 +1,4 @@
 type CreateBuilder[M any, S any, O any] struct {
-	client         *Queries
 	assignments    []FieldAssignment
 	execFunc       func(ctx context.Context, assignments []FieldAssignment, s *S, o *O, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*M, error)
 	conflictAction *ConflictAction
@@ -37,7 +36,6 @@ func (b *CreateOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 }
 
 type CreateManyBuilder[M any] struct {
-	client         *Queries
 	records        []RecordInput
 	execFunc       func(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error)
 	conflictAction *ConflictAction
@@ -54,7 +52,6 @@ func (b *CreateManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
 }
 
 type CreateManyAndReturnBuilder[M any, S any, O any] struct {
-	client         *Queries
 	records        []RecordInput
 	execFunc       func(ctx context.Context, records []RecordInput, s *S, o *O, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*M, error)
 	conflictAction *ConflictAction
@@ -288,7 +285,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 	selects *S,
 	omits *O,
 	selectColsFn func(*S, *O, ...string) []string,
-	loadRelationsFn func(context.Context, []*M, *S) error,
+	loadRelationsFn func(context.Context, *Queries, []*M, *S) error,
 	scanFunc func(*M, []string) []any,
 	hasRelationsFn func(*S) bool,
 	pkCols []string,
@@ -314,7 +311,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 				recordsOut = append(recordsOut, res)
 			}
 			if hasRelations {
-				return loadRelationsFn(ctx, recordsOut, selects)
+				return loadRelationsFn(ctx, txQ, recordsOut, selects)
 			}
 			return nil
 		})
@@ -369,7 +366,7 @@ func executeCreateManyAndReturn[M any, S any, O any](
 			}
 		}
 		if hasRelations {
-			return loadRelationsFn(ctx, recordsOut, selects)
+			return loadRelationsFn(ctx, txQ, recordsOut, selects)
 		}
 		return nil
 	})

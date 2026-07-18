@@ -1,5 +1,4 @@
 type FindUniqueBuilder[M any, S any, O any] struct {
-	client     *Queries
 	where      UniquePredicate[M]
 	additional []PredicateOf[M]
 	execFunc   func(ctx context.Context, where UniquePredicate[M], additional []PredicateOf[M], s *S, o *O) (*M, error)
@@ -36,7 +35,6 @@ func (b *FindUniqueOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 }
 
 type FindFirstBuilder[M any, S any, O any] struct {
-	client   *Queries
 	where    []PredicateOf[M]
 	skip     *int
 	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) (*M, error)
@@ -90,7 +88,6 @@ func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 }
 
 type FindManyBuilder[M any, S any, O any] struct {
-	client   *Queries
 	where    []PredicateOf[M]
 	take     *int
 	skip     *int
