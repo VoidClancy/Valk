@@ -1,4 +1,4 @@
-.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check tidy tidy-check vulncheck vet integration-gen integration-test bench race lint test-sqlite test-pg test-dbs ci-local
+.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check tidy tidy-check vulncheck vet integration-gen integration-test bench race lint test-sqlite test-pg test-dbs ci-local bench
 
 bi: build install
 
@@ -8,7 +8,7 @@ race:
 	go test -race ./... && cd integration && go test -race ./...
 
 bench:
-	cd integration && go test -bench=. -benchmem -benchtime=2s -count=3
+	cd benchmark && make bench && cd ..
 
 build: 
 	go build -o bin/valk 

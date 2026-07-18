@@ -1,4 +1,4 @@
-func (q *Queries) load{{ .Model.Name }}Relations(ctx context.Context, records []*{{ .Model.Name }}, selects *{{ .Model.Name }}Select) error {
+func (d *{{ .Model.Name }}Delegate) loadRelations(ctx context.Context, records []*{{ .Model.Name }}, selects *{{ .Model.Name }}Select) error {
 	if selects == nil || len(records) == 0 {
 		return nil
 	}
@@ -12,7 +12,7 @@ func (q *Queries) load{{ .Model.Name }}Relations(ctx context.Context, records []
 			{{- $forceCol = (index $relation.Inverse.FKFields 0).EffectiveColName }}
 		{{- end }}
 		relationSelects, relationOmits, relationParams := selects.{{ capitalize $relation.Name }}.GetRelationParams()
-		returningCols := q.select{{ $relation.TargetModelName }}Cols(relationSelects, relationOmits, "{{ $forceCol }}")
+		returningCols := d.client.{{ $relation.TargetModelName }}.selectCols(relationSelects, relationOmits, "{{ $forceCol }}")
 
 		{{- if gt (len $relation.FKFields) 0 }}
 		// Current model holds the FK: {{ $.Model.Name }}.{{ (index $relation.FKFields 0).Name }}
@@ -20,7 +20,7 @@ func (q *Queries) load{{ .Model.Name }}Relations(ctx context.Context, records []
 		// Inverse holds the FK: {{ $relation.TargetModelName }}.{{ (index $relation.Inverse.FKFields 0).Name }}
 		{{- end }}
 		allChildren, err := loadRelation(
-			ctx, q, records,
+			ctx, d.client, records,
 			{{- if gt (len $relation.FKFields) 0 }}
 				{{- if (index $relation.FKFields 0).Optional }}
 			optionalKey(func(p *{{ $.Model.Name }}) {{ (index $relation.FKFields 0).GoType }} { return p.{{ capitalize (index $relation.FKFields 0).Name }} }),
@@ -57,7 +57,7 @@ func (q *Queries) load{{ .Model.Name }}Relations(ctx context.Context, records []
 		if err != nil {
 			return fmt.Errorf("loading {{ $relation.Name }}: %w", err)
 		}
-		if err := q.load{{ $relation.TargetModelName }}Relations(ctx, allChildren, relationSelects); err != nil {
+		if err := d.client.{{ $relation.TargetModelName }}.loadRelations(ctx, allChildren, relationSelects); err != nil {
 			return err
 		}
 	}

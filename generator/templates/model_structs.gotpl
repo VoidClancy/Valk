@@ -140,7 +140,7 @@ var {{ lowercase .Model.Name }}DefaultCols = []string{
 	{{- end }}
 }
 
-func (q *Queries) select{{ .Model.Name }}Cols(selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, forceCols ...string) []string {
+func (d *{{ .Model.Name }}Delegate) selectCols(selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, forceCols ...string) []string {
 	if selects == nil && omits == nil && len(forceCols) == 0 {
 		return {{ lowercase .Model.Name }}DefaultCols
 	}

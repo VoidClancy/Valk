@@ -48,9 +48,8 @@ func (b *{{ $.Model.Name }}CreateBuilder) Set{{ capitalize $field.Name }}(v {{ $
 func (d *{{ .Model.Name }}Delegate) Create(assignments ...FieldAssignment) *{{ .Model.Name }}CreateBuilder {
 	return &{{ .Model.Name }}CreateBuilder{
 		CreateBuilder: &CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
-			client:      d.client,
 			assignments: assignments,
-			execFunc:    d.client.execute{{ .Model.Name }}Create,
+			execFunc:    d.executeCreate,
 		},
 	}
 }
@@ -256,7 +255,7 @@ func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
 	return m
 }
 
-func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*{{ .Model.Name }}, error) {
+func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*{{ .Model.Name }}, error) {
 	input, err := assignmentsTo{{ .Model.Name }}Create(assignments)
 	if err != nil {
 		return nil, err
@@ -265,7 +264,7 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 	curr := func(c context.Context, args *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error) {
 		cols, vals := args.ToColsVals()
 
-		returningCols := q.select{{ .Model.Name }}Cols(selects, omits)
+		returningCols := d.selectCols(selects, omits)
 
 		scanFunc := func(res *{{ .Model.Name }}, cols []string) []any {
 			return res.ScanFields(cols)
@@ -290,16 +289,16 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 		var res *{{ .Model.Name }}
 		var err error
 		if hasRelations {
-			err = q.transaction(c, func(txQ *Queries) error {
+			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
 				res, err = executeInsert(c, txQ, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
-				return txQ.load{{ .Model.Name }}Relations(c, []*{{ .Model.Name }}{res}, selects)
+				return txQ.{{ .Model.Name }}.loadRelations(c, []*{{ .Model.Name }}{res}, selects)
 			})
 		} else {
-			res, err = executeInsert(c, q, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+			res, err = executeInsert(c, d.client, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -307,7 +306,7 @@ func (q *Queries) execute{{ .Model.Name }}Create(ctx context.Context, assignment
 		return res, nil
 	}
 
-	for _, ext := range slices.Backward(q.{{ .Model.Name }}.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
 			curr = func(c context.Context, input *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error) {
@@ -356,9 +355,8 @@ func (d *{{ .Model.Name }}Delegate) CreateMany(builders ...*{{ .Model.Name }}Cre
 	}
 	return &{{ .Model.Name }}CreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[{{ .Model.Name }}]{
-			client:   d.client,
 			records:  records,
-			execFunc: d.client.execute{{ .Model.Name }}CreateMany,
+			execFunc: d.executeCreateMany,
 		},
 	}
 }
@@ -370,14 +368,13 @@ func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(builders ...*{{ .Model.N
 	}
 	return &{{ .Model.Name }}CreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
-			client:   d.client,
 			records:  records,
-			execFunc: d.client.execute{{ .Model.Name }}CreateManyAndReturn,
+			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func (d *{{ .Model.Name }}Delegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	inputs := make([]*{{ .Model.Name }}Create, len(records))
 	for i, rec := range records {
 		input, err := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
@@ -407,10 +404,10 @@ func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, record
 			{{- end }}
 		}
 
-		return executeCreateMany(c, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, pkCols, conflictTarget, conflictAction)
+		return executeCreateMany(c, d.client, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, pkCols, conflictTarget, conflictAction)
 	}
 
-	for _, ext := range slices.Backward(q.{{ .Model.Name }}.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
 			curr = func(c context.Context, inputs []*{{ .Model.Name }}Create) (int64, error) {
@@ -422,7 +419,7 @@ func (q *Queries) execute{{ .Model.Name }}CreateMany(ctx context.Context, record
 	return curr(ctx, inputs)
 }
 
-func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Context, records []RecordInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*{{ .Model.Name }}, error) {
+func (d *{{ .Model.Name }}Delegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*{{ .Model.Name }}, error) {
 	inputs := make([]*{{ .Model.Name }}Create, len(records))
 	for i, rec := range records {
 		input, err := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
@@ -452,9 +449,11 @@ func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Contex
 			{{- end }}
 		}
 
-		return executeCreateManyAndReturn(c, q, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, selects, omits,
-			q.select{{ .Model.Name }}Cols,
-			q.load{{ .Model.Name }}Relations,
+		return executeCreateManyAndReturn(c, d.client, rowMaps, "{{ .Model.EffectiveTableName }}", {{ .Model.Name }}ColOrder, selects, omits,
+			d.selectCols,
+			func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}, sel *{{ .Model.Name }}Select) error {
+				return txQ.{{ .Model.Name }}.loadRelations(ctx, results, sel)
+			},
 			(*{{ .Model.Name }}).ScanFields,
 			(*{{ .Model.Name }}Select).hasAnyRelation,
 			pkCols,
@@ -463,7 +462,7 @@ func (q *Queries) execute{{ .Model.Name }}CreateManyAndReturn(ctx context.Contex
 		)
 	}
 
-	for _, ext := range slices.Backward(q.{{ .Model.Name }}.extensions) {
+	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
 			curr = func(c context.Context, inputs []*{{ .Model.Name }}Create) ([]*{{ .Model.Name }}, error) {
