@@ -3,7 +3,6 @@ type Tx struct {
 	tx *sql.Tx
 }
 
-// BeginTx starts a database transaction.
 func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	sqlTx, err := db.sqlDB.BeginTx(ctx, opts)
 	if err != nil {
@@ -13,9 +12,10 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(db.provider))
 	{{- end }}
 	q := &Queries{
-		db:       sqlTx,
-		provider: db.provider,
-		dialect:  db.dialect,
+		db:        sqlTx,
+		provider:  db.provider,
+		dialect:   db.dialect,
+		stmtCache: make(map[string]*sql.Stmt),
 		{{- range $enum := .Schema.Enums }}
 		{{ $enum.Name }}: db.{{ $enum.Name }},
 		{{- end }}
@@ -28,7 +28,6 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	}, nil
 }
 
-// Commit commits the transaction.
 func (tx *Tx) Commit() error {
 	{{- if hasLog "query" }}
 	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(tx.provider))
@@ -36,7 +35,6 @@ func (tx *Tx) Commit() error {
 	return tx.tx.Commit()
 }
 
-// Rollback aborts the transaction.
 func (tx *Tx) Rollback() error {
 	{{- if hasLog "query" }}
 	log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(tx.provider))

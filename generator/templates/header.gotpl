@@ -17,12 +17,10 @@ import (
 	{{- if hasNetAnywhere .Schema }}
 	"net"
 	{{- end }}
-	{{- if or .NeedCUID .NeedCUID2 .NeedULID }}
 	"strconv"
-	{{- end }}
-	"sort"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 

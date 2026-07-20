@@ -240,13 +240,33 @@ func (s *{{ .Model.Name }}Create) ToColsVals() (cols []string, vals []any) {
 	return
 }
 
-func (s *{{ .Model.Name }}Create) ToRowMap() map[string]any {
-	cols, vals := s.ToColsVals()
-	m := make(map[string]any, len(cols))
-	for i, c := range cols {
-		m[c] = vals[i]
+func partition{{ .Model.Name }}Inputs(dialect Dialect, inputs []*{{ .Model.Name }}Create) [][]*{{ .Model.Name }}Create {
+	if !dialect.SupportsBulkInsert {
+		result := make([][]*{{ .Model.Name }}Create, len(inputs))
+		for i, input := range inputs {
+			result[i] = []*{{ .Model.Name }}Create{input}
+		}
+		return result
 	}
-	return m
+
+	if !dialect.SupportsDefaultKeyword {
+		groups := make(map[uint64][]*{{ .Model.Name }}Create)
+		var masks []uint64
+		for _, input := range inputs {
+			mask := input.colMask()
+			if _, exists := groups[mask]; !exists {
+				masks = append(masks, mask)
+			}
+			groups[mask] = append(groups[mask], input)
+		}
+		result := make([][]*{{ .Model.Name }}Create, len(masks))
+		for i, mask := range masks {
+			result[i] = groups[mask]
+		}
+		return result
+	}
+
+	return [][]*{{ .Model.Name }}Create{inputs}
 }
 
 func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*{{ .Model.Name }}, error) {
@@ -255,44 +275,46 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 		return nil, err
 	}
 
+	cols, vals := input.ToColsVals()
+	returningCols := select{{ .Model.Name }}Cols(selects, omits)
+	pkCols := {{ lowercase .Model.Name }}PKCols
+
+	if len(d.extensions) == 0 {
+		hasRelations := selects.hasAnyRelation()
+		if hasRelations {
+			var res *{{ .Model.Name }}
+			err = d.client.transaction(ctx, func(txQ *Queries) error {
+				var err error
+				res, err = txQ.{{ .Model.Name }}.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.{{ .Model.Name }}.loadRelations(ctx, []*{{ .Model.Name }}{res}, selects)
+			})
+			return res, err
+		}
+		return d.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+	}
+
 	curr := func(c context.Context, args *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error) {
 		cols, vals := args.ToColsVals()
-
 		returningCols := select{{ .Model.Name }}Cols(selects, omits)
-
-		scanFunc := func(res *{{ .Model.Name }}, cols []string) []any {
-			return res.ScanFields(cols)
-		}
-
-		pkCols := []string{
-			{{- if .Model.CompositePK }}
-				{{- range $col := .Model.CompositePK }}
-					"{{ $col }}",
-				{{- end }}
-			{{- else }}
-				{{- range $field := .Model.ScalarFields }}
-					{{- if $field.IsID }}
-						"{{ $field.EffectiveColName }}",
-					{{- end }}
-				{{- end }}
-			{{- end }}
-		}
+		pkCols := {{ lowercase .Model.Name }}PKCols
 
 		hasRelations := selects.hasAnyRelation()
-
 		var res *{{ .Model.Name }}
 		var err error
 		if hasRelations {
 			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
-				res, err = executeInsert(c, txQ, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+				res, err = txQ.{{ .Model.Name }}.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
 				return txQ.{{ .Model.Name }}.loadRelations(c, []*{{ .Model.Name }}{res}, selects)
 			})
 		} else {
-			res, err = executeInsert(c, d.client, "{{ .Model.EffectiveTableName }}", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+			res, err = d.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -378,27 +400,12 @@ func (d *{{ .Model.Name }}Delegate) executeCreateMany(ctx context.Context, recor
 		inputs[i] = &input
 	}
 
+	if len(d.extensions) == 0 {
+		return d.runCreateMany(ctx, inputs, conflictTarget, conflictAction)
+	}
+
 	curr := func(c context.Context, args []*{{ .Model.Name }}Create) (int64, error) {
-		rowMaps := make([]map[string]any, len(args))
-		for i, input := range args {
-			rowMaps[i] = input.ToRowMap()
-		}
-
-		pkCols := []string{
-			{{- if .Model.CompositePK }}
-				{{- range $col := .Model.CompositePK }}
-					"{{ $col }}",
-				{{- end }}
-			{{- else }}
-				{{- range $field := .Model.ScalarFields }}
-					{{- if $field.IsID }}
-						"{{ $field.EffectiveColName }}",
-					{{- end }}
-				{{- end }}
-			{{- end }}
-		}
-
-		return executeCreateMany(c, d.client, rowMaps, "{{ .Model.EffectiveTableName }}", {{ lowercase .Model.Name }}DefaultCols, pkCols, conflictTarget, conflictAction)
+		return d.runCreateMany(c, args, conflictTarget, conflictAction)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -423,37 +430,38 @@ func (d *{{ .Model.Name }}Delegate) executeCreateManyAndReturn(ctx context.Conte
 		inputs[i] = &input
 	}
 
+	if len(d.extensions) == 0 {
+		hasRelations := selects != nil && selects.hasAnyRelation()
+		if hasRelations {
+			var res []*{{ .Model.Name }}
+			err := d.client.transaction(ctx, func(txQ *Queries) error {
+				var err error
+				res, err = txQ.{{ .Model.Name }}.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.{{ .Model.Name }}.loadRelations(ctx, res, selects)
+			})
+			return res, err
+		}
+		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+	}
+
 	curr := func(c context.Context, args []*{{ .Model.Name }}Create) ([]*{{ .Model.Name }}, error) {
-		rowMaps := make([]map[string]any, len(args))
-		for i, input := range args {
-			rowMaps[i] = input.ToRowMap()
+		hasRelations := selects != nil && selects.hasAnyRelation()
+		if hasRelations {
+			var res []*{{ .Model.Name }}
+			err := d.client.transaction(c, func(txQ *Queries) error {
+				var err error
+				res, err = txQ.{{ .Model.Name }}.runCreateManyAndReturn(c, args, selects, omits, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.{{ .Model.Name }}.loadRelations(c, res, selects)
+			})
+			return res, err
 		}
-
-		pkCols := []string{
-			{{- if .Model.CompositePK }}
-				{{- range $col := .Model.CompositePK }}
-					"{{ $col }}",
-				{{- end }}
-			{{- else }}
-				{{- range $field := .Model.ScalarFields }}
-					{{- if $field.IsID }}
-						"{{ $field.EffectiveColName }}",
-					{{- end }}
-				{{- end }}
-			{{- end }}
-		}
-
-		return executeCreateManyAndReturn(c, d.client, rowMaps, "{{ .Model.EffectiveTableName }}", {{ lowercase .Model.Name }}DefaultCols, selects, omits,
-			select{{ .Model.Name }}Cols,
-			func(ctx context.Context, txQ *Queries, results []*{{ .Model.Name }}, sel *{{ .Model.Name }}Select) error {
-				return txQ.{{ .Model.Name }}.loadRelations(ctx, results, sel)
-			},
-			(*{{ .Model.Name }}).ScanFields,
-			(*{{ .Model.Name }}Select).hasAnyRelation,
-			pkCols,
-			conflictTarget,
-			conflictAction,
-		)
+		return d.runCreateManyAndReturn(c, args, selects, omits, conflictTarget, conflictAction)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -466,6 +474,383 @@ func (d *{{ .Model.Name }}Delegate) executeCreateManyAndReturn(ctx context.Conte
 	}
 
 	return curr(ctx, inputs)
+}
+
+func (d *{{ .Model.Name }}Delegate) runCreate(
+	ctx context.Context,
+	cols []string,
+	vals []any,
+	returningCols []string,
+	pkCols []string,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) (*{{ .Model.Name }}, error) {
+	query, clauseArgs := buildSingleInsertSQL(d.client, "{{ .Model.Name }}", cols, returningCols, pkCols, conflictTarget, conflictAction, len(vals))
+	if len(clauseArgs) > 0 {
+		vals = append(vals, clauseArgs...)
+	}
+
+	var res {{ .Model.Name }}
+	if d.client.dialect.SupportsReturning {
+		rows, err := d.client.query(ctx, query, vals...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		if rows.Next() {
+			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+				return nil, err
+			}
+			return &res, nil
+		}
+		return nil, rows.Err()
+	}
+
+	return d.runCreateFallback(ctx, query, vals, cols, returningCols, pkCols)
+}
+
+func (d *{{ .Model.Name }}Delegate) runCreateFallback(ctx context.Context, query string, vals []any, cols []string, returningCols []string, pkCols []string) (*{{ .Model.Name }}, error) {
+	result, err := d.client.exec(ctx, query, vals...)
+	if err != nil {
+		return nil, err
+	}
+
+	var pkVals []any
+	for _, pkCol := range pkCols {
+		var val any
+		for i, c := range cols {
+			if c == pkCol {
+				val = vals[i]
+				break
+			}
+		}
+		if val == nil && len(pkCols) == 1 {
+			lastID, err := result.LastInsertId()
+			if err != nil {
+				return nil, err
+			}
+			val = lastID
+		}
+		pkVals = append(pkVals, val)
+	}
+
+	var selectSb strings.Builder
+	selectSb.Grow(64 + len(returningCols)*15 + len("{{ .Model.EffectiveTableName }}") + len(pkCols)*15)
+	selectSb.WriteString("SELECT ")
+	for i, col := range returningCols {
+		if i > 0 {
+			selectSb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&selectSb, col)
+	}
+	selectSb.WriteString(" FROM ")
+	d.client.dialect.WriteQuotedIdent(&selectSb, "{{ .Model.EffectiveTableName }}")
+	selectSb.WriteString(" WHERE ")
+	for i, pkCol := range pkCols {
+		if i > 0 {
+			selectSb.WriteString(" AND ")
+		}
+		d.client.dialect.WriteQuotedIdent(&selectSb, pkCol)
+		selectSb.WriteString(" = ")
+		d.client.dialect.WritePlaceholder(&selectSb, i+1)
+	}
+
+	rows, err := d.client.query(ctx, selectSb.String(), pkVals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res {{ .Model.Name }}
+	if rows.Next() {
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			return nil, err
+		}
+		return &res, nil
+	}
+	return nil, rows.Err()
+}
+
+func (d *{{ .Model.Name }}Delegate) buildBulkInsertSQL(q *Queries, batch []*{{ .Model.Name }}Create, paramStartIdx int) (cols []string, vals []any, queryStr string) {
+	var colMask uint64
+	for _, input := range batch {
+		colMask |= input.colMask()
+	}
+
+	cols = make([]string, 0, {{ len .Model.ScalarFields }})
+	for i, c := range {{ lowercase .Model.Name }}DefaultCols {
+		if colMask&(1<<i) != 0 {
+			cols = append(cols, c)
+		}
+	}
+
+	vals = make([]any, 0, len(batch)*len(cols))
+	var sb strings.Builder
+	sb.Grow(128 + len(batch)*len(cols)*10)
+	sb.WriteString("INSERT INTO ")
+	q.dialect.WriteQuotedIdent(&sb, "{{ .Model.EffectiveTableName }}")
+	sb.WriteString(" (")
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		q.dialect.WriteQuotedIdent(&sb, col)
+	}
+	sb.WriteString(") VALUES ")
+
+	paramIdx := paramStartIdx
+	for ri, input := range batch {
+		if ri > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString("(")
+		for j, col := range cols {
+			if j > 0 {
+				sb.WriteString(", ")
+			}
+			writeDefault := false
+			switch col {
+			{{- range $field := .Model.ScalarFields }}
+			{{- $coreType := trimPrefix $field.GoType "*" }}
+			{{- $isPointer := or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType) }}
+			case "{{ $field.EffectiveColName }}":
+				{{- if and $field.IsID (eq $field.GoType "string") }}
+					{{- if $isPointer }}
+				if input.{{ capitalize $field.Name }} != nil {
+					vals = append(vals, *input.{{ capitalize $field.Name }})
+				} else {
+					vals = append(vals, generateCUID())
+				}
+					{{- else }}
+				if input.{{ capitalize $field.Name }} != "" {
+					vals = append(vals, input.{{ capitalize $field.Name }})
+				} else {
+					vals = append(vals, generateCUID())
+				}
+					{{- end }}
+				{{- else if and $field.Default (eq $field.Default.Kind.String "Func") ($field.Default.FuncName | isKnownDefaultFunc) }}
+				if input.{{ capitalize $field.Name }} != nil {
+					vals = append(vals, {{ hstoreExpr $field.GoType (printf "*input.%s" (capitalize $field.Name)) }})
+				} else {
+					vals = append(vals, {{ defaultFuncCall $field.Default.FuncName }})
+				}
+				{{- else if $field.EnumRef }}
+					{{- if $field.IsArray }}
+				if input.{{ capitalize $field.Name }} != nil {
+					vals = append(vals, input.{{ capitalize $field.Name }})
+				} else {
+					writeDefault = true
+				}
+					{{- else }}
+				if input.{{ capitalize $field.Name }} != nil {
+					vals = append(vals, *input.{{ capitalize $field.Name }})
+				} else {
+					writeDefault = true
+				}
+					{{- end }}
+				{{- else if $field.IsArray }}
+				if input.{{ capitalize $field.Name }} != nil {
+					vals = append(vals, input.{{ capitalize $field.Name }})
+				} else {
+					writeDefault = true
+				}
+				{{- else if $isPointer }}
+				if input.{{ capitalize $field.Name }} != nil {
+					vals = append(vals, {{ hstoreExpr $field.GoType (printf "*input.%s" (capitalize $field.Name)) }})
+				} else {
+					writeDefault = true
+				}
+				{{- else }}
+				vals = append(vals, {{ hstoreExpr $field.GoType (printf "input.%s" (capitalize $field.Name)) }})
+				{{- end }}
+			{{- end }}
+			}
+			if writeDefault {
+				sb.WriteString("DEFAULT")
+			} else {
+				q.dialect.WritePlaceholder(&sb, paramIdx)
+				paramIdx++
+			}
+		}
+		sb.WriteString(")")
+	}
+	queryStr = sb.String()
+	return cols, vals, queryStr
+}
+
+func (d *{{ .Model.Name }}Delegate) runCreateMany(ctx context.Context, inputs []*{{ .Model.Name }}Create, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+	if len(inputs) == 0 {
+		return 0, nil
+	}
+
+	batches := partition{{ .Model.Name }}Inputs(d.client.dialect, inputs)
+
+	var count int64
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+
+		var conflictCols []string
+		if conflictTarget != nil {
+			conflictCols = conflictTarget.UniqueColumns()
+		}
+		var nonConflictCols []string
+		pkCols := {{ lowercase .Model.Name }}PKCols
+		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+		}
+		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+		queryStr += clause
+		vals = append(vals, clauseArgs...)
+
+		result, err := d.client.exec(ctx, queryStr, vals...)
+		if err != nil {
+			return 0, err
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+		count += affected
+	}
+	return count, nil
+}
+
+func (d *{{ .Model.Name }}Delegate) runCreateManyAndReturn(
+	ctx context.Context,
+	inputs []*{{ .Model.Name }}Create,
+	selects *{{ .Model.Name }}Select,
+	omits *{{ .Model.Name }}Omit,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) ([]*{{ .Model.Name }}, error) {
+	if len(inputs) == 0 {
+		return nil, nil
+	}
+
+	batches := partition{{ .Model.Name }}Inputs(d.client.dialect, inputs)
+	returningCols := select{{ .Model.Name }}Cols(selects, omits)
+	hasRelations := selects != nil && selects.hasAnyRelation()
+
+	recordsOut := make([]*{{ .Model.Name }}, 0, len(inputs))
+	
+	runBatch := func(txQ *Queries, batch []*{{ .Model.Name }}Create) error {
+		cols, vals, queryStr := d.buildBulkInsertSQL(txQ, batch, 1)
+
+		var conflictCols []string
+		if conflictTarget != nil {
+			conflictCols = conflictTarget.UniqueColumns()
+		}
+		var nonConflictCols []string
+		pkCols := {{ lowercase .Model.Name }}PKCols
+		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+		}
+		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+		queryStr += clause
+		vals = append(vals, clauseArgs...)
+
+		if txQ.dialect.SupportsReturning && len(returningCols) > 0 {
+			var retSb strings.Builder
+			retSb.Grow(12 + len(returningCols)*15)
+			retSb.WriteString(" RETURNING ")
+			for i, col := range returningCols {
+				if i > 0 {
+					retSb.WriteString(", ")
+				}
+				txQ.dialect.WriteQuotedIdent(&retSb, col)
+			}
+			queryStr += retSb.String()
+			rows, err := txQ.query(ctx, queryStr, vals...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var res {{ .Model.Name }}
+				if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+					return err
+				}
+				recordsOut = append(recordsOut, &res)
+			}
+			return rows.Err()
+		}
+
+		// Fallback for dialects without RETURNING (MySQL)
+		result, err := txQ.exec(ctx, queryStr, vals...)
+		if err != nil {
+			return err
+		}
+
+		// We need to fetch the inserted records for this batch
+		// Note: MySQL bulk inserts only return the ID of the FIRST inserted row
+		lastID, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		// Query back the rows by IDs (assuming autoincrement ID and single PK)
+		// If composite PK, it's more complex, but this is a standard fallback
+		var selectSb strings.Builder
+		selectSb.Grow(64 + len(returningCols)*15 + len("{{ .Model.EffectiveTableName }}") + len(batch)*15)
+		selectSb.WriteString("SELECT ")
+		for i, col := range returningCols {
+			if i > 0 {
+				selectSb.WriteString(", ")
+			}
+			txQ.dialect.WriteQuotedIdent(&selectSb, col)
+		}
+		selectSb.WriteString(" FROM ")
+		txQ.dialect.WriteQuotedIdent(&selectSb, "{{ .Model.EffectiveTableName }}")
+		selectSb.WriteString(" WHERE ")
+		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		selectSb.WriteString(" >= ")
+		txQ.dialect.WritePlaceholder(&selectSb, 1)
+		selectSb.WriteString(" AND ")
+		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		selectSb.WriteString(" < ")
+		txQ.dialect.WritePlaceholder(&selectSb, 2)
+
+		rows, err := txQ.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var res {{ .Model.Name }}
+			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+				return err
+			}
+			recordsOut = append(recordsOut, &res)
+		}
+		return rows.Err()
+	}
+
+	// Always wrap in transaction if we have multiple batches OR if we need to load relations
+	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsReturning {
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			for _, batch := range batches {
+				if err := runBatch(txQ, batch); err != nil {
+					return err
+				}
+			}
+			if hasRelations {
+				return txQ.{{ .Model.Name }}.loadRelations(ctx, recordsOut, selects)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if err := runBatch(d.client, batches[0]); err != nil {
+			return nil, err
+		}
+	}
+
+	return recordsOut, nil
 }
 
 type {{ .Model.Name }}ConflictBuilder[B any] struct {

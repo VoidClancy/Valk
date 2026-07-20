@@ -67,14 +67,67 @@ func (f numericFieldUpsert[T]) Dec(val T) {
 	f.Sub(val)
 }
 
-type Dialect interface {
-	Quote(ident string) string
-	BindVar(idx int) string
-	SupportsReturning() bool
-	SupportsBulkInsert() bool
-	FormatLimitOffset(take *int, skip *int) string
-	SupportsDefaultKeyword() bool
-	ConflictClause(conflictCols []string, action *ConflictAction, nonConflictCols []string, startParamIndex int) (string, []any)
+type Dialect struct {
+	QuoteChar              byte
+	PlaceholderFmt         string // "" means "?"
+	SupportsReturning      bool
+	SupportsLimitMinusOne  bool
+	SupportsBulkInsert     bool
+	SupportsDefaultKeyword bool
+	ConflictKeyword        string // "ON CONFLICT" (Pg/SQLite) or "ON DUPLICATE KEY" (MySQL)
+	ConflictIgnore         string // "DO NOTHING" or ""
+	ConflictUpdate         string // "DO UPDATE SET" or "UPDATE"
+	ConflictExcluded       string // "EXCLUDED." or "VALUES("
+	ConflictExcludedEnd    string // "" or ")"
+}
+
+func (d Dialect) WriteQuotedIdent(sb *strings.Builder, ident string) {
+	sb.WriteByte(d.QuoteChar)
+	sb.WriteString(ident)
+	sb.WriteByte(d.QuoteChar)
+}
+
+func (d Dialect) WritePlaceholder(sb *strings.Builder, idx int) {
+	if d.PlaceholderFmt == "" {
+		sb.WriteByte('?')
+	} else {
+		sb.WriteString(d.PlaceholderFmt)
+		sb.WriteString(strconv.Itoa(idx))
+	}
+}
+
+func (d Dialect) Quote(ident string) string {
+	var sb strings.Builder
+	sb.Grow(len(ident) + 2)
+	d.WriteQuotedIdent(&sb, ident)
+	return sb.String()
+}
+
+func (d Dialect) BindVar(idx int) string {
+	if d.PlaceholderFmt == "" {
+		return "?"
+	}
+	var sb strings.Builder
+	sb.Grow(8)
+	sb.WriteString(d.PlaceholderFmt)
+	sb.WriteString(strconv.Itoa(idx))
+	return sb.String()
+}
+
+func (d Dialect) FormatLimitOffset(take *int, skip *int) string {
+	if take != nil {
+		if skip != nil {
+			return fmt.Sprintf(" LIMIT %d OFFSET %d", *take, *skip)
+		}
+		return fmt.Sprintf(" LIMIT %d", *take)
+	}
+	if skip != nil {
+		if d.SupportsLimitMinusOne {
+			return fmt.Sprintf(" LIMIT -1 OFFSET %d", *skip)
+		}
+		return fmt.Sprintf(" OFFSET %d", *skip)
+	}
+	return ""
 }
 
 type rawDefault struct{}
@@ -289,40 +342,43 @@ func computeNonConflictCols(allCols []string, conflictCols []string, pkCols []st
 	return result
 }
 
-func buildConflictClause(
-	quoteFn func(string) string,
-	bindVarFn func(int) string,
-	conflictCols []string,
-	action *ConflictAction,
-	nonConflictCols []string,
-	startParamIndex int,
-) (string, []any) {
+func (d Dialect) BuildConflictClause(conflictCols []string, action *ConflictAction, nonConflictCols []string, startParamIndex int) (string, []any) {
 	if action == nil {
 		return "", nil
 	}
 	var colsStr string
-	if len(conflictCols) > 0 {
+	if len(conflictCols) > 0 && d.ConflictKeyword == "ON CONFLICT" {
 		var quoted []string
 		for _, col := range conflictCols {
-			quoted = append(quoted, quoteFn(col))
+			quoted = append(quoted, d.Quote(col))
 		}
 		colsStr = " (" + strings.Join(quoted, ", ") + ")"
 	}
 	switch action.Type {
 	case ConflictActionIgnore:
-		return " ON CONFLICT" + colsStr + " DO NOTHING", nil
+		if d.ConflictIgnore == "" {
+			return "", nil
+		}
+		return " " + d.ConflictKeyword + colsStr + " " + d.ConflictIgnore, nil
 	case ConflictActionUpdateNewValues:
 		if len(nonConflictCols) == 0 {
-			return " ON CONFLICT" + colsStr + " DO NOTHING", nil
+			if d.ConflictIgnore == "" {
+				return "", nil
+			}
+			return " " + d.ConflictKeyword + colsStr + " " + d.ConflictIgnore, nil
 		}
 		var sets []string
 		for _, col := range nonConflictCols {
-			sets = append(sets, fmt.Sprintf(`%s = EXCLUDED.%s`, quoteFn(col), quoteFn(col)))
+			qc := d.Quote(col)
+			sets = append(sets, fmt.Sprintf(`%s = %s%s%s`, qc, d.ConflictExcluded, qc, d.ConflictExcludedEnd))
 		}
-		return " ON CONFLICT" + colsStr + " DO UPDATE SET " + strings.Join(sets, ", "), nil
+		return " " + d.ConflictKeyword + colsStr + " " + d.ConflictUpdate + " " + strings.Join(sets, ", "), nil
 	case ConflictActionUpdateCustom:
 		if len(action.Assignments) == 0 {
-			return " ON CONFLICT" + colsStr + " DO NOTHING", nil
+			if d.ConflictIgnore == "" {
+				return "", nil
+			}
+			return " " + d.ConflictKeyword + colsStr + " " + d.ConflictIgnore, nil
 		}
 		var assignments []string
 		paramIdx := startParamIndex
@@ -336,13 +392,13 @@ func buildConflictClause(
 					break
 				}
 				sb.WriteString(src[:idx])
-				sb.WriteString(bindVarFn(paramIdx))
+				sb.WriteString(d.BindVar(paramIdx))
 				paramIdx++
 				src = src[idx+1:]
 			}
 			assignments = append(assignments, sb.String())
 		}
-		return " ON CONFLICT" + colsStr + " DO UPDATE SET " + strings.Join(assignments, ", "), action.Args
+		return " " + d.ConflictKeyword + colsStr + " " + d.ConflictUpdate + " " + strings.Join(assignments, ", "), action.Args
 	}
 	return "", nil
 }

@@ -2,11 +2,13 @@ package {{ .PackageName }}
 
 import (
 	"context"
+	"database/sql"
 	{{- if hasJsonField .Model }}
 	"encoding/json"
 	{{- end }}
 	"fmt"
 	"slices"
+	"strings"
 	{{- if hasTimeField .Model }}
 	"time"
 	{{- end }}
