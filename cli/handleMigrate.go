@@ -69,6 +69,11 @@ func handleMigrate(args []string) {
 		goose.SetLogger(goose.NopLogger())
 	}
 
+	if err := os.MkdirAll(cfg.Output.Migrations, 0755); err != nil {
+		fmt.Printf("Failed to create migrations directory: %v\n", err)
+		os.Exit(1)
+	}
+
 	if isReset {
 		if isTTY() {
 			reader := bufio.NewReader(os.Stdin)

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 .PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check vet integration-gen integration-test bench race lint
+=======
+.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check tidy tidy-check vulncheck vet integration-gen integration-test bench bench-sqlite bench-pg bench-all race lint test-sqlite test-pg test-dbs ci-local
+>>>>>>> 2c6bd3d (fix: generate migrations folder on running migrations to avoid file not present err)
 
 bi: build install
 
@@ -9,6 +13,15 @@ race:
 
 bench:
 	cd integration && go test -bench=. -benchmem -benchtime=2s -count=3
+
+bench-sqlite:
+	cd benchmark && make bench/sqlite && cd ..
+
+bench-pg:
+	cd benchmark && make bench/postgres && cd ..
+
+bench-all:
+	cd benchmark && make bench/all && cd ..
 
 build: 
 	go build -o bin/valk 
