@@ -1,4 +1,4 @@
-.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check tidy tidy-check vulncheck vet integration-gen integration-test bench race lint test-sqlite test-pg test-dbs ci-local bench
+.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check tidy tidy-check vulncheck vet integration-gen integration-test bench bench-sqlite bench-pg bench-all race lint test-sqlite test-pg test-dbs ci-local
 
 bi: build install
 
@@ -9,6 +9,15 @@ race:
 
 bench:
 	cd benchmark && make bench && cd ..
+
+bench-sqlite:
+	cd benchmark && make bench/sqlite && cd ..
+
+bench-pg:
+	cd benchmark && make bench/postgres && cd ..
+
+bench-all:
+	cd benchmark && make bench/all && cd ..
 
 build: 
 	go build -o bin/valk 
