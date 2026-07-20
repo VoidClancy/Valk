@@ -136,7 +136,13 @@ func main() {
 	// }
 
 	// printJSON(count)
-	db.Category.Create()
+	db.User.Use(user.Extension{
+		Create: func(ctx context.Context, input *valk.UserCreate, next valk.UserCreateQuery) (*valk.User, error) {
+
+			fmt.Println("CREATED USER WITH EMAIl: ", input.Email)
+			return next(ctx, input)
+		},
+	})
 	user1, err := db.User.Create().SetEmail("a").SetPhoneNum("11").Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to seed users: %v", err)
