@@ -83,8 +83,8 @@ func hasTimeField(m *schema.Model) bool {
 	return false
 }
 func isKnownDefaultFunc(funcName string) bool {
-	_, ok := DEFAULT_FUNCS[funcName]
-	return ok
+	val, ok := DEFAULT_FUNCS[funcName]
+	return ok && val != ""
 }
 
 func defaultFuncCall(funcName string) string {

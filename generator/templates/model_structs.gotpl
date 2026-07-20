@@ -14,8 +14,39 @@ type {{ .Model.Name }}Create struct {
 	{{ capitalize $field.Name }} {{ if $field.EnumRef }}{{ if $field.IsArray }}[]{{ $field.EnumRef.Name }}Type{{ else }}*{{ $field.EnumRef.Name }}Type{{ end }}{{ else }}{{ if $field.IsArray }}{{ $field.GoType }}{{ else }}{{ if and (ne $field.Default nil) (not $field.Optional) }}*{{ end }}{{ $field.GoType }}{{ end }}{{ end }} `json:"{{ $field.Name }}"`
 	{{- end }}
 }
+// colMask returns a bit mask of columns that are set
+func (s *{{ .Model.Name }}Create) colMask() uint64 {
+	var mask uint64
+	{{- range $i, $field := .Model.ScalarFields }}
+		{{- $coreType := trimPrefix $field.GoType "*" }}
+		{{- $isClientDefault := or (and $field.IsID (eq $field.GoType "string")) (and $field.Default (eq $field.Default.Kind.String "Func") ($field.Default.FuncName | isKnownDefaultFunc)) }}
+		{{- $isPointer := and (or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType)) (not $isClientDefault) }}
+		{{- if $field.EnumRef }}
+			{{- if $field.IsArray }}
+	if s.{{ capitalize $field.Name }} != nil {
+		mask |= 1 << {{ $i }}
+	}
+			{{- else }}
+	if s.{{ capitalize $field.Name }} != nil {
+		mask |= 1 << {{ $i }}
+	}
+			{{- end }}
+		{{- else if $field.IsArray }}
+	if s.{{ capitalize $field.Name }} != nil {
+		mask |= 1 << {{ $i }}
+	}
+		{{- else if $isPointer }}
+	if s.{{ capitalize $field.Name }} != nil {
+		mask |= 1 << {{ $i }}
+	}
+		{{- else }}
+	mask |= 1 << {{ $i }}
+		{{- end }}
+	{{- end }}
+	return mask
+}
 
-// {{ .Model.Name }}Select specifies which fields to include
+
 type {{ .Model.Name }}Select struct {
 	{{- range $field := .Model.ScalarFields }}
 	{{ capitalize $field.Name }} bool `json:"{{ $field.Name }}"`
@@ -25,7 +56,6 @@ type {{ .Model.Name }}Select struct {
 	{{- end }}
 }
 
-// {{ .Model.Name }}Omit specifies which fields to exclude
 type {{ .Model.Name }}Omit struct {
 	{{- range $field := .Model.ScalarFields }}
 	{{ capitalize $field.Name }} bool `json:"{{ $field.Name }}"`
@@ -40,7 +70,6 @@ func (s *{{ .Model.Name }}Select) GetRelationParams() (*{{ .Model.Name }}Select,
 	return s, nil, QueryParams[{{ .Model.Name }}]{}
 }
 
-// {{ .Model.Name }}QueryBuilder builds a query for the relation {{ .Model.Name }}
 type {{ .Model.Name }}QueryBuilder struct {
 	selects *{{ .Model.Name }}Select
 	omits   *{{ .Model.Name }}Omit
@@ -137,6 +166,20 @@ func (m *{{ .Model.Name }}) ScanFields(cols []string) []any {
 var {{ lowercase .Model.Name }}DefaultCols = []string{
 	{{- range $field := .Model.ScalarFields }}
 	"{{ $field.EffectiveColName }}",
+	{{- end }}
+}
+
+var {{ lowercase .Model.Name }}PKCols = []string{
+	{{- if .Model.CompositePK }}
+		{{- range $col := .Model.CompositePK }}
+	"{{ $col }}",
+		{{- end }}
+	{{- else }}
+		{{- range $field := .Model.ScalarFields }}
+			{{- if $field.IsID }}
+	"{{ $field.EffectiveColName }}",
+			{{- end }}
+		{{- end }}
 	{{- end }}
 }
 

@@ -63,103 +63,89 @@ func computeCols(specs []colSpec, hasSelects, anySelected bool) []string {
 	return cols
 }
 
-func mapToColsVals(m map[string]any, colOrder []string) (cols []string, vals []any) {
-	for _, c := range colOrder {
-		if v, ok := m[c]; ok {
-			if _, isDefault := v.(rawDefault); !isDefault {
-				cols = append(cols, c)
-				vals = append(vals, v)
-			}
+func buildSelectSQL(q *Queries, table string, cols []string, whereClause string, take *int, skip *int) string {
+	var sb strings.Builder
+	sb.Grow(len(table) + len(whereClause) + len(cols)*18 + 48)
+	sb.WriteString("SELECT ")
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(", ")
 		}
+		q.dialect.WriteQuotedIdent(&sb, col)
 	}
-	return
+	sb.WriteString(" FROM ")
+	q.dialect.WriteQuotedIdent(&sb, table)
+	sb.WriteString(whereClause)
+	if take != nil {
+		sb.WriteString(" LIMIT ")
+		sb.WriteString(strconv.Itoa(*take))
+		if skip != nil {
+			sb.WriteString(" OFFSET ")
+			sb.WriteString(strconv.Itoa(*skip))
+		}
+	} else if skip != nil {
+		if q.dialect.SupportsLimitMinusOne {
+			sb.WriteString(" LIMIT -1 OFFSET ")
+		} else {
+			sb.WriteString(" OFFSET ")
+		}
+		sb.WriteString(strconv.Itoa(*skip))
+	}
+	return sb.String()
 }
 
-func buildBulkInsertSQL(
-	dialect Dialect,
+func buildSingleInsertSQL(
+	q *Queries,
 	table string,
-	rowMaps []map[string]any,
-	colOrder []string,
+	cols []string,
 	returningCols []string,
 	pkCols []string,
 	conflictTarget UniqueConstraintTarget,
 	conflictAction *ConflictAction,
+	valsCount int,
 ) (string, []any) {
-	colsSet := make(map[string]bool)
-	for _, rMap := range rowMaps {
-		for col := range rMap {
-			colsSet[col] = true
-		}
-	}
-	var cols []string
-	for _, c := range colOrder {
-		if colsSet[c] {
-			cols = append(cols, c)
-		}
-	}
-
-	var vals []any
 	var sb strings.Builder
+	sb.Grow(128 + len(table)*2 + len(cols)*15 + len(returningCols)*15)
 	sb.WriteString("INSERT INTO ")
-	sb.WriteString(dialect.Quote(table))
+	q.dialect.WriteQuotedIdent(&sb, table)
 	sb.WriteString(" (")
 	for i, col := range cols {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		sb.WriteString(dialect.Quote(col))
+		q.dialect.WriteQuotedIdent(&sb, col)
 	}
-	sb.WriteString(") VALUES ")
-
-	paramIndex := 1
-	for i, rMap := range rowMaps {
+	sb.WriteString(") VALUES (")
+	for i := range cols {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		sb.WriteString("(")
-		for j, col := range cols {
-			if j > 0 {
-				sb.WriteString(", ")
-			}
-			val, exists := rMap[col]
-			if !exists {
-				sb.WriteString("DEFAULT")
-			} else if _, isDefault := val.(rawDefault); isDefault {
-				sb.WriteString("DEFAULT")
-			} else {
-				sb.WriteString(dialect.BindVar(paramIndex))
-				paramIndex++
-				vals = append(vals, val)
-			}
-		}
-		sb.WriteString(")")
+		q.dialect.WritePlaceholder(&sb, i+1)
 	}
+	sb.WriteString(")")
 
 	var conflictCols []string
 	if conflictTarget != nil {
 		conflictCols = conflictTarget.UniqueColumns()
 	}
-
 	var nonConflictCols []string
 	if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-		nonConflictCols = computeNonConflictCols(colOrder, conflictCols, pkCols)
+		nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
 	}
+	clause, clauseArgs := q.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, valsCount+1)
+	sb.WriteString(clause)
 
-	conflictClause, conflictArgs := dialect.ConflictClause(conflictCols, conflictAction, nonConflictCols, paramIndex)
-	sb.WriteString(conflictClause)
-	vals = append(vals, conflictArgs...)
-
-	if dialect.SupportsReturning() && len(returningCols) > 0 {
+	if q.dialect.SupportsReturning && len(returningCols) > 0 {
 		sb.WriteString(" RETURNING ")
 		for i, col := range returningCols {
 			if i > 0 {
 				sb.WriteString(", ")
 			}
-			sb.WriteString(dialect.Quote(col))
+			q.dialect.WriteQuotedIdent(&sb, col)
 		}
 	}
 
-	return sb.String(), vals
+	return sb.String(), clauseArgs
 }
 
 

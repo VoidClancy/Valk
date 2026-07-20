@@ -1,57 +1,59 @@
 {{- if or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql") }}
-type postgresDialect struct{}
-func (postgresDialect) Quote(ident string) string    { return `"` + ident + `"` }
-func (postgresDialect) BindVar(idx int) string       { return fmt.Sprintf("$%d", idx) }
-func (postgresDialect) SupportsReturning() bool      { return true }
-func (postgresDialect) SupportsBulkInsert() bool     { return true }
-func (postgresDialect) FormatLimitOffset(take *int, skip *int) string {
-	if take != nil {
-		if skip != nil {
-			return fmt.Sprintf(" LIMIT %d OFFSET %d", *take, *skip)
-		}
-		return fmt.Sprintf(" LIMIT %d", *take)
+func newDialect() Dialect {
+	return Dialect{
+		QuoteChar:              '"',
+		PlaceholderFmt:         "$",
+		SupportsReturning:      true,
+		SupportsLimitMinusOne:  false,
+		SupportsBulkInsert:     true,
+		SupportsDefaultKeyword: true,
+		ConflictKeyword:        "ON CONFLICT",
+		ConflictIgnore:         "DO NOTHING",
+		ConflictUpdate:         "DO UPDATE SET",
+		ConflictExcluded:       "EXCLUDED.",
+		ConflictExcludedEnd:    "",
 	}
-	if skip != nil {
-		return fmt.Sprintf(" OFFSET %d", *skip)
+}
+{{- else if or (eq .Schema.Datasource.Provider "sqlite") (eq .Schema.Datasource.Provider "sqlite3") }}
+func newDialect() Dialect {
+	return Dialect{
+		QuoteChar:              '"',
+		PlaceholderFmt:         "", // means ?
+		SupportsReturning:      true,
+		SupportsLimitMinusOne:  true,
+		SupportsBulkInsert:     true,
+		SupportsDefaultKeyword: false,
+		ConflictKeyword:        "ON CONFLICT",
+		ConflictIgnore:         "DO NOTHING",
+		ConflictUpdate:         "DO UPDATE SET",
+		ConflictExcluded:       "EXCLUDED.",
+		ConflictExcludedEnd:    "",
 	}
-	return ""
 }
-func (postgresDialect) SupportsDefaultKeyword() bool  { return true }
-func (postgresDialect) ConflictClause(conflictCols []string, action *ConflictAction, nonConflictCols []string, startParamIndex int) (string, []any) {
-	return buildConflictClause(postgresDialect{}.Quote, postgresDialect{}.BindVar, conflictCols, action, nonConflictCols, startParamIndex)
-}
-
-{{- end }}
-
-{{- if or (eq .Schema.Datasource.Provider "sqlite") (eq .Schema.Datasource.Provider "sqlite3") }}
-type sqliteDialect struct{}
-func (sqliteDialect) Quote(ident string) string      { return `"` + ident + `"` }
-func (sqliteDialect) BindVar(idx int) string         { return "?" }
-func (sqliteDialect) SupportsReturning() bool        { return true }
-func (sqliteDialect) SupportsBulkInsert() bool       { return true }
-func (sqliteDialect) FormatLimitOffset(take *int, skip *int) string {
-	if take != nil {
-		if skip != nil {
-			return fmt.Sprintf(" LIMIT %d OFFSET %d", *take, *skip)
-		}
-		return fmt.Sprintf(" LIMIT %d", *take)
+{{- else }}
+func newDialect() Dialect {
+	return Dialect{
+		QuoteChar:              '`',
+		PlaceholderFmt:         "",
+		SupportsReturning:      false,
+		SupportsLimitMinusOne:  false,
+		SupportsBulkInsert:     false,
+		SupportsDefaultKeyword: false,
+		ConflictKeyword:        "",
+		ConflictIgnore:         "",
+		ConflictUpdate:         "",
+		ConflictExcluded:       "",
+		ConflictExcludedEnd:    "",
 	}
-	if skip != nil {
-		return fmt.Sprintf(" LIMIT -1 OFFSET %d", *skip)
-	}
-	return ""
 }
-func (sqliteDialect) SupportsDefaultKeyword() bool    { return false }
-func (sqliteDialect) ConflictClause(conflictCols []string, action *ConflictAction, nonConflictCols []string, startParamIndex int) (string, []any) {
-	return buildConflictClause(sqliteDialect{}.Quote, sqliteDialect{}.BindVar, conflictCols, action, nonConflictCols, startParamIndex)
-}
-
 {{- end }}
 
 type Queries struct {
-	db       DBTX
-	provider string
-	dialect  Dialect
+	db        DBTX
+	provider  string
+	dialect   Dialect
+	stmtCache map[string]*sql.Stmt
+	mu        sync.RWMutex
 	{{- range $model := .Schema.Models }}
 	// {{ $model.Name }} provides CRUD operations for {{ $model.Name }}.
 	//
@@ -77,7 +79,6 @@ type DB struct {
 	sqlDB *sql.DB
 }
 
-// Open opens a database connection and returns a client.
 func Open(provider, dataSourceName string) (*DB, error) {
 	sqlDB, err := sql.Open(provider, dataSourceName)
 	if err != nil {
@@ -85,13 +86,10 @@ func Open(provider, dataSourceName string) (*DB, error) {
 	}
 
 	q := &Queries{
-		db:       sqlDB,
-		provider: provider,
-		{{- if or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql") }}
-		dialect:  postgresDialect{},
-		{{- else if or (eq .Schema.Datasource.Provider "sqlite") (eq .Schema.Datasource.Provider "sqlite3") }}
-		dialect:  sqliteDialect{},
-		{{- end }}
+		db:        sqlDB,
+		provider:  provider,
+		dialect:   newDialect(),
+		stmtCache: make(map[string]*sql.Stmt),
 		{{- range $enum := .Schema.Enums }}
 		{{ $enum.Name }}: {{ $enum.Name }},
 		{{- end }}
@@ -116,7 +114,6 @@ func (q *Queries) copyHooksFrom(other *Queries) {
 	{{- end }}
 }
 
-// Close closes the database connection.
 func (db *DB) Close() error {
 	return db.sqlDB.Close()
 }
@@ -184,15 +181,39 @@ func (q *Queries) bindVars(count int) string {
 			sb.WriteString(", ")
 		}
 		sb.WriteString(q.dialect.BindVar(i + 1))
+
 	}
 	return sb.String()
+}
+
+func (q *Queries) prepare(ctx context.Context, query string) (*sql.Stmt, error) {
+	q.mu.RLock()
+	if stmt, ok := q.stmtCache[query]; ok {
+		q.mu.RUnlock()
+		return stmt, nil
+	}
+	q.mu.RUnlock()
+
+	stmt, err := q.db.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	q.mu.Lock()
+	q.stmtCache[query] = stmt
+	q.mu.Unlock()
+	return stmt, nil
 }
 
 func (q *Queries) query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
 	{{- if hasLog "query" }}
 	log.Printf("[%s] SQL Query: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	{{- end }}
-	res, err := q.db.QueryContext(ctx, query, args...)
+	stmt, err := q.prepare(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	res, err := stmt.QueryContext(ctx, args...)
 	{{- if hasLog "error" }}
 	if err != nil {
 		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
@@ -212,7 +233,11 @@ func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Resu
 	{{- if hasLog "query" }}
 	log.Printf("[%s] SQL Exec: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	{{- end }}
-	res, err := q.db.ExecContext(ctx, query, args...)
+	stmt, err := q.prepare(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	res, err := stmt.ExecContext(ctx, args...)
 	{{- if hasLog "error" }}
 	if err != nil {
 		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
@@ -252,9 +277,10 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 	}()
 
 	txQueries := &Queries{
-		db:       tx,
-		provider: q.provider,
-		dialect:  q.dialect,
+		db:        tx,
+		provider:  q.provider,
+		dialect:   q.dialect,
+		stmtCache: make(map[string]*sql.Stmt),
 		{{- range $enum := .Schema.Enums }}
 		{{ $enum.Name }}: q.{{ $enum.Name }},
 		{{- end }}
@@ -890,6 +916,7 @@ func CompilePredicates[M any](dialect Dialect, preds []PredicateOf[M]) (string, 
 }
 
 func CompilePredicateData(dialect Dialect, data []PredicateData) (string, []any) {
+
 	if len(data) == 0 {
 		return "", nil
 	}

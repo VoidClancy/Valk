@@ -1,4 +1,4 @@
-.PHONY: run test build bench benchNS bench/raw bench/valkyrie bench/gorm bench/short
+.PHONY: run test build bench benchNS bench/raw bench/valkyrie bench/gorm bench/short bench/stress bench/prll bench/stress-gc
 
 run:
 	go test -bench=. -benchmem -count=1
@@ -23,3 +23,20 @@ bench/gorm:
 
 bench/short:
 	go test -bench=. -benchmem -benchtime=100ms -count=1
+
+NPROC   := $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+PRLL_CPUS := $(shell awk 'BEGIN{n=$(NPROC);r="1";if(n>=2)r=r",2";if(n>=4)r=r",4";if(n>=8)r=r",8";if(n>8)r=r","n;print r}')
+
+STRESS_COUNT     ?= 5
+STRESS_BENCHTIME ?= 1m
+STRESS_TIMEOUT   ?= 1h
+PRLL_BENCHTIME   ?= 10s
+
+bench/stress:
+	go run ./cmd/benchsummary -count=$(STRESS_COUNT) -benchtime=$(STRESS_BENCHTIME) -timeout=$(STRESS_TIMEOUT)
+
+bench/prll:
+	go run ./cmd/benchsummary -count=1 -benchtime=$(PRLL_BENCHTIME) -cpu=$(PRLL_CPUS)
+
+bench/stress-gc:
+	GOGC=1 go run ./cmd/benchsummary -count=$(STRESS_COUNT) -benchtime=10s -timeout=$(STRESS_TIMEOUT)

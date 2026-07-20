@@ -2,8 +2,10 @@ package valk
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"slices"
+	"strings"
 )
 
 // Category represents the database model
@@ -19,14 +21,22 @@ type CategoryCreate struct {
 	Name string `json:"name"`
 }
 
-// CategorySelect specifies which fields to include
+// colMask returns a bit mask of columns that are set
+func (s *CategoryCreate) colMask() uint64 {
+	var mask uint64
+	if s.Id != nil {
+		mask |= 1 << 0
+	}
+	mask |= 1 << 1
+	return mask
+}
+
 type CategorySelect struct {
 	Id    bool                      `json:"id"`
 	Name  bool                      `json:"name"`
 	Posts CategoryToPostSelectQuery `json:"posts,omitempty"`
 }
 
-// CategoryOmit specifies which fields to exclude
 type CategoryOmit struct {
 	Id   bool `json:"id"`
 	Name bool `json:"name"`
@@ -40,7 +50,6 @@ func (s *CategorySelect) GetRelationParams() (*CategorySelect, *CategoryOmit, Qu
 	return s, nil, QueryParams[Category]{}
 }
 
-// CategoryQueryBuilder builds a query for the relation Category
 type CategoryQueryBuilder struct {
 	selects *CategorySelect
 	omits   *CategoryOmit
@@ -133,6 +142,10 @@ func (m *Category) ScanFields(cols []string) []any {
 var categoryDefaultCols = []string{
 	"id",
 	"name",
+}
+
+var categoryPKCols = []string{
+	"id",
 }
 
 func selectCategoryCols(selects *CategorySelect, omits *CategoryOmit, forceCols ...string) []string {
@@ -250,13 +263,33 @@ func (s *CategoryCreate) ToColsVals() (cols []string, vals []any) {
 	return
 }
 
-func (s *CategoryCreate) ToRowMap() map[string]any {
-	cols, vals := s.ToColsVals()
-	m := make(map[string]any, len(cols))
-	for i, c := range cols {
-		m[c] = vals[i]
+func partitionCategoryInputs(dialect Dialect, inputs []*CategoryCreate) [][]*CategoryCreate {
+	if !dialect.SupportsBulkInsert {
+		result := make([][]*CategoryCreate, len(inputs))
+		for i, input := range inputs {
+			result[i] = []*CategoryCreate{input}
+		}
+		return result
 	}
-	return m
+
+	if !dialect.SupportsDefaultKeyword {
+		groups := make(map[uint64][]*CategoryCreate)
+		var masks []uint64
+		for _, input := range inputs {
+			mask := input.colMask()
+			if _, exists := groups[mask]; !exists {
+				masks = append(masks, mask)
+			}
+			groups[mask] = append(groups[mask], input)
+		}
+		result := make([][]*CategoryCreate, len(masks))
+		for i, mask := range masks {
+			result[i] = groups[mask]
+		}
+		return result
+	}
+
+	return [][]*CategoryCreate{inputs}
 }
 
 func (d *CategoryDelegate) executeCreate(ctx context.Context, assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*Category, error) {
@@ -265,34 +298,46 @@ func (d *CategoryDelegate) executeCreate(ctx context.Context, assignments []Fiel
 		return nil, err
 	}
 
+	cols, vals := input.ToColsVals()
+	returningCols := selectCategoryCols(selects, omits)
+	pkCols := categoryPKCols
+
+	if len(d.extensions) == 0 {
+		hasRelations := selects.hasAnyRelation()
+		if hasRelations {
+			var res *Category
+			err = d.client.transaction(ctx, func(txQ *Queries) error {
+				var err error
+				res, err = txQ.Category.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.Category.loadRelations(ctx, []*Category{res}, selects)
+			})
+			return res, err
+		}
+		return d.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+	}
+
 	curr := func(c context.Context, args *CategoryCreate) (*Category, error) {
 		cols, vals := args.ToColsVals()
-
 		returningCols := selectCategoryCols(selects, omits)
-
-		scanFunc := func(res *Category, cols []string) []any {
-			return res.ScanFields(cols)
-		}
-
-		pkCols := []string{
-			"id",
-		}
+		pkCols := categoryPKCols
 
 		hasRelations := selects.hasAnyRelation()
-
 		var res *Category
 		var err error
 		if hasRelations {
 			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
-				res, err = executeInsert(c, txQ, "Category", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+				res, err = txQ.Category.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
 				return txQ.Category.loadRelations(c, []*Category{res}, selects)
 			})
 		} else {
-			res, err = executeInsert(c, d.client, "Category", cols, vals, returningCols, pkCols, scanFunc, conflictTarget, conflictAction)
+			res, err = d.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -378,17 +423,12 @@ func (d *CategoryDelegate) executeCreateMany(ctx context.Context, records []Reco
 		inputs[i] = &input
 	}
 
+	if len(d.extensions) == 0 {
+		return d.runCreateMany(ctx, inputs, conflictTarget, conflictAction)
+	}
+
 	curr := func(c context.Context, args []*CategoryCreate) (int64, error) {
-		rowMaps := make([]map[string]any, len(args))
-		for i, input := range args {
-			rowMaps[i] = input.ToRowMap()
-		}
-
-		pkCols := []string{
-			"id",
-		}
-
-		return executeCreateMany(c, d.client, rowMaps, "Category", categoryDefaultCols, pkCols, conflictTarget, conflictAction)
+		return d.runCreateMany(c, args, conflictTarget, conflictAction)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -413,27 +453,38 @@ func (d *CategoryDelegate) executeCreateManyAndReturn(ctx context.Context, recor
 		inputs[i] = &input
 	}
 
+	if len(d.extensions) == 0 {
+		hasRelations := selects != nil && selects.hasAnyRelation()
+		if hasRelations {
+			var res []*Category
+			err := d.client.transaction(ctx, func(txQ *Queries) error {
+				var err error
+				res, err = txQ.Category.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.Category.loadRelations(ctx, res, selects)
+			})
+			return res, err
+		}
+		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+	}
+
 	curr := func(c context.Context, args []*CategoryCreate) ([]*Category, error) {
-		rowMaps := make([]map[string]any, len(args))
-		for i, input := range args {
-			rowMaps[i] = input.ToRowMap()
+		hasRelations := selects != nil && selects.hasAnyRelation()
+		if hasRelations {
+			var res []*Category
+			err := d.client.transaction(c, func(txQ *Queries) error {
+				var err error
+				res, err = txQ.Category.runCreateManyAndReturn(c, args, selects, omits, conflictTarget, conflictAction)
+				if err != nil {
+					return err
+				}
+				return txQ.Category.loadRelations(c, res, selects)
+			})
+			return res, err
 		}
-
-		pkCols := []string{
-			"id",
-		}
-
-		return executeCreateManyAndReturn(c, d.client, rowMaps, "Category", categoryDefaultCols, selects, omits,
-			selectCategoryCols,
-			func(ctx context.Context, txQ *Queries, results []*Category, sel *CategorySelect) error {
-				return txQ.Category.loadRelations(ctx, results, sel)
-			},
-			(*Category).ScanFields,
-			(*CategorySelect).hasAnyRelation,
-			pkCols,
-			conflictTarget,
-			conflictAction,
-		)
+		return d.runCreateManyAndReturn(c, args, selects, omits, conflictTarget, conflictAction)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -446,6 +497,337 @@ func (d *CategoryDelegate) executeCreateManyAndReturn(ctx context.Context, recor
 	}
 
 	return curr(ctx, inputs)
+}
+
+func (d *CategoryDelegate) runCreate(
+	ctx context.Context,
+	cols []string,
+	vals []any,
+	returningCols []string,
+	pkCols []string,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) (*Category, error) {
+	query, clauseArgs := buildSingleInsertSQL(d.client, "Category", cols, returningCols, pkCols, conflictTarget, conflictAction, len(vals))
+	if len(clauseArgs) > 0 {
+		vals = append(vals, clauseArgs...)
+	}
+
+	var res Category
+	if d.client.dialect.SupportsReturning {
+		rows, err := d.client.query(ctx, query, vals...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		if rows.Next() {
+			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+				return nil, err
+			}
+			return &res, nil
+		}
+		return nil, rows.Err()
+	}
+
+	return d.runCreateFallback(ctx, query, vals, cols, returningCols, pkCols)
+}
+
+func (d *CategoryDelegate) runCreateFallback(ctx context.Context, query string, vals []any, cols []string, returningCols []string, pkCols []string) (*Category, error) {
+	result, err := d.client.exec(ctx, query, vals...)
+	if err != nil {
+		return nil, err
+	}
+
+	var pkVals []any
+	for _, pkCol := range pkCols {
+		var val any
+		for i, c := range cols {
+			if c == pkCol {
+				val = vals[i]
+				break
+			}
+		}
+		if val == nil && len(pkCols) == 1 {
+			lastID, err := result.LastInsertId()
+			if err != nil {
+				return nil, err
+			}
+			val = lastID
+		}
+		pkVals = append(pkVals, val)
+	}
+
+	var selectSb strings.Builder
+	selectSb.Grow(64 + len(returningCols)*15 + len("Category") + len(pkCols)*15)
+	selectSb.WriteString("SELECT ")
+	for i, col := range returningCols {
+		if i > 0 {
+			selectSb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&selectSb, col)
+	}
+	selectSb.WriteString(" FROM ")
+	d.client.dialect.WriteQuotedIdent(&selectSb, "Category")
+	selectSb.WriteString(" WHERE ")
+	for i, pkCol := range pkCols {
+		if i > 0 {
+			selectSb.WriteString(" AND ")
+		}
+		d.client.dialect.WriteQuotedIdent(&selectSb, pkCol)
+		selectSb.WriteString(" = ")
+		d.client.dialect.WritePlaceholder(&selectSb, i+1)
+	}
+
+	rows, err := d.client.query(ctx, selectSb.String(), pkVals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res Category
+	if rows.Next() {
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			return nil, err
+		}
+		return &res, nil
+	}
+	return nil, rows.Err()
+}
+
+func (d *CategoryDelegate) buildBulkInsertSQL(q *Queries, batch []*CategoryCreate, paramStartIdx int) (cols []string, vals []any, queryStr string) {
+	var colMask uint64
+	for _, input := range batch {
+		colMask |= input.colMask()
+	}
+
+	cols = make([]string, 0, 2)
+	for i, c := range categoryDefaultCols {
+		if colMask&(1<<i) != 0 {
+			cols = append(cols, c)
+		}
+	}
+
+	vals = make([]any, 0, len(batch)*len(cols))
+	var sb strings.Builder
+	sb.Grow(128 + len(batch)*len(cols)*10)
+	sb.WriteString("INSERT INTO ")
+	q.dialect.WriteQuotedIdent(&sb, "Category")
+	sb.WriteString(" (")
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		q.dialect.WriteQuotedIdent(&sb, col)
+	}
+	sb.WriteString(") VALUES ")
+
+	paramIdx := paramStartIdx
+	for ri, input := range batch {
+		if ri > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString("(")
+		for j, col := range cols {
+			if j > 0 {
+				sb.WriteString(", ")
+			}
+			writeDefault := false
+			switch col {
+			case "id":
+				if input.Id != nil {
+					vals = append(vals, *input.Id)
+				} else {
+					writeDefault = true
+				}
+			case "name":
+				vals = append(vals, input.Name)
+			}
+			if writeDefault {
+				sb.WriteString("DEFAULT")
+			} else {
+				q.dialect.WritePlaceholder(&sb, paramIdx)
+				paramIdx++
+			}
+		}
+		sb.WriteString(")")
+	}
+	queryStr = sb.String()
+	return cols, vals, queryStr
+}
+
+func (d *CategoryDelegate) runCreateMany(ctx context.Context, inputs []*CategoryCreate, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+	if len(inputs) == 0 {
+		return 0, nil
+	}
+
+	batches := partitionCategoryInputs(d.client.dialect, inputs)
+
+	var count int64
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+
+		var conflictCols []string
+		if conflictTarget != nil {
+			conflictCols = conflictTarget.UniqueColumns()
+		}
+		var nonConflictCols []string
+		pkCols := categoryPKCols
+		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+		}
+		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+		queryStr += clause
+		vals = append(vals, clauseArgs...)
+
+		result, err := d.client.exec(ctx, queryStr, vals...)
+		if err != nil {
+			return 0, err
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+		count += affected
+	}
+	return count, nil
+}
+
+func (d *CategoryDelegate) runCreateManyAndReturn(
+	ctx context.Context,
+	inputs []*CategoryCreate,
+	selects *CategorySelect,
+	omits *CategoryOmit,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) ([]*Category, error) {
+	if len(inputs) == 0 {
+		return nil, nil
+	}
+
+	batches := partitionCategoryInputs(d.client.dialect, inputs)
+	returningCols := selectCategoryCols(selects, omits)
+	hasRelations := selects != nil && selects.hasAnyRelation()
+
+	recordsOut := make([]*Category, 0, len(inputs))
+
+	runBatch := func(txQ *Queries, batch []*CategoryCreate) error {
+		cols, vals, queryStr := d.buildBulkInsertSQL(txQ, batch, 1)
+
+		var conflictCols []string
+		if conflictTarget != nil {
+			conflictCols = conflictTarget.UniqueColumns()
+		}
+		var nonConflictCols []string
+		pkCols := categoryPKCols
+		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+		}
+		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+		queryStr += clause
+		vals = append(vals, clauseArgs...)
+
+		if txQ.dialect.SupportsReturning && len(returningCols) > 0 {
+			var retSb strings.Builder
+			retSb.Grow(12 + len(returningCols)*15)
+			retSb.WriteString(" RETURNING ")
+			for i, col := range returningCols {
+				if i > 0 {
+					retSb.WriteString(", ")
+				}
+				txQ.dialect.WriteQuotedIdent(&retSb, col)
+			}
+			queryStr += retSb.String()
+			rows, err := txQ.query(ctx, queryStr, vals...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var res Category
+				if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+					return err
+				}
+				recordsOut = append(recordsOut, &res)
+			}
+			return rows.Err()
+		}
+
+		// Fallback for dialects without RETURNING (MySQL)
+		result, err := txQ.exec(ctx, queryStr, vals...)
+		if err != nil {
+			return err
+		}
+
+		// We need to fetch the inserted records for this batch
+		// Note: MySQL bulk inserts only return the ID of the FIRST inserted row
+		lastID, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		// Query back the rows by IDs (assuming autoincrement ID and single PK)
+		// If composite PK, it's more complex, but this is a standard fallback
+		var selectSb strings.Builder
+		selectSb.Grow(64 + len(returningCols)*15 + len("Category") + len(batch)*15)
+		selectSb.WriteString("SELECT ")
+		for i, col := range returningCols {
+			if i > 0 {
+				selectSb.WriteString(", ")
+			}
+			txQ.dialect.WriteQuotedIdent(&selectSb, col)
+		}
+		selectSb.WriteString(" FROM ")
+		txQ.dialect.WriteQuotedIdent(&selectSb, "Category")
+		selectSb.WriteString(" WHERE ")
+		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		selectSb.WriteString(" >= ")
+		txQ.dialect.WritePlaceholder(&selectSb, 1)
+		selectSb.WriteString(" AND ")
+		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		selectSb.WriteString(" < ")
+		txQ.dialect.WritePlaceholder(&selectSb, 2)
+
+		rows, err := txQ.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var res Category
+			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+				return err
+			}
+			recordsOut = append(recordsOut, &res)
+		}
+		return rows.Err()
+	}
+
+	// Always wrap in transaction if we have multiple batches OR if we need to load relations
+	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsReturning {
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			for _, batch := range batches {
+				if err := runBatch(txQ, batch); err != nil {
+					return err
+				}
+			}
+			if hasRelations {
+				return txQ.Category.loadRelations(ctx, recordsOut, selects)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if err := runBatch(d.client, batches[0]); err != nil {
+			return nil, err
+		}
+	}
+
+	return recordsOut, nil
 }
 
 type CategoryConflictBuilder[B any] struct {
@@ -513,31 +895,12 @@ func (d *CategoryDelegate) FindMany(preds ...PredicateOf[Category]) *FindManyBui
 }
 
 func (d *CategoryDelegate) executeFindUnique(ctx context.Context, where UniquePredicate[Category], additional []PredicateOf[Category], selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+	if len(d.extensions) == 0 {
+		return d.runFindUnique(ctx, where, additional, selects, omits)
+	}
+
 	curr := func(c context.Context, w UniquePredicate[Category], add []PredicateOf[Category], sel *CategorySelect, o *CategoryOmit) (*Category, error) {
-		if err := w.Validate(); err != nil {
-			return nil, err
-		}
-		for _, p := range add {
-			if p != nil {
-				if err := p.Validate(); err != nil {
-					return nil, err
-				}
-			}
-		}
-		allPreds := append([]PredicateOf[Category]{w}, add...)
-		whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
-		if whereClause != "" {
-			whereClause = " WHERE " + whereClause
-		}
-		returningCols := selectCategoryCols(sel, o)
-		return executeSingleWithRelations(c, d.client, "Category", whereClause, vals, returningCols,
-			func(res *Category, cols []string) []any { return res.ScanFields(cols) },
-			sel.hasAnyRelation(),
-			func(ctx context.Context, txQ *Queries, results []*Category) error {
-				return txQ.Category.loadRelations(ctx, results, sel)
-			},
-			nil,
-		)
+		return d.runFindUnique(c, w, add, sel, o)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -558,27 +921,12 @@ func (d *CategoryDelegate) executeFindFirst(
 	selects *CategorySelect,
 	omits *CategoryOmit,
 ) (*Category, error) {
+	if len(d.extensions) == 0 {
+		return d.runFindFirst(ctx, params, selects, omits)
+	}
+
 	curr := func(c context.Context, p QueryParams[Category], sel *CategorySelect, o *CategoryOmit) (*Category, error) {
-		for _, pr := range p.Where {
-			if pr != nil {
-				if err := pr.Validate(); err != nil {
-					return nil, err
-				}
-			}
-		}
-		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
-		if whereClause != "" {
-			whereClause = " WHERE " + whereClause
-		}
-		returningCols := selectCategoryCols(sel, o)
-		return executeSingleWithRelations(c, d.client, "Category", whereClause, vals, returningCols,
-			func(res *Category, cols []string) []any { return res.ScanFields(cols) },
-			sel.hasAnyRelation(),
-			func(ctx context.Context, txQ *Queries, results []*Category) error {
-				return txQ.Category.loadRelations(ctx, results, sel)
-			},
-			p.Skip,
-		)
+		return d.runFindFirst(c, p, sel, o)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -599,28 +947,12 @@ func (d *CategoryDelegate) executeFindMany(
 	selects *CategorySelect,
 	omits *CategoryOmit,
 ) ([]*Category, error) {
+	if len(d.extensions) == 0 {
+		return d.runFindMany(ctx, params, selects, omits)
+	}
+
 	curr := func(c context.Context, p QueryParams[Category], sel *CategorySelect, o *CategoryOmit) ([]*Category, error) {
-		for _, pr := range p.Where {
-			if pr != nil {
-				if err := pr.Validate(); err != nil {
-					return nil, err
-				}
-			}
-		}
-		whereClause, vals := CompilePredicates(d.client.dialect, p.Where)
-		if whereClause != "" {
-			whereClause = " WHERE " + whereClause
-		}
-		returningCols := selectCategoryCols(sel, o)
-		return executeManyWithRelations(c, d.client, "Category", whereClause, vals, returningCols,
-			func(res *Category, cols []string) []any { return res.ScanFields(cols) },
-			sel.hasAnyRelation(),
-			func(ctx context.Context, txQ *Queries, results []*Category) error {
-				return txQ.Category.loadRelations(ctx, results, sel)
-			},
-			p.Take,
-			p.Skip,
-		)
+		return d.runFindMany(c, p, sel, o)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -633,6 +965,175 @@ func (d *CategoryDelegate) executeFindMany(
 	}
 
 	return curr(ctx, params, selects, omits)
+}
+
+func (d *CategoryDelegate) runFindUnique(ctx context.Context, where UniquePredicate[Category], additional []PredicateOf[Category], selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	for _, p := range additional {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	allPreds := append([]PredicateOf[Category]{where}, additional...)
+	whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := selectCategoryCols(selects, omits)
+
+	var res *Category
+	var err error
+	if selects.hasAnyRelation() {
+		err = d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.Category.queryOne(ctx, whereClause, vals, returningCols, nil)
+			if err != nil {
+				return err
+			}
+			if res == nil {
+				return nil
+			}
+			return txQ.Category.loadRelations(ctx, []*Category{res}, selects)
+		})
+	} else {
+		res, err = d.queryOne(ctx, whereClause, vals, returningCols, nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (d *CategoryDelegate) runFindFirst(
+	ctx context.Context,
+	params QueryParams[Category],
+	selects *CategorySelect,
+	omits *CategoryOmit,
+) (*Category, error) {
+	for _, pr := range params.Where {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := selectCategoryCols(selects, omits)
+
+	var res *Category
+	var err error
+	if selects.hasAnyRelation() {
+		err = d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.Category.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+			if err != nil {
+				return err
+			}
+			if res == nil {
+				return nil
+			}
+			return txQ.Category.loadRelations(ctx, []*Category{res}, selects)
+		})
+	} else {
+		res, err = d.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (d *CategoryDelegate) runFindMany(
+	ctx context.Context,
+	params QueryParams[Category],
+	selects *CategorySelect,
+	omits *CategoryOmit,
+) ([]*Category, error) {
+	for _, pr := range params.Where {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+	returningCols := selectCategoryCols(selects, omits)
+
+	var results []*Category
+	var err error
+	if selects.hasAnyRelation() {
+		err = d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			results, err = txQ.Category.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+			if err != nil {
+				return err
+			}
+			if len(results) == 0 {
+				return nil
+			}
+			return txQ.Category.loadRelations(ctx, results, selects)
+		})
+	} else {
+		results, err = d.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func (d *CategoryDelegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*Category, error) {
+	limitOne := 1
+	query := buildSelectSQL(d.client, "Category", returningCols, whereClause, &limitOne, skip)
+	stmt, err := d.client.prepare(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	row := stmt.QueryRowContext(ctx, whereVals...)
+	var res Category
+	if err := row.Scan(res.ScanFields(returningCols)...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (d *CategoryDelegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*Category, error) {
+	query := buildSelectSQL(d.client, "Category", returningCols, whereClause, take, skip)
+	stmt, err := d.client.prepare(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := stmt.QueryContext(ctx, whereVals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := make([]*Category, 0)
+	for rows.Next() {
+		var res Category
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 func (d *CategoryDelegate) loadRelations(ctx context.Context, records []*Category, selects *CategorySelect) error {
 	if selects == nil || len(records) == 0 {
