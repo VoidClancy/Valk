@@ -140,6 +140,7 @@ type CommentCreateManyAndReturnQuery = func(ctx context.Context, args []*Comment
 type CommentFindUniqueQuery = func(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error)
 type CommentFindFirstQuery = func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error)
 type CommentFindManyQuery = func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit) ([]*Comment, error)
+type CommentDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Comment]) (int64, error)
 
 type CommentExtension struct {
 	Create              func(ctx context.Context, input *CommentCreate, next CommentCreateQuery) (*Comment, error)
@@ -148,6 +149,7 @@ type CommentExtension struct {
 	FindUnique          func(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], selects *CommentSelect, omits *CommentOmit, next CommentFindUniqueQuery) (*Comment, error)
 	FindFirst           func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit, next CommentFindFirstQuery) (*Comment, error)
 	FindMany            func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit, next CommentFindManyQuery) ([]*Comment, error)
+	DeleteMany          func(ctx context.Context, preds []PredicateOf[Comment], next CommentDeleteManyQuery) (int64, error)
 }
 
 type CommentDelegate struct {
@@ -1330,6 +1332,59 @@ func (d *CommentDelegate) queryMany(ctx context.Context, whereClause string, whe
 		return nil, err
 	}
 	return results, nil
+}
+func (d *CommentDelegate) DeleteMany(preds ...PredicateOf[Comment]) *DeleteManyBuilder[Comment] {
+	return &DeleteManyBuilder[Comment]{
+		where:    preds,
+		execFunc: d.executeDeleteMany,
+	}
+}
+
+func (d *CommentDelegate) executeDeleteMany(ctx context.Context, preds []PredicateOf[Comment]) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runDeleteMany(ctx, preds)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[Comment]) (int64, error) {
+		return d.runDeleteMany(c, p)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.DeleteMany != nil {
+			next, hook := curr, ext.DeleteMany
+			curr = func(c context.Context, p []PredicateOf[Comment]) (int64, error) {
+				return hook(c, p, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds)
+}
+
+func (d *CommentDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[Comment]) (int64, error) {
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "Comment")
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+
+	result, err := d.client.exec(ctx, sb.String(), vals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 func (d *CommentDelegate) loadRelations(ctx context.Context, records []*Comment, selects *CommentSelect) error {
 	if selects == nil || len(records) == 0 {

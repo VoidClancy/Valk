@@ -49,8 +49,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	// db := openConn()
-	db := openPGConn()
+	db := openConn()
+	// db := openPGConn()
 	defer dbReset(db)
 	defer db.Close()
 	var test user.CreateBuilder
@@ -139,8 +139,13 @@ func main() {
 	db.User.Use(user.Extension{
 		Create: func(ctx context.Context, input *valk.UserCreate, next valk.UserCreateQuery) (*valk.User, error) {
 
-			fmt.Println("CREATED USER WITH EMAIl: ", input.Email)
-			return next(ctx, input)
+			fmt.Println("CREATING USER WITH EMAIl: ", input.Email)
+			usr, err := next(ctx, input)
+			if err != nil {
+				return nil, fmt.Errorf("FAILED TO CREATE USER: %v ", err)
+			}
+
+			return usr, nil
 		},
 	})
 	user1, err := db.User.Create().SetEmail("a").SetPhoneNum("11").Exec(ctx)
@@ -151,8 +156,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to seed users: %v", err)
 	}
+	fmt.Println("USER1:")
 	printJSON(user1)
+	fmt.Println("USER2:")
 	printJSON(user2)
+
+	db.User.Create().SetEmail("xxxc").SetPhoneNum("6969").SetId("Bleh").Exec(ctx)
+	deletedCnt, err := db.User.DeleteMany(user.Id.EQ("Bleh"), user.Password.Contains("xx")).Exec(ctx)
+	fmt.Printf("DELETED %d USERS \n", deletedCnt)
 
 }
 
@@ -330,7 +341,7 @@ func main() {
 // }
 
 func openConn() *valk.DB {
-	db, err := valk.Open("sqlite", "file::memory:?_pragma=foreign_keys(1)&_time_format=sqlite")
+	db, err := valk.Open("sqlite3", "file::memory:?_pragma=foreign_keys(1)&_time_format=sqlite")
 
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)

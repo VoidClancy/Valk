@@ -395,6 +395,7 @@ type AllFieldsSoFarCreateManyAndReturnQuery = func(ctx context.Context, args []*
 type AllFieldsSoFarFindUniqueQuery = func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
 type AllFieldsSoFarFindFirstQuery = func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
 type AllFieldsSoFarFindManyQuery = func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error)
+type AllFieldsSoFarDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar]) (int64, error)
 
 type AllFieldsSoFarExtension struct {
 	Create              func(ctx context.Context, input *AllFieldsSoFarCreate, next AllFieldsSoFarCreateQuery) (*AllFieldsSoFar, error)
@@ -403,6 +404,7 @@ type AllFieldsSoFarExtension struct {
 	FindUnique          func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarFindUniqueQuery) (*AllFieldsSoFar, error)
 	FindFirst           func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarFindFirstQuery) (*AllFieldsSoFar, error)
 	FindMany            func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarFindManyQuery) ([]*AllFieldsSoFar, error)
+	DeleteMany          func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], next AllFieldsSoFarDeleteManyQuery) (int64, error)
 }
 
 type AllFieldsSoFarDelegate struct {
@@ -2889,6 +2891,59 @@ func (d *AllFieldsSoFarDelegate) queryMany(ctx context.Context, whereClause stri
 		return nil, err
 	}
 	return results, nil
+}
+func (d *AllFieldsSoFarDelegate) DeleteMany(preds ...PredicateOf[AllFieldsSoFar]) *DeleteManyBuilder[AllFieldsSoFar] {
+	return &DeleteManyBuilder[AllFieldsSoFar]{
+		where:    preds,
+		execFunc: d.executeDeleteMany,
+	}
+}
+
+func (d *AllFieldsSoFarDelegate) executeDeleteMany(ctx context.Context, preds []PredicateOf[AllFieldsSoFar]) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runDeleteMany(ctx, preds)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[AllFieldsSoFar]) (int64, error) {
+		return d.runDeleteMany(c, p)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.DeleteMany != nil {
+			next, hook := curr, ext.DeleteMany
+			curr = func(c context.Context, p []PredicateOf[AllFieldsSoFar]) (int64, error) {
+				return hook(c, p, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds)
+}
+
+func (d *AllFieldsSoFarDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[AllFieldsSoFar]) (int64, error) {
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "AllFieldsSoFar")
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+
+	result, err := d.client.exec(ctx, sb.String(), vals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 func (d *AllFieldsSoFarDelegate) loadRelations(ctx context.Context, records []*AllFieldsSoFar, selects *AllFieldsSoFarSelect) error {
 	_ = ctx

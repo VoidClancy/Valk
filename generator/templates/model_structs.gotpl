@@ -127,6 +127,7 @@ type {{ .Model.Name }}CreateManyAndReturnQuery = func(ctx context.Context, args 
 type {{ .Model.Name }}FindUniqueQuery = func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}FindFirstQuery = func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}FindManyQuery = func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error)
+type {{ .Model.Name }}DeleteManyQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}]) (int64, error)
 
 type {{ .Model.Name }}Extension struct {
 	Create              func(ctx context.Context, input *{{ .Model.Name }}Create, next {{ .Model.Name }}CreateQuery) (*{{ .Model.Name }}, error)
@@ -135,6 +136,7 @@ type {{ .Model.Name }}Extension struct {
 	FindUnique          func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindUniqueQuery) (*{{ .Model.Name }}, error)
 	FindFirst           func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindFirstQuery) (*{{ .Model.Name }}, error)
 	FindMany            func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindManyQuery) ([]*{{ .Model.Name }}, error)
+	DeleteMany          func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], next {{ .Model.Name }}DeleteManyQuery) (int64, error)
 }
 
 type {{ .Model.Name }}Delegate struct {
