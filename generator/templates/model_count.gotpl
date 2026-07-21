@@ -1,0 +1,72 @@
+func (d *{{ .Model.Name }}Delegate) Count(preds ...PredicateOf[{{ .Model.Name }}]) *CountBuilder[{{ .Model.Name }}] {
+	return &CountBuilder[{{ .Model.Name }}]{
+		where:    preds,
+		execFunc: d.executeCount,
+	}
+}
+
+func (d *{{ .Model.Name }}Delegate) executeCount(ctx context.Context, params QueryParams[{{ .Model.Name }}]) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runCount(ctx, params)
+	}
+
+	curr := func(c context.Context, p QueryParams[{{ .Model.Name }}]) (int64, error) {
+		return d.runCount(c, p)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Count != nil {
+			next, hook := curr, ext.Count
+			curr = func(c context.Context, p QueryParams[{{ .Model.Name }}]) (int64, error) {
+				return hook(c, p, next)
+			}
+		}
+	}
+
+	return curr(ctx, params)
+}
+
+func (d *{{ .Model.Name }}Delegate) runCount(ctx context.Context, params QueryParams[{{ .Model.Name }}]) (int64, error) {
+	for _, pr := range params.Where {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+
+	var query string
+	if params.Take != nil || params.Skip != nil {
+		var subQuery strings.Builder
+		subQuery.WriteString("SELECT 1 FROM ")
+		d.client.dialect.WriteQuotedIdent(&subQuery, "{{ .Model.EffectiveTableName }}")
+		if whereClause != "" {
+			subQuery.WriteString(whereClause)
+		}
+		subQuery.WriteString(d.client.dialect.FormatLimitOffset(params.Take, params.Skip))
+		query = "SELECT COUNT(*) FROM (" + subQuery.String() + ") as sub"
+	} else {
+		var sb strings.Builder
+		sb.WriteString("SELECT COUNT(*) FROM ")
+		d.client.dialect.WriteQuotedIdent(&sb, "{{ .Model.EffectiveTableName }}")
+		if whereClause != "" {
+			sb.WriteString(whereClause)
+		}
+		query = sb.String()
+	}
+
+	stmt, err := d.client.prepare(ctx, query)
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	if err := stmt.QueryRowContext(ctx, vals...).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
+}

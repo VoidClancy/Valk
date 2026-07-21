@@ -2111,6 +2111,32 @@ type DeleteManyBuilder[M any] struct {
 func (b *DeleteManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
 	return b.execFunc(ctx, b.where)
 }
+
+type CountBuilder[M any] struct {
+	where    []PredicateOf[M]
+	take     *int
+	skip     *int
+	execFunc func(ctx context.Context, params QueryParams[M]) (int64, error)
+}
+
+func (b *CountBuilder[M]) Take(limit int) *CountBuilder[M] {
+	b.take = &limit
+	return b
+}
+
+func (b *CountBuilder[M]) Skip(offset int) *CountBuilder[M] {
+	b.skip = &offset
+	return b
+}
+
+func (b *CountBuilder[M]) Exec(ctx context.Context) (int64, error) {
+	params := QueryParams[M]{
+		Where: b.where,
+		Take:  b.take,
+		Skip:  b.skip,
+	}
+	return b.execFunc(ctx, params)
+}
 func directKey[T any, K any](get func(*T) K) func(*T) (string, bool) {
 	return func(t *T) (string, bool) {
 		return fmt.Sprint(get(t)), true

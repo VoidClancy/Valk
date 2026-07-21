@@ -185,6 +185,7 @@ func GenerateClient(sch schema.Schema, pkgName string, parentImportPath string, 
 		"builders_create.gotpl",
 		"builders_query.gotpl",
 		"builders_delete.gotpl",
+		"builders_count.gotpl",
 		"relations_runtime.gotpl",
 	}
 	for _, file := range files {
@@ -217,6 +218,7 @@ func GenerateClient(sch schema.Schema, pkgName string, parentImportPath string, 
 			"model_create.gotpl",
 			"model_query.gotpl",
 			"model_delete.gotpl",
+			"model_count.gotpl",
 			"model_relations.gotpl",
 		}
 		for _, file := range mFiles {
