@@ -2103,6 +2103,14 @@ func (b *FindManyOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
 	return b.builder.execFunc(ctx, params, nil, &b.omits)
 }
 
+type DeleteManyBuilder[M any] struct {
+	where    []PredicateOf[M]
+	execFunc func(ctx context.Context, where []PredicateOf[M]) (int64, error)
+}
+
+func (b *DeleteManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
+	return b.execFunc(ctx, b.where)
+}
 func directKey[T any, K any](get func(*T) K) func(*T) (string, bool) {
 	return func(t *T) (string, bool) {
 		return fmt.Sprint(get(t)), true

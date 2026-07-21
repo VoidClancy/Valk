@@ -153,6 +153,7 @@ type UserCreateManyAndReturnQuery = func(ctx context.Context, args []*UserCreate
 type UserFindUniqueQuery = func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error)
 type UserFindFirstQuery = func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit) (*User, error)
 type UserFindManyQuery = func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit) ([]*User, error)
+type UserDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[User]) (int64, error)
 
 type UserExtension struct {
 	Create              func(ctx context.Context, input *UserCreate, next UserCreateQuery) (*User, error)
@@ -161,6 +162,7 @@ type UserExtension struct {
 	FindUnique          func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit, next UserFindUniqueQuery) (*User, error)
 	FindFirst           func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit, next UserFindFirstQuery) (*User, error)
 	FindMany            func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit, next UserFindManyQuery) ([]*User, error)
+	DeleteMany          func(ctx context.Context, preds []PredicateOf[User], next UserDeleteManyQuery) (int64, error)
 }
 
 type UserDelegate struct {
@@ -1357,6 +1359,59 @@ func (d *UserDelegate) queryMany(ctx context.Context, whereClause string, whereV
 		return nil, err
 	}
 	return results, nil
+}
+func (d *UserDelegate) DeleteMany(preds ...PredicateOf[User]) *DeleteManyBuilder[User] {
+	return &DeleteManyBuilder[User]{
+		where:    preds,
+		execFunc: d.executeDeleteMany,
+	}
+}
+
+func (d *UserDelegate) executeDeleteMany(ctx context.Context, preds []PredicateOf[User]) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runDeleteMany(ctx, preds)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[User]) (int64, error) {
+		return d.runDeleteMany(c, p)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.DeleteMany != nil {
+			next, hook := curr, ext.DeleteMany
+			curr = func(c context.Context, p []PredicateOf[User]) (int64, error) {
+				return hook(c, p, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds)
+}
+
+func (d *UserDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[User]) (int64, error) {
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "User")
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+
+	result, err := d.client.exec(ctx, sb.String(), vals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 func (d *UserDelegate) loadRelations(ctx context.Context, records []*User, selects *UserSelect) error {
 	if selects == nil || len(records) == 0 {

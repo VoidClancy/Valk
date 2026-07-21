@@ -118,6 +118,7 @@ type ProfileCreateManyAndReturnQuery = func(ctx context.Context, args []*Profile
 type ProfileFindUniqueQuery = func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
 type ProfileFindFirstQuery = func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
 type ProfileFindManyQuery = func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error)
+type ProfileDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Profile]) (int64, error)
 
 type ProfileExtension struct {
 	Create              func(ctx context.Context, input *ProfileCreate, next ProfileCreateQuery) (*Profile, error)
@@ -126,6 +127,7 @@ type ProfileExtension struct {
 	FindUnique          func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileFindUniqueQuery) (*Profile, error)
 	FindFirst           func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileFindFirstQuery) (*Profile, error)
 	FindMany            func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileFindManyQuery) ([]*Profile, error)
+	DeleteMany          func(ctx context.Context, preds []PredicateOf[Profile], next ProfileDeleteManyQuery) (int64, error)
 }
 
 type ProfileDelegate struct {
@@ -1203,6 +1205,59 @@ func (d *ProfileDelegate) queryMany(ctx context.Context, whereClause string, whe
 		return nil, err
 	}
 	return results, nil
+}
+func (d *ProfileDelegate) DeleteMany(preds ...PredicateOf[Profile]) *DeleteManyBuilder[Profile] {
+	return &DeleteManyBuilder[Profile]{
+		where:    preds,
+		execFunc: d.executeDeleteMany,
+	}
+}
+
+func (d *ProfileDelegate) executeDeleteMany(ctx context.Context, preds []PredicateOf[Profile]) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runDeleteMany(ctx, preds)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[Profile]) (int64, error) {
+		return d.runDeleteMany(c, p)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.DeleteMany != nil {
+			next, hook := curr, ext.DeleteMany
+			curr = func(c context.Context, p []PredicateOf[Profile]) (int64, error) {
+				return hook(c, p, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds)
+}
+
+func (d *ProfileDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[Profile]) (int64, error) {
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "Profile")
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+
+	result, err := d.client.exec(ctx, sb.String(), vals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 func (d *ProfileDelegate) loadRelations(ctx context.Context, records []*Profile, selects *ProfileSelect) error {
 	if selects == nil || len(records) == 0 {

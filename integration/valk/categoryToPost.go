@@ -107,6 +107,7 @@ type CategoryToPostCreateManyAndReturnQuery = func(ctx context.Context, args []*
 type CategoryToPostFindUniqueQuery = func(ctx context.Context, where UniquePredicate[CategoryToPost], additional []PredicateOf[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error)
 type CategoryToPostFindFirstQuery = func(ctx context.Context, params QueryParams[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error)
 type CategoryToPostFindManyQuery = func(ctx context.Context, params QueryParams[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error)
+type CategoryToPostDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[CategoryToPost]) (int64, error)
 
 type CategoryToPostExtension struct {
 	Create              func(ctx context.Context, input *CategoryToPostCreate, next CategoryToPostCreateQuery) (*CategoryToPost, error)
@@ -115,6 +116,7 @@ type CategoryToPostExtension struct {
 	FindUnique          func(ctx context.Context, where UniquePredicate[CategoryToPost], additional []PredicateOf[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit, next CategoryToPostFindUniqueQuery) (*CategoryToPost, error)
 	FindFirst           func(ctx context.Context, params QueryParams[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit, next CategoryToPostFindFirstQuery) (*CategoryToPost, error)
 	FindMany            func(ctx context.Context, params QueryParams[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit, next CategoryToPostFindManyQuery) ([]*CategoryToPost, error)
+	DeleteMany          func(ctx context.Context, preds []PredicateOf[CategoryToPost], next CategoryToPostDeleteManyQuery) (int64, error)
 }
 
 type CategoryToPostDelegate struct {
@@ -1132,6 +1134,59 @@ func (d *CategoryToPostDelegate) queryMany(ctx context.Context, whereClause stri
 		return nil, err
 	}
 	return results, nil
+}
+func (d *CategoryToPostDelegate) DeleteMany(preds ...PredicateOf[CategoryToPost]) *DeleteManyBuilder[CategoryToPost] {
+	return &DeleteManyBuilder[CategoryToPost]{
+		where:    preds,
+		execFunc: d.executeDeleteMany,
+	}
+}
+
+func (d *CategoryToPostDelegate) executeDeleteMany(ctx context.Context, preds []PredicateOf[CategoryToPost]) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runDeleteMany(ctx, preds)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[CategoryToPost]) (int64, error) {
+		return d.runDeleteMany(c, p)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.DeleteMany != nil {
+			next, hook := curr, ext.DeleteMany
+			curr = func(c context.Context, p []PredicateOf[CategoryToPost]) (int64, error) {
+				return hook(c, p, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds)
+}
+
+func (d *CategoryToPostDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[CategoryToPost]) (int64, error) {
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "CategoryToPost")
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+
+	result, err := d.client.exec(ctx, sb.String(), vals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 func (d *CategoryToPostDelegate) loadRelations(ctx context.Context, records []*CategoryToPost, selects *CategoryToPostSelect) error {
 	if selects == nil || len(records) == 0 {
