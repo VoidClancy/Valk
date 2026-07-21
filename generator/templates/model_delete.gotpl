@@ -1,0 +1,53 @@
+func (d *{{ .Model.Name }}Delegate) DeleteMany(preds ...PredicateOf[{{ .Model.Name }}]) *DeleteManyBuilder[{{ .Model.Name }}] {
+	return &DeleteManyBuilder[{{ .Model.Name }}]{
+		where:    preds,
+		execFunc: d.executeDeleteMany,
+	}
+}
+
+func (d *{{ .Model.Name }}Delegate) executeDeleteMany(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}]) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runDeleteMany(ctx, preds)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[{{ .Model.Name }}]) (int64, error) {
+		return d.runDeleteMany(c, p)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.DeleteMany != nil {
+			next, hook := curr, ext.DeleteMany
+			curr = func(c context.Context, p []PredicateOf[{{ .Model.Name }}]) (int64, error) {
+				return hook(c, p, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds)
+}
+
+func (d *{{ .Model.Name }}Delegate) runDeleteMany(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}]) (int64, error) {
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+	
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "{{ .Model.EffectiveTableName }}")
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+
+	result, err := d.client.exec(ctx, sb.String(), vals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}

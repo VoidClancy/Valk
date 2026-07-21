@@ -1,0 +1,8 @@
+type DeleteManyBuilder[M any] struct {
+	where    []PredicateOf[M]
+	execFunc func(ctx context.Context, where []PredicateOf[M]) (int64, error)
+}
+
+func (b *DeleteManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
+	return b.execFunc(ctx, b.where)
+}
