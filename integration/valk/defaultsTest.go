@@ -140,6 +140,7 @@ type DefaultsTestFindUniqueQuery = func(ctx context.Context, where UniquePredica
 type DefaultsTestFindFirstQuery = func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error)
 type DefaultsTestFindManyQuery = func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error)
 type DefaultsTestDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[DefaultsTest]) (int64, error)
+type DefaultsTestCountQuery = func(ctx context.Context, params QueryParams[DefaultsTest]) (int64, error)
 
 type DefaultsTestExtension struct {
 	Create              func(ctx context.Context, input *DefaultsTestCreate, next DefaultsTestCreateQuery) (*DefaultsTest, error)
@@ -149,6 +150,7 @@ type DefaultsTestExtension struct {
 	FindFirst           func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestFindFirstQuery) (*DefaultsTest, error)
 	FindMany            func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestFindManyQuery) ([]*DefaultsTest, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[DefaultsTest], next DefaultsTestDeleteManyQuery) (int64, error)
+	Count               func(ctx context.Context, params QueryParams[DefaultsTest], next DefaultsTestCountQuery) (int64, error)
 }
 
 type DefaultsTestDelegate struct {
@@ -1441,6 +1443,78 @@ func (d *DefaultsTestDelegate) runDeleteMany(ctx context.Context, preds []Predic
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+func (d *DefaultsTestDelegate) Count(preds ...PredicateOf[DefaultsTest]) *CountBuilder[DefaultsTest] {
+	return &CountBuilder[DefaultsTest]{
+		where:    preds,
+		execFunc: d.executeCount,
+	}
+}
+
+func (d *DefaultsTestDelegate) executeCount(ctx context.Context, params QueryParams[DefaultsTest]) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runCount(ctx, params)
+	}
+
+	curr := func(c context.Context, p QueryParams[DefaultsTest]) (int64, error) {
+		return d.runCount(c, p)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Count != nil {
+			next, hook := curr, ext.Count
+			curr = func(c context.Context, p QueryParams[DefaultsTest]) (int64, error) {
+				return hook(c, p, next)
+			}
+		}
+	}
+
+	return curr(ctx, params)
+}
+
+func (d *DefaultsTestDelegate) runCount(ctx context.Context, params QueryParams[DefaultsTest]) (int64, error) {
+	for _, pr := range params.Where {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+
+	var query string
+	if params.Take != nil || params.Skip != nil {
+		var subQuery strings.Builder
+		subQuery.WriteString("SELECT 1 FROM ")
+		d.client.dialect.WriteQuotedIdent(&subQuery, "DefaultsTest")
+		if whereClause != "" {
+			subQuery.WriteString(whereClause)
+		}
+		subQuery.WriteString(d.client.dialect.FormatLimitOffset(params.Take, params.Skip))
+		query = "SELECT COUNT(*) FROM (" + subQuery.String() + ") as sub"
+	} else {
+		var sb strings.Builder
+		sb.WriteString("SELECT COUNT(*) FROM ")
+		d.client.dialect.WriteQuotedIdent(&sb, "DefaultsTest")
+		if whereClause != "" {
+			sb.WriteString(whereClause)
+		}
+		query = sb.String()
+	}
+
+	stmt, err := d.client.prepare(ctx, query)
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	if err := stmt.QueryRowContext(ctx, vals...).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 func (d *DefaultsTestDelegate) loadRelations(ctx context.Context, records []*DefaultsTest, selects *DefaultsTestSelect) error {
 	_ = ctx

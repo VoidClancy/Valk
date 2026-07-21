@@ -129,6 +129,7 @@ type PostFindUniqueQuery = func(ctx context.Context, where UniquePredicate[Post]
 type PostFindFirstQuery = func(ctx context.Context, params QueryParams[Post], selects *PostSelect, omits *PostOmit) (*Post, error)
 type PostFindManyQuery = func(ctx context.Context, params QueryParams[Post], selects *PostSelect, omits *PostOmit) ([]*Post, error)
 type PostDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Post]) (int64, error)
+type PostCountQuery = func(ctx context.Context, params QueryParams[Post]) (int64, error)
 
 type PostExtension struct {
 	Create              func(ctx context.Context, input *PostCreate, next PostCreateQuery) (*Post, error)
@@ -138,6 +139,7 @@ type PostExtension struct {
 	FindFirst           func(ctx context.Context, params QueryParams[Post], selects *PostSelect, omits *PostOmit, next PostFindFirstQuery) (*Post, error)
 	FindMany            func(ctx context.Context, params QueryParams[Post], selects *PostSelect, omits *PostOmit, next PostFindManyQuery) ([]*Post, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[Post], next PostDeleteManyQuery) (int64, error)
+	Count               func(ctx context.Context, params QueryParams[Post], next PostCountQuery) (int64, error)
 }
 
 type PostDelegate struct {
@@ -1292,6 +1294,78 @@ func (d *PostDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[Po
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+func (d *PostDelegate) Count(preds ...PredicateOf[Post]) *CountBuilder[Post] {
+	return &CountBuilder[Post]{
+		where:    preds,
+		execFunc: d.executeCount,
+	}
+}
+
+func (d *PostDelegate) executeCount(ctx context.Context, params QueryParams[Post]) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runCount(ctx, params)
+	}
+
+	curr := func(c context.Context, p QueryParams[Post]) (int64, error) {
+		return d.runCount(c, p)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Count != nil {
+			next, hook := curr, ext.Count
+			curr = func(c context.Context, p QueryParams[Post]) (int64, error) {
+				return hook(c, p, next)
+			}
+		}
+	}
+
+	return curr(ctx, params)
+}
+
+func (d *PostDelegate) runCount(ctx context.Context, params QueryParams[Post]) (int64, error) {
+	for _, pr := range params.Where {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+
+	var query string
+	if params.Take != nil || params.Skip != nil {
+		var subQuery strings.Builder
+		subQuery.WriteString("SELECT 1 FROM ")
+		d.client.dialect.WriteQuotedIdent(&subQuery, "Post")
+		if whereClause != "" {
+			subQuery.WriteString(whereClause)
+		}
+		subQuery.WriteString(d.client.dialect.FormatLimitOffset(params.Take, params.Skip))
+		query = "SELECT COUNT(*) FROM (" + subQuery.String() + ") as sub"
+	} else {
+		var sb strings.Builder
+		sb.WriteString("SELECT COUNT(*) FROM ")
+		d.client.dialect.WriteQuotedIdent(&sb, "Post")
+		if whereClause != "" {
+			sb.WriteString(whereClause)
+		}
+		query = sb.String()
+	}
+
+	stmt, err := d.client.prepare(ctx, query)
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	if err := stmt.QueryRowContext(ctx, vals...).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 func (d *PostDelegate) loadRelations(ctx context.Context, records []*Post, selects *PostSelect) error {
 	if selects == nil || len(records) == 0 {

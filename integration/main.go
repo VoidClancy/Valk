@@ -165,6 +165,15 @@ func main() {
 	deletedCnt, err := db.User.DeleteMany(user.Id.EQ("Bleh"), user.Password.Contains("xx")).Exec(ctx)
 	fmt.Printf("DELETED %d USERS \n", deletedCnt)
 
+	usersCnt, err := db.User.Count(
+		user.Id.Contains("x"),
+		user.Or(
+			user.Password.Contains("y"),
+			user.Email.NEQ("c"),
+		)).
+		Exec(ctx)
+	fmt.Printf("COUNT %d USERS \n", usersCnt)
+
 }
 
 // func seed(db *valk.DB, ctx context.Context) *SeedData {
