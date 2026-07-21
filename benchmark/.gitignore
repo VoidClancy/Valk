@@ -1,0 +1,10 @@
+*.db
+*.prisma.backup
+
+ent/*
+!ent/schema/
+!ent/generate.go
+!ent/tools.go
+
+valk/*
+!valk/migrations/
