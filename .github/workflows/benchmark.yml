@@ -24,7 +24,14 @@ jobs:
           go-version-file: benchmark/go.mod
           cache-dependency-path: benchmark/go.sum
       - run: |
+          go build -o bin/valk
           cd benchmark
+          node prepareSchema.js sqlite
+          rm -rf valk/migrations/*.sql
+          rm -f dev.db
+          DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/valk migrate init
+          ../bin/valk generate
+          go generate ./ent
           go run ./cmd/benchsummary -count=${{ env.COUNT }} -benchtime=${{ env.BENCHTIME }} -timeout=${{ env.TIMEOUT }} | tee ../bench-sqlite.txt
       - uses: actions/upload-artifact@v4
         with:
@@ -56,7 +63,13 @@ jobs:
           go-version-file: benchmark/go.mod
           cache-dependency-path: benchmark/go.sum
       - run: |
+          go build -o bin/valk
           cd benchmark
+          node prepareSchema.js postgres
+          rm -rf valk/migrations/*.sql
+          DATABASE_URL="postgres://postgres:postgres@localhost:5432/bench?sslmode=disable" DATABASE_DIRECT_URL="postgres://postgres:postgres@localhost:5432/bench?sslmode=disable" ../bin/valk migrate init
+          ../bin/valk generate
+          go generate ./ent
           go run ./cmd/benchsummary -count=${{ env.COUNT }} -benchtime=${{ env.BENCHTIME }} -timeout=${{ env.TIMEOUT }} | tee ../bench-postgres.txt
         env:
           BENCH_DB: postgres
