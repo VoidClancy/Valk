@@ -1,0 +1,78 @@
+datasource db {
+    provider = "postgres"
+    url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+    ADMIN
+    STUDENT
+    TEACHER
+
+    @@map("user_roles")
+}
+
+model User {
+    id           String    @id @default(cuid())
+    email        String    @unique
+    phoneNum     String    @unique
+    password     String?
+    role         UserRole  @default(STUDENT)
+    roleOptional UserRole?
+    profile      Profile?
+    posts        Post[]
+    comments     Comment[]
+    loginCount   Int       @default(0)
+
+    referredById String?
+    referredBy   User?   @relation("UserReferrals", fields: [referredById], references: [id])
+    referrals    User[]  @relation("UserReferrals")
+
+    @@unique([email, phoneNum], name: "emailPhone")
+}
+
+model Profile {
+    id        String   @id @default(cuid())
+    bio       String?
+    userId    String   @unique
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+}
+
+model Post {
+    id         String           @id @default(cuid())
+    title      String
+    content    String?
+    published  Boolean          @default(false)
+    authorId   String
+    author     User             @relation(fields: [authorId], references: [id])
+    comments   Comment[]
+    categories CategoryToPost[]
+}
+
+model Comment {
+    id       String @id @default(cuid())
+    textify  Int
+    dummy3   String
+    dummy1   Int
+    dummy2   String
+    postId   String
+    post     Post   @relation(fields: [postId], references: [id])
+    authorId String
+    author   User   @relation(fields: [authorId], references: [id])
+    meta     Json?
+}
+
+model Category {
+    id    Int              @id @default(autoincrement())
+    name  String           @unique
+    posts CategoryToPost[]
+}
+
+model CategoryToPost {
+    postId     String
+    categoryId Int
+    post       Post     @relation(fields: [postId], references: [id])
+    category   Category @relation(fields: [categoryId], references: [id])
+
+    @@id([postId, categoryId])
+}

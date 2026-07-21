@@ -4,16 +4,40 @@ import (
 	"benchmark/ent"
 	"benchmark/ent/user"
 	"context"
+	"database/sql"
 	"fmt"
 	"testing"
+
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func openEnt(b *testing.B) *ent.Client {
 	b.Helper()
-	client, err := ent.Open("sqlite3", "file::memory:?cache=shared&_fk=1")
+	var driverName string
+	var dsn string
+	if activeDialect.Name == "postgres" {
+		driverName = "postgres"
+		dsn = activeDialect.DSN
+	} else {
+		driverName = "sqlite3"
+		dsn = activeDialect.DSN + "&_fk=1"
+	}
+
+	client, err := ent.Open(driverName, dsn)
 	if err != nil {
 		b.Fatal(err)
 	}
+
+	// Reset PG schema
+	if activeDialect.Name == "postgres" {
+		db, err := sql.Open("postgres", activeDialect.DSN)
+		if err == nil {
+			resetPostgres(db)
+			db.Close()
+		}
+	}
+
 	ctx := context.Background()
 	if err := client.Schema.Create(ctx); err != nil {
 		b.Fatal(err)
@@ -180,6 +204,151 @@ func benchEntUpsert(b *testing.B) {
 			OnConflictColumns("email").
 			UpdateNewValues().
 			Exec(ctx); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func benchEntReadDeepRelation(b *testing.B) {
+	ctx := context.Background()
+	client := openEnt(b)
+	defer client.Close()
+
+	db := openDB(b)
+	seedRelations(db, "ent-rdr")
+	db.Close()
+
+	b.ResetTimer()
+	for i := 0; b.Loop(); i++ {
+		email := fmt.Sprintf("ent-rdr-grand-%d@example.com", i%500)
+		_, err := client.User.Query().
+			Where(user.Email(email)).
+			WithReferredBy(func(q *ent.UserQuery) {
+				q.WithReferredBy()
+			}).
+			Only(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func benchEntCreateWithDeepSelect(b *testing.B) {
+	ctx := context.Background()
+	client := openEnt(b)
+	defer client.Close()
+
+	db := openDB(b)
+	seedRelations(db, "ent-cwds")
+	db.Close()
+
+	b.ResetTimer()
+	for i := 0; b.Loop(); i++ {
+		parentID := fmt.Sprintf("ent-cwds-parent-id-%d", i%500)
+		u, err := client.User.Create().
+			SetID(fmt.Sprintf("ent-cwds-new-id-%d", i)).
+			SetEmail(fmt.Sprintf("ent-cwds-new-%d@example.com", i)).
+			SetPhoneNum(fmt.Sprintf("ent-cwds-new-phone-%d", i)).
+			SetRole("STUDENT").
+			SetReferredByID(parentID).
+			Save(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+		referredBy, err := u.QueryReferredBy().WithReferredBy().Only(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+		u.Edges.ReferredBy = referredBy
+	}
+}
+
+func benchEntCreateManyAndReturnWithDeepSelect(b *testing.B) {
+	ctx := context.Background()
+	client := openEnt(b)
+	defer client.Close()
+
+	db := openDB(b)
+	seedRelations(db, "ent-cmwds")
+	db.Close()
+
+	b.ResetTimer()
+	for i := 0; b.Loop(); i++ {
+		parentID := fmt.Sprintf("ent-cmwds-parent-id-%d", i%500)
+		builders := make([]*ent.UserCreate, 10)
+		ids := make([]string, 10)
+		for j := 0; j < 10; j++ {
+			id := fmt.Sprintf("ent-cmwds-new-id-%d-%d", i, j)
+			ids[j] = id
+			builders[j] = client.User.Create().
+				SetID(id).
+				SetEmail(fmt.Sprintf("ent-cmwds-new-%d-%d@example.com", i, j)).
+				SetPhoneNum(fmt.Sprintf("ent-cmwds-new-phone-%d-%d", i, j)).
+				SetRole("STUDENT").
+				SetReferredByID(parentID)
+		}
+		_, err := client.User.CreateBulk(builders...).Save(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = client.User.Query().
+			Where(user.IDIn(ids...)).
+			WithReferredBy(func(q *ent.UserQuery) {
+				q.WithReferredBy()
+			}).
+			All(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func benchEntUpsertWithDeepSelect(b *testing.B) {
+	ctx := context.Background()
+	client := openEnt(b)
+	defer client.Close()
+
+	db := openDB(b)
+	seedRelations(db, "ent-uwds")
+	db.Close()
+
+	// Preseed
+	for i := range seedCount {
+		_, err := client.User.Create().
+			SetID(fmt.Sprintf("ent-uwds-id-%d", i)).
+			SetEmail(fmt.Sprintf("ent-uwds-%d@example.com", i)).
+			SetPhoneNum(fmt.Sprintf("ent-uwds-phone-%d", i)).
+			SetRole("STUDENT").
+			Save(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; b.Loop(); i++ {
+		parentID := fmt.Sprintf("ent-uwds-parent-id-%d", i%500)
+		email := fmt.Sprintf("ent-uwds-%d@example.com", i%seedCount)
+		err := client.User.Create().
+			SetID(fmt.Sprintf("ent-uwds-id-new-%d", i)).
+			SetEmail(email).
+			SetPhoneNum(fmt.Sprintf("ent-uwds-phone-new-%d", i)).
+			SetRole("STUDENT").
+			SetLoginCount(int32(i)).
+			SetReferredByID(parentID).
+			OnConflictColumns("email").
+			UpdateNewValues().
+			Exec(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = client.User.Query().
+			Where(user.Email(email)).
+			WithReferredBy(func(q *ent.UserQuery) {
+				q.WithReferredBy()
+			}).
+			Only(ctx)
+		if err != nil {
 			b.Fatal(err)
 		}
 	}
