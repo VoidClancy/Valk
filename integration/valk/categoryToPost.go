@@ -108,6 +108,7 @@ type CategoryToPostFindUniqueQuery = func(ctx context.Context, where UniquePredi
 type CategoryToPostFindFirstQuery = func(ctx context.Context, params QueryParams[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error)
 type CategoryToPostFindManyQuery = func(ctx context.Context, params QueryParams[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error)
 type CategoryToPostDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[CategoryToPost]) (int64, error)
+type CategoryToPostDeleteQuery = func(ctx context.Context, where UniquePredicate[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error)
 type CategoryToPostCountQuery = func(ctx context.Context, params QueryParams[CategoryToPost]) (int64, error)
 
 type CategoryToPostExtension struct {
@@ -118,6 +119,7 @@ type CategoryToPostExtension struct {
 	FindFirst           func(ctx context.Context, params QueryParams[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit, next CategoryToPostFindFirstQuery) (*CategoryToPost, error)
 	FindMany            func(ctx context.Context, params QueryParams[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit, next CategoryToPostFindManyQuery) ([]*CategoryToPost, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[CategoryToPost], next CategoryToPostDeleteManyQuery) (int64, error)
+	Delete              func(ctx context.Context, where UniquePredicate[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit, next CategoryToPostDeleteQuery) (*CategoryToPost, error)
 	Count               func(ctx context.Context, params QueryParams[CategoryToPost], next CategoryToPostCountQuery) (int64, error)
 }
 
@@ -306,7 +308,6 @@ func (d *CategoryToPostDelegate) executeCreate(ctx context.Context, assignments 
 
 	cols, vals := input.ToColsVals()
 	returningCols := selectCategoryToPostCols(selects, omits)
-	pkCols := categoryToPostPKCols
 
 	if len(d.extensions) == 0 {
 		hasRelations := selects.hasAnyRelation()
@@ -314,7 +315,7 @@ func (d *CategoryToPostDelegate) executeCreate(ctx context.Context, assignments 
 			var res *CategoryToPost
 			err = d.client.transaction(ctx, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.CategoryToPost.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.CategoryToPost.runCreate(ctx, cols, vals, returningCols, categoryToPostPKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
@@ -322,13 +323,12 @@ func (d *CategoryToPostDelegate) executeCreate(ctx context.Context, assignments 
 			})
 			return res, err
 		}
-		return d.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, categoryToPostPKCols, conflictTarget, conflictAction)
 	}
 
 	curr := func(c context.Context, args *CategoryToPostCreate) (*CategoryToPost, error) {
 		cols, vals := args.ToColsVals()
 		returningCols := selectCategoryToPostCols(selects, omits)
-		pkCols := categoryToPostPKCols
 
 		hasRelations := selects.hasAnyRelation()
 		var res *CategoryToPost
@@ -336,14 +336,14 @@ func (d *CategoryToPostDelegate) executeCreate(ctx context.Context, assignments 
 		if hasRelations {
 			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.CategoryToPost.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.CategoryToPost.runCreate(c, cols, vals, returningCols, categoryToPostPKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
 				return txQ.CategoryToPost.loadRelations(c, []*CategoryToPost{res}, selects)
 			})
 		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+			res, err = d.runCreate(c, cols, vals, returningCols, categoryToPostPKCols, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -520,7 +520,7 @@ func (d *CategoryToPostDelegate) runCreate(
 	}
 
 	var res CategoryToPost
-	if d.client.dialect.SupportsReturning {
+	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
@@ -674,9 +674,8 @@ func (d *CategoryToPostDelegate) runCreateMany(ctx context.Context, inputs []*Ca
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := categoryToPostPKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, categoryToPostPKCols)
 		}
 		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
@@ -721,15 +720,14 @@ func (d *CategoryToPostDelegate) runCreateManyAndReturn(
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := categoryToPostPKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, categoryToPostPKCols)
 		}
 		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
 		vals = append(vals, clauseArgs...)
 
-		if txQ.dialect.SupportsReturning && len(returningCols) > 0 {
+		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -783,11 +781,11 @@ func (d *CategoryToPostDelegate) runCreateManyAndReturn(
 		selectSb.WriteString(" FROM ")
 		txQ.dialect.WriteQuotedIdent(&selectSb, "CategoryToPost")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, categoryToPostPKCols[0])
 		selectSb.WriteString(" >= ")
 		txQ.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, categoryToPostPKCols[0])
 		selectSb.WriteString(" < ")
 		txQ.dialect.WritePlaceholder(&selectSb, 2)
 
@@ -808,7 +806,7 @@ func (d *CategoryToPostDelegate) runCreateManyAndReturn(
 	}
 
 	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsReturning {
+	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			for _, batch := range batches {
 				if err := runBatch(txQ, batch); err != nil {
@@ -1097,13 +1095,27 @@ func (d *CategoryToPostDelegate) runFindMany(
 func (d *CategoryToPostDelegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*CategoryToPost, error) {
 	limitOne := 1
 	query := buildSelectSQL(d.client, "CategoryToPost", returningCols, whereClause, &limitOne, skip)
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
-	row := stmt.QueryRowContext(ctx, whereVals...)
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return nil, nil
+	}
+
 	var res CategoryToPost
-	if err := row.Scan(res.ScanFields(returningCols)...); err != nil {
+	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -1114,11 +1126,7 @@ func (d *CategoryToPostDelegate) queryOne(ctx context.Context, whereClause strin
 
 func (d *CategoryToPostDelegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*CategoryToPost, error) {
 	query := buildSelectSQL(d.client, "CategoryToPost", returningCols, whereClause, take, skip)
-	stmt, err := d.client.prepare(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := stmt.QueryContext(ctx, whereVals...)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
 	}
@@ -1190,6 +1198,132 @@ func (d *CategoryToPostDelegate) runDeleteMany(ctx context.Context, preds []Pred
 	}
 	return result.RowsAffected()
 }
+
+func (d *CategoryToPostDelegate) Delete(where UniquePredicate[CategoryToPost]) *DeleteBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+	return &DeleteBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
+		where:    where,
+		execFunc: d.executeDelete,
+	}
+}
+
+func (d *CategoryToPostDelegate) executeDelete(ctx context.Context, where UniquePredicate[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	if len(d.extensions) == 0 {
+		return d.runDelete(ctx, where, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[CategoryToPost], s *CategoryToPostSelect, o *CategoryToPostOmit) (*CategoryToPost, error) {
+		return d.runDelete(c, w, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Delete != nil {
+			next, hook := curr, ext.Delete
+			curr = func(c context.Context, w UniquePredicate[CategoryToPost], s *CategoryToPostSelect, o *CategoryToPostOmit) (*CategoryToPost, error) {
+				return hook(c, w, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, selects, omits)
+}
+
+func (d *CategoryToPostDelegate) runDelete(ctx context.Context, where UniquePredicate[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+
+	returningCols := selectCategoryToPostCols(selects, omits, categoryToPostPKCols...)
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := !d.client.dialect.SupportsDeleteReturning || hasRelations
+
+	if useTx {
+		var res *CategoryToPost
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.CategoryToPost.executeFindUnique(ctx, where, nil, selects, omits)
+			if err != nil {
+				return err
+			}
+			if res == nil {
+				return sql.ErrNoRows
+			}
+
+			// Build DELETE statement by PK
+			var deleteSb strings.Builder
+			deleteSb.WriteString("DELETE FROM ")
+			txQ.dialect.WriteQuotedIdent(&deleteSb, "CategoryToPost")
+			deleteSb.WriteString(" WHERE ")
+
+			var pkPreds []PredicateOf[CategoryToPost]
+			pkPreds = append(pkPreds, Predicate[CategoryToPost]{
+				Data: PredicateData{
+					Column:   "postId",
+					Operator: "=",
+					Value:    res.PostId,
+				},
+			})
+			pkPreds = append(pkPreds, Predicate[CategoryToPost]{
+				Data: PredicateData{
+					Column:   "categoryId",
+					Operator: "=",
+					Value:    res.CategoryId,
+				},
+			})
+
+			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			deleteSb.WriteString(whereClause)
+
+			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
+
+	// Dialect supports RETURNING, and no relations need loading: run direct DELETE ... RETURNING
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "CategoryToPost")
+
+	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[CategoryToPost]{where})
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+
+	sb.WriteString(" RETURNING ")
+	for i, col := range returningCols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, col)
+	}
+
+	rows, err := d.client.query(ctx, sb.String(), vals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var row CategoryToPost
+	if err := rows.Scan(row.ScanFields(returningCols)...); err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
 func (d *CategoryToPostDelegate) Count(preds ...PredicateOf[CategoryToPost]) *CountBuilder[CategoryToPost] {
 	return &CountBuilder[CategoryToPost]{
 		where:    preds,
@@ -1252,12 +1386,19 @@ func (d *CategoryToPostDelegate) runCount(ctx context.Context, params QueryParam
 		query = sb.String()
 	}
 
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, vals...)
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
+
 	var count int64
-	if err := stmt.QueryRowContext(ctx, vals...).Scan(&count); err != nil {
+	if rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return 0, err
+		}
+	}
+	if err := rows.Err(); err != nil {
 		return 0, err
 	}
 	return count, nil

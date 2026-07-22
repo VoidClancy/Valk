@@ -119,6 +119,7 @@ type ProfileFindUniqueQuery = func(ctx context.Context, where UniquePredicate[Pr
 type ProfileFindFirstQuery = func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
 type ProfileFindManyQuery = func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error)
 type ProfileDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Profile]) (int64, error)
+type ProfileDeleteQuery = func(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
 type ProfileCountQuery = func(ctx context.Context, params QueryParams[Profile]) (int64, error)
 
 type ProfileExtension struct {
@@ -129,6 +130,7 @@ type ProfileExtension struct {
 	FindFirst           func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileFindFirstQuery) (*Profile, error)
 	FindMany            func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileFindManyQuery) ([]*Profile, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[Profile], next ProfileDeleteManyQuery) (int64, error)
+	Delete              func(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileDeleteQuery) (*Profile, error)
 	Count               func(ctx context.Context, params QueryParams[Profile], next ProfileCountQuery) (int64, error)
 }
 
@@ -360,7 +362,6 @@ func (d *ProfileDelegate) executeCreate(ctx context.Context, assignments []Field
 
 	cols, vals := input.ToColsVals()
 	returningCols := selectProfileCols(selects, omits)
-	pkCols := profilePKCols
 
 	if len(d.extensions) == 0 {
 		hasRelations := selects.hasAnyRelation()
@@ -368,7 +369,7 @@ func (d *ProfileDelegate) executeCreate(ctx context.Context, assignments []Field
 			var res *Profile
 			err = d.client.transaction(ctx, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.Profile.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.Profile.runCreate(ctx, cols, vals, returningCols, profilePKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
@@ -376,13 +377,12 @@ func (d *ProfileDelegate) executeCreate(ctx context.Context, assignments []Field
 			})
 			return res, err
 		}
-		return d.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, profilePKCols, conflictTarget, conflictAction)
 	}
 
 	curr := func(c context.Context, args *ProfileCreate) (*Profile, error) {
 		cols, vals := args.ToColsVals()
 		returningCols := selectProfileCols(selects, omits)
-		pkCols := profilePKCols
 
 		hasRelations := selects.hasAnyRelation()
 		var res *Profile
@@ -390,14 +390,14 @@ func (d *ProfileDelegate) executeCreate(ctx context.Context, assignments []Field
 		if hasRelations {
 			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.Profile.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.Profile.runCreate(c, cols, vals, returningCols, profilePKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
 				return txQ.Profile.loadRelations(c, []*Profile{res}, selects)
 			})
 		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+			res, err = d.runCreate(c, cols, vals, returningCols, profilePKCols, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -574,7 +574,7 @@ func (d *ProfileDelegate) runCreate(
 	}
 
 	var res Profile
-	if d.client.dialect.SupportsReturning {
+	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
@@ -744,9 +744,8 @@ func (d *ProfileDelegate) runCreateMany(ctx context.Context, inputs []*ProfileCr
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := profilePKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, profilePKCols)
 		}
 		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
@@ -791,15 +790,14 @@ func (d *ProfileDelegate) runCreateManyAndReturn(
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := profilePKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, profilePKCols)
 		}
 		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
 		vals = append(vals, clauseArgs...)
 
-		if txQ.dialect.SupportsReturning && len(returningCols) > 0 {
+		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -853,11 +851,11 @@ func (d *ProfileDelegate) runCreateManyAndReturn(
 		selectSb.WriteString(" FROM ")
 		txQ.dialect.WriteQuotedIdent(&selectSb, "Profile")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, profilePKCols[0])
 		selectSb.WriteString(" >= ")
 		txQ.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, profilePKCols[0])
 		selectSb.WriteString(" < ")
 		txQ.dialect.WritePlaceholder(&selectSb, 2)
 
@@ -878,7 +876,7 @@ func (d *ProfileDelegate) runCreateManyAndReturn(
 	}
 
 	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsReturning {
+	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			for _, batch := range batches {
 				if err := runBatch(txQ, batch); err != nil {
@@ -1168,13 +1166,27 @@ func (d *ProfileDelegate) runFindMany(
 func (d *ProfileDelegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*Profile, error) {
 	limitOne := 1
 	query := buildSelectSQL(d.client, "Profile", returningCols, whereClause, &limitOne, skip)
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
-	row := stmt.QueryRowContext(ctx, whereVals...)
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return nil, nil
+	}
+
 	var res Profile
-	if err := row.Scan(res.ScanFields(returningCols)...); err != nil {
+	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -1185,11 +1197,7 @@ func (d *ProfileDelegate) queryOne(ctx context.Context, whereClause string, wher
 
 func (d *ProfileDelegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*Profile, error) {
 	query := buildSelectSQL(d.client, "Profile", returningCols, whereClause, take, skip)
-	stmt, err := d.client.prepare(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := stmt.QueryContext(ctx, whereVals...)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
 	}
@@ -1261,6 +1269,125 @@ func (d *ProfileDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf
 	}
 	return result.RowsAffected()
 }
+
+func (d *ProfileDelegate) Delete(where UniquePredicate[Profile]) *DeleteBuilder[Profile, ProfileSelect, ProfileOmit] {
+	return &DeleteBuilder[Profile, ProfileSelect, ProfileOmit]{
+		where:    where,
+		execFunc: d.executeDelete,
+	}
+}
+
+func (d *ProfileDelegate) executeDelete(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	if len(d.extensions) == 0 {
+		return d.runDelete(ctx, where, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[Profile], s *ProfileSelect, o *ProfileOmit) (*Profile, error) {
+		return d.runDelete(c, w, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Delete != nil {
+			next, hook := curr, ext.Delete
+			curr = func(c context.Context, w UniquePredicate[Profile], s *ProfileSelect, o *ProfileOmit) (*Profile, error) {
+				return hook(c, w, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, selects, omits)
+}
+
+func (d *ProfileDelegate) runDelete(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+
+	returningCols := selectProfileCols(selects, omits, profilePKCols...)
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := !d.client.dialect.SupportsDeleteReturning || hasRelations
+
+	if useTx {
+		var res *Profile
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.Profile.executeFindUnique(ctx, where, nil, selects, omits)
+			if err != nil {
+				return err
+			}
+			if res == nil {
+				return sql.ErrNoRows
+			}
+
+			// Build DELETE statement by PK
+			var deleteSb strings.Builder
+			deleteSb.WriteString("DELETE FROM ")
+			txQ.dialect.WriteQuotedIdent(&deleteSb, "Profile")
+			deleteSb.WriteString(" WHERE ")
+
+			var pkPreds []PredicateOf[Profile]
+			pkPreds = append(pkPreds, Predicate[Profile]{
+				Data: PredicateData{
+					Column:   "id",
+					Operator: "=",
+					Value:    res.Id,
+				},
+			})
+
+			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			deleteSb.WriteString(whereClause)
+
+			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
+
+	// Dialect supports RETURNING, and no relations need loading: run direct DELETE ... RETURNING
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "Profile")
+
+	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[Profile]{where})
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+
+	sb.WriteString(" RETURNING ")
+	for i, col := range returningCols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, col)
+	}
+
+	rows, err := d.client.query(ctx, sb.String(), vals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var row Profile
+	if err := rows.Scan(row.ScanFields(returningCols)...); err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
 func (d *ProfileDelegate) Count(preds ...PredicateOf[Profile]) *CountBuilder[Profile] {
 	return &CountBuilder[Profile]{
 		where:    preds,
@@ -1323,12 +1450,19 @@ func (d *ProfileDelegate) runCount(ctx context.Context, params QueryParams[Profi
 		query = sb.String()
 	}
 
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, vals...)
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
+
 	var count int64
-	if err := stmt.QueryRowContext(ctx, vals...).Scan(&count); err != nil {
+	if rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return 0, err
+		}
+	}
+	if err := rows.Err(); err != nil {
 		return 0, err
 	}
 	return count, nil
