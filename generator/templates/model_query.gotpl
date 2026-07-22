@@ -223,12 +223,18 @@ func (d *{{ .Model.Name }}Delegate) queryOne(ctx context.Context, whereClause st
 	query := buildSelectSQL(d.client, "{{ .Model.EffectiveTableName }}", returningCols, whereClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
 			return nil, err
 		}
 		return nil, nil
@@ -236,6 +242,9 @@ func (d *{{ .Model.Name }}Delegate) queryOne(ctx context.Context, whereClause st
 
 	var res {{ .Model.Name }}
 	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &res, nil
