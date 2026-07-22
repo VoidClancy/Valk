@@ -731,9 +731,9 @@ func TestRelationSubqueries(t *testing.T) {
 						Select(comment.Select{
 							Textify: true,
 							Dummy3:  true,
-							Author: user.Query().Select(user.Select{
+							Author: &user.Select{
 								Email: true,
-							}),
+							},
 						}),
 				}),
 		}).Exec(ctx)

@@ -50,7 +50,7 @@ type PostSelect struct {
 	Content    bool                      `json:"content"`
 	Published  bool                      `json:"published"`
 	AuthorId   bool                      `json:"authorId"`
-	Author     UserSelectQuery           `json:"author,omitempty"`
+	Author     *UserSelect               `json:"author,omitempty"`
 	Comments   CommentSelectQuery        `json:"comments,omitempty"`
 	Categories CategoryToPostSelectQuery `json:"categories,omitempty"`
 }
