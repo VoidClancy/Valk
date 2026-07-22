@@ -60,12 +60,19 @@ func (d *{{ .Model.Name }}Delegate) runCount(ctx context.Context, params QueryPa
 		query = sb.String()
 	}
 
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, vals...)
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
+
 	var count int64
-	if err := stmt.QueryRowContext(ctx, vals...).Scan(&count); err != nil {
+	if rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return 0, err
+		}
+	}
+	if err := rows.Err(); err != nil {
 		return 0, err
 	}
 	return count, nil

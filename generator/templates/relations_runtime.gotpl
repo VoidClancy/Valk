@@ -135,7 +135,7 @@ func buildSingleInsertSQL(
 	clause, clauseArgs := q.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, valsCount+1)
 	sb.WriteString(clause)
 
-	if q.dialect.SupportsReturning && len(returningCols) > 0 {
+	if q.dialect.SupportsInsertReturning && len(returningCols) > 0 {
 		sb.WriteString(" RETURNING ")
 		for i, col := range returningCols {
 			if i > 0 {

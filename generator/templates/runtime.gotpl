@@ -70,7 +70,9 @@ func (f numericFieldUpsert[T]) Dec(val T) {
 type Dialect struct {
 	QuoteChar              byte
 	PlaceholderFmt         string // "" means "?"
-	SupportsReturning      bool
+	SupportsInsertReturning bool
+	SupportsUpdateReturning bool
+	SupportsDeleteReturning bool
 	SupportsLimitMinusOne  bool
 	SupportsBulkInsert     bool
 	SupportsDefaultKeyword bool
