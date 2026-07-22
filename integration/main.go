@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"integration/valk"
 	"integration/valk/post"
+	"integration/valk/profile"
 	"integration/valk/user"
 	"os"
 
@@ -173,6 +174,84 @@ func main() {
 		)).
 		Exec(ctx)
 	fmt.Printf("COUNT %d USERS \n", usersCnt)
+
+	// --- DELETE SCENARIO 1: Simple Delete (No Select -> Returns All Scalar Fields) ---
+	delUser1, err := db.User.Create().
+		SetEmail("del1@example.com").
+		SetPhoneNum("+10001").
+		Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create user 1: %v", err)
+	}
+	deleted1, err := db.User.Delete(user.Id.EQ(delUser1.Id)).Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to delete user 1: %v", err)
+	}
+	fmt.Println("DELETE SCENARIO 1 (Simple Delete - All Scalars):")
+	printJSON(deleted1)
+
+	// --- DELETE SCENARIO 2: Delete with Scalar Field Selection ---
+	delUser2, err := db.User.Create().
+		SetEmail("del2@example.com").
+		SetPhoneNum("+10002").
+		Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create user 2: %v", err)
+	}
+
+	deleted2, err := db.User.Delete(user.Id.EQ(delUser2.Id)).
+		Select(valk.UserSelect{
+			Email: true,
+			Role:  true,
+		}).
+		Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to delete user 2: %v", err)
+	}
+	fmt.Println("DELETE SCENARIO 2 (Scalar Field Selection):")
+	printJSON(deleted2)
+
+	// --- DELETE SCENARIO 3: Delete with Nested Relations Selection ---
+	delUser3, err := db.User.Create().
+		SetEmail("del3@example.com").
+		SetPhoneNum("+10003").
+		Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create user 3: %v", err)
+	}
+
+	_, err = db.Profile.Create().
+		SetBio("Bio of del3").
+		SetUserId(delUser3.Id).
+		Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create profile for user 3: %v", err)
+	}
+
+	_, err = db.Post.Create().
+		SetTitle("First Post of del3").
+		SetAuthorId(delUser3.Id).
+		Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create post for user 3: %v", err)
+	}
+
+	deleted3, err := db.User.Delete(user.Id.EQ(delUser3.Id)).
+		Select(valk.UserSelect{
+			Email: true,
+			Profile: &profile.Select{
+				Bio: true,
+			},
+			Posts: post.Query().Select(post.Select{
+				Title: true,
+			}),
+		}).
+		Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to delete user 3: %v", err)
+	}
+	fmt.Println("DELETE SCENARIO 3 (Nested Relations Selection):")
+	printJSON(deleted3)
 
 }
 
