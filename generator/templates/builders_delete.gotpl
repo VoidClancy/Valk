@@ -6,3 +6,24 @@ type DeleteManyBuilder[M any] struct {
 func (b *DeleteManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
 	return b.execFunc(ctx, b.where)
 }
+
+type DeleteBuilder[M any, S any, O any] struct {
+	where    UniquePredicate[M]
+	selects  *S
+	omits    *O
+	execFunc func(ctx context.Context, where UniquePredicate[M], selects *S, omits *O) (*M, error)
+}
+
+func (b *DeleteBuilder[M, S, O]) Select(selects S) *DeleteBuilder[M, S, O] {
+	b.selects = &selects
+	return b
+}
+
+func (b *DeleteBuilder[M, S, O]) Omit(omits O) *DeleteBuilder[M, S, O] {
+	b.omits = &omits
+	return b
+}
+
+func (b *DeleteBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.execFunc(ctx, b.where, b.selects, b.omits)
+}

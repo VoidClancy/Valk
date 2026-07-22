@@ -51,3 +51,140 @@ func (d *{{ .Model.Name }}Delegate) runDeleteMany(ctx context.Context, preds []P
 	}
 	return result.RowsAffected()
 }
+
+func (d *{{ .Model.Name }}Delegate) Delete(where UniquePredicate[{{ .Model.Name }}]) *DeleteBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit] {
+	return &DeleteBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
+		where:    where,
+		execFunc: d.executeDelete,
+	}
+}
+
+func (d *{{ .Model.Name }}Delegate) executeDelete(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	if len(d.extensions) == 0 {
+		return d.runDelete(ctx, where, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[{{ .Model.Name }}], s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+		return d.runDelete(c, w, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Delete != nil {
+			next, hook := curr, ext.Delete
+			curr = func(c context.Context, w UniquePredicate[{{ .Model.Name }}], s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+				return hook(c, w, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, selects, omits)
+}
+
+func (d *{{ .Model.Name }}Delegate) runDelete(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+
+	pkCols := {{ lowercase .Model.Name }}PKCols
+	returningCols := select{{ .Model.Name }}Cols(selects, omits, pkCols...)
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := !d.client.dialect.SupportsDeleteReturning || hasRelations
+
+	if useTx {
+		var res *{{ .Model.Name }}
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.{{ .Model.Name }}.executeFindUnique(ctx, where, nil, selects, omits)
+			if err != nil {
+				return err
+			}
+			if res == nil {
+				return sql.ErrNoRows
+			}
+
+			// Build DELETE statement by PK
+			var deleteSb strings.Builder
+			deleteSb.WriteString("DELETE FROM ")
+			txQ.dialect.WriteQuotedIdent(&deleteSb, "{{ .Model.EffectiveTableName }}")
+			deleteSb.WriteString(" WHERE ")
+			
+			var pkPreds []PredicateOf[{{ .Model.Name }}]
+			{{- if .Model.CompositePK }}
+			{{- range $fName := .Model.CompositePK }}
+			{{- $field := $.Model.GetField $fName }}
+			pkPreds = append(pkPreds, Predicate[{{ $.Model.Name }}]{
+				Data: PredicateData{
+					Column:   "{{ $field.EffectiveColName }}",
+					Operator: "=",
+					Value:    res.{{ capitalize $field.Name }},
+				},
+			})
+			{{- end }}
+			{{- else }}
+			{{- range $field := .Model.ScalarFields }}
+			{{- if $field.IsID }}
+			pkPreds = append(pkPreds, Predicate[{{ $.Model.Name }}]{
+				Data: PredicateData{
+					Column:   "{{ $field.EffectiveColName }}",
+					Operator: "=",
+					Value:    res.{{ capitalize $field.Name }},
+				},
+			})
+			{{- end }}
+			{{- end }}
+			{{- end }}
+			
+			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			deleteSb.WriteString(whereClause)
+			
+			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
+
+	// Dialect supports RETURNING, and no relations need loading: run direct DELETE ... RETURNING
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "{{ .Model.EffectiveTableName }}")
+	
+	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[{{ .Model.Name }}]{where})
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+	
+	sb.WriteString(" RETURNING ")
+	for i, col := range returningCols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, col)
+	}
+	
+	rows, err := d.client.query(ctx, sb.String(), vals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var row {{ .Model.Name }}
+	if err := rows.Scan(row.ScanFields(returningCols)...); err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
