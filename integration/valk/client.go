@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq/hstore"
 	"github.com/pressly/goose/v3"
+	"log"
 	"net"
 	"slices"
 	"strconv"
@@ -215,17 +216,19 @@ func (f numericFieldUpsert[T]) Dec(val T) {
 }
 
 type Dialect struct {
-	QuoteChar              byte
-	PlaceholderFmt         string // "" means "?"
-	SupportsReturning      bool
-	SupportsLimitMinusOne  bool
-	SupportsBulkInsert     bool
-	SupportsDefaultKeyword bool
-	ConflictKeyword        string // "ON CONFLICT" (Pg/SQLite) or "ON DUPLICATE KEY" (MySQL)
-	ConflictIgnore         string // "DO NOTHING" or ""
-	ConflictUpdate         string // "DO UPDATE SET" or "UPDATE"
-	ConflictExcluded       string // "EXCLUDED." or "VALUES("
-	ConflictExcludedEnd    string // "" or ")"
+	QuoteChar               byte
+	PlaceholderFmt          string // "" means "?"
+	SupportsInsertReturning bool
+	SupportsUpdateReturning bool
+	SupportsDeleteReturning bool
+	SupportsLimitMinusOne   bool
+	SupportsBulkInsert      bool
+	SupportsDefaultKeyword  bool
+	ConflictKeyword         string // "ON CONFLICT" (Pg/SQLite) or "ON DUPLICATE KEY" (MySQL)
+	ConflictIgnore          string // "DO NOTHING" or ""
+	ConflictUpdate          string // "DO UPDATE SET" or "UPDATE"
+	ConflictExcluded        string // "EXCLUDED." or "VALUES("
+	ConflictExcludedEnd     string // "" or ")"
 }
 
 func (d Dialect) WriteQuotedIdent(sb *strings.Builder, ident string) {
@@ -548,17 +551,19 @@ func (d Dialect) BuildConflictClause(conflictCols []string, action *ConflictActi
 
 func newDialect() Dialect {
 	return Dialect{
-		QuoteChar:              '"',
-		PlaceholderFmt:         "$",
-		SupportsReturning:      true,
-		SupportsLimitMinusOne:  false,
-		SupportsBulkInsert:     true,
-		SupportsDefaultKeyword: true,
-		ConflictKeyword:        "ON CONFLICT",
-		ConflictIgnore:         "DO NOTHING",
-		ConflictUpdate:         "DO UPDATE SET",
-		ConflictExcluded:       "EXCLUDED.",
-		ConflictExcludedEnd:    "",
+		QuoteChar:               '"',
+		PlaceholderFmt:          "$",
+		SupportsInsertReturning: true,
+		SupportsUpdateReturning: true,
+		SupportsDeleteReturning: true,
+		SupportsLimitMinusOne:   false,
+		SupportsBulkInsert:      true,
+		SupportsDefaultKeyword:  true,
+		ConflictKeyword:         "ON CONFLICT",
+		ConflictIgnore:          "DO NOTHING",
+		ConflictUpdate:          "DO UPDATE SET",
+		ConflictExcluded:        "EXCLUDED.",
+		ConflictExcludedEnd:     "",
 	}
 }
 
@@ -753,6 +758,7 @@ func (db *DB) Raw() *sql.DB {
 
 // RunMigrations runs all pending migrations from the embedded folder.
 func (db *DB) RunMigrations(ctx context.Context) error {
+	log.Println("Running migrations...")
 	if err := goose.SetDialect(db.provider); err != nil {
 		return err
 	}
@@ -760,8 +766,10 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 	goose.SetBaseFS(migrationsFS)
 	err := goose.UpContext(ctx, db.sqlDB, "migrations")
 	if err != nil {
+		log.Printf("Migrations failed: %v", err)
 		return err
 	}
+	log.Println("Migrations completed successfully.")
 	return nil
 }
 
@@ -801,24 +809,33 @@ func (q *Queries) prepare(ctx context.Context, query string) (*sql.Stmt, error) 
 }
 
 func (q *Queries) query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	log.Printf("[%s] SQL Query: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	stmt, err := q.prepare(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	res, err := stmt.QueryContext(ctx, args...)
+	if err != nil {
+		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+	}
 	return res, err
 }
 
 func (q *Queries) queryRow(ctx context.Context, query string, args ...any) *sql.Row {
+	log.Printf("[%s] SQL QueryRow: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	return q.db.QueryRowContext(ctx, query, args...)
 }
 
 func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	log.Printf("[%s] SQL Exec: %s | Args: %v", strings.ToUpper(q.provider), query, args)
 	stmt, err := q.prepare(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	res, err := stmt.ExecContext(ctx, args...)
+	if err != nil {
+		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+	}
 	return res, err
 }
 
@@ -833,6 +850,7 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 	if !ok {
 		return fn(q)
 	}
+	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(q.provider))
 	tx, err := starter.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -840,6 +858,7 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 
 	defer func() {
 		if p := recover(); p != nil {
+			log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
 			_ = tx.Rollback()
 			panic(p)
 		}
@@ -856,9 +875,11 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 	txQueries.copyHooksFrom(q)
 
 	if err := fn(txQueries); err != nil {
+		log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(q.provider))
 		_ = tx.Rollback()
 		return err
 	}
+	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(q.provider))
 	return tx.Commit()
 }
 
@@ -1639,6 +1660,7 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("[%s] SQL Begin Transaction", strings.ToUpper(db.provider))
 	q := &Queries{
 		db:        sqlTx,
 		provider:  db.provider,
@@ -1655,10 +1677,12 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 }
 
 func (tx *Tx) Commit() error {
+	log.Printf("[%s] SQL Commit Transaction", strings.ToUpper(tx.provider))
 	return tx.tx.Commit()
 }
 
 func (tx *Tx) Rollback() error {
+	log.Printf("[%s] SQL Rollback Transaction", strings.ToUpper(tx.provider))
 	return tx.tx.Rollback()
 }
 
@@ -2112,6 +2136,27 @@ func (b *DeleteManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
 	return b.execFunc(ctx, b.where)
 }
 
+type DeleteBuilder[M any, S any, O any] struct {
+	where    UniquePredicate[M]
+	selects  *S
+	omits    *O
+	execFunc func(ctx context.Context, where UniquePredicate[M], selects *S, omits *O) (*M, error)
+}
+
+func (b *DeleteBuilder[M, S, O]) Select(selects S) *DeleteBuilder[M, S, O] {
+	b.selects = &selects
+	return b
+}
+
+func (b *DeleteBuilder[M, S, O]) Omit(omits O) *DeleteBuilder[M, S, O] {
+	b.omits = &omits
+	return b
+}
+
+func (b *DeleteBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.execFunc(ctx, b.where, b.selects, b.omits)
+}
+
 type CountBuilder[M any] struct {
 	where    []PredicateOf[M]
 	take     *int
@@ -2274,7 +2319,7 @@ func buildSingleInsertSQL(
 	clause, clauseArgs := q.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, valsCount+1)
 	sb.WriteString(clause)
 
-	if q.dialect.SupportsReturning && len(returningCols) > 0 {
+	if q.dialect.SupportsInsertReturning && len(returningCols) > 0 {
 		sb.WriteString(" RETURNING ")
 		for i, col := range returningCols {
 			if i > 0 {
