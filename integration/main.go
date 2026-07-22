@@ -161,7 +161,6 @@ func main() {
 	printJSON(user1)
 	fmt.Println("USER2:")
 	printJSON(user2)
-
 	db.User.Create().SetEmail("xxxc").SetPhoneNum("6969").SetId("Bleh").Exec(ctx)
 	deletedCnt, err := db.User.DeleteMany(user.Id.EQ("Bleh"), user.Password.Contains("xx")).Exec(ctx)
 	fmt.Printf("DELETED %d USERS \n", deletedCnt)
@@ -477,9 +476,9 @@ func runManualTransaction(db *valk.DB, ctx context.Context) {
 	).Select(post.Select{
 		Id:    true,
 		Title: true,
-		Author: user.Query().Select(user.Select{
+		Author: &user.Select{
 			Email: true,
-		}),
+		},
 	}).Exec(ctx)
 	if err != nil {
 		fmt.Printf("failed to create Post: %+v", err)
@@ -514,9 +513,9 @@ func runBlockBasedTransaction(db *valk.DB, ctx context.Context) {
 		).Select(post.Select{
 			Id:    true,
 			Title: true,
-			Author: user.Query().Select(user.Select{
+			Author: &user.Select{
 				Email: true,
-			}),
+			},
 		}).Exec(ctx)
 		if err != nil {
 			return err

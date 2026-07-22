@@ -31,10 +31,10 @@ func (s *CategoryToPostCreate) colMask() uint64 {
 }
 
 type CategoryToPostSelect struct {
-	PostId     bool                `json:"postId"`
-	CategoryId bool                `json:"categoryId"`
-	Post       PostSelectQuery     `json:"post,omitempty"`
-	Category   CategorySelectQuery `json:"category,omitempty"`
+	PostId     bool            `json:"postId"`
+	CategoryId bool            `json:"categoryId"`
+	Post       *PostSelect     `json:"post,omitempty"`
+	Category   *CategorySelect `json:"category,omitempty"`
 }
 
 type CategoryToPostOmit struct {

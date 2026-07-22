@@ -39,11 +39,11 @@ func (s *ProfileCreate) colMask() uint64 {
 }
 
 type ProfileSelect struct {
-	Id        bool            `json:"id"`
-	Bio       bool            `json:"bio"`
-	UserId    bool            `json:"userId"`
-	CreatedAt bool            `json:"createdAt"`
-	User      UserSelectQuery `json:"user,omitempty"`
+	Id        bool        `json:"id"`
+	Bio       bool        `json:"bio"`
+	UserId    bool        `json:"userId"`
+	CreatedAt bool        `json:"createdAt"`
+	User      *UserSelect `json:"user,omitempty"`
 }
 
 type ProfileOmit struct {

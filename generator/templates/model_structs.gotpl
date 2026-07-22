@@ -52,7 +52,11 @@ type {{ .Model.Name }}Select struct {
 	{{ capitalize $field.Name }} bool `json:"{{ $field.Name }}"`
 	{{- end }}
 	{{- range $relation := .Model.RelationFields }}
+	{{- if $relation.IsArray }}
 	{{ capitalize $relation.Name }} {{ $relation.TargetModelName }}SelectQuery `json:"{{ $relation.Name }},omitempty"`
+	{{- else }}
+	{{ capitalize $relation.Name }} *{{ $relation.TargetModelName }}Select `json:"{{ $relation.Name }},omitempty"`
+	{{- end }}
 	{{- end }}
 }
 

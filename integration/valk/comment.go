@@ -52,16 +52,16 @@ func (s *CommentCreate) colMask() uint64 {
 }
 
 type CommentSelect struct {
-	Id       bool            `json:"id"`
-	Textify  bool            `json:"textify"`
-	Dummy3   bool            `json:"dummy3"`
-	Dummy1   bool            `json:"dummy1"`
-	Dummy2   bool            `json:"dummy2"`
-	PostId   bool            `json:"postId"`
-	AuthorId bool            `json:"authorId"`
-	Meta     bool            `json:"meta"`
-	Post     PostSelectQuery `json:"post,omitempty"`
-	Author   UserSelectQuery `json:"author,omitempty"`
+	Id       bool        `json:"id"`
+	Textify  bool        `json:"textify"`
+	Dummy3   bool        `json:"dummy3"`
+	Dummy1   bool        `json:"dummy1"`
+	Dummy2   bool        `json:"dummy2"`
+	PostId   bool        `json:"postId"`
+	AuthorId bool        `json:"authorId"`
+	Meta     bool        `json:"meta"`
+	Post     *PostSelect `json:"post,omitempty"`
+	Author   *UserSelect `json:"author,omitempty"`
 }
 
 type CommentOmit struct {

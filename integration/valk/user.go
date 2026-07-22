@@ -70,10 +70,10 @@ type UserSelect struct {
 	RoleOptional bool               `json:"roleOptional"`
 	LoginCount   bool               `json:"loginCount"`
 	ReferredById bool               `json:"referredById"`
-	Profile      ProfileSelectQuery `json:"profile,omitempty"`
+	Profile      *ProfileSelect     `json:"profile,omitempty"`
 	Posts        PostSelectQuery    `json:"posts,omitempty"`
 	Comments     CommentSelectQuery `json:"comments,omitempty"`
-	ReferredBy   UserSelectQuery    `json:"referredBy,omitempty"`
+	ReferredBy   *UserSelect        `json:"referredBy,omitempty"`
 	Referrals    UserSelectQuery    `json:"referrals,omitempty"`
 }
 
