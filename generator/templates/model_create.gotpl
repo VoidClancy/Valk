@@ -277,7 +277,6 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 
 	cols, vals := input.ToColsVals()
 	returningCols := select{{ .Model.Name }}Cols(selects, omits)
-	pkCols := {{ lowercase .Model.Name }}PKCols
 
 	if len(d.extensions) == 0 {
 		hasRelations := selects.hasAnyRelation()
@@ -285,7 +284,7 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 			var res *{{ .Model.Name }}
 			err = d.client.transaction(ctx, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.{{ .Model.Name }}.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.{{ .Model.Name }}.runCreate(ctx, cols, vals, returningCols, {{ lowercase .Model.Name }}PKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
@@ -293,13 +292,12 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 			})
 			return res, err
 		}
-		return d.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, {{ lowercase .Model.Name }}PKCols, conflictTarget, conflictAction)
 	}
 
 	curr := func(c context.Context, args *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error) {
 		cols, vals := args.ToColsVals()
 		returningCols := select{{ .Model.Name }}Cols(selects, omits)
-		pkCols := {{ lowercase .Model.Name }}PKCols
 
 		hasRelations := selects.hasAnyRelation()
 		var res *{{ .Model.Name }}
@@ -307,14 +305,14 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 		if hasRelations {
 			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.{{ .Model.Name }}.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.{{ .Model.Name }}.runCreate(c, cols, vals, returningCols, {{ lowercase .Model.Name }}PKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
 				return txQ.{{ .Model.Name }}.loadRelations(c, []*{{ .Model.Name }}{res}, selects)
 			})
 		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+			res, err = d.runCreate(c, cols, vals, returningCols, {{ lowercase .Model.Name }}PKCols, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -491,7 +489,7 @@ func (d *{{ .Model.Name }}Delegate) runCreate(
 	}
 
 	var res {{ .Model.Name }}
-	if d.client.dialect.SupportsReturning {
+	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
@@ -695,9 +693,8 @@ func (d *{{ .Model.Name }}Delegate) runCreateMany(ctx context.Context, inputs []
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := {{ lowercase .Model.Name }}PKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, {{ lowercase .Model.Name }}PKCols)
 		}
 		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
@@ -742,15 +739,14 @@ func (d *{{ .Model.Name }}Delegate) runCreateManyAndReturn(
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := {{ lowercase .Model.Name }}PKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, {{ lowercase .Model.Name }}PKCols)
 		}
 		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
 		vals = append(vals, clauseArgs...)
 
-		if txQ.dialect.SupportsReturning && len(returningCols) > 0 {
+		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -804,11 +800,11 @@ func (d *{{ .Model.Name }}Delegate) runCreateManyAndReturn(
 		selectSb.WriteString(" FROM ")
 		txQ.dialect.WriteQuotedIdent(&selectSb, "{{ .Model.EffectiveTableName }}")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, {{ lowercase .Model.Name }}PKCols[0])
 		selectSb.WriteString(" >= ")
 		txQ.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, {{ lowercase .Model.Name }}PKCols[0])
 		selectSb.WriteString(" < ")
 		txQ.dialect.WritePlaceholder(&selectSb, 2)
 
@@ -829,7 +825,7 @@ func (d *{{ .Model.Name }}Delegate) runCreateManyAndReturn(
 	}
 
 	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsReturning {
+	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			for _, batch := range batches {
 				if err := runBatch(txQ, batch); err != nil {

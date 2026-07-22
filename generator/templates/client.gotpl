@@ -3,7 +3,9 @@ func newDialect() Dialect {
 	return Dialect{
 		QuoteChar:              '"',
 		PlaceholderFmt:         "$",
-		SupportsReturning:      true,
+		SupportsInsertReturning: true,
+		SupportsUpdateReturning: true,
+		SupportsDeleteReturning: true,
 		SupportsLimitMinusOne:  false,
 		SupportsBulkInsert:     true,
 		SupportsDefaultKeyword: true,
@@ -19,7 +21,9 @@ func newDialect() Dialect {
 	return Dialect{
 		QuoteChar:              '"',
 		PlaceholderFmt:         "", // means ?
-		SupportsReturning:      true,
+		SupportsInsertReturning: true,
+		SupportsUpdateReturning: true,
+		SupportsDeleteReturning: true,
 		SupportsLimitMinusOne:  true,
 		SupportsBulkInsert:     true,
 		SupportsDefaultKeyword: false,
@@ -35,7 +39,9 @@ func newDialect() Dialect {
 	return Dialect{
 		QuoteChar:              '`',
 		PlaceholderFmt:         "",
-		SupportsReturning:      false,
+		SupportsInsertReturning: false,
+		SupportsUpdateReturning: false,
+		SupportsDeleteReturning: false,
 		SupportsLimitMinusOne:  false,
 		SupportsBulkInsert:     false,
 		SupportsDefaultKeyword: false,

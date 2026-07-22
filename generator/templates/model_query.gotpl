@@ -221,13 +221,27 @@ func (d *{{ .Model.Name }}Delegate) runFindMany(
 func (d *{{ .Model.Name }}Delegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*{{ .Model.Name }}, error) {
 	limitOne := 1
 	query := buildSelectSQL(d.client, "{{ .Model.EffectiveTableName }}", returningCols, whereClause, &limitOne, skip)
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
-	row := stmt.QueryRowContext(ctx, whereVals...)
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return nil, nil
+	}
+
 	var res {{ .Model.Name }}
-	if err := row.Scan(res.ScanFields(returningCols)...); err != nil {
+	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -238,11 +252,7 @@ func (d *{{ .Model.Name }}Delegate) queryOne(ctx context.Context, whereClause st
 
 func (d *{{ .Model.Name }}Delegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*{{ .Model.Name }}, error) {
 	query := buildSelectSQL(d.client, "{{ .Model.EffectiveTableName }}", returningCols, whereClause, take, skip)
-	stmt, err := d.client.prepare(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := stmt.QueryContext(ctx, whereVals...)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
 	}
