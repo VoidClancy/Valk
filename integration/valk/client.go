@@ -215,17 +215,19 @@ func (f numericFieldUpsert[T]) Dec(val T) {
 }
 
 type Dialect struct {
-	QuoteChar              byte
-	PlaceholderFmt         string // "" means "?"
-	SupportsReturning      bool
-	SupportsLimitMinusOne  bool
-	SupportsBulkInsert     bool
-	SupportsDefaultKeyword bool
-	ConflictKeyword        string // "ON CONFLICT" (Pg/SQLite) or "ON DUPLICATE KEY" (MySQL)
-	ConflictIgnore         string // "DO NOTHING" or ""
-	ConflictUpdate         string // "DO UPDATE SET" or "UPDATE"
-	ConflictExcluded       string // "EXCLUDED." or "VALUES("
-	ConflictExcludedEnd    string // "" or ")"
+	QuoteChar               byte
+	PlaceholderFmt          string // "" means "?"
+	SupportsInsertReturning bool
+	SupportsUpdateReturning bool
+	SupportsDeleteReturning bool
+	SupportsLimitMinusOne   bool
+	SupportsBulkInsert      bool
+	SupportsDefaultKeyword  bool
+	ConflictKeyword         string // "ON CONFLICT" (Pg/SQLite) or "ON DUPLICATE KEY" (MySQL)
+	ConflictIgnore          string // "DO NOTHING" or ""
+	ConflictUpdate          string // "DO UPDATE SET" or "UPDATE"
+	ConflictExcluded        string // "EXCLUDED." or "VALUES("
+	ConflictExcludedEnd     string // "" or ")"
 }
 
 func (d Dialect) WriteQuotedIdent(sb *strings.Builder, ident string) {
@@ -548,17 +550,19 @@ func (d Dialect) BuildConflictClause(conflictCols []string, action *ConflictActi
 
 func newDialect() Dialect {
 	return Dialect{
-		QuoteChar:              '"',
-		PlaceholderFmt:         "$",
-		SupportsReturning:      true,
-		SupportsLimitMinusOne:  false,
-		SupportsBulkInsert:     true,
-		SupportsDefaultKeyword: true,
-		ConflictKeyword:        "ON CONFLICT",
-		ConflictIgnore:         "DO NOTHING",
-		ConflictUpdate:         "DO UPDATE SET",
-		ConflictExcluded:       "EXCLUDED.",
-		ConflictExcludedEnd:    "",
+		QuoteChar:               '"',
+		PlaceholderFmt:          "$",
+		SupportsInsertReturning: true,
+		SupportsUpdateReturning: true,
+		SupportsDeleteReturning: true,
+		SupportsLimitMinusOne:   false,
+		SupportsBulkInsert:      true,
+		SupportsDefaultKeyword:  true,
+		ConflictKeyword:         "ON CONFLICT",
+		ConflictIgnore:          "DO NOTHING",
+		ConflictUpdate:          "DO UPDATE SET",
+		ConflictExcluded:        "EXCLUDED.",
+		ConflictExcludedEnd:     "",
 	}
 }
 
@@ -2112,6 +2116,27 @@ func (b *DeleteManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
 	return b.execFunc(ctx, b.where)
 }
 
+type DeleteBuilder[M any, S any, O any] struct {
+	where    UniquePredicate[M]
+	selects  *S
+	omits    *O
+	execFunc func(ctx context.Context, where UniquePredicate[M], selects *S, omits *O) (*M, error)
+}
+
+func (b *DeleteBuilder[M, S, O]) Select(selects S) *DeleteBuilder[M, S, O] {
+	b.selects = &selects
+	return b
+}
+
+func (b *DeleteBuilder[M, S, O]) Omit(omits O) *DeleteBuilder[M, S, O] {
+	b.omits = &omits
+	return b
+}
+
+func (b *DeleteBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.execFunc(ctx, b.where, b.selects, b.omits)
+}
+
 type CountBuilder[M any] struct {
 	where    []PredicateOf[M]
 	take     *int
@@ -2274,7 +2299,7 @@ func buildSingleInsertSQL(
 	clause, clauseArgs := q.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, valsCount+1)
 	sb.WriteString(clause)
 
-	if q.dialect.SupportsReturning && len(returningCols) > 0 {
+	if q.dialect.SupportsInsertReturning && len(returningCols) > 0 {
 		sb.WriteString(" RETURNING ")
 		for i, col := range returningCols {
 			if i > 0 {

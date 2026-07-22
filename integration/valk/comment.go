@@ -141,6 +141,7 @@ type CommentFindUniqueQuery = func(ctx context.Context, where UniquePredicate[Co
 type CommentFindFirstQuery = func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error)
 type CommentFindManyQuery = func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit) ([]*Comment, error)
 type CommentDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Comment]) (int64, error)
+type CommentDeleteQuery = func(ctx context.Context, where UniquePredicate[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error)
 type CommentCountQuery = func(ctx context.Context, params QueryParams[Comment]) (int64, error)
 
 type CommentExtension struct {
@@ -151,6 +152,7 @@ type CommentExtension struct {
 	FindFirst           func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit, next CommentFindFirstQuery) (*Comment, error)
 	FindMany            func(ctx context.Context, params QueryParams[Comment], selects *CommentSelect, omits *CommentOmit, next CommentFindManyQuery) ([]*Comment, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[Comment], next CommentDeleteManyQuery) (int64, error)
+	Delete              func(ctx context.Context, where UniquePredicate[Comment], selects *CommentSelect, omits *CommentOmit, next CommentDeleteQuery) (*Comment, error)
 	Count               func(ctx context.Context, params QueryParams[Comment], next CommentCountQuery) (int64, error)
 }
 
@@ -469,7 +471,6 @@ func (d *CommentDelegate) executeCreate(ctx context.Context, assignments []Field
 
 	cols, vals := input.ToColsVals()
 	returningCols := selectCommentCols(selects, omits)
-	pkCols := commentPKCols
 
 	if len(d.extensions) == 0 {
 		hasRelations := selects.hasAnyRelation()
@@ -477,7 +478,7 @@ func (d *CommentDelegate) executeCreate(ctx context.Context, assignments []Field
 			var res *Comment
 			err = d.client.transaction(ctx, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.Comment.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.Comment.runCreate(ctx, cols, vals, returningCols, commentPKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
@@ -485,13 +486,12 @@ func (d *CommentDelegate) executeCreate(ctx context.Context, assignments []Field
 			})
 			return res, err
 		}
-		return d.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, commentPKCols, conflictTarget, conflictAction)
 	}
 
 	curr := func(c context.Context, args *CommentCreate) (*Comment, error) {
 		cols, vals := args.ToColsVals()
 		returningCols := selectCommentCols(selects, omits)
-		pkCols := commentPKCols
 
 		hasRelations := selects.hasAnyRelation()
 		var res *Comment
@@ -499,14 +499,14 @@ func (d *CommentDelegate) executeCreate(ctx context.Context, assignments []Field
 		if hasRelations {
 			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.Comment.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.Comment.runCreate(c, cols, vals, returningCols, commentPKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
 				return txQ.Comment.loadRelations(c, []*Comment{res}, selects)
 			})
 		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+			res, err = d.runCreate(c, cols, vals, returningCols, commentPKCols, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -683,7 +683,7 @@ func (d *CommentDelegate) runCreate(
 	}
 
 	var res Comment
-	if d.client.dialect.SupportsReturning {
+	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
@@ -857,9 +857,8 @@ func (d *CommentDelegate) runCreateMany(ctx context.Context, inputs []*CommentCr
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := commentPKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, commentPKCols)
 		}
 		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
@@ -904,15 +903,14 @@ func (d *CommentDelegate) runCreateManyAndReturn(
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := commentPKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, commentPKCols)
 		}
 		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
 		vals = append(vals, clauseArgs...)
 
-		if txQ.dialect.SupportsReturning && len(returningCols) > 0 {
+		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -966,11 +964,11 @@ func (d *CommentDelegate) runCreateManyAndReturn(
 		selectSb.WriteString(" FROM ")
 		txQ.dialect.WriteQuotedIdent(&selectSb, "Comment")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, commentPKCols[0])
 		selectSb.WriteString(" >= ")
 		txQ.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, commentPKCols[0])
 		selectSb.WriteString(" < ")
 		txQ.dialect.WritePlaceholder(&selectSb, 2)
 
@@ -991,7 +989,7 @@ func (d *CommentDelegate) runCreateManyAndReturn(
 	}
 
 	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsReturning {
+	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			for _, batch := range batches {
 				if err := runBatch(txQ, batch); err != nil {
@@ -1295,13 +1293,27 @@ func (d *CommentDelegate) runFindMany(
 func (d *CommentDelegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*Comment, error) {
 	limitOne := 1
 	query := buildSelectSQL(d.client, "Comment", returningCols, whereClause, &limitOne, skip)
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
-	row := stmt.QueryRowContext(ctx, whereVals...)
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return nil, nil
+	}
+
 	var res Comment
-	if err := row.Scan(res.ScanFields(returningCols)...); err != nil {
+	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -1312,11 +1324,7 @@ func (d *CommentDelegate) queryOne(ctx context.Context, whereClause string, wher
 
 func (d *CommentDelegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*Comment, error) {
 	query := buildSelectSQL(d.client, "Comment", returningCols, whereClause, take, skip)
-	stmt, err := d.client.prepare(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := stmt.QueryContext(ctx, whereVals...)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
 	}
@@ -1388,6 +1396,125 @@ func (d *CommentDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf
 	}
 	return result.RowsAffected()
 }
+
+func (d *CommentDelegate) Delete(where UniquePredicate[Comment]) *DeleteBuilder[Comment, CommentSelect, CommentOmit] {
+	return &DeleteBuilder[Comment, CommentSelect, CommentOmit]{
+		where:    where,
+		execFunc: d.executeDelete,
+	}
+}
+
+func (d *CommentDelegate) executeDelete(ctx context.Context, where UniquePredicate[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	if len(d.extensions) == 0 {
+		return d.runDelete(ctx, where, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[Comment], s *CommentSelect, o *CommentOmit) (*Comment, error) {
+		return d.runDelete(c, w, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Delete != nil {
+			next, hook := curr, ext.Delete
+			curr = func(c context.Context, w UniquePredicate[Comment], s *CommentSelect, o *CommentOmit) (*Comment, error) {
+				return hook(c, w, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, selects, omits)
+}
+
+func (d *CommentDelegate) runDelete(ctx context.Context, where UniquePredicate[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+
+	returningCols := selectCommentCols(selects, omits, commentPKCols...)
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := !d.client.dialect.SupportsDeleteReturning || hasRelations
+
+	if useTx {
+		var res *Comment
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.Comment.executeFindUnique(ctx, where, nil, selects, omits)
+			if err != nil {
+				return err
+			}
+			if res == nil {
+				return sql.ErrNoRows
+			}
+
+			// Build DELETE statement by PK
+			var deleteSb strings.Builder
+			deleteSb.WriteString("DELETE FROM ")
+			txQ.dialect.WriteQuotedIdent(&deleteSb, "Comment")
+			deleteSb.WriteString(" WHERE ")
+
+			var pkPreds []PredicateOf[Comment]
+			pkPreds = append(pkPreds, Predicate[Comment]{
+				Data: PredicateData{
+					Column:   "id",
+					Operator: "=",
+					Value:    res.Id,
+				},
+			})
+
+			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			deleteSb.WriteString(whereClause)
+
+			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
+
+	// Dialect supports RETURNING, and no relations need loading: run direct DELETE ... RETURNING
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "Comment")
+
+	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[Comment]{where})
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+
+	sb.WriteString(" RETURNING ")
+	for i, col := range returningCols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, col)
+	}
+
+	rows, err := d.client.query(ctx, sb.String(), vals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var row Comment
+	if err := rows.Scan(row.ScanFields(returningCols)...); err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
 func (d *CommentDelegate) Count(preds ...PredicateOf[Comment]) *CountBuilder[Comment] {
 	return &CountBuilder[Comment]{
 		where:    preds,
@@ -1450,12 +1577,19 @@ func (d *CommentDelegate) runCount(ctx context.Context, params QueryParams[Comme
 		query = sb.String()
 	}
 
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, vals...)
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
+
 	var count int64
-	if err := stmt.QueryRowContext(ctx, vals...).Scan(&count); err != nil {
+	if rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return 0, err
+		}
+	}
+	if err := rows.Err(); err != nil {
 		return 0, err
 	}
 	return count, nil

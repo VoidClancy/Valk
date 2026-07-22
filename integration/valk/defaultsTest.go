@@ -140,6 +140,7 @@ type DefaultsTestFindUniqueQuery = func(ctx context.Context, where UniquePredica
 type DefaultsTestFindFirstQuery = func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error)
 type DefaultsTestFindManyQuery = func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error)
 type DefaultsTestDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[DefaultsTest]) (int64, error)
+type DefaultsTestDeleteQuery = func(ctx context.Context, where UniquePredicate[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error)
 type DefaultsTestCountQuery = func(ctx context.Context, params QueryParams[DefaultsTest]) (int64, error)
 
 type DefaultsTestExtension struct {
@@ -150,6 +151,7 @@ type DefaultsTestExtension struct {
 	FindFirst           func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestFindFirstQuery) (*DefaultsTest, error)
 	FindMany            func(ctx context.Context, params QueryParams[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestFindManyQuery) ([]*DefaultsTest, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[DefaultsTest], next DefaultsTestDeleteManyQuery) (int64, error)
+	Delete              func(ctx context.Context, where UniquePredicate[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestDeleteQuery) (*DefaultsTest, error)
 	Count               func(ctx context.Context, params QueryParams[DefaultsTest], next DefaultsTestCountQuery) (int64, error)
 }
 
@@ -499,7 +501,6 @@ func (d *DefaultsTestDelegate) executeCreate(ctx context.Context, assignments []
 
 	cols, vals := input.ToColsVals()
 	returningCols := selectDefaultsTestCols(selects, omits)
-	pkCols := defaultsTestPKCols
 
 	if len(d.extensions) == 0 {
 		hasRelations := selects.hasAnyRelation()
@@ -507,7 +508,7 @@ func (d *DefaultsTestDelegate) executeCreate(ctx context.Context, assignments []
 			var res *DefaultsTest
 			err = d.client.transaction(ctx, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.DefaultsTest.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.DefaultsTest.runCreate(ctx, cols, vals, returningCols, defaultsTestPKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
@@ -515,13 +516,12 @@ func (d *DefaultsTestDelegate) executeCreate(ctx context.Context, assignments []
 			})
 			return res, err
 		}
-		return d.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, defaultsTestPKCols, conflictTarget, conflictAction)
 	}
 
 	curr := func(c context.Context, args *DefaultsTestCreate) (*DefaultsTest, error) {
 		cols, vals := args.ToColsVals()
 		returningCols := selectDefaultsTestCols(selects, omits)
-		pkCols := defaultsTestPKCols
 
 		hasRelations := selects.hasAnyRelation()
 		var res *DefaultsTest
@@ -529,14 +529,14 @@ func (d *DefaultsTestDelegate) executeCreate(ctx context.Context, assignments []
 		if hasRelations {
 			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.DefaultsTest.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.DefaultsTest.runCreate(c, cols, vals, returningCols, defaultsTestPKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
 				return txQ.DefaultsTest.loadRelations(c, []*DefaultsTest{res}, selects)
 			})
 		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+			res, err = d.runCreate(c, cols, vals, returningCols, defaultsTestPKCols, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -713,7 +713,7 @@ func (d *DefaultsTestDelegate) runCreate(
 	}
 
 	var res DefaultsTest
-	if d.client.dialect.SupportsReturning {
+	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
@@ -917,9 +917,8 @@ func (d *DefaultsTestDelegate) runCreateMany(ctx context.Context, inputs []*Defa
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := defaultsTestPKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, defaultsTestPKCols)
 		}
 		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
@@ -964,15 +963,14 @@ func (d *DefaultsTestDelegate) runCreateManyAndReturn(
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := defaultsTestPKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, defaultsTestPKCols)
 		}
 		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
 		vals = append(vals, clauseArgs...)
 
-		if txQ.dialect.SupportsReturning && len(returningCols) > 0 {
+		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -1026,11 +1024,11 @@ func (d *DefaultsTestDelegate) runCreateManyAndReturn(
 		selectSb.WriteString(" FROM ")
 		txQ.dialect.WriteQuotedIdent(&selectSb, "DefaultsTest")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, defaultsTestPKCols[0])
 		selectSb.WriteString(" >= ")
 		txQ.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, defaultsTestPKCols[0])
 		selectSb.WriteString(" < ")
 		txQ.dialect.WritePlaceholder(&selectSb, 2)
 
@@ -1051,7 +1049,7 @@ func (d *DefaultsTestDelegate) runCreateManyAndReturn(
 	}
 
 	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsReturning {
+	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			for _, batch := range batches {
 				if err := runBatch(txQ, batch); err != nil {
@@ -1351,13 +1349,27 @@ func (d *DefaultsTestDelegate) runFindMany(
 func (d *DefaultsTestDelegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*DefaultsTest, error) {
 	limitOne := 1
 	query := buildSelectSQL(d.client, "DefaultsTest", returningCols, whereClause, &limitOne, skip)
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
-	row := stmt.QueryRowContext(ctx, whereVals...)
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return nil, nil
+	}
+
 	var res DefaultsTest
-	if err := row.Scan(res.ScanFields(returningCols)...); err != nil {
+	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -1368,11 +1380,7 @@ func (d *DefaultsTestDelegate) queryOne(ctx context.Context, whereClause string,
 
 func (d *DefaultsTestDelegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*DefaultsTest, error) {
 	query := buildSelectSQL(d.client, "DefaultsTest", returningCols, whereClause, take, skip)
-	stmt, err := d.client.prepare(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := stmt.QueryContext(ctx, whereVals...)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
 	}
@@ -1444,6 +1452,125 @@ func (d *DefaultsTestDelegate) runDeleteMany(ctx context.Context, preds []Predic
 	}
 	return result.RowsAffected()
 }
+
+func (d *DefaultsTestDelegate) Delete(where UniquePredicate[DefaultsTest]) *DeleteBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
+	return &DeleteBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
+		where:    where,
+		execFunc: d.executeDelete,
+	}
+}
+
+func (d *DefaultsTestDelegate) executeDelete(ctx context.Context, where UniquePredicate[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+	if len(d.extensions) == 0 {
+		return d.runDelete(ctx, where, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[DefaultsTest], s *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
+		return d.runDelete(c, w, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Delete != nil {
+			next, hook := curr, ext.Delete
+			curr = func(c context.Context, w UniquePredicate[DefaultsTest], s *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
+				return hook(c, w, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, selects, omits)
+}
+
+func (d *DefaultsTestDelegate) runDelete(ctx context.Context, where UniquePredicate[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+
+	returningCols := selectDefaultsTestCols(selects, omits, defaultsTestPKCols...)
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := !d.client.dialect.SupportsDeleteReturning || hasRelations
+
+	if useTx {
+		var res *DefaultsTest
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.DefaultsTest.executeFindUnique(ctx, where, nil, selects, omits)
+			if err != nil {
+				return err
+			}
+			if res == nil {
+				return sql.ErrNoRows
+			}
+
+			// Build DELETE statement by PK
+			var deleteSb strings.Builder
+			deleteSb.WriteString("DELETE FROM ")
+			txQ.dialect.WriteQuotedIdent(&deleteSb, "DefaultsTest")
+			deleteSb.WriteString(" WHERE ")
+
+			var pkPreds []PredicateOf[DefaultsTest]
+			pkPreds = append(pkPreds, Predicate[DefaultsTest]{
+				Data: PredicateData{
+					Column:   "uuid4",
+					Operator: "=",
+					Value:    res.Uuid4,
+				},
+			})
+
+			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			deleteSb.WriteString(whereClause)
+
+			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
+
+	// Dialect supports RETURNING, and no relations need loading: run direct DELETE ... RETURNING
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "DefaultsTest")
+
+	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[DefaultsTest]{where})
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+
+	sb.WriteString(" RETURNING ")
+	for i, col := range returningCols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, col)
+	}
+
+	rows, err := d.client.query(ctx, sb.String(), vals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var row DefaultsTest
+	if err := rows.Scan(row.ScanFields(returningCols)...); err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
 func (d *DefaultsTestDelegate) Count(preds ...PredicateOf[DefaultsTest]) *CountBuilder[DefaultsTest] {
 	return &CountBuilder[DefaultsTest]{
 		where:    preds,
@@ -1506,12 +1633,19 @@ func (d *DefaultsTestDelegate) runCount(ctx context.Context, params QueryParams[
 		query = sb.String()
 	}
 
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, vals...)
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
+
 	var count int64
-	if err := stmt.QueryRowContext(ctx, vals...).Scan(&count); err != nil {
+	if rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return 0, err
+		}
+	}
+	if err := rows.Err(); err != nil {
 		return 0, err
 	}
 	return count, nil

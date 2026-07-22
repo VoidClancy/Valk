@@ -396,6 +396,7 @@ type AllFieldsSoFarFindUniqueQuery = func(ctx context.Context, where UniquePredi
 type AllFieldsSoFarFindFirstQuery = func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
 type AllFieldsSoFarFindManyQuery = func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error)
 type AllFieldsSoFarDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar]) (int64, error)
+type AllFieldsSoFarDeleteQuery = func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
 type AllFieldsSoFarCountQuery = func(ctx context.Context, params QueryParams[AllFieldsSoFar]) (int64, error)
 
 type AllFieldsSoFarExtension struct {
@@ -406,6 +407,7 @@ type AllFieldsSoFarExtension struct {
 	FindFirst           func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarFindFirstQuery) (*AllFieldsSoFar, error)
 	FindMany            func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarFindManyQuery) ([]*AllFieldsSoFar, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], next AllFieldsSoFarDeleteManyQuery) (int64, error)
+	Delete              func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarDeleteQuery) (*AllFieldsSoFar, error)
 	Count               func(ctx context.Context, params QueryParams[AllFieldsSoFar], next AllFieldsSoFarCountQuery) (int64, error)
 }
 
@@ -1711,7 +1713,6 @@ func (d *AllFieldsSoFarDelegate) executeCreate(ctx context.Context, assignments 
 
 	cols, vals := input.ToColsVals()
 	returningCols := selectAllFieldsSoFarCols(selects, omits)
-	pkCols := allFieldsSoFarPKCols
 
 	if len(d.extensions) == 0 {
 		hasRelations := selects.hasAnyRelation()
@@ -1719,7 +1720,7 @@ func (d *AllFieldsSoFarDelegate) executeCreate(ctx context.Context, assignments 
 			var res *AllFieldsSoFar
 			err = d.client.transaction(ctx, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.AllFieldsSoFar.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.AllFieldsSoFar.runCreate(ctx, cols, vals, returningCols, allFieldsSoFarPKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
@@ -1727,13 +1728,12 @@ func (d *AllFieldsSoFarDelegate) executeCreate(ctx context.Context, assignments 
 			})
 			return res, err
 		}
-		return d.runCreate(ctx, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, allFieldsSoFarPKCols, conflictTarget, conflictAction)
 	}
 
 	curr := func(c context.Context, args *AllFieldsSoFarCreate) (*AllFieldsSoFar, error) {
 		cols, vals := args.ToColsVals()
 		returningCols := selectAllFieldsSoFarCols(selects, omits)
-		pkCols := allFieldsSoFarPKCols
 
 		hasRelations := selects.hasAnyRelation()
 		var res *AllFieldsSoFar
@@ -1741,14 +1741,14 @@ func (d *AllFieldsSoFarDelegate) executeCreate(ctx context.Context, assignments 
 		if hasRelations {
 			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.AllFieldsSoFar.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+				res, err = txQ.AllFieldsSoFar.runCreate(c, cols, vals, returningCols, allFieldsSoFarPKCols, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
 				return txQ.AllFieldsSoFar.loadRelations(c, []*AllFieldsSoFar{res}, selects)
 			})
 		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, pkCols, conflictTarget, conflictAction)
+			res, err = d.runCreate(c, cols, vals, returningCols, allFieldsSoFarPKCols, conflictTarget, conflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -1925,7 +1925,7 @@ func (d *AllFieldsSoFarDelegate) runCreate(
 	}
 
 	var res AllFieldsSoFar
-	if d.client.dialect.SupportsReturning {
+	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
@@ -2279,9 +2279,8 @@ func (d *AllFieldsSoFarDelegate) runCreateMany(ctx context.Context, inputs []*Al
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := allFieldsSoFarPKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, allFieldsSoFarPKCols)
 		}
 		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
@@ -2326,15 +2325,14 @@ func (d *AllFieldsSoFarDelegate) runCreateManyAndReturn(
 			conflictCols = conflictTarget.UniqueColumns()
 		}
 		var nonConflictCols []string
-		pkCols := allFieldsSoFarPKCols
 		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+			nonConflictCols = computeNonConflictCols(cols, conflictCols, allFieldsSoFarPKCols)
 		}
 		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
 		queryStr += clause
 		vals = append(vals, clauseArgs...)
 
-		if txQ.dialect.SupportsReturning && len(returningCols) > 0 {
+		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -2388,11 +2386,11 @@ func (d *AllFieldsSoFarDelegate) runCreateManyAndReturn(
 		selectSb.WriteString(" FROM ")
 		txQ.dialect.WriteQuotedIdent(&selectSb, "AllFieldsSoFar")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, allFieldsSoFarPKCols[0])
 		selectSb.WriteString(" >= ")
 		txQ.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, pkCols[0])
+		txQ.dialect.WriteQuotedIdent(&selectSb, allFieldsSoFarPKCols[0])
 		selectSb.WriteString(" < ")
 		txQ.dialect.WritePlaceholder(&selectSb, 2)
 
@@ -2413,7 +2411,7 @@ func (d *AllFieldsSoFarDelegate) runCreateManyAndReturn(
 	}
 
 	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsReturning {
+	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			for _, batch := range batches {
 				if err := runBatch(txQ, batch); err != nil {
@@ -2854,13 +2852,27 @@ func (d *AllFieldsSoFarDelegate) runFindMany(
 func (d *AllFieldsSoFarDelegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*AllFieldsSoFar, error) {
 	limitOne := 1
 	query := buildSelectSQL(d.client, "AllFieldsSoFar", returningCols, whereClause, &limitOne, skip)
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
-	row := stmt.QueryRowContext(ctx, whereVals...)
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return nil, nil
+	}
+
 	var res AllFieldsSoFar
-	if err := row.Scan(res.ScanFields(returningCols)...); err != nil {
+	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -2871,11 +2883,7 @@ func (d *AllFieldsSoFarDelegate) queryOne(ctx context.Context, whereClause strin
 
 func (d *AllFieldsSoFarDelegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*AllFieldsSoFar, error) {
 	query := buildSelectSQL(d.client, "AllFieldsSoFar", returningCols, whereClause, take, skip)
-	stmt, err := d.client.prepare(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := stmt.QueryContext(ctx, whereVals...)
+	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
 	}
@@ -2947,6 +2955,125 @@ func (d *AllFieldsSoFarDelegate) runDeleteMany(ctx context.Context, preds []Pred
 	}
 	return result.RowsAffected()
 }
+
+func (d *AllFieldsSoFarDelegate) Delete(where UniquePredicate[AllFieldsSoFar]) *DeleteBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
+	return &DeleteBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
+		where:    where,
+		execFunc: d.executeDelete,
+	}
+}
+
+func (d *AllFieldsSoFarDelegate) executeDelete(ctx context.Context, where UniquePredicate[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	if len(d.extensions) == 0 {
+		return d.runDelete(ctx, where, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[AllFieldsSoFar], s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+		return d.runDelete(c, w, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Delete != nil {
+			next, hook := curr, ext.Delete
+			curr = func(c context.Context, w UniquePredicate[AllFieldsSoFar], s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+				return hook(c, w, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, selects, omits)
+}
+
+func (d *AllFieldsSoFarDelegate) runDelete(ctx context.Context, where UniquePredicate[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+
+	returningCols := selectAllFieldsSoFarCols(selects, omits, allFieldsSoFarPKCols...)
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := !d.client.dialect.SupportsDeleteReturning || hasRelations
+
+	if useTx {
+		var res *AllFieldsSoFar
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.AllFieldsSoFar.executeFindUnique(ctx, where, nil, selects, omits)
+			if err != nil {
+				return err
+			}
+			if res == nil {
+				return sql.ErrNoRows
+			}
+
+			// Build DELETE statement by PK
+			var deleteSb strings.Builder
+			deleteSb.WriteString("DELETE FROM ")
+			txQ.dialect.WriteQuotedIdent(&deleteSb, "AllFieldsSoFar")
+			deleteSb.WriteString(" WHERE ")
+
+			var pkPreds []PredicateOf[AllFieldsSoFar]
+			pkPreds = append(pkPreds, Predicate[AllFieldsSoFar]{
+				Data: PredicateData{
+					Column:   "id",
+					Operator: "=",
+					Value:    res.Id,
+				},
+			})
+
+			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			deleteSb.WriteString(whereClause)
+
+			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
+
+	// Dialect supports RETURNING, and no relations need loading: run direct DELETE ... RETURNING
+	var sb strings.Builder
+	sb.WriteString("DELETE FROM ")
+	d.client.dialect.WriteQuotedIdent(&sb, "AllFieldsSoFar")
+
+	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[AllFieldsSoFar]{where})
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+	}
+
+	sb.WriteString(" RETURNING ")
+	for i, col := range returningCols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, col)
+	}
+
+	rows, err := d.client.query(ctx, sb.String(), vals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var row AllFieldsSoFar
+	if err := rows.Scan(row.ScanFields(returningCols)...); err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
 func (d *AllFieldsSoFarDelegate) Count(preds ...PredicateOf[AllFieldsSoFar]) *CountBuilder[AllFieldsSoFar] {
 	return &CountBuilder[AllFieldsSoFar]{
 		where:    preds,
@@ -3009,12 +3136,19 @@ func (d *AllFieldsSoFarDelegate) runCount(ctx context.Context, params QueryParam
 		query = sb.String()
 	}
 
-	stmt, err := d.client.prepare(ctx, query)
+	rows, err := d.client.query(ctx, query, vals...)
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
+
 	var count int64
-	if err := stmt.QueryRowContext(ctx, vals...).Scan(&count); err != nil {
+	if rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return 0, err
+		}
+	}
+	if err := rows.Err(); err != nil {
 		return 0, err
 	}
 	return count, nil
