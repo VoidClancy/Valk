@@ -63,9 +63,182 @@ func computeCols(specs []colSpec, hasSelects, anySelected bool) []string {
 	return cols
 }
 
-func buildSelectSQL(q *Queries, table string, cols []string, whereClause string, take *int, skip *int) string {
+func reverseSlice[T any](s []T) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+}
+
+func formatOrderBySQL[M any](dialect Dialect, orders []OrderBy[M], pkCols []string, uniqueCols []string, isCursorQuery bool, take *int) string {
+	isNegativeTake := take != nil && *take < 0
+	if len(orders) == 0 {
+		if !isCursorQuery || len(pkCols) == 0 {
+			return ""
+		}
+		var sb strings.Builder
+		sb.WriteString(" ORDER BY ")
+		for i, pkCol := range pkCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			dialect.WriteQuotedIdent(&sb, pkCol)
+			if isNegativeTake {
+				sb.WriteString(" DESC")
+			} else {
+				sb.WriteString(" ASC")
+			}
+		}
+		return sb.String()
+	}
+
 	var sb strings.Builder
-	sb.Grow(len(table) + len(whereClause) + len(cols)*18 + 48)
+	usedCols := make(map[string]bool, len(orders)+len(pkCols))
+	hasUnique := false
+	uniqueMap := make(map[string]bool, len(uniqueCols))
+	for _, u := range uniqueCols {
+		uniqueMap[u] = true
+	}
+
+	count := 0
+	for _, ord := range orders {
+		if ord.Field == "" {
+			continue
+		}
+		if count == 0 {
+			sb.WriteString(" ORDER BY ")
+		} else {
+			sb.WriteString(", ")
+		}
+		dialect.WriteQuotedIdent(&sb, ord.Field)
+		sb.WriteString(" ")
+		dir := ord.Direction
+		if isNegativeTake {
+			if dir == Asc {
+				dir = Desc
+			} else {
+				dir = Asc
+			}
+		}
+		sb.WriteString(string(dir))
+		usedCols[ord.Field] = true
+		if uniqueMap[ord.Field] {
+			hasUnique = true
+		}
+		count++
+	}
+
+	if isCursorQuery && !hasUnique {
+		for _, pkCol := range pkCols {
+			if !usedCols[pkCol] {
+				if count == 0 {
+					sb.WriteString(" ORDER BY ")
+				} else {
+					sb.WriteString(", ")
+				}
+				dialect.WriteQuotedIdent(&sb, pkCol)
+				if isNegativeTake {
+					sb.WriteString(" DESC")
+				} else {
+					sb.WriteString(" ASC")
+				}
+				usedCols[pkCol] = true
+				count++
+			}
+		}
+	}
+	return sb.String()
+}
+
+func compileCursorClause[M any](
+	dialect Dialect,
+	cursor UniquePredicate[M],
+	orders []OrderBy[M],
+	pkCols []string,
+	uniqueCols []string,
+	tableName string,
+	nextIdx int,
+	take *int,
+) (cursorClause string, cursorVals []any, err error) {
+	if cursor.Data.Column == "" && len(cursor.Data.Children) == 0 {
+		return "", nil, nil
+	}
+	if err := cursor.Validate(); err != nil {
+		return "", nil, err
+	}
+	cursorWhere, cVals, _ := CompilePredicates(dialect, []PredicateOf[M]{cursor}, nextIdx)
+	if cursorWhere == "" {
+		return "", nil, nil
+	}
+
+	uniqueMap := make(map[string]bool, len(uniqueCols))
+	for _, u := range uniqueCols {
+		uniqueMap[u] = true
+	}
+
+	var orderedCols []string
+	used := make(map[string]bool, len(orders)+len(pkCols))
+	hasUnique := false
+	for _, ord := range orders {
+		if ord.Field != "" && !used[ord.Field] {
+			orderedCols = append(orderedCols, ord.Field)
+			used[ord.Field] = true
+			if uniqueMap[ord.Field] {
+				hasUnique = true
+			}
+		}
+	}
+
+	if !hasUnique {
+		for _, pk := range pkCols {
+			if !used[pk] {
+				orderedCols = append(orderedCols, pk)
+				used[pk] = true
+			}
+		}
+	}
+
+	var subSb strings.Builder
+	subSb.WriteString("(")
+	for i, col := range orderedCols {
+		if i > 0 {
+			subSb.WriteString(", ")
+		}
+		dialect.WriteQuotedIdent(&subSb, col)
+	}
+	isNegativeTake := take != nil && *take < 0
+	cursorOp := ">"
+	if len(orders) > 0 && orders[0].Direction == Desc {
+		cursorOp = "<"
+	}
+	if isNegativeTake {
+		if cursorOp == ">" {
+			cursorOp = "<"
+		} else {
+			cursorOp = ">"
+		}
+	}
+
+	subSb.WriteString(") ")
+	subSb.WriteString(cursorOp)
+	subSb.WriteString(" (SELECT ")
+	for i, col := range orderedCols {
+		if i > 0 {
+			subSb.WriteString(", ")
+		}
+		dialect.WriteQuotedIdent(&subSb, col)
+	}
+	subSb.WriteString(" FROM ")
+	dialect.WriteQuotedIdent(&subSb, tableName)
+	subSb.WriteString(" WHERE ")
+	subSb.WriteString(cursorWhere)
+	subSb.WriteString(")")
+
+	return subSb.String(), cVals, nil
+}
+
+func buildSelectSQL(q *Queries, table string, cols []string, whereClause string, orderByClause string, take *int, skip *int) string {
+	var sb strings.Builder
+	sb.Grow(len(table) + len(whereClause) + len(orderByClause) + len(cols)*18 + 48)
 	sb.WriteString("SELECT ")
 	for i, col := range cols {
 		if i > 0 {
@@ -76,9 +249,14 @@ func buildSelectSQL(q *Queries, table string, cols []string, whereClause string,
 	sb.WriteString(" FROM ")
 	q.dialect.WriteQuotedIdent(&sb, table)
 	sb.WriteString(whereClause)
+	sb.WriteString(orderByClause)
 	if take != nil {
 		sb.WriteString(" LIMIT ")
-		sb.WriteString(strconv.Itoa(*take))
+		limit := *take
+		if limit < 0 {
+			limit = -limit
+		}
+		sb.WriteString(strconv.Itoa(limit))
 		if skip != nil {
 			sb.WriteString(" OFFSET ")
 			sb.WriteString(strconv.Itoa(*skip))

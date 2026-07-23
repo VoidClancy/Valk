@@ -468,6 +468,7 @@ type QueryParams[M any] struct {
 	Take    *int
 	Skip    *int
 	OrderBy []OrderBy[M]
+	Cursor  UniquePredicate[M]
 }
 
 func computeNonConflictCols(allCols []string, conflictCols []string, pkCols []string) []string {
@@ -1466,9 +1467,13 @@ func (f StringUniqueField[M]) Desc() OrderBy[M] {
 	return OrderBy[M]{Field: f.Column, Direction: Desc}
 }
 
-func CompilePredicates[M any](dialect Dialect, preds []PredicateOf[M]) (string, []any) {
+func CompilePredicates[M any](dialect Dialect, preds []PredicateOf[M], startBindIdx ...int) (string, []any, int) {
+	bindIdx := 1
+	if len(startBindIdx) > 0 && startBindIdx[0] > 0 {
+		bindIdx = startBindIdx[0]
+	}
 	if len(preds) == 0 {
-		return "", nil
+		return "", nil, bindIdx
 	}
 	var data []PredicateData
 	for _, p := range preds {
@@ -1476,17 +1481,19 @@ func CompilePredicates[M any](dialect Dialect, preds []PredicateOf[M]) (string, 
 			data = append(data, p.ToPredicateData())
 		}
 	}
-	return CompilePredicateData(dialect, data)
+	return CompilePredicateData(dialect, data, bindIdx)
 }
 
-func CompilePredicateData(dialect Dialect, data []PredicateData) (string, []any) {
-
+func CompilePredicateData(dialect Dialect, data []PredicateData, startBindIdx ...int) (string, []any, int) {
+	bindIdx := 1
+	if len(startBindIdx) > 0 && startBindIdx[0] > 0 {
+		bindIdx = startBindIdx[0]
+	}
 	if len(data) == 0 {
-		return "", nil
+		return "", nil, bindIdx
 	}
 	var parts []string
 	var args []any
-	var bindIdx = 1
 
 	var compile func(p PredicateData) string
 	compile = func(p PredicateData) string {
@@ -1550,9 +1557,9 @@ func CompilePredicateData(dialect Dialect, data []PredicateData) (string, []any)
 	}
 
 	if len(parts) == 0 {
-		return "", nil
+		return "", nil, bindIdx
 	}
-	return strings.Join(parts, " AND "), args
+	return strings.Join(parts, " AND "), args, bindIdx
 }
 
 func unpackSlice(val any) []any {
@@ -1830,7 +1837,22 @@ func loadRelation[P any, C any](
 		},
 	}, params.Where...)
 
-	whereClause, vals := CompilePredicates(q.dialect, allPreds)
+	whereClause, vals, nextIdx := CompilePredicates(q.dialect, allPreds)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(q.dialect, params.Cursor, params.OrderBy, []string{"id"}, nil, table, nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -1873,7 +1895,8 @@ func loadRelation[P any, C any](
 }
 
 func compileRelationSQL[M any](dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams[M]) string {
-	if params.Take != nil || params.Skip != nil {
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if params.Take != nil || params.Skip != nil || isCursorQuery {
 		return compilePartitionedRelationSQL(dialect, table, fkCol, cols, where, params)
 	}
 	return compileSimpleRelationSQL(dialect, table, cols, where, params)
@@ -1994,12 +2017,30 @@ func (b *FindUniqueOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 
 type FindFirstBuilder[M any, S any, O any] struct {
 	where    []PredicateOf[M]
+	take     *int
 	skip     *int
+	orderBy  []OrderBy[M]
+	cursor   UniquePredicate[M]
 	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) (*M, error)
+}
+
+func (b *FindFirstBuilder[M, S, O]) Take(limit int) *FindFirstBuilder[M, S, O] {
+	b.take = &limit
+	return b
 }
 
 func (b *FindFirstBuilder[M, S, O]) Skip(offset int) *FindFirstBuilder[M, S, O] {
 	b.skip = &offset
+	return b
+}
+
+func (b *FindFirstBuilder[M, S, O]) OrderBy(orders ...OrderBy[M]) *FindFirstBuilder[M, S, O] {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *FindFirstBuilder[M, S, O]) Cursor(where UniquePredicate[M]) *FindFirstBuilder[M, S, O] {
+	b.cursor = where
 	return b
 }
 
@@ -2013,8 +2054,11 @@ func (b *FindFirstBuilder[M, S, O]) Omit(o O) *FindFirstOmitBuilder[M, S, O] {
 
 func (b *FindFirstBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 	params := QueryParams[M]{
-		Where: b.where,
-		Skip:  b.skip,
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+		Cursor:  b.cursor,
 	}
 	return b.execFunc(ctx, params, nil, nil)
 }
@@ -2026,8 +2070,11 @@ type FindFirstSelectBuilder[M any, S any, O any] struct {
 
 func (b *FindFirstSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 	params := QueryParams[M]{
-		Where: b.builder.where,
-		Skip:  b.builder.skip,
+		Where:   b.builder.where,
+		Take:    b.builder.take,
+		Skip:    b.builder.skip,
+		OrderBy: b.builder.orderBy,
+		Cursor:  b.builder.cursor,
 	}
 	return b.builder.execFunc(ctx, params, &b.selects, nil)
 }
@@ -2039,8 +2086,11 @@ type FindFirstOmitBuilder[M any, S any, O any] struct {
 
 func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 	params := QueryParams[M]{
-		Where: b.builder.where,
-		Skip:  b.builder.skip,
+		Where:   b.builder.where,
+		Take:    b.builder.take,
+		Skip:    b.builder.skip,
+		OrderBy: b.builder.orderBy,
+		Cursor:  b.builder.cursor,
 	}
 	return b.builder.execFunc(ctx, params, nil, &b.omits)
 }
@@ -2049,6 +2099,8 @@ type FindManyBuilder[M any, S any, O any] struct {
 	where    []PredicateOf[M]
 	take     *int
 	skip     *int
+	orderBy  []OrderBy[M]
+	cursor   UniquePredicate[M]
 	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) ([]*M, error)
 }
 
@@ -2062,6 +2114,16 @@ func (b *FindManyBuilder[M, S, O]) Skip(offset int) *FindManyBuilder[M, S, O] {
 	return b
 }
 
+func (b *FindManyBuilder[M, S, O]) OrderBy(orders ...OrderBy[M]) *FindManyBuilder[M, S, O] {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *FindManyBuilder[M, S, O]) Cursor(where UniquePredicate[M]) *FindManyBuilder[M, S, O] {
+	b.cursor = where
+	return b
+}
+
 func (b *FindManyBuilder[M, S, O]) Select(s S) *FindManySelectBuilder[M, S, O] {
 	return &FindManySelectBuilder[M, S, O]{builder: b, selects: s}
 }
@@ -2072,9 +2134,11 @@ func (b *FindManyBuilder[M, S, O]) Omit(o O) *FindManyOmitBuilder[M, S, O] {
 
 func (b *FindManyBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
 	params := QueryParams[M]{
-		Where: b.where,
-		Take:  b.take,
-		Skip:  b.skip,
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+		Cursor:  b.cursor,
 	}
 	return b.execFunc(ctx, params, nil, nil)
 }
@@ -2086,9 +2150,11 @@ type FindManySelectBuilder[M any, S any, O any] struct {
 
 func (b *FindManySelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
 	params := QueryParams[M]{
-		Where: b.builder.where,
-		Take:  b.builder.take,
-		Skip:  b.builder.skip,
+		Where:   b.builder.where,
+		Take:    b.builder.take,
+		Skip:    b.builder.skip,
+		OrderBy: b.builder.orderBy,
+		Cursor:  b.builder.cursor,
 	}
 	return b.builder.execFunc(ctx, params, &b.selects, nil)
 }
@@ -2100,9 +2166,11 @@ type FindManyOmitBuilder[M any, S any, O any] struct {
 
 func (b *FindManyOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
 	params := QueryParams[M]{
-		Where: b.builder.where,
-		Take:  b.builder.take,
-		Skip:  b.builder.skip,
+		Where:   b.builder.where,
+		Take:    b.builder.take,
+		Skip:    b.builder.skip,
+		OrderBy: b.builder.orderBy,
+		Cursor:  b.builder.cursor,
 	}
 	return b.builder.execFunc(ctx, params, nil, &b.omits)
 }
@@ -2227,9 +2295,182 @@ func computeCols(specs []colSpec, hasSelects, anySelected bool) []string {
 	return cols
 }
 
-func buildSelectSQL(q *Queries, table string, cols []string, whereClause string, take *int, skip *int) string {
+func reverseSlice[T any](s []T) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+}
+
+func formatOrderBySQL[M any](dialect Dialect, orders []OrderBy[M], pkCols []string, uniqueCols []string, isCursorQuery bool, take *int) string {
+	isNegativeTake := take != nil && *take < 0
+	if len(orders) == 0 {
+		if !isCursorQuery || len(pkCols) == 0 {
+			return ""
+		}
+		var sb strings.Builder
+		sb.WriteString(" ORDER BY ")
+		for i, pkCol := range pkCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			dialect.WriteQuotedIdent(&sb, pkCol)
+			if isNegativeTake {
+				sb.WriteString(" DESC")
+			} else {
+				sb.WriteString(" ASC")
+			}
+		}
+		return sb.String()
+	}
+
 	var sb strings.Builder
-	sb.Grow(len(table) + len(whereClause) + len(cols)*18 + 48)
+	usedCols := make(map[string]bool, len(orders)+len(pkCols))
+	hasUnique := false
+	uniqueMap := make(map[string]bool, len(uniqueCols))
+	for _, u := range uniqueCols {
+		uniqueMap[u] = true
+	}
+
+	count := 0
+	for _, ord := range orders {
+		if ord.Field == "" {
+			continue
+		}
+		if count == 0 {
+			sb.WriteString(" ORDER BY ")
+		} else {
+			sb.WriteString(", ")
+		}
+		dialect.WriteQuotedIdent(&sb, ord.Field)
+		sb.WriteString(" ")
+		dir := ord.Direction
+		if isNegativeTake {
+			if dir == Asc {
+				dir = Desc
+			} else {
+				dir = Asc
+			}
+		}
+		sb.WriteString(string(dir))
+		usedCols[ord.Field] = true
+		if uniqueMap[ord.Field] {
+			hasUnique = true
+		}
+		count++
+	}
+
+	if isCursorQuery && !hasUnique {
+		for _, pkCol := range pkCols {
+			if !usedCols[pkCol] {
+				if count == 0 {
+					sb.WriteString(" ORDER BY ")
+				} else {
+					sb.WriteString(", ")
+				}
+				dialect.WriteQuotedIdent(&sb, pkCol)
+				if isNegativeTake {
+					sb.WriteString(" DESC")
+				} else {
+					sb.WriteString(" ASC")
+				}
+				usedCols[pkCol] = true
+				count++
+			}
+		}
+	}
+	return sb.String()
+}
+
+func compileCursorClause[M any](
+	dialect Dialect,
+	cursor UniquePredicate[M],
+	orders []OrderBy[M],
+	pkCols []string,
+	uniqueCols []string,
+	tableName string,
+	nextIdx int,
+	take *int,
+) (cursorClause string, cursorVals []any, err error) {
+	if cursor.Data.Column == "" && len(cursor.Data.Children) == 0 {
+		return "", nil, nil
+	}
+	if err := cursor.Validate(); err != nil {
+		return "", nil, err
+	}
+	cursorWhere, cVals, _ := CompilePredicates(dialect, []PredicateOf[M]{cursor}, nextIdx)
+	if cursorWhere == "" {
+		return "", nil, nil
+	}
+
+	uniqueMap := make(map[string]bool, len(uniqueCols))
+	for _, u := range uniqueCols {
+		uniqueMap[u] = true
+	}
+
+	var orderedCols []string
+	used := make(map[string]bool, len(orders)+len(pkCols))
+	hasUnique := false
+	for _, ord := range orders {
+		if ord.Field != "" && !used[ord.Field] {
+			orderedCols = append(orderedCols, ord.Field)
+			used[ord.Field] = true
+			if uniqueMap[ord.Field] {
+				hasUnique = true
+			}
+		}
+	}
+
+	if !hasUnique {
+		for _, pk := range pkCols {
+			if !used[pk] {
+				orderedCols = append(orderedCols, pk)
+				used[pk] = true
+			}
+		}
+	}
+
+	var subSb strings.Builder
+	subSb.WriteString("(")
+	for i, col := range orderedCols {
+		if i > 0 {
+			subSb.WriteString(", ")
+		}
+		dialect.WriteQuotedIdent(&subSb, col)
+	}
+	isNegativeTake := take != nil && *take < 0
+	cursorOp := ">"
+	if len(orders) > 0 && orders[0].Direction == Desc {
+		cursorOp = "<"
+	}
+	if isNegativeTake {
+		if cursorOp == ">" {
+			cursorOp = "<"
+		} else {
+			cursorOp = ">"
+		}
+	}
+
+	subSb.WriteString(") ")
+	subSb.WriteString(cursorOp)
+	subSb.WriteString(" (SELECT ")
+	for i, col := range orderedCols {
+		if i > 0 {
+			subSb.WriteString(", ")
+		}
+		dialect.WriteQuotedIdent(&subSb, col)
+	}
+	subSb.WriteString(" FROM ")
+	dialect.WriteQuotedIdent(&subSb, tableName)
+	subSb.WriteString(" WHERE ")
+	subSb.WriteString(cursorWhere)
+	subSb.WriteString(")")
+
+	return subSb.String(), cVals, nil
+}
+
+func buildSelectSQL(q *Queries, table string, cols []string, whereClause string, orderByClause string, take *int, skip *int) string {
+	var sb strings.Builder
+	sb.Grow(len(table) + len(whereClause) + len(orderByClause) + len(cols)*18 + 48)
 	sb.WriteString("SELECT ")
 	for i, col := range cols {
 		if i > 0 {
@@ -2240,9 +2481,14 @@ func buildSelectSQL(q *Queries, table string, cols []string, whereClause string,
 	sb.WriteString(" FROM ")
 	q.dialect.WriteQuotedIdent(&sb, table)
 	sb.WriteString(whereClause)
+	sb.WriteString(orderByClause)
 	if take != nil {
 		sb.WriteString(" LIMIT ")
-		sb.WriteString(strconv.Itoa(*take))
+		limit := *take
+		if limit < 0 {
+			limit = -limit
+		}
+		sb.WriteString(strconv.Itoa(limit))
 		if skip != nil {
 			sb.WriteString(" OFFSET ")
 			sb.WriteString(strconv.Itoa(*skip))

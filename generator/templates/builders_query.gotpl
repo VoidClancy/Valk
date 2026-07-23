@@ -36,12 +36,30 @@ func (b *FindUniqueOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 
 type FindFirstBuilder[M any, S any, O any] struct {
 	where    []PredicateOf[M]
+	take     *int
 	skip     *int
+	orderBy  []OrderBy[M]
+	cursor   UniquePredicate[M]
 	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) (*M, error)
+}
+
+func (b *FindFirstBuilder[M, S, O]) Take(limit int) *FindFirstBuilder[M, S, O] {
+	b.take = &limit
+	return b
 }
 
 func (b *FindFirstBuilder[M, S, O]) Skip(offset int) *FindFirstBuilder[M, S, O] {
 	b.skip = &offset
+	return b
+}
+
+func (b *FindFirstBuilder[M, S, O]) OrderBy(orders ...OrderBy[M]) *FindFirstBuilder[M, S, O] {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *FindFirstBuilder[M, S, O]) Cursor(where UniquePredicate[M]) *FindFirstBuilder[M, S, O] {
+	b.cursor = where
 	return b
 }
 
@@ -55,8 +73,11 @@ func (b *FindFirstBuilder[M, S, O]) Omit(o O) *FindFirstOmitBuilder[M, S, O] {
 
 func (b *FindFirstBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 	params := QueryParams[M]{
-		Where: b.where,
-		Skip:  b.skip,
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+		Cursor:  b.cursor,
 	}
 	return b.execFunc(ctx, params, nil, nil)
 }
@@ -68,8 +89,11 @@ type FindFirstSelectBuilder[M any, S any, O any] struct {
 
 func (b *FindFirstSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 	params := QueryParams[M]{
-		Where: b.builder.where,
-		Skip:  b.builder.skip,
+		Where:   b.builder.where,
+		Take:    b.builder.take,
+		Skip:    b.builder.skip,
+		OrderBy: b.builder.orderBy,
+		Cursor:  b.builder.cursor,
 	}
 	return b.builder.execFunc(ctx, params, &b.selects, nil)
 }
@@ -81,8 +105,11 @@ type FindFirstOmitBuilder[M any, S any, O any] struct {
 
 func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 	params := QueryParams[M]{
-		Where: b.builder.where,
-		Skip:  b.builder.skip,
+		Where:   b.builder.where,
+		Take:    b.builder.take,
+		Skip:    b.builder.skip,
+		OrderBy: b.builder.orderBy,
+		Cursor:  b.builder.cursor,
 	}
 	return b.builder.execFunc(ctx, params, nil, &b.omits)
 }
@@ -91,6 +118,8 @@ type FindManyBuilder[M any, S any, O any] struct {
 	where    []PredicateOf[M]
 	take     *int
 	skip     *int
+	orderBy  []OrderBy[M]
+	cursor   UniquePredicate[M]
 	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) ([]*M, error)
 }
 
@@ -104,6 +133,16 @@ func (b *FindManyBuilder[M, S, O]) Skip(offset int) *FindManyBuilder[M, S, O] {
 	return b
 }
 
+func (b *FindManyBuilder[M, S, O]) OrderBy(orders ...OrderBy[M]) *FindManyBuilder[M, S, O] {
+	b.orderBy = append(b.orderBy, orders...)
+	return b
+}
+
+func (b *FindManyBuilder[M, S, O]) Cursor(where UniquePredicate[M]) *FindManyBuilder[M, S, O] {
+	b.cursor = where
+	return b
+}
+
 func (b *FindManyBuilder[M, S, O]) Select(s S) *FindManySelectBuilder[M, S, O] {
 	return &FindManySelectBuilder[M, S, O]{builder: b, selects: s}
 }
@@ -114,9 +153,11 @@ func (b *FindManyBuilder[M, S, O]) Omit(o O) *FindManyOmitBuilder[M, S, O] {
 
 func (b *FindManyBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
 	params := QueryParams[M]{
-		Where: b.where,
-		Take:  b.take,
-		Skip:  b.skip,
+		Where:   b.where,
+		Take:    b.take,
+		Skip:    b.skip,
+		OrderBy: b.orderBy,
+		Cursor:  b.cursor,
 	}
 	return b.execFunc(ctx, params, nil, nil)
 }
@@ -128,9 +169,11 @@ type FindManySelectBuilder[M any, S any, O any] struct {
 
 func (b *FindManySelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
 	params := QueryParams[M]{
-		Where: b.builder.where,
-		Take:  b.builder.take,
-		Skip:  b.builder.skip,
+		Where:   b.builder.where,
+		Take:    b.builder.take,
+		Skip:    b.builder.skip,
+		OrderBy: b.builder.orderBy,
+		Cursor:  b.builder.cursor,
 	}
 	return b.builder.execFunc(ctx, params, &b.selects, nil)
 }
@@ -142,9 +185,11 @@ type FindManyOmitBuilder[M any, S any, O any] struct {
 
 func (b *FindManyOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
 	params := QueryParams[M]{
-		Where: b.builder.where,
-		Take:  b.builder.take,
-		Skip:  b.builder.skip,
+		Where:   b.builder.where,
+		Take:    b.builder.take,
+		Skip:    b.builder.skip,
+		OrderBy: b.builder.orderBy,
+		Cursor:  b.builder.cursor,
 	}
 	return b.builder.execFunc(ctx, params, nil, &b.omits)
 }

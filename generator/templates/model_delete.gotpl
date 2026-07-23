@@ -35,7 +35,7 @@ func (d *{{ .Model.Name }}Delegate) runDeleteMany(ctx context.Context, preds []P
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, preds)
 	
 	var sb strings.Builder
 	sb.WriteString("DELETE FROM ")
@@ -134,7 +134,7 @@ func (d *{{ .Model.Name }}Delegate) runDelete(ctx context.Context, where UniqueP
 			{{- end }}
 			{{- end }}
 			
-			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			whereClause, vals, _ := CompilePredicates(txQ.dialect, pkPreds)
 			deleteSb.WriteString(whereClause)
 			
 			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
@@ -154,7 +154,7 @@ func (d *{{ .Model.Name }}Delegate) runDelete(ctx context.Context, where UniqueP
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "{{ .Model.EffectiveTableName }}")
 	
-	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[{{ .Model.Name }}]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[{{ .Model.Name }}]{where})
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)

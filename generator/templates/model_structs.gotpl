@@ -81,6 +81,7 @@ type {{ .Model.Name }}QueryBuilder struct {
 	take    *int
 	skip    *int
 	orderBy []OrderBy[{{ .Model.Name }}]
+	cursor  UniquePredicate[{{ .Model.Name }}]
 }
 
 func (b *{{ .Model.Name }}QueryBuilder) Where(preds ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}QueryBuilder {
@@ -103,6 +104,11 @@ func (b *{{ .Model.Name }}QueryBuilder) OrderBy(orders ...OrderBy[{{ .Model.Name
 	return b
 }
 
+func (b *{{ .Model.Name }}QueryBuilder) Cursor(where UniquePredicate[{{ .Model.Name }}]) *{{ .Model.Name }}QueryBuilder {
+	b.cursor = where
+	return b
+}
+
 func (b *{{ .Model.Name }}QueryBuilder) Select(s {{ .Model.Name }}Select) *{{ .Model.Name }}QueryBuilder {
 	b.selects = &s
 	return b
@@ -122,6 +128,7 @@ func (b *{{ .Model.Name }}QueryBuilder) GetRelationParams() (*{{ .Model.Name }}S
 		Take:    b.take,
 		Skip:    b.skip,
 		OrderBy: b.orderBy,
+		Cursor:  b.cursor,
 	}
 }
 
@@ -189,6 +196,14 @@ var {{ lowercase .Model.Name }}PKCols = []string{
 			{{- if $field.IsID }}
 	"{{ $field.EffectiveColName }}",
 			{{- end }}
+		{{- end }}
+	{{- end }}
+}
+
+var {{ lowercase .Model.Name }}UniqueCols = []string{
+	{{- range $field := .Model.ScalarFields }}
+		{{- if or $field.IsID $field.IsUnique }}
+	"{{ $field.EffectiveColName }}",
 		{{- end }}
 	{{- end }}
 }

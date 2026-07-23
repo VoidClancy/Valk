@@ -105,7 +105,7 @@ func (d *{{ .Model.Name }}Delegate) runFindUnique(ctx context.Context, where Uni
 		}
 	}
 	allPreds := append([]PredicateOf[{{ .Model.Name }}]{where}, additional...)
-	whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -116,7 +116,7 @@ func (d *{{ .Model.Name }}Delegate) runFindUnique(ctx context.Context, where Uni
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.{{ .Model.Name }}.queryOne(ctx, whereClause, vals, returningCols, nil)
+			res, err = txQ.{{ .Model.Name }}.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 			if err != nil {
 				return err
 			}
@@ -126,7 +126,7 @@ func (d *{{ .Model.Name }}Delegate) runFindUnique(ctx context.Context, where Uni
 			return txQ.{{ .Model.Name }}.loadRelations(ctx, []*{{ .Model.Name }}{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, nil)
+		res, err = d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 	}
 	if err != nil {
 		return nil, err
@@ -147,10 +147,26 @@ func (d *{{ .Model.Name }}Delegate) runFindFirst(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, {{ lowercase .Model.Name }}PKCols, {{ lowercase .Model.Name }}UniqueCols, "{{ .Model.EffectiveTableName }}", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, {{ lowercase .Model.Name }}PKCols, {{ lowercase .Model.Name }}UniqueCols, isCursorQuery, params.Take)
 	returningCols := select{{ .Model.Name }}Cols(selects, omits)
 
 	var res *{{ .Model.Name }}
@@ -158,7 +174,7 @@ func (d *{{ .Model.Name }}Delegate) runFindFirst(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.{{ .Model.Name }}.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+			res, err = txQ.{{ .Model.Name }}.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -168,7 +184,7 @@ func (d *{{ .Model.Name }}Delegate) runFindFirst(
 			return txQ.{{ .Model.Name }}.loadRelations(ctx, []*{{ .Model.Name }}{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+		res, err = d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -189,10 +205,26 @@ func (d *{{ .Model.Name }}Delegate) runFindMany(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, {{ lowercase .Model.Name }}PKCols, {{ lowercase .Model.Name }}UniqueCols, "{{ .Model.EffectiveTableName }}", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, {{ lowercase .Model.Name }}PKCols, {{ lowercase .Model.Name }}UniqueCols, isCursorQuery, params.Take)
 	returningCols := select{{ .Model.Name }}Cols(selects, omits)
 
 	var results []*{{ .Model.Name }}
@@ -200,7 +232,7 @@ func (d *{{ .Model.Name }}Delegate) runFindMany(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			results, err = txQ.{{ .Model.Name }}.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+			results, err = txQ.{{ .Model.Name }}.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -210,7 +242,7 @@ func (d *{{ .Model.Name }}Delegate) runFindMany(
 			return txQ.{{ .Model.Name }}.loadRelations(ctx, results, selects)
 		})
 	} else {
-		results, err = d.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+		results, err = d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -218,9 +250,9 @@ func (d *{{ .Model.Name }}Delegate) runFindMany(
 	return results, nil
 }
 
-func (d *{{ .Model.Name }}Delegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*{{ .Model.Name }}, error) {
+func (d *{{ .Model.Name }}Delegate) queryOne(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, skip *int) (*{{ .Model.Name }}, error) {
 	limitOne := 1
-	query := buildSelectSQL(d.client, "{{ .Model.EffectiveTableName }}", returningCols, whereClause, &limitOne, skip)
+	query := buildSelectSQL(d.client, "{{ .Model.EffectiveTableName }}", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -250,8 +282,8 @@ func (d *{{ .Model.Name }}Delegate) queryOne(ctx context.Context, whereClause st
 	return &res, nil
 }
 
-func (d *{{ .Model.Name }}Delegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*{{ .Model.Name }}, error) {
-	query := buildSelectSQL(d.client, "{{ .Model.EffectiveTableName }}", returningCols, whereClause, take, skip)
+func (d *{{ .Model.Name }}Delegate) queryMany(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*{{ .Model.Name }}, error) {
+	query := buildSelectSQL(d.client, "{{ .Model.EffectiveTableName }}", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
@@ -268,6 +300,9 @@ func (d *{{ .Model.Name }}Delegate) queryMany(ctx context.Context, whereClause s
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if take != nil && *take < 0 {
+		reverseSlice(results)
 	}
 	return results, nil
 }

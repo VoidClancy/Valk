@@ -345,6 +345,7 @@ type AllFieldsSoFarQueryBuilder struct {
 	take    *int
 	skip    *int
 	orderBy []OrderBy[AllFieldsSoFar]
+	cursor  UniquePredicate[AllFieldsSoFar]
 }
 
 func (b *AllFieldsSoFarQueryBuilder) Where(preds ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarQueryBuilder {
@@ -367,6 +368,11 @@ func (b *AllFieldsSoFarQueryBuilder) OrderBy(orders ...OrderBy[AllFieldsSoFar]) 
 	return b
 }
 
+func (b *AllFieldsSoFarQueryBuilder) Cursor(where UniquePredicate[AllFieldsSoFar]) *AllFieldsSoFarQueryBuilder {
+	b.cursor = where
+	return b
+}
+
 func (b *AllFieldsSoFarQueryBuilder) Select(s AllFieldsSoFarSelect) *AllFieldsSoFarQueryBuilder {
 	b.selects = &s
 	return b
@@ -386,6 +392,7 @@ func (b *AllFieldsSoFarQueryBuilder) GetRelationParams() (*AllFieldsSoFarSelect,
 		Take:    b.take,
 		Skip:    b.skip,
 		OrderBy: b.orderBy,
+		Cursor:  b.cursor,
 	}
 }
 
@@ -595,6 +602,10 @@ var allFieldsSoFarDefaultCols = []string{
 }
 
 var allFieldsSoFarPKCols = []string{
+	"id",
+}
+
+var allFieldsSoFarUniqueCols = []string{
 	"id",
 }
 
@@ -2736,7 +2747,7 @@ func (d *AllFieldsSoFarDelegate) runFindUnique(ctx context.Context, where Unique
 		}
 	}
 	allPreds := append([]PredicateOf[AllFieldsSoFar]{where}, additional...)
-	whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -2747,7 +2758,7 @@ func (d *AllFieldsSoFarDelegate) runFindUnique(ctx context.Context, where Unique
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.AllFieldsSoFar.queryOne(ctx, whereClause, vals, returningCols, nil)
+			res, err = txQ.AllFieldsSoFar.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 			if err != nil {
 				return err
 			}
@@ -2757,7 +2768,7 @@ func (d *AllFieldsSoFarDelegate) runFindUnique(ctx context.Context, where Unique
 			return txQ.AllFieldsSoFar.loadRelations(ctx, []*AllFieldsSoFar{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, nil)
+		res, err = d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 	}
 	if err != nil {
 		return nil, err
@@ -2778,10 +2789,26 @@ func (d *AllFieldsSoFarDelegate) runFindFirst(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, allFieldsSoFarPKCols, allFieldsSoFarUniqueCols, "AllFieldsSoFar", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, allFieldsSoFarPKCols, allFieldsSoFarUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectAllFieldsSoFarCols(selects, omits)
 
 	var res *AllFieldsSoFar
@@ -2789,7 +2816,7 @@ func (d *AllFieldsSoFarDelegate) runFindFirst(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.AllFieldsSoFar.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+			res, err = txQ.AllFieldsSoFar.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -2799,7 +2826,7 @@ func (d *AllFieldsSoFarDelegate) runFindFirst(
 			return txQ.AllFieldsSoFar.loadRelations(ctx, []*AllFieldsSoFar{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+		res, err = d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -2820,10 +2847,26 @@ func (d *AllFieldsSoFarDelegate) runFindMany(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, allFieldsSoFarPKCols, allFieldsSoFarUniqueCols, "AllFieldsSoFar", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, allFieldsSoFarPKCols, allFieldsSoFarUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectAllFieldsSoFarCols(selects, omits)
 
 	var results []*AllFieldsSoFar
@@ -2831,7 +2874,7 @@ func (d *AllFieldsSoFarDelegate) runFindMany(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			results, err = txQ.AllFieldsSoFar.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+			results, err = txQ.AllFieldsSoFar.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -2841,7 +2884,7 @@ func (d *AllFieldsSoFarDelegate) runFindMany(
 			return txQ.AllFieldsSoFar.loadRelations(ctx, results, selects)
 		})
 	} else {
-		results, err = d.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+		results, err = d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -2849,9 +2892,9 @@ func (d *AllFieldsSoFarDelegate) runFindMany(
 	return results, nil
 }
 
-func (d *AllFieldsSoFarDelegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*AllFieldsSoFar, error) {
+func (d *AllFieldsSoFarDelegate) queryOne(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, skip *int) (*AllFieldsSoFar, error) {
 	limitOne := 1
-	query := buildSelectSQL(d.client, "AllFieldsSoFar", returningCols, whereClause, &limitOne, skip)
+	query := buildSelectSQL(d.client, "AllFieldsSoFar", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2881,8 +2924,8 @@ func (d *AllFieldsSoFarDelegate) queryOne(ctx context.Context, whereClause strin
 	return &res, nil
 }
 
-func (d *AllFieldsSoFarDelegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*AllFieldsSoFar, error) {
-	query := buildSelectSQL(d.client, "AllFieldsSoFar", returningCols, whereClause, take, skip)
+func (d *AllFieldsSoFarDelegate) queryMany(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*AllFieldsSoFar, error) {
+	query := buildSelectSQL(d.client, "AllFieldsSoFar", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
@@ -2899,6 +2942,9 @@ func (d *AllFieldsSoFarDelegate) queryMany(ctx context.Context, whereClause stri
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if take != nil && *take < 0 {
+		reverseSlice(results)
 	}
 	return results, nil
 }
@@ -2939,7 +2985,7 @@ func (d *AllFieldsSoFarDelegate) runDeleteMany(ctx context.Context, preds []Pred
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, preds)
 
 	var sb strings.Builder
 	sb.WriteString("DELETE FROM ")
@@ -3021,7 +3067,7 @@ func (d *AllFieldsSoFarDelegate) runDelete(ctx context.Context, where UniquePred
 				},
 			})
 
-			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			whereClause, vals, _ := CompilePredicates(txQ.dialect, pkPreds)
 			deleteSb.WriteString(whereClause)
 
 			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
@@ -3041,7 +3087,7 @@ func (d *AllFieldsSoFarDelegate) runDelete(ctx context.Context, where UniquePred
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "AllFieldsSoFar")
 
-	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[AllFieldsSoFar]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[AllFieldsSoFar]{where})
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)
@@ -3111,7 +3157,7 @@ func (d *AllFieldsSoFarDelegate) runCount(ctx context.Context, params QueryParam
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}

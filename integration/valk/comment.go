@@ -90,6 +90,7 @@ type CommentQueryBuilder struct {
 	take    *int
 	skip    *int
 	orderBy []OrderBy[Comment]
+	cursor  UniquePredicate[Comment]
 }
 
 func (b *CommentQueryBuilder) Where(preds ...PredicateOf[Comment]) *CommentQueryBuilder {
@@ -112,6 +113,11 @@ func (b *CommentQueryBuilder) OrderBy(orders ...OrderBy[Comment]) *CommentQueryB
 	return b
 }
 
+func (b *CommentQueryBuilder) Cursor(where UniquePredicate[Comment]) *CommentQueryBuilder {
+	b.cursor = where
+	return b
+}
+
 func (b *CommentQueryBuilder) Select(s CommentSelect) *CommentQueryBuilder {
 	b.selects = &s
 	return b
@@ -131,6 +137,7 @@ func (b *CommentQueryBuilder) GetRelationParams() (*CommentSelect, *CommentOmit,
 		Take:    b.take,
 		Skip:    b.skip,
 		OrderBy: b.orderBy,
+		Cursor:  b.cursor,
 	}
 }
 
@@ -202,6 +209,10 @@ var commentDefaultCols = []string{
 }
 
 var commentPKCols = []string{
+	"id",
+}
+
+var commentUniqueCols = []string{
 	"id",
 }
 
@@ -1177,7 +1188,7 @@ func (d *CommentDelegate) runFindUnique(ctx context.Context, where UniquePredica
 		}
 	}
 	allPreds := append([]PredicateOf[Comment]{where}, additional...)
-	whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -1188,7 +1199,7 @@ func (d *CommentDelegate) runFindUnique(ctx context.Context, where UniquePredica
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.Comment.queryOne(ctx, whereClause, vals, returningCols, nil)
+			res, err = txQ.Comment.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 			if err != nil {
 				return err
 			}
@@ -1198,7 +1209,7 @@ func (d *CommentDelegate) runFindUnique(ctx context.Context, where UniquePredica
 			return txQ.Comment.loadRelations(ctx, []*Comment{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, nil)
+		res, err = d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 	}
 	if err != nil {
 		return nil, err
@@ -1219,10 +1230,26 @@ func (d *CommentDelegate) runFindFirst(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, commentPKCols, commentUniqueCols, "Comment", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, commentPKCols, commentUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectCommentCols(selects, omits)
 
 	var res *Comment
@@ -1230,7 +1257,7 @@ func (d *CommentDelegate) runFindFirst(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.Comment.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+			res, err = txQ.Comment.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -1240,7 +1267,7 @@ func (d *CommentDelegate) runFindFirst(
 			return txQ.Comment.loadRelations(ctx, []*Comment{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+		res, err = d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -1261,10 +1288,26 @@ func (d *CommentDelegate) runFindMany(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, commentPKCols, commentUniqueCols, "Comment", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, commentPKCols, commentUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectCommentCols(selects, omits)
 
 	var results []*Comment
@@ -1272,7 +1315,7 @@ func (d *CommentDelegate) runFindMany(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			results, err = txQ.Comment.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+			results, err = txQ.Comment.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -1282,7 +1325,7 @@ func (d *CommentDelegate) runFindMany(
 			return txQ.Comment.loadRelations(ctx, results, selects)
 		})
 	} else {
-		results, err = d.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+		results, err = d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -1290,9 +1333,9 @@ func (d *CommentDelegate) runFindMany(
 	return results, nil
 }
 
-func (d *CommentDelegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*Comment, error) {
+func (d *CommentDelegate) queryOne(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, skip *int) (*Comment, error) {
 	limitOne := 1
-	query := buildSelectSQL(d.client, "Comment", returningCols, whereClause, &limitOne, skip)
+	query := buildSelectSQL(d.client, "Comment", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1322,8 +1365,8 @@ func (d *CommentDelegate) queryOne(ctx context.Context, whereClause string, wher
 	return &res, nil
 }
 
-func (d *CommentDelegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*Comment, error) {
-	query := buildSelectSQL(d.client, "Comment", returningCols, whereClause, take, skip)
+func (d *CommentDelegate) queryMany(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*Comment, error) {
+	query := buildSelectSQL(d.client, "Comment", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
@@ -1340,6 +1383,9 @@ func (d *CommentDelegate) queryMany(ctx context.Context, whereClause string, whe
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if take != nil && *take < 0 {
+		reverseSlice(results)
 	}
 	return results, nil
 }
@@ -1380,7 +1426,7 @@ func (d *CommentDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, preds)
 
 	var sb strings.Builder
 	sb.WriteString("DELETE FROM ")
@@ -1462,7 +1508,7 @@ func (d *CommentDelegate) runDelete(ctx context.Context, where UniquePredicate[C
 				},
 			})
 
-			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			whereClause, vals, _ := CompilePredicates(txQ.dialect, pkPreds)
 			deleteSb.WriteString(whereClause)
 
 			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
@@ -1482,7 +1528,7 @@ func (d *CommentDelegate) runDelete(ctx context.Context, where UniquePredicate[C
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "Comment")
 
-	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[Comment]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[Comment]{where})
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)
@@ -1552,7 +1598,7 @@ func (d *CommentDelegate) runCount(ctx context.Context, params QueryParams[Comme
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}

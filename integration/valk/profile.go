@@ -68,6 +68,7 @@ type ProfileQueryBuilder struct {
 	take    *int
 	skip    *int
 	orderBy []OrderBy[Profile]
+	cursor  UniquePredicate[Profile]
 }
 
 func (b *ProfileQueryBuilder) Where(preds ...PredicateOf[Profile]) *ProfileQueryBuilder {
@@ -90,6 +91,11 @@ func (b *ProfileQueryBuilder) OrderBy(orders ...OrderBy[Profile]) *ProfileQueryB
 	return b
 }
 
+func (b *ProfileQueryBuilder) Cursor(where UniquePredicate[Profile]) *ProfileQueryBuilder {
+	b.cursor = where
+	return b
+}
+
 func (b *ProfileQueryBuilder) Select(s ProfileSelect) *ProfileQueryBuilder {
 	b.selects = &s
 	return b
@@ -109,6 +115,7 @@ func (b *ProfileQueryBuilder) GetRelationParams() (*ProfileSelect, *ProfileOmit,
 		Take:    b.take,
 		Skip:    b.skip,
 		OrderBy: b.orderBy,
+		Cursor:  b.cursor,
 	}
 }
 
@@ -169,6 +176,11 @@ var profileDefaultCols = []string{
 
 var profilePKCols = []string{
 	"id",
+}
+
+var profileUniqueCols = []string{
+	"id",
+	"userId",
 }
 
 func selectProfileCols(selects *ProfileSelect, omits *ProfileOmit, forceCols ...string) []string {
@@ -1050,7 +1062,7 @@ func (d *ProfileDelegate) runFindUnique(ctx context.Context, where UniquePredica
 		}
 	}
 	allPreds := append([]PredicateOf[Profile]{where}, additional...)
-	whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -1061,7 +1073,7 @@ func (d *ProfileDelegate) runFindUnique(ctx context.Context, where UniquePredica
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.Profile.queryOne(ctx, whereClause, vals, returningCols, nil)
+			res, err = txQ.Profile.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 			if err != nil {
 				return err
 			}
@@ -1071,7 +1083,7 @@ func (d *ProfileDelegate) runFindUnique(ctx context.Context, where UniquePredica
 			return txQ.Profile.loadRelations(ctx, []*Profile{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, nil)
+		res, err = d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 	}
 	if err != nil {
 		return nil, err
@@ -1092,10 +1104,26 @@ func (d *ProfileDelegate) runFindFirst(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, profilePKCols, profileUniqueCols, "Profile", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, profilePKCols, profileUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectProfileCols(selects, omits)
 
 	var res *Profile
@@ -1103,7 +1131,7 @@ func (d *ProfileDelegate) runFindFirst(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.Profile.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+			res, err = txQ.Profile.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -1113,7 +1141,7 @@ func (d *ProfileDelegate) runFindFirst(
 			return txQ.Profile.loadRelations(ctx, []*Profile{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+		res, err = d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -1134,10 +1162,26 @@ func (d *ProfileDelegate) runFindMany(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, profilePKCols, profileUniqueCols, "Profile", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, profilePKCols, profileUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectProfileCols(selects, omits)
 
 	var results []*Profile
@@ -1145,7 +1189,7 @@ func (d *ProfileDelegate) runFindMany(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			results, err = txQ.Profile.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+			results, err = txQ.Profile.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -1155,7 +1199,7 @@ func (d *ProfileDelegate) runFindMany(
 			return txQ.Profile.loadRelations(ctx, results, selects)
 		})
 	} else {
-		results, err = d.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+		results, err = d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -1163,9 +1207,9 @@ func (d *ProfileDelegate) runFindMany(
 	return results, nil
 }
 
-func (d *ProfileDelegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*Profile, error) {
+func (d *ProfileDelegate) queryOne(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, skip *int) (*Profile, error) {
 	limitOne := 1
-	query := buildSelectSQL(d.client, "Profile", returningCols, whereClause, &limitOne, skip)
+	query := buildSelectSQL(d.client, "Profile", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1195,8 +1239,8 @@ func (d *ProfileDelegate) queryOne(ctx context.Context, whereClause string, wher
 	return &res, nil
 }
 
-func (d *ProfileDelegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*Profile, error) {
-	query := buildSelectSQL(d.client, "Profile", returningCols, whereClause, take, skip)
+func (d *ProfileDelegate) queryMany(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*Profile, error) {
+	query := buildSelectSQL(d.client, "Profile", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
@@ -1213,6 +1257,9 @@ func (d *ProfileDelegate) queryMany(ctx context.Context, whereClause string, whe
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if take != nil && *take < 0 {
+		reverseSlice(results)
 	}
 	return results, nil
 }
@@ -1253,7 +1300,7 @@ func (d *ProfileDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, preds)
 
 	var sb strings.Builder
 	sb.WriteString("DELETE FROM ")
@@ -1335,7 +1382,7 @@ func (d *ProfileDelegate) runDelete(ctx context.Context, where UniquePredicate[P
 				},
 			})
 
-			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			whereClause, vals, _ := CompilePredicates(txQ.dialect, pkPreds)
 			deleteSb.WriteString(whereClause)
 
 			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
@@ -1355,7 +1402,7 @@ func (d *ProfileDelegate) runDelete(ctx context.Context, where UniquePredicate[P
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "Profile")
 
-	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[Profile]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[Profile]{where})
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)
@@ -1425,7 +1472,7 @@ func (d *ProfileDelegate) runCount(ctx context.Context, params QueryParams[Profi
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}

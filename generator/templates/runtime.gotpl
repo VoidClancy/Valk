@@ -325,6 +325,7 @@ type QueryParams[M any] struct {
 	Take    *int
 	Skip    *int
 	OrderBy []OrderBy[M]
+	Cursor  UniquePredicate[M]
 }
 
 func computeNonConflictCols(allCols []string, conflictCols []string, pkCols []string) []string {

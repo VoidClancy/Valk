@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"integration/valk"
 	"integration/valk/post"
-	"integration/valk/profile"
 	"integration/valk/user"
 	"os"
 
@@ -149,109 +148,107 @@ func main() {
 			return usr, nil
 		},
 	})
-	user1, err := db.User.Create().SetEmail("a").SetPhoneNum("11").Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to seed users: %v", err)
-	}
-	user2, err := db.User.Create().SetEmail("a").SetPhoneNum("11").OnConflict(user.EmailPhone).Ignore().Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to seed users: %v", err)
-	}
-	fmt.Println("USER1:")
-	printJSON(user1)
-	fmt.Println("USER2:")
-	printJSON(user2)
-	db.User.Create().SetEmail("xxxc").SetPhoneNum("6969").SetId("Bleh").Exec(ctx)
-	deletedCnt, err := db.User.DeleteMany(user.Id.EQ("Bleh"), user.Password.Contains("xx")).Exec(ctx)
-	fmt.Printf("DELETED %d USERS \n", deletedCnt)
+	// user1, err := db.User.Create().SetEmail("a").SetPhoneNum("11").Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to seed users: %v", err)
+	// }
+	// user2, err := db.User.Create().SetEmail("a").SetPhoneNum("11").OnConflict(user.EmailPhone).Ignore().Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to seed users: %v", err)
+	// }
+	// fmt.Println("USER1:")
+	// printJSON(user1)
+	// fmt.Println("USER2:")
+	// printJSON(user2)
+	// db.User.Create().SetEmail("xxxc").SetPhoneNum("6969").SetId("Bleh").Exec(ctx)
+	// deletedCnt, err := db.User.DeleteMany(user.Id.EQ("Bleh"), user.Password.Contains("xx")).Exec(ctx)
+	// fmt.Printf("DELETED %d USERS \n", deletedCnt)
 
-	usersCnt, err := db.User.Count(
-		user.Id.Contains("x"),
-		user.Or(
-			user.Password.Contains("y"),
-			user.Email.NEQ("c"),
-		)).
-		Exec(ctx)
-	fmt.Printf("COUNT %d USERS \n", usersCnt)
+	// usersCnt, err := db.User.Count(
+	// 	user.Id.Contains("x"),
+	// 	user.Or(
+	// 		user.Password.Contains("y"),
+	// 		user.Email.NEQ("c"),
+	// 	)).
+	// 	Exec(ctx)
+	// fmt.Printf("COUNT %d USERS \n", usersCnt)
 
-	// --- DELETE SCENARIO 1: Simple Delete (No Select -> Returns All Scalar Fields) ---
-	delUser1, err := db.User.Create().
-		SetEmail("del1@example.com").
-		SetPhoneNum("+10001").
-		Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create user 1: %v", err)
-	}
-	deleted1, err := db.User.Delete(user.Id.EQ(delUser1.Id)).Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to delete user 1: %v", err)
-	}
-	fmt.Println("DELETE SCENARIO 1 (Simple Delete - All Scalars):")
-	printJSON(deleted1)
+	// // --- DELETE SCENARIO 1: Simple Delete (No Select -> Returns All Scalar Fields) ---
+	// delUser1, err := db.User.Create().
+	// 	SetEmail("del1@example.com").
+	// 	SetPhoneNum("+10001").
+	// 	Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to create user 1: %v", err)
+	// }
+	// deleted1, err := db.User.Delete(user.Id.EQ(delUser1.Id)).Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to delete user 1: %v", err)
+	// }
+	// fmt.Println("DELETE SCENARIO 1 (Simple Delete - All Scalars):")
+	// printJSON(deleted1)
 
-	// --- DELETE SCENARIO 2: Delete with Scalar Field Selection ---
-	delUser2, err := db.User.Create().
-		SetEmail("del2@example.com").
-		SetPhoneNum("+10002").
-		Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create user 2: %v", err)
-	}
+	// // --- DELETE SCENARIO 2: Delete with Scalar Field Selection ---
+	// delUser2, err := db.User.Create().
+	// 	SetEmail("del2@example.com").
+	// 	SetPhoneNum("+10002").
+	// 	Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to create user 2: %v", err)
+	// }
 
-	deleted2, err := db.User.Delete(user.Id.EQ(delUser2.Id)).
-		Select(valk.UserSelect{
-			Email: true,
-			Role:  true,
-		}).
-		Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to delete user 2: %v", err)
-	}
-	fmt.Println("DELETE SCENARIO 2 (Scalar Field Selection):")
-	printJSON(deleted2)
+	// deleted2, err := db.User.Delete(user.Id.EQ(delUser2.Id)).
+	// 	Select(valk.UserSelect{
+	// 		Email: true,
+	// 		Role:  true,
+	// 	}).
+	// 	Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to delete user 2: %v", err)
+	// }
+	// fmt.Println("DELETE SCENARIO 2 (Scalar Field Selection):")
+	// printJSON(deleted2)
 
-	// --- DELETE SCENARIO 3: Delete with Nested Relations Selection ---
-	delUser3, err := db.User.Create().
-		SetEmail("del3@example.com").
-		SetPhoneNum("+10003").
-		Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create user 3: %v", err)
-	}
+	// // --- DELETE SCENARIO 3: Delete with Nested Relations Selection ---
+	// delUser3, err := db.User.Create().
+	// 	SetEmail("del3@example.com").
+	// 	SetPhoneNum("+10003").
+	// 	Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to create user 3: %v", err)
+	// }
 
-	_, err = db.Profile.Create().
-		SetBio("Bio of del3").
-		SetUserId(delUser3.Id).
-		Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create profile for user 3: %v", err)
-	}
+	// _, err = db.Profile.Create().
+	// 	SetBio("Bio of del3").
+	// 	SetUserId(delUser3.Id).
+	// 	Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to create profile for user 3: %v", err)
+	// }
 
-	_, err = db.Post.Create().
-		SetTitle("First Post of del3").
-		SetAuthorId(delUser3.Id).
-		Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to create post for user 3: %v", err)
-	}
+	// _, err = db.Post.Create().
+	// 	SetTitle("First Post of del3").
+	// 	SetAuthorId(delUser3.Id).
+	// 	Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to create post for user 3: %v", err)
+	// }
 
-	deleted3, err := db.User.Delete(user.Id.EQ(delUser3.Id)).
-		Select(valk.UserSelect{
-			Email: true,
-			Profile: &profile.Select{
-				Bio: true,
-			},
-			Posts: post.Query().Select(post.Select{
-				Title: true,
-			}),
-		}).
-		Exec(ctx)
-	if err != nil {
-		log.Fatalf("failed to delete user 3: %v", err)
-	}
-	fmt.Println("DELETE SCENARIO 3 (Nested Relations Selection):")
-	printJSON(deleted3)
-
+	// deleted3, err := db.User.Delete(user.Id.EQ(delUser3.Id)).
+	// 	Select(valk.UserSelect{
+	// 		Email: true,
+	// 		Profile: &profile.Select{
+	// 			Bio: true,
+	// 		},
+	// 		Posts: post.Query().Select(post.Select{
+	// 			Title: true,
+	// 		}),
+	// 	}).
+	// 	Exec(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to delete user 3: %v", err)
+	// }
+	runPaginationExamples(db, ctx)
 }
 
 // func seed(db *valk.DB, ctx context.Context) *SeedData {
@@ -534,4 +531,199 @@ func runBlockBasedTransaction(db *valk.DB, ctx context.Context) {
 func printJSON(v any) {
 	b, _ := json.MarshalIndent(v, "", "  ")
 	fmt.Println(string(b))
+}
+
+func runPaginationExamples(db *valk.DB, ctx context.Context) {
+	fmt.Println("=================== PAGINATION & ORDERBY EXAMPLES ===================")
+
+	// Seed 4 test users for pagination
+	u1, err := db.User.Create(user.Email.Set("pag_alpha@example.com"), user.PhoneNum.Set("+101"), user.LoginCount.Set(50)).Exec(ctx)
+	if err != nil {
+		log.Printf("Pagination Seed u1 failed: %v", err)
+		return
+	}
+	defer db.User.Delete(user.Id.EQ(u1.Id)).Exec(ctx)
+
+	u2, err := db.User.Create(user.Email.Set("pag_bravo@example.com"), user.PhoneNum.Set("+102"), user.LoginCount.Set(20)).Exec(ctx)
+	if err != nil {
+		log.Printf("Pagination Seed u2 failed: %v", err)
+		return
+	}
+	defer db.User.Delete(user.Id.EQ(u2.Id)).Exec(ctx)
+
+	u3, err := db.User.Create(user.Email.Set("pag_charlie@example.com"), user.PhoneNum.Set("+103"), user.LoginCount.Set(50)).Exec(ctx)
+	if err != nil {
+		log.Printf("Pagination Seed u3 failed: %v", err)
+		return
+	}
+	defer db.User.Delete(user.Id.EQ(u3.Id)).Exec(ctx)
+
+	u4, err := db.User.Create(user.Email.Set("pag_delta@example.com"), user.PhoneNum.Set("+104"), user.LoginCount.Set(10)).Exec(ctx)
+	if err != nil {
+		log.Printf("Pagination Seed u4 failed: %v", err)
+		return
+	}
+	defer db.User.Delete(user.Id.EQ(u4.Id)).Exec(ctx)
+
+	// -------------------------------------------------------------------------
+	// SCENARIO 0: No Sorting at all
+	// -------------------------------------------------------------------------
+	fmt.Println("\n--- SCENARIO 0: No Sorting ---")
+	_, err = db.User.FindMany(
+		valk.Or(
+			user.Email.EQ("pag_alpha@example.com"),
+			user.Email.EQ("pag_bravo@example.com"),
+			user.Email.EQ("pag_charlie@example.com"),
+			user.Email.EQ("pag_delta@example.com"),
+		),
+	).Exec(ctx)
+	if err != nil {
+		log.Printf("OrderBy Asc failed: %v", err)
+		return
+	}
+	// printJSON()
+
+	// -------------------------------------------------------------------------
+	// SCENARIO 1: Simple Sorting with Single OrderBy (Ascending / Descending)
+	// -------------------------------------------------------------------------
+	fmt.Println("\n--- SCENARIO 1: OrderBy Email ASC ---")
+	_, err = db.User.FindMany(
+		valk.Or(
+			user.Email.EQ("pag_alpha@example.com"),
+			user.Email.EQ("pag_bravo@example.com"),
+			user.Email.EQ("pag_charlie@example.com"),
+			user.Email.EQ("pag_delta@example.com"),
+		),
+	).OrderBy(user.Email.Asc()).Exec(ctx)
+	if err != nil {
+		log.Printf("OrderBy Asc failed: %v", err)
+		return
+	}
+	// printJSON(ascUsers)
+
+	// -------------------------------------------------------------------------
+	// SCENARIO 2: Multi-Field Sorting (LoginCount DESC, then Email ASC)
+	// Notice: u1 and u3 both have LoginCount = 50, so Email ASC breaks the tie!
+	// -------------------------------------------------------------------------
+	fmt.Println("\n--- SCENARIO 2: Multi-Field OrderBy (LoginCount DESC, Email ASC) ---")
+	_, err = db.User.FindMany(
+		valk.Or(
+			user.Email.EQ("pag_alpha@example.com"),
+			user.Email.EQ("pag_bravo@example.com"),
+			user.Email.EQ("pag_charlie@example.com"),
+			user.Email.EQ("pag_delta@example.com"),
+		),
+	).OrderBy(user.LoginCount.Desc(), user.Email.Asc()).Exec(ctx)
+	if err != nil {
+		log.Printf("Multi-field OrderBy failed: %v", err)
+		return
+	}
+	// printJSON(multiOrderUsers)
+
+	// -------------------------------------------------------------------------
+	// SCENARIO 3: Cursor-Based Pagination (Page 1 -> Page 2)
+	// -------------------------------------------------------------------------
+	fmt.Println("\n--- SCENARIO 3A: Cursor Pagination - Page 1 (Take 2, OrderBy Email ASC) ---")
+	page1, err := db.User.FindMany(
+		valk.Or(
+			user.Email.EQ("pag_alpha@example.com"),
+			user.Email.EQ("pag_bravo@example.com"),
+			user.Email.EQ("pag_charlie@example.com"),
+			user.Email.EQ("pag_delta@example.com"),
+		),
+	).OrderBy(user.Email.Asc()).Take(2).Exec(ctx)
+	if err != nil {
+		log.Printf("Cursor Page 1 failed: %v", err)
+		return
+	}
+	// printJSON(page1)
+
+	if len(page1) > 0 {
+		lastSeen := page1[len(page1)-1]
+		fmt.Printf("\n--- SCENARIO 3B: Cursor Pagination - Page 2 (Cursor after %s) ---\n", lastSeen.Email)
+		_, err = db.User.FindMany(
+			valk.Or(
+				user.Email.EQ("pag_alpha@example.com"),
+				user.Email.EQ("pag_bravo@example.com"),
+				user.Email.EQ("pag_charlie@example.com"),
+				user.Email.EQ("pag_delta@example.com"),
+			),
+		).OrderBy(user.Email.Asc()).Cursor(user.Email.EQ(lastSeen.Email)).Take(2).Exec(ctx)
+		if err != nil {
+			log.Printf("Cursor Page 2 failed: %v", err)
+			return
+		}
+		// printJSON(page2)
+	}
+
+	// -------------------------------------------------------------------------
+	// SCENARIO 4: Cursor Pagination with Multi-Column Sorting & Filtering
+	// -------------------------------------------------------------------------
+	fmt.Println("\n--- SCENARIO 4: Filter + Multi-Sort + Cursor (LoginCount >= 20, OrderBy LoginCount DESC, Email ASC) ---")
+	_, err = db.User.FindMany(
+		user.LoginCount.GTE(20),
+		valk.Or(
+			user.Email.EQ("pag_alpha@example.com"),
+			user.Email.EQ("pag_bravo@example.com"),
+			user.Email.EQ("pag_charlie@example.com"),
+		),
+	).
+		OrderBy(user.LoginCount.Desc(), user.Email.Asc()).
+		Cursor(user.Email.EQ("pag_alpha@example.com")).
+		Take(2).
+		Exec(ctx)
+	if err != nil {
+		log.Printf("Scenario 4 failed: %v", err)
+		return
+	}
+	// printJSON(filteredCursor)
+
+	// -------------------------------------------------------------------------
+	// SCENARIO 5: Relation Sub-Queries with OrderBy & Take (1-to-Many relation)
+	// -------------------------------------------------------------------------
+	fmt.Println("\n--- SCENARIO 5: Relation Selection with Sub-Query OrderBy & Take ---")
+	post1, _ := db.Post.Create(post.Title.Set("Zebra Post"), post.AuthorId.Set(u1.Id)).Exec(ctx)
+	defer db.Post.Delete(post.Id.EQ(post1.Id)).Exec(ctx)
+
+	post2, _ := db.Post.Create(post.Title.Set("Apple Post"), post.AuthorId.Set(u1.Id)).Exec(ctx)
+	defer db.Post.Delete(post.Id.EQ(post2.Id)).Exec(ctx)
+
+	_, err = db.User.FindUnique(user.Id.EQ(u1.Id)).Select(valk.UserSelect{
+		Email: true,
+		Posts: post.Query().
+			OrderBy(post.Title.Asc()).
+			Take(5).
+			Select(post.Select{
+				Id:    true,
+				Title: true,
+			}),
+	}).Exec(ctx)
+	if err != nil {
+		log.Printf("Scenario 5 failed: %v", err)
+		return
+	}
+	// printJSON(userWithSortedPosts)
+
+	// -------------------------------------------------------------------------
+	// SCENARIO 6: Non-Unique OrderBy + Cursor (Triggers Auto-Appended PK Tiebreaker)
+	// LoginCount is non-unique (u1 and u3 both have LoginCount = 50).
+	// Valkyrie automatically appends "id" ASC to both subquery tuple and ORDER BY!
+	// -------------------------------------------------------------------------
+	fmt.Println("\n--- SCENARIO 6: Non-Unique OrderBy + Cursor (Auto-Appends PK 'id' Tiebreaker) ---")
+	_, err = db.User.FindMany(
+		valk.Or(
+			user.Email.EQ("pag_alpha@example.com"),
+			user.Email.EQ("pag_bravo@example.com"),
+			user.Email.EQ("pag_charlie@example.com"),
+			user.Email.EQ("pag_delta@example.com"),
+		),
+	).
+		OrderBy(user.LoginCount.Desc()).
+		Cursor(user.Email.EQ("pag_alpha@example.com")).
+		Take(2).
+		Exec(ctx)
+	if err != nil {
+		log.Printf("Scenario 6 failed: %v", err)
+		return
+	}
 }
