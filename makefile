@@ -1,4 +1,4 @@
-.PHONY:  build build-prod run test install db-up db-down db-clean bi fmt fmt-check tidy tidy-check vulncheck vet integration-gen integration-test bench bench-sqlite bench-pg bench-all race lint test-sqlite test-pg test-dbs ci-local
+.PHONY:  build build-prod run test coverage cover-html install db-up db-down db-clean bi fmt fmt-check tidy tidy-check vulncheck vet integration-gen integration-test bench bench-sqlite bench-pg bench-all race lint test-sqlite test-pg test-dbs ci-local
 
 bi: build install
 
@@ -6,6 +6,13 @@ e2e: test integration-test
 
 race:
 	go test -race ./... && cd integration && go test -race ./...
+
+coverage:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out
+
+cover-html: coverage
+	go tool cover -html=coverage.out -o coverage.html
 
 bench:
 	cd benchmark && make bench && cd ..
