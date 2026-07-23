@@ -7,3 +7,7 @@ docker-compose.yml
 api-example.gotpl
 *.bak
 schema.prisma.backup
+
+coverage.out
+coverage.html
+*.out

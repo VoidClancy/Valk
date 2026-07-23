@@ -1,8 +1,9 @@
 name: Benchmark
 on:
   push:
-    branches: [main]
+    branches: [ "main", "master" ]
   pull_request:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 concurrency:
@@ -15,31 +16,13 @@ env:
   TIMEOUT: 10m
 
 jobs:
-  sqlite:
+  benchmark:
+    name: Benchmark (${{ matrix.db }})
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: benchmark/go.mod
-          cache-dependency-path: benchmark/go.sum
-      - run: |
-          go build -o bin/valk
-          cd benchmark
-          node prepareSchema.js sqlite
-          rm -rf valk/migrations/*.sql
-          rm -f dev.db
-          DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/valk migrate init
-          ../bin/valk generate
-          go generate ./ent
-          go run ./cmd/benchsummary -count=${{ env.COUNT }} -benchtime=${{ env.BENCHTIME }} -timeout=${{ env.TIMEOUT }} | tee ../bench-sqlite.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: bench-sqlite-${{ github.sha }}
-          path: bench-sqlite.txt
-
-  postgres:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, postgres]
     services:
       postgres:
         image: postgres:16
@@ -62,19 +45,29 @@ jobs:
         with:
           go-version-file: benchmark/go.mod
           cache-dependency-path: benchmark/go.sum
-      - run: |
-          go build -o bin/valk
+
+      - name: Build Valkyrie CLI
+        run: go build -o bin/valk
+
+      - name: Run Benchmark (${{ matrix.db }})
+        run: |
           cd benchmark
-          node prepareSchema.js postgres
+          node prepareSchema.js ${{ matrix.db }}
           rm -rf valk/migrations/*.sql
-          DATABASE_URL="postgres://postgres:postgres@localhost:5432/bench?sslmode=disable" DATABASE_DIRECT_URL="postgres://postgres:postgres@localhost:5432/bench?sslmode=disable" ../bin/valk migrate init
+          rm -f dev.db
+          if [ "${{ matrix.db }}" = "sqlite" ]; then
+            DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/valk migrate init
+          else
+            DATABASE_URL="postgres://postgres:postgres@localhost:5432/bench?sslmode=disable" DATABASE_DIRECT_URL="postgres://postgres:postgres@localhost:5432/bench?sslmode=disable" ../bin/valk migrate init
+          fi
           ../bin/valk generate
           go generate ./ent
-          go run ./cmd/benchsummary -count=${{ env.COUNT }} -benchtime=${{ env.BENCHTIME }} -timeout=${{ env.TIMEOUT }} | tee ../bench-postgres.txt
+          BENCH_DB=${{ matrix.db }} go run ./cmd/benchsummary -count=${{ env.COUNT }} -benchtime=${{ env.BENCHTIME }} -timeout=${{ env.TIMEOUT }} | tee ../bench-${{ matrix.db }}.txt
         env:
-          BENCH_DB: postgres
+          BENCH_DB: ${{ matrix.db }}
           PG_DATABASE_URL: postgres://postgres:postgres@localhost:5432/bench?sslmode=disable
+
       - uses: actions/upload-artifact@v4
         with:
-          name: bench-postgres-${{ github.sha }}
-          path: bench-postgres.txt
+          name: bench-${{ matrix.db }}-${{ github.sha }}
+          path: bench-${{ matrix.db }}.txt
