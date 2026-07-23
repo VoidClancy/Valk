@@ -315,11 +315,17 @@ func (b *UserCreateBuilder) SetReferredById(v string) *UserCreateBuilder {
 	return b
 }
 
-func (d *UserDelegate) Create(assignments ...FieldAssignment) *UserCreateBuilder {
+func (b *UserCreateBuilder) Assignments(assignments ...FieldAssignmentOf[User]) *UserCreateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *UserDelegate) Create() *UserCreateBuilder {
 	return &UserCreateBuilder{
 		CreateBuilder: &CreateBuilder[User, UserSelect, UserOmit]{
-			assignments: assignments,
-			execFunc:    d.executeCreate,
+			execFunc: d.executeCreate,
 		},
 	}
 }

@@ -218,11 +218,17 @@ func (b *CategoryToPostCreateBuilder) SetCategoryId(v int32) *CategoryToPostCrea
 	return b
 }
 
-func (d *CategoryToPostDelegate) Create(assignments ...FieldAssignment) *CategoryToPostCreateBuilder {
+func (b *CategoryToPostCreateBuilder) Assignments(assignments ...FieldAssignmentOf[CategoryToPost]) *CategoryToPostCreateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *CategoryToPostDelegate) Create() *CategoryToPostCreateBuilder {
 	return &CategoryToPostCreateBuilder{
 		CreateBuilder: &CreateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
-			assignments: assignments,
-			execFunc:    d.executeCreate,
+			execFunc: d.executeCreate,
 		},
 	}
 }

@@ -18,8 +18,12 @@ func Query() *QueryBuilder {
 	return &QueryBuilder{}
 }
 
-func Record(assignments ...valk.FieldAssignment) valk.RecordInput {
-	return valk.RecordInput{Assignments: assignments}
+func Record(assignments ...valk.FieldAssignmentOf[valk.AllFieldsSoFar]) valk.RecordInput {
+	raw := make([]valk.FieldAssignment, len(assignments))
+	for i, a := range assignments {
+		raw[i] = valk.FieldAssignment{Col: a.Col, Val: a.Val}
+	}
+	return valk.RecordInput{Assignments: raw}
 }
 
 func And(preds ...valk.PredicateOf[valk.AllFieldsSoFar]) valk.PredicateOf[valk.AllFieldsSoFar] {

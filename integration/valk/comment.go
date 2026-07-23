@@ -300,11 +300,17 @@ func (b *CommentCreateBuilder) SetMeta(v json.RawMessage) *CommentCreateBuilder 
 	return b
 }
 
-func (d *CommentDelegate) Create(assignments ...FieldAssignment) *CommentCreateBuilder {
+func (b *CommentCreateBuilder) Assignments(assignments ...FieldAssignmentOf[Comment]) *CommentCreateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *CommentDelegate) Create() *CommentCreateBuilder {
 	return &CommentCreateBuilder{
 		CreateBuilder: &CreateBuilder[Comment, CommentSelect, CommentOmit]{
-			assignments: assignments,
-			execFunc:    d.executeCreate,
+			execFunc: d.executeCreate,
 		},
 	}
 }
