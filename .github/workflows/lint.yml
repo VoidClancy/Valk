@@ -24,18 +24,13 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
-      - name: Download Go modules
-        run: |
-          go mod download
-          cd integration && go mod download
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
       - name: Run golangci-lint (root)
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.58.0
+        run: $(go env GOPATH)/bin/golangci-lint run ./...
 
       - name: Run golangci-lint (integration)
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.58.0
-          working-directory: integration
+        run: |
+          cd integration
+          $(go env GOPATH)/bin/golangci-lint run ./...
