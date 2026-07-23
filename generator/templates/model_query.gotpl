@@ -111,25 +111,14 @@ func (d *{{ .Model.Name }}Delegate) runFindUnique(ctx context.Context, where Uni
 	}
 	returningCols := select{{ .Model.Name }}Cols(selects, omits)
 
-	var res *{{ .Model.Name }}
-	var err error
-	if selects.hasAnyRelation() {
-		err = d.client.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = txQ.{{ .Model.Name }}.queryOne(ctx, whereClause, "", vals, returningCols, nil)
-			if err != nil {
-				return err
-			}
-			if res == nil {
-				return nil
-			}
-			return txQ.{{ .Model.Name }}.loadRelations(ctx, []*{{ .Model.Name }}{res}, selects)
-		})
-	} else {
-		res, err = d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
+	res, err := d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
+	if err != nil || res == nil {
+		return res, err
 	}
-	if err != nil {
-		return nil, err
+	if selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*{{ .Model.Name }}{res}, selects); err != nil {
+			return nil, err
+		}
 	}
 	return res, nil
 }
@@ -169,25 +158,14 @@ func (d *{{ .Model.Name }}Delegate) runFindFirst(
 	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, {{ lowercase .Model.Name }}PKCols, {{ lowercase .Model.Name }}UniqueCols, isCursorQuery, params.Take)
 	returningCols := select{{ .Model.Name }}Cols(selects, omits)
 
-	var res *{{ .Model.Name }}
-	var err error
-	if selects.hasAnyRelation() {
-		err = d.client.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = txQ.{{ .Model.Name }}.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
-			if err != nil {
-				return err
-			}
-			if res == nil {
-				return nil
-			}
-			return txQ.{{ .Model.Name }}.loadRelations(ctx, []*{{ .Model.Name }}{res}, selects)
-		})
-	} else {
-		res, err = d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
+	res, err := d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
+	if err != nil || res == nil {
+		return res, err
 	}
-	if err != nil {
-		return nil, err
+	if selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*{{ .Model.Name }}{res}, selects); err != nil {
+			return nil, err
+		}
 	}
 	return res, nil
 }
@@ -227,25 +205,14 @@ func (d *{{ .Model.Name }}Delegate) runFindMany(
 	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, {{ lowercase .Model.Name }}PKCols, {{ lowercase .Model.Name }}UniqueCols, isCursorQuery, params.Take)
 	returningCols := select{{ .Model.Name }}Cols(selects, omits)
 
-	var results []*{{ .Model.Name }}
-	var err error
-	if selects.hasAnyRelation() {
-		err = d.client.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			results, err = txQ.{{ .Model.Name }}.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
-			if err != nil {
-				return err
-			}
-			if len(results) == 0 {
-				return nil
-			}
-			return txQ.{{ .Model.Name }}.loadRelations(ctx, results, selects)
-		})
-	} else {
-		results, err = d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
+	results, err := d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
+	if err != nil || len(results) == 0 {
+		return results, err
 	}
-	if err != nil {
-		return nil, err
+	if selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, results, selects); err != nil {
+			return nil, err
+		}
 	}
 	return results, nil
 }

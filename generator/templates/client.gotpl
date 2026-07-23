@@ -56,10 +56,11 @@ func newDialect() Dialect {
 
 type Queries struct {
 	db        DBTX
+	baseDB    DBTX
 	provider  string
 	dialect   Dialect
 	stmtCache map[string]*sql.Stmt
-	mu        sync.RWMutex
+	mu        *sync.RWMutex
 	{{- range $model := .Schema.Models }}
 	// {{ $model.Name }} provides CRUD operations for {{ $model.Name }}.
 	//
@@ -93,9 +94,11 @@ func Open(provider, dataSourceName string) (*DB, error) {
 
 	q := &Queries{
 		db:        sqlDB,
+		baseDB:    sqlDB,
 		provider:  provider,
 		dialect:   newDialect(),
 		stmtCache: make(map[string]*sql.Stmt),
+		mu:        &sync.RWMutex{},
 		{{- range $enum := .Schema.Enums }}
 		{{ $enum.Name }}: {{ $enum.Name }},
 		{{- end }}
@@ -194,20 +197,33 @@ func (q *Queries) bindVars(count int) string {
 
 func (q *Queries) prepare(ctx context.Context, query string) (*sql.Stmt, error) {
 	q.mu.RLock()
-	if stmt, ok := q.stmtCache[query]; ok {
-		q.mu.RUnlock()
-		return stmt, nil
-	}
+	stmt, ok := q.stmtCache[query]
 	q.mu.RUnlock()
 
-	stmt, err := q.db.PrepareContext(ctx, query)
-	if err != nil {
-		return nil, err
+	if !ok {
+		var prepDB DBTX = q.db
+		if q.baseDB != nil {
+			prepDB = q.baseDB
+		}
+		var err error
+		stmt, err = prepDB.PrepareContext(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+
+		q.mu.Lock()
+		if existing, found := q.stmtCache[query]; found {
+			stmt.Close()
+			stmt = existing
+		} else {
+			q.stmtCache[query] = stmt
+		}
+		q.mu.Unlock()
 	}
 
-	q.mu.Lock()
-	q.stmtCache[query] = stmt
-	q.mu.Unlock()
+	if tx, ok := q.db.(*sql.Tx); ok {
+		return tx.StmtContext(ctx, stmt), nil
+	}
 	return stmt, nil
 }
 
@@ -284,9 +300,11 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 
 	txQueries := &Queries{
 		db:        tx,
+		baseDB:    q.baseDB,
 		provider:  q.provider,
 		dialect:   q.dialect,
-		stmtCache: make(map[string]*sql.Stmt),
+		stmtCache: q.stmtCache,
+		mu:        q.mu,
 		{{- range $enum := .Schema.Enums }}
 		{{ $enum.Name }}: q.{{ $enum.Name }},
 		{{- end }}
