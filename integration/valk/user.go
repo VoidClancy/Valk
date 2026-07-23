@@ -1229,25 +1229,14 @@ func (d *UserDelegate) runFindUnique(ctx context.Context, where UniquePredicate[
 	}
 	returningCols := selectUserCols(selects, omits)
 
-	var res *User
-	var err error
-	if selects.hasAnyRelation() {
-		err = d.client.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = txQ.User.queryOne(ctx, whereClause, "", vals, returningCols, nil)
-			if err != nil {
-				return err
-			}
-			if res == nil {
-				return nil
-			}
-			return txQ.User.loadRelations(ctx, []*User{res}, selects)
-		})
-	} else {
-		res, err = d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
+	res, err := d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
+	if err != nil || res == nil {
+		return res, err
 	}
-	if err != nil {
-		return nil, err
+	if selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*User{res}, selects); err != nil {
+			return nil, err
+		}
 	}
 	return res, nil
 }
@@ -1287,25 +1276,14 @@ func (d *UserDelegate) runFindFirst(
 	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, userPKCols, userUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectUserCols(selects, omits)
 
-	var res *User
-	var err error
-	if selects.hasAnyRelation() {
-		err = d.client.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = txQ.User.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
-			if err != nil {
-				return err
-			}
-			if res == nil {
-				return nil
-			}
-			return txQ.User.loadRelations(ctx, []*User{res}, selects)
-		})
-	} else {
-		res, err = d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
+	res, err := d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
+	if err != nil || res == nil {
+		return res, err
 	}
-	if err != nil {
-		return nil, err
+	if selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*User{res}, selects); err != nil {
+			return nil, err
+		}
 	}
 	return res, nil
 }
@@ -1345,25 +1323,14 @@ func (d *UserDelegate) runFindMany(
 	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, userPKCols, userUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectUserCols(selects, omits)
 
-	var results []*User
-	var err error
-	if selects.hasAnyRelation() {
-		err = d.client.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			results, err = txQ.User.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
-			if err != nil {
-				return err
-			}
-			if len(results) == 0 {
-				return nil
-			}
-			return txQ.User.loadRelations(ctx, results, selects)
-		})
-	} else {
-		results, err = d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
+	results, err := d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
+	if err != nil || len(results) == 0 {
+		return results, err
 	}
-	if err != nil {
-		return nil, err
+	if selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, results, selects); err != nil {
+			return nil, err
+		}
 	}
 	return results, nil
 }

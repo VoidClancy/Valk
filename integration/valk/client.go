@@ -566,10 +566,11 @@ func newDialect() Dialect {
 
 type Queries struct {
 	db        DBTX
+	baseDB    DBTX
 	provider  string
 	dialect   Dialect
 	stmtCache map[string]*sql.Stmt
-	mu        sync.RWMutex
+	mu        *sync.RWMutex
 	// User provides CRUD operations for User.
 	//
 	//   id           string   default: cuid()
@@ -702,9 +703,11 @@ func Open(provider, dataSourceName string) (*DB, error) {
 
 	q := &Queries{
 		db:        sqlDB,
+		baseDB:    sqlDB,
 		provider:  provider,
 		dialect:   newDialect(),
 		stmtCache: make(map[string]*sql.Stmt),
+		mu:        &sync.RWMutex{},
 		UserRole:  UserRole,
 	}
 	q.initDelegates()
@@ -785,20 +788,33 @@ func (q *Queries) bindVars(count int) string {
 
 func (q *Queries) prepare(ctx context.Context, query string) (*sql.Stmt, error) {
 	q.mu.RLock()
-	if stmt, ok := q.stmtCache[query]; ok {
-		q.mu.RUnlock()
-		return stmt, nil
-	}
+	stmt, ok := q.stmtCache[query]
 	q.mu.RUnlock()
 
-	stmt, err := q.db.PrepareContext(ctx, query)
-	if err != nil {
-		return nil, err
+	if !ok {
+		var prepDB DBTX = q.db
+		if q.baseDB != nil {
+			prepDB = q.baseDB
+		}
+		var err error
+		stmt, err = prepDB.PrepareContext(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+
+		q.mu.Lock()
+		if existing, found := q.stmtCache[query]; found {
+			stmt.Close()
+			stmt = existing
+		} else {
+			q.stmtCache[query] = stmt
+		}
+		q.mu.Unlock()
 	}
 
-	q.mu.Lock()
-	q.stmtCache[query] = stmt
-	q.mu.Unlock()
+	if tx, ok := q.db.(*sql.Tx); ok {
+		return tx.StmtContext(ctx, stmt), nil
+	}
 	return stmt, nil
 }
 
@@ -849,9 +865,11 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 
 	txQueries := &Queries{
 		db:        tx,
+		baseDB:    q.baseDB,
 		provider:  q.provider,
 		dialect:   q.dialect,
-		stmtCache: make(map[string]*sql.Stmt),
+		stmtCache: q.stmtCache,
+		mu:        q.mu,
 		UserRole:  q.UserRole,
 	}
 	txQueries.initDelegates()
@@ -1649,9 +1667,11 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	}
 	q := &Queries{
 		db:        sqlTx,
+		baseDB:    db.Queries.baseDB,
 		provider:  db.provider,
 		dialect:   db.dialect,
-		stmtCache: make(map[string]*sql.Stmt),
+		stmtCache: db.Queries.stmtCache,
+		mu:        db.Queries.mu,
 		UserRole:  db.UserRole,
 	}
 	q.initDelegates()
@@ -1862,8 +1882,8 @@ func loadRelation[P any, C any](
 	}
 	defer rows.Close()
 
-	childMap := make(map[string][]*C)
-	var allChildren []*C
+	childMap := make(map[string][]*C, len(parents))
+	allChildren := make([]*C, 0, len(parents))
 
 	for rows.Next() {
 		var child C

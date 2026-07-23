@@ -1000,25 +1000,14 @@ func (d *CategoryToPostDelegate) runFindUnique(ctx context.Context, where Unique
 	}
 	returningCols := selectCategoryToPostCols(selects, omits)
 
-	var res *CategoryToPost
-	var err error
-	if selects.hasAnyRelation() {
-		err = d.client.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = txQ.CategoryToPost.queryOne(ctx, whereClause, "", vals, returningCols, nil)
-			if err != nil {
-				return err
-			}
-			if res == nil {
-				return nil
-			}
-			return txQ.CategoryToPost.loadRelations(ctx, []*CategoryToPost{res}, selects)
-		})
-	} else {
-		res, err = d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
+	res, err := d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
+	if err != nil || res == nil {
+		return res, err
 	}
-	if err != nil {
-		return nil, err
+	if selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*CategoryToPost{res}, selects); err != nil {
+			return nil, err
+		}
 	}
 	return res, nil
 }
@@ -1058,25 +1047,14 @@ func (d *CategoryToPostDelegate) runFindFirst(
 	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, categoryToPostPKCols, categoryToPostUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectCategoryToPostCols(selects, omits)
 
-	var res *CategoryToPost
-	var err error
-	if selects.hasAnyRelation() {
-		err = d.client.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			res, err = txQ.CategoryToPost.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
-			if err != nil {
-				return err
-			}
-			if res == nil {
-				return nil
-			}
-			return txQ.CategoryToPost.loadRelations(ctx, []*CategoryToPost{res}, selects)
-		})
-	} else {
-		res, err = d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
+	res, err := d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
+	if err != nil || res == nil {
+		return res, err
 	}
-	if err != nil {
-		return nil, err
+	if selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*CategoryToPost{res}, selects); err != nil {
+			return nil, err
+		}
 	}
 	return res, nil
 }
@@ -1116,25 +1094,14 @@ func (d *CategoryToPostDelegate) runFindMany(
 	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, categoryToPostPKCols, categoryToPostUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectCategoryToPostCols(selects, omits)
 
-	var results []*CategoryToPost
-	var err error
-	if selects.hasAnyRelation() {
-		err = d.client.transaction(ctx, func(txQ *Queries) error {
-			var err error
-			results, err = txQ.CategoryToPost.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
-			if err != nil {
-				return err
-			}
-			if len(results) == 0 {
-				return nil
-			}
-			return txQ.CategoryToPost.loadRelations(ctx, results, selects)
-		})
-	} else {
-		results, err = d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
+	results, err := d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
+	if err != nil || len(results) == 0 {
+		return results, err
 	}
-	if err != nil {
-		return nil, err
+	if selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, results, selects); err != nil {
+			return nil, err
+		}
 	}
 	return results, nil
 }
