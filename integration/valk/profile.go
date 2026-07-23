@@ -247,11 +247,17 @@ func (b *ProfileCreateBuilder) SetCreatedAt(v time.Time) *ProfileCreateBuilder {
 	return b
 }
 
-func (d *ProfileDelegate) Create(assignments ...FieldAssignment) *ProfileCreateBuilder {
+func (b *ProfileCreateBuilder) Assignments(assignments ...FieldAssignmentOf[Profile]) *ProfileCreateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *ProfileDelegate) Create() *ProfileCreateBuilder {
 	return &ProfileCreateBuilder{
 		CreateBuilder: &CreateBuilder[Profile, ProfileSelect, ProfileOmit]{
-			assignments: assignments,
-			execFunc:    d.executeCreate,
+			execFunc: d.executeCreate,
 		},
 	}
 }

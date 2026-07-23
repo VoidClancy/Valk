@@ -49,22 +49,14 @@ type numericFieldUpsert[T any] struct {
 	tableName string
 }
 
-func (f numericFieldUpsert[T]) Add(val T) {
+func (f numericFieldUpsert[T]) Increment(val T) {
 	f.update.assignments = append(f.update.assignments, fmt.Sprintf(`"%s" = "%s"."%s" + ?`, f.column, f.tableName, f.column))
 	f.update.args = append(f.update.args, val)
 }
 
-func (f numericFieldUpsert[T]) Sub(val T) {
+func (f numericFieldUpsert[T]) Decrement(val T) {
 	f.update.assignments = append(f.update.assignments, fmt.Sprintf(`"%s" = "%s"."%s" - ?`, f.column, f.tableName, f.column))
 	f.update.args = append(f.update.args, val)
-}
-
-func (f numericFieldUpsert[T]) Inc(val T) {
-	f.Add(val)
-}
-
-func (f numericFieldUpsert[T]) Dec(val T) {
-	f.Sub(val)
 }
 
 type Dialect struct {
@@ -180,6 +172,11 @@ func (e *ValidationError) HasErrors() bool {
 }
 
 type FieldAssignment struct {
+	Col string
+	Val any
+}
+
+type FieldAssignmentOf[M any] struct {
 	Col string
 	Val any
 }

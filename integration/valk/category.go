@@ -220,11 +220,17 @@ func (b *CategoryCreateBuilder) SetName(v string) *CategoryCreateBuilder {
 	return b
 }
 
-func (d *CategoryDelegate) Create(assignments ...FieldAssignment) *CategoryCreateBuilder {
+func (b *CategoryCreateBuilder) Assignments(assignments ...FieldAssignmentOf[Category]) *CategoryCreateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *CategoryDelegate) Create() *CategoryCreateBuilder {
 	return &CategoryCreateBuilder{
 		CreateBuilder: &CreateBuilder[Category, CategorySelect, CategoryOmit]{
-			assignments: assignments,
-			execFunc:    d.executeCreate,
+			execFunc: d.executeCreate,
 		},
 	}
 }

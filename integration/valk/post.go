@@ -264,11 +264,17 @@ func (b *PostCreateBuilder) SetAuthorId(v string) *PostCreateBuilder {
 	return b
 }
 
-func (d *PostDelegate) Create(assignments ...FieldAssignment) *PostCreateBuilder {
+func (b *PostCreateBuilder) Assignments(assignments ...FieldAssignmentOf[Post]) *PostCreateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *PostDelegate) Create() *PostCreateBuilder {
 	return &PostCreateBuilder{
 		CreateBuilder: &CreateBuilder[Post, PostSelect, PostOmit]{
-			assignments: assignments,
-			execFunc:    d.executeCreate,
+			execFunc: d.executeCreate,
 		},
 	}
 }

@@ -923,11 +923,17 @@ func (b *AllFieldsSoFarCreateBuilder) SetCitextField(v string) *AllFieldsSoFarCr
 	return b
 }
 
-func (d *AllFieldsSoFarDelegate) Create(assignments ...FieldAssignment) *AllFieldsSoFarCreateBuilder {
+func (b *AllFieldsSoFarCreateBuilder) Assignments(assignments ...FieldAssignmentOf[AllFieldsSoFar]) *AllFieldsSoFarCreateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *AllFieldsSoFarDelegate) Create() *AllFieldsSoFarCreateBuilder {
 	return &AllFieldsSoFarCreateBuilder{
 		CreateBuilder: &CreateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
-			assignments: assignments,
-			execFunc:    d.executeCreate,
+			execFunc: d.executeCreate,
 		},
 	}
 }

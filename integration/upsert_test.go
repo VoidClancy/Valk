@@ -97,7 +97,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 			client.User.Create().SetEmail("custom@example.com").SetPhoneNum("+222").SetLoginCount(20),
 		).OnConflict(user.Email).Update(func(u *valk.UserUpsert) {
 			u.PhoneNum.Update()
-			u.LoginCount.Add(5)
+			u.LoginCount.Increment(5)
 		}).Exec(ctx)
 
 		if err != nil {
@@ -164,7 +164,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 			OnConflict(user.Email).
 			Update(func(u *valk.UserUpsert) {
 				u.PhoneNum.Update()
-				u.LoginCount.Add(20)
+				u.LoginCount.Increment(20)
 			}).
 			Exec(ctx)
 
@@ -210,7 +210,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 		affected, err := client.User.CreateMany().
 			OnConflict(user.Email).
 			Update(func(u *valk.UserUpsert) {
-				u.LoginCount.Add(1)
+				u.LoginCount.Increment(1)
 			}).
 			Exec(ctx)
 
@@ -247,7 +247,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 			OnConflict(user.Email).
 			Update(func(u *valk.UserUpsert) {
 				u.PhoneNum.Update()
-				u.LoginCount.Add(5)
+				u.LoginCount.Increment(5)
 				u.Password.Set(nil)
 				u.RoleOptional.Set(&strRole)
 			}).

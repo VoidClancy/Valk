@@ -20,7 +20,7 @@ func TestNativeDefaults_MinimalCreate(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	rec, err := db.AllFieldsSoFar.Create(
+	rec, err := db.AllFieldsSoFar.Create().Assignments(
 		allFieldsSoFar.StringReq.Set("hello"),
 		allFieldsSoFar.StringVarchar.Set("varchar"),
 		allFieldsSoFar.StringChar.Set("0123456789"),
@@ -105,7 +105,7 @@ func TestNativeDefaults_AllExplicitValues(t *testing.T) {
 
 	now := time.Date(2024, 7, 11, 15, 30, 45, 123456789, time.UTC)
 
-	rec, err := db.AllFieldsSoFar.Create(
+	rec, err := db.AllFieldsSoFar.Create().Assignments(
 		allFieldsSoFar.StringReq.Set("explicit"),
 		allFieldsSoFar.StringOpt.Set("opt"),
 		allFieldsSoFar.StringDefault.Set("overridden"),
@@ -197,7 +197,7 @@ func TestNativeDefaults_OptionalNulls(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	rec, err := db.AllFieldsSoFar.Create(
+	rec, err := db.AllFieldsSoFar.Create().Assignments(
 		allFieldsSoFar.StringReq.Set("req"),
 		allFieldsSoFar.StringVarchar.Set("v"),
 		allFieldsSoFar.StringChar.Set("1234567890"),
@@ -274,7 +274,7 @@ func TestNativeDefaults_StringConstraints_VarChar(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("exactly 255 chars", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.StringVarchar.Set(strings.Repeat("a", 255)),
 			)...,
@@ -285,7 +285,7 @@ func TestNativeDefaults_StringConstraints_VarChar(t *testing.T) {
 	})
 
 	t.Run("256 chars rejected", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.StringVarchar.Set(strings.Repeat("a", 256)),
 			)...,
@@ -299,7 +299,7 @@ func TestNativeDefaults_StringConstraints_VarChar(t *testing.T) {
 	})
 
 	t.Run("empty string rejected for required", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.StringVarchar.Set(""),
 			)...,
@@ -310,7 +310,7 @@ func TestNativeDefaults_StringConstraints_VarChar(t *testing.T) {
 	})
 
 	t.Run("unicode within limit", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.StringVarchar.Set(strings.Repeat("ñ", 255)),
 			)...,
@@ -321,7 +321,7 @@ func TestNativeDefaults_StringConstraints_VarChar(t *testing.T) {
 	})
 
 	t.Run("unicode over limit by rune count", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.StringVarchar.Set(strings.Repeat("ñ", 256)),
 			)...,
@@ -340,7 +340,7 @@ func TestNativeDefaults_StringConstraints_Char(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("exactly 10 chars", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.StringChar.Set("1234567890"),
 			)...,
@@ -351,7 +351,7 @@ func TestNativeDefaults_StringConstraints_Char(t *testing.T) {
 	})
 
 	t.Run("11 chars rejected", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.StringChar.Set("12345678901"),
 			)...,
@@ -370,7 +370,7 @@ func TestNativeDefaults_StringConstraints_Bit(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("exactly 10 bits valid", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.BitVal.Set("0101010101"),
 			)...,
@@ -381,7 +381,7 @@ func TestNativeDefaults_StringConstraints_Bit(t *testing.T) {
 	})
 
 	t.Run("wrong chars rejected", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.BitVal.Set("2101010101"),
 			)...,
@@ -400,7 +400,7 @@ func TestNativeDefaults_StringConstraints_Inet(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("valid IPv4", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.InetVal.Set("255.255.255.255"),
 			)...,
@@ -411,7 +411,7 @@ func TestNativeDefaults_StringConstraints_Inet(t *testing.T) {
 	})
 
 	t.Run("valid IPv6", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.InetVal.Set("2001:db8::1"),
 			)...,
@@ -422,7 +422,7 @@ func TestNativeDefaults_StringConstraints_Inet(t *testing.T) {
 	})
 
 	t.Run("CIDR notation", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.InetVal.Set("192.168.0.0/16"),
 			)...,
@@ -433,7 +433,7 @@ func TestNativeDefaults_StringConstraints_Inet(t *testing.T) {
 	})
 
 	t.Run("invalid string rejected", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.InetVal.Set("not-an-ip"),
 			)...,
@@ -444,7 +444,7 @@ func TestNativeDefaults_StringConstraints_Inet(t *testing.T) {
 	})
 
 	t.Run("empty string rejected", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.InetVal.Set(""),
 			)...,
@@ -463,7 +463,7 @@ func TestNativeDefaults_IntConstraints_SmallInt(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("min valid -32768", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.SmallInt.Set(-32768),
 			)...,
@@ -474,7 +474,7 @@ func TestNativeDefaults_IntConstraints_SmallInt(t *testing.T) {
 	})
 
 	t.Run("max valid 32767", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.SmallInt.Set(32767),
 			)...,
@@ -485,7 +485,7 @@ func TestNativeDefaults_IntConstraints_SmallInt(t *testing.T) {
 	})
 
 	t.Run("underflow -32769", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.SmallInt.Set(-32769),
 			)...,
@@ -496,7 +496,7 @@ func TestNativeDefaults_IntConstraints_SmallInt(t *testing.T) {
 	})
 
 	t.Run("overflow 32768", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.SmallInt.Set(32768),
 			)...,
@@ -515,7 +515,7 @@ func TestNativeDefaults_IntConstraints_Oid(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("zero is valid", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.OidVal.Set(0),
 			)...,
@@ -526,7 +526,7 @@ func TestNativeDefaults_IntConstraints_Oid(t *testing.T) {
 	})
 
 	t.Run("positive is valid", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.OidVal.Set(42),
 			)...,
@@ -537,7 +537,7 @@ func TestNativeDefaults_IntConstraints_Oid(t *testing.T) {
 	})
 
 	t.Run("negative rejected", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.OidVal.Set(-1),
 			)...,
@@ -556,7 +556,7 @@ func TestNativeDefaults_DecimalPrecision(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("valid NUMERIC(10,2) integer part", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.DecimalPrecise.Set("99999999.99"),
 			)...,
@@ -567,7 +567,7 @@ func TestNativeDefaults_DecimalPrecision(t *testing.T) {
 	})
 
 	t.Run("overflow integer part", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.DecimalPrecise.Set("100000000.00"),
 			)...,
@@ -586,7 +586,7 @@ func TestNativeDefaults_JsonTypes(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("jsonb accepts binary JSON", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.JsonReq.Set(json.RawMessage(`{"a":1,"b":[2,3]}`)),
 			)...,
@@ -597,7 +597,7 @@ func TestNativeDefaults_JsonTypes(t *testing.T) {
 	})
 
 	t.Run("json vs jsonb round trip", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.JsonReq.Set(json.RawMessage(`{"x":1}`)),
 				allFieldsSoFar.JsonVal.Set(json.RawMessage(`{"x":1}`)),
@@ -629,7 +629,7 @@ func TestNativeDefaults_BinaryRoundTrip(t *testing.T) {
 	base := baseAllFields(t)
 
 	binaryData := []byte{0x00, 0x01, 0xFF, 0xFE, 0x7F, 0x80}
-	rec, err := db.AllFieldsSoFar.Create(
+	rec, err := db.AllFieldsSoFar.Create().Assignments(
 		append(base,
 			allFieldsSoFar.BytesReq.Set(binaryData),
 			allFieldsSoFar.BytesOpt.Set(binaryData),
@@ -665,7 +665,7 @@ func TestNativeDefaults_UpdatedAt(t *testing.T) {
 	base := baseAllFields(t)
 
 	before := time.Now().Add(-time.Minute)
-	rec, err := db.AllFieldsSoFar.Create(
+	rec, err := db.AllFieldsSoFar.Create().Assignments(
 		append(base,
 			allFieldsSoFar.UpdatedAt.Set(time.Now()),
 		)...,
@@ -686,13 +686,13 @@ func TestNativeDefaults_Validation_RequiredFields(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("missing stringReq", func(t *testing.T) {
-		var filtered []valk.FieldAssignment
+		var filtered []valk.FieldAssignmentOf[valk.AllFieldsSoFar]
 		for _, a := range base {
 			if a.Col != "stringReq" {
 				filtered = append(filtered, a)
 			}
 		}
-		_, err := db.AllFieldsSoFar.Create(filtered...).Exec(ctx)
+		_, err := db.AllFieldsSoFar.Create().Assignments(filtered...).Exec(ctx)
 		if err == nil {
 			t.Fatal("expected error for missing stringReq")
 		}
@@ -750,7 +750,7 @@ func TestNativeDefaults_NullByteSafety(t *testing.T) {
 
 	nullByteFields := []struct {
 		name  string
-		setFn func(v string) valk.FieldAssignment
+		setFn func(v string) valk.FieldAssignmentOf[valk.AllFieldsSoFar]
 	}{
 		{"stringReq", allFieldsSoFar.StringReq.Set},
 		{"stringVarchar", allFieldsSoFar.StringVarchar.Set},
@@ -767,7 +767,7 @@ func TestNativeDefaults_NullByteSafety(t *testing.T) {
 
 	for _, fc := range nullByteFields {
 		t.Run(fc.name+" null byte", func(t *testing.T) {
-			_, err := db.AllFieldsSoFar.Create(
+			_, err := db.AllFieldsSoFar.Create().Assignments(
 				append(base,
 					fc.setFn("val\x00ue"),
 				)...,
@@ -786,7 +786,7 @@ func TestNativeDefaults_InvalidUtf8(t *testing.T) {
 
 	base := baseAllFields(t)
 
-	_, err := db.AllFieldsSoFar.Create(
+	_, err := db.AllFieldsSoFar.Create().Assignments(
 		append(base,
 			allFieldsSoFar.StringReq.Set("valid"),
 			allFieldsSoFar.StringVarchar.Set("invalid\xffutf8"),
@@ -805,7 +805,7 @@ func TestNativeDefaults_SelectOmit(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("select single field", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(base...).
+		rec, err := db.AllFieldsSoFar.Create().Assignments(base...).
 			Select(valk.AllFieldsSoFarSelect{StringReq: true}).
 			Exec(ctx)
 		if err != nil {
@@ -820,7 +820,7 @@ func TestNativeDefaults_SelectOmit(t *testing.T) {
 	})
 
 	t.Run("omit single field", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(base...).
+		rec, err := db.AllFieldsSoFar.Create().Assignments(base...).
 			Omit(valk.AllFieldsSoFarOmit{IntReq: true}).
 			Exec(ctx)
 		if err != nil {
@@ -842,11 +842,11 @@ func TestNativeDefaults_CreateMany(t *testing.T) {
 
 	base := baseAllFields(t)
 
-	rec1 := db.AllFieldsSoFar.Create(base...).
+	rec1 := db.AllFieldsSoFar.Create().Assignments(base...).
 		SetStringReq("many-1").
 		SetIntReq(10)
 
-	rec2 := db.AllFieldsSoFar.Create(base...).
+	rec2 := db.AllFieldsSoFar.Create().Assignments(base...).
 		SetStringReq("many-2").
 		SetIntReq(20)
 
@@ -867,8 +867,8 @@ func TestNativeDefaults_CreateManyAndReturn(t *testing.T) {
 	base := baseAllFields(t)
 
 	recs, err := db.AllFieldsSoFar.CreateManyAndReturn(
-		db.AllFieldsSoFar.Create(base...).SetStringReq("ret-1").SetIntReq(100),
-		db.AllFieldsSoFar.Create(base...).SetStringReq("ret-2").SetIntReq(200),
+		db.AllFieldsSoFar.Create().Assignments(base...).SetStringReq("ret-1").SetIntReq(100),
+		db.AllFieldsSoFar.Create().Assignments(base...).SetStringReq("ret-2").SetIntReq(200),
 	).Exec(ctx)
 
 	if err != nil {
@@ -903,7 +903,7 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 		})
 
 		base := baseAllFields(t)
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.StringReq.Set("mutate-me"),
 			)...,
@@ -930,7 +930,7 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 		})
 
 		base := baseAllFields(t)
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.StringReq.Set("abort"),
 			)...,
@@ -963,8 +963,8 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 		})
 
 		base := baseAllFields(t)
-		r1 := db.AllFieldsSoFar.Create(base...).SetStringReq("hook-cm-1").SetIntReq(1)
-		r2 := db.AllFieldsSoFar.Create(base...).SetStringReq("hook-cm-2").SetIntReq(2)
+		r1 := db.AllFieldsSoFar.Create().Assignments(base...).SetStringReq("hook-cm-1").SetIntReq(1)
+		r2 := db.AllFieldsSoFar.Create().Assignments(base...).SetStringReq("hook-cm-2").SetIntReq(2)
 
 		_, err := db.AllFieldsSoFar.CreateMany(r1, r2).Exec(ctx)
 		if err != nil {
@@ -987,7 +987,7 @@ func TestNativeDefaults_HstoreAndLtree(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("hstore nil is valid", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.LtreeField.Set("Top"),
 			)...,
@@ -998,7 +998,7 @@ func TestNativeDefaults_HstoreAndLtree(t *testing.T) {
 	})
 
 	t.Run("hstore with value", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.HstoreField.Set(map[string]*string{
 					"name": new("John"),
@@ -1018,7 +1018,7 @@ func TestNativeDefaults_HstoreAndLtree(t *testing.T) {
 	})
 
 	t.Run("ltree path traversal", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.LtreeField.Set("Top.Collections.Photos.Voids"),
 			)...,
@@ -1036,7 +1036,7 @@ func TestNativeDefaults_ZeroTimeValues(t *testing.T) {
 
 	base := baseAllFields(t)
 
-	rec, err := db.AllFieldsSoFar.Create(
+	rec, err := db.AllFieldsSoFar.Create().Assignments(
 		append(base,
 			allFieldsSoFar.DateTimeReq.Set(time.Time{}),
 			allFieldsSoFar.UpdatedAt.Set(time.Time{}),
@@ -1061,7 +1061,7 @@ func TestNativeDefaults_AggregatedValidationErrors(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.AllFieldsSoFar.Create(
+	_, err := db.AllFieldsSoFar.Create().Assignments(
 		allFieldsSoFar.StringReq.Set("valid"),
 		allFieldsSoFar.StringVarchar.Set(strings.Repeat("a", 256)),
 		allFieldsSoFar.StringChar.Set("toolongggg"),
@@ -1115,11 +1115,11 @@ func TestNativeDefaults_DefaultGeneration_UniqueValues(t *testing.T) {
 
 	base := baseAllFields(t)
 
-	rec1, err := db.AllFieldsSoFar.Create(base...).Exec(ctx)
+	rec1, err := db.AllFieldsSoFar.Create().Assignments(base...).Exec(ctx)
 	if err != nil {
 		t.Fatalf("first default create: %v", err)
 	}
-	rec2, err := db.AllFieldsSoFar.Create(base...).Exec(ctx)
+	rec2, err := db.AllFieldsSoFar.Create().Assignments(base...).Exec(ctx)
 	if err != nil {
 		t.Fatalf("second default create: %v", err)
 	}
@@ -1155,7 +1155,7 @@ func TestNativeDefaults_UuidFormat(t *testing.T) {
 
 	base := baseAllFields(t)
 
-	rec, err := db.AllFieldsSoFar.Create(
+	rec, err := db.AllFieldsSoFar.Create().Assignments(
 		append(base,
 			allFieldsSoFar.UuidDb.Set("550e8400-e29b-41d4-a716-446655440000"),
 		)...,
@@ -1176,7 +1176,7 @@ func TestNativeDefaults_BoolEdgeCases(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("bool with default false", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.BoolDefault.Set(false),
 			)...,
@@ -1193,7 +1193,7 @@ func TestNativeDefaults_BoolEdgeCases(t *testing.T) {
 	})
 
 	t.Run("bool opt nil", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.BoolDefault.Set(false),
 			)...,
@@ -1207,7 +1207,7 @@ func TestNativeDefaults_BoolEdgeCases(t *testing.T) {
 	})
 
 	t.Run("bool opt set true", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.BoolOpt.Set(true),
 			)...,
@@ -1229,7 +1229,7 @@ func TestNativeDefaults_MoneyDecimal(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("money with large value", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.MoneyVal.Set("92233720368547758.07"),
 			)...,
@@ -1243,7 +1243,7 @@ func TestNativeDefaults_MoneyDecimal(t *testing.T) {
 	})
 
 	t.Run("decimal with trailing zeros", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.DecimalReq.Set("10.10000"),
 			)...,
@@ -1267,7 +1267,7 @@ func TestNativeDefaults_DateTimeTz(t *testing.T) {
 	loc := time.FixedZone("IST", 5*3600+30)
 	now := time.Date(2024, 1, 1, 12, 0, 0, 0, loc)
 
-	rec, err := db.AllFieldsSoFar.Create(
+	rec, err := db.AllFieldsSoFar.Create().Assignments(
 		append(base,
 			allFieldsSoFar.DateTimeTz.Set(now),
 		)...,
@@ -1289,7 +1289,7 @@ func TestNativeDefaults_RealFloatLimits(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("float max valid", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.FloatReq.Set(1e308),
 			)...,
@@ -1300,7 +1300,7 @@ func TestNativeDefaults_RealFloatLimits(t *testing.T) {
 	})
 
 	t.Run("real float32 boundary", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.RealVal.Set(3.4028234e+37),
 			)...,
@@ -1331,7 +1331,7 @@ func TestNativeDefaults_InetV6RoundTrip(t *testing.T) {
 
 	for _, ip := range ips {
 		t.Run(ip, func(t *testing.T) {
-			rec, err := db.AllFieldsSoFar.Create(
+			rec, err := db.AllFieldsSoFar.Create().Assignments(
 				append(base,
 					allFieldsSoFar.InetVal.Set(ip),
 				)...,
@@ -1355,7 +1355,7 @@ func TestNativeDefaults_NullByteInStringFields(t *testing.T) {
 
 	tests := []struct {
 		name string
-		set  func(string) valk.FieldAssignment
+		set  func(string) valk.FieldAssignmentOf[valk.AllFieldsSoFar]
 	}{
 		{"xmlVal", allFieldsSoFar.XmlVal.Set},
 		{"decimalPrecise", allFieldsSoFar.DecimalPrecise.Set},
@@ -1364,7 +1364,7 @@ func TestNativeDefaults_NullByteInStringFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := db.AllFieldsSoFar.Create(
+			_, err := db.AllFieldsSoFar.Create().Assignments(
 				append(base, tt.set("\x00abc"))...,
 			).Exec(ctx)
 			if err == nil {
@@ -1382,7 +1382,7 @@ func TestNativeDefaults_FloatNanInf(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("NaN rejected", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.FloatReq.Set(math.NaN()),
 			)...,
@@ -1393,7 +1393,7 @@ func TestNativeDefaults_FloatNanInf(t *testing.T) {
 	})
 
 	t.Run("+Inf rejected", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.FloatReq.Set(math.Inf(1)),
 			)...,
@@ -1404,7 +1404,7 @@ func TestNativeDefaults_FloatNanInf(t *testing.T) {
 	})
 
 	t.Run("-Inf rejected", func(t *testing.T) {
-		_, err := db.AllFieldsSoFar.Create(
+		_, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.FloatReq.Set(math.Inf(-1)),
 			)...,
@@ -1423,7 +1423,7 @@ func TestNativeDefaults_JsonEdgeCases(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("empty JSON object", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.JsonReq.Set(json.RawMessage(`{}`)),
 			)...,
@@ -1438,7 +1438,7 @@ func TestNativeDefaults_JsonEdgeCases(t *testing.T) {
 
 	t.Run("deeply nested JSON", func(t *testing.T) {
 		deep := buildDeepJSON(50)
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.JsonReq.Set(deep),
 			)...,
@@ -1452,7 +1452,7 @@ func TestNativeDefaults_JsonEdgeCases(t *testing.T) {
 	})
 
 	t.Run("special unicode in JSON", func(t *testing.T) {
-		rec, err := db.AllFieldsSoFar.Create(
+		rec, err := db.AllFieldsSoFar.Create().Assignments(
 			append(base,
 				allFieldsSoFar.JsonReq.Set(json.RawMessage(`"🎉🚀👋"`)),
 			)...,
@@ -1478,7 +1478,7 @@ func TestNativeDefaults_ConcurrentCreate(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		go func() {
-			_, err := db.AllFieldsSoFar.Create(
+			_, err := db.AllFieldsSoFar.Create().Assignments(
 				append(base,
 					allFieldsSoFar.StringReq.Set("concurrent"),
 					allFieldsSoFar.IntReq.Set(42),
@@ -1497,9 +1497,9 @@ func TestNativeDefaults_ConcurrentCreate(t *testing.T) {
 	<-done
 }
 
-func baseAllFields(t *testing.T) []valk.FieldAssignment {
+func baseAllFields(t *testing.T) []valk.FieldAssignmentOf[valk.AllFieldsSoFar] {
 	t.Helper()
-	return []valk.FieldAssignment{
+	return []valk.FieldAssignmentOf[valk.AllFieldsSoFar]{
 		allFieldsSoFar.StringReq.Set("test"),
 		allFieldsSoFar.StringVarchar.Set("varchar"),
 		allFieldsSoFar.StringChar.Set("0123456789"),

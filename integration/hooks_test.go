@@ -72,10 +72,10 @@ func TestHooks(t *testing.T) {
 			},
 		})
 
-		u, err := db.User.Create(
-			user.Email.Set("chain"),
-			user.PhoneNum.Set("111"),
-		).Exec(ctx)
+		u, err := db.User.Create().
+			SetEmail("chain").
+			SetPhoneNum("111").
+			Exec(ctx)
 
 		if err != nil {
 			t.Fatalf("create failed: %v", err)
@@ -112,10 +112,10 @@ func TestHooks(t *testing.T) {
 			},
 		})
 
-		u, err := db.User.Create(
-			user.Email.Set("short-circuit@example.com"),
-			user.PhoneNum.Set("222"),
-		).Exec(ctx)
+		u, err := db.User.Create().
+			SetEmail("short-circuit@example.com").
+			SetPhoneNum("222").
+			Exec(ctx)
 
 		if err != nil {
 			t.Fatalf("expected success, got err: %v", err)
@@ -144,10 +144,10 @@ func TestHooks(t *testing.T) {
 			},
 		})
 
-		_, err := db.User.Create(
-			user.Email.Set("error@example.com"),
-			user.PhoneNum.Set("333"),
-		).Exec(ctx)
+		_, err := db.User.Create().
+			SetEmail("error@example.com").
+			SetPhoneNum("333").
+			Exec(ctx)
 
 		if !errors.Is(err, errShortCircuit) {
 			t.Errorf("expected errShortCircuit, got %v", err)
@@ -168,12 +168,12 @@ func TestHooks(t *testing.T) {
 			},
 		})
 
-		_, err := db.User.Create(user.Email.Set("uniq@example.com"), user.PhoneNum.Set("444")).Exec(ctx)
+		_, err := db.User.Create().SetEmail("uniq@example.com").SetPhoneNum("444").Exec(ctx)
 		if err != nil {
 			t.Fatalf("first insert failed: %v", err)
 		}
 
-		_, err = db.User.Create(user.Email.Set("uniq@example.com"), user.PhoneNum.Set("445")).Exec(ctx)
+		_, err = db.User.Create().SetEmail("uniq@example.com").SetPhoneNum("445").Exec(ctx)
 		if !errors.Is(err, errCustomUnique) {
 			t.Errorf("expected errCustomUnique, got %v", err)
 		}
@@ -337,10 +337,10 @@ func TestHooks(t *testing.T) {
 		}
 		defer func() { _ = tx.Rollback() }()
 
-		_, err = tx.User.Create(
-			user.Email.Set("rollback@example.com"),
-			user.PhoneNum.Set("701"),
-		).Exec(ctx)
+		_, err = tx.User.Create().
+			SetEmail("rollback@example.com").
+			SetPhoneNum("701").
+			Exec(ctx)
 
 		if err == nil || !strings.Contains(err.Error(), "force rollback") {
 			t.Fatalf("expected rollback error, got: %v", err)
@@ -414,15 +414,15 @@ func TestHooks(t *testing.T) {
 		db, cleanup := setupTestDB(t)
 		defer cleanup()
 
-		_, err := db.User.Create(user.Email.Set("allow-1"), user.PhoneNum.Set("801")).Exec(ctx)
+		_, err := db.User.Create().SetEmail("allow-1").SetPhoneNum("801").Exec(ctx)
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = db.User.Create(user.Email.Set("allow-2"), user.PhoneNum.Set("802")).Exec(ctx)
+		_, err = db.User.Create().SetEmail("allow-2").SetPhoneNum("802").Exec(ctx)
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = db.User.Create(user.Email.Set("block-1"), user.PhoneNum.Set("803")).Exec(ctx)
+		_, err = db.User.Create().SetEmail("block-1").SetPhoneNum("803").Exec(ctx)
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}

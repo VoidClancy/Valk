@@ -19,7 +19,7 @@ func TestFindUniqueWithNoFieldsSet(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set("onlyuser@example.com"), user.PhoneNum.Set("000")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("onlyuser@example.com").SetPhoneNum("000").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -35,11 +35,11 @@ func TestFindUniqueConflictingCompoundFields(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set("a@example.com"), user.PhoneNum.Set("111")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("a@example.com").SetPhoneNum("111").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed a failed: %v", err)
 	}
-	_, err = db.User.Create(user.Email.Set("b@example.com"), user.PhoneNum.Set("222")).Exec(ctx)
+	_, err = db.User.Create().SetEmail("b@example.com").SetPhoneNum("222").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed b failed: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestSelectWithNoFieldsSet(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set("empty_select@example.com"), user.PhoneNum.Set("333")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("empty_select@example.com").SetPhoneNum("333").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestOmitAllFields(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set("omit_all@example.com"), user.PhoneNum.Set("334")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("omit_all@example.com").SetPhoneNum("334").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestOmitIdFieldStillAllowsFilterById(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(user.Email.Set("omit_id@example.com"), user.PhoneNum.Set("335")).Exec(ctx)
+	u, err := db.User.Create().SetEmail("omit_id@example.com").SetPhoneNum("335").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestRelationLoadWithNoRelatedRows(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set("noposts@example.com"), user.PhoneNum.Set("444")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("noposts@example.com").SetPhoneNum("444").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -149,11 +149,11 @@ func TestFindUniqueRelationLoad(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	author, err := db.User.Create(user.Email.Set("unique_rel@example.com"), user.PhoneNum.Set("445")).Exec(ctx)
+	author, err := db.User.Create().SetEmail("unique_rel@example.com").SetPhoneNum("445").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed author failed: %v", err)
 	}
-	_, err = db.Post.Create(post.Title.Set("Unique Rel Post"), post.AuthorId.Set(author.Id)).Exec(ctx)
+	_, err = db.Post.Create().SetTitle("Unique Rel Post").SetAuthorId(author.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed post failed: %v", err)
 	}
@@ -175,11 +175,11 @@ func TestFindFirstRelationLoad(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	author, err := db.User.Create(user.Email.Set("first_rel@example.com"), user.PhoneNum.Set("446")).Exec(ctx)
+	author, err := db.User.Create().SetEmail("first_rel@example.com").SetPhoneNum("446").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed author failed: %v", err)
 	}
-	_, err = db.Post.Create(post.Title.Set("First Rel Post"), post.AuthorId.Set(author.Id)).Exec(ctx)
+	_, err = db.Post.Create().SetTitle("First Rel Post").SetAuthorId(author.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed post failed: %v", err)
 	}
@@ -228,12 +228,12 @@ func TestDuplicateUniqueCreateFails(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set("dup@example.com"), user.PhoneNum.Set("555")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("dup@example.com").SetPhoneNum("555").Exec(ctx)
 	if err != nil {
 		t.Fatalf("first create failed: %v", err)
 	}
 
-	_, err = db.User.Create(user.Email.Set("dup@example.com"), user.PhoneNum.Set("556")).Exec(ctx)
+	_, err = db.User.Create().SetEmail("dup@example.com").SetPhoneNum("556").Exec(ctx)
 	if err == nil {
 		t.Error("expected a unique constraint violation on duplicate email, got nil error")
 	}
@@ -254,7 +254,7 @@ func TestConcurrentDuplicateCreateOnlyOneSucceeds(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := db.User.Create(user.Email.Set("race@example.com"), user.PhoneNum.Set("race-phone")).Exec(ctx)
+			_, err := db.User.Create().SetEmail("race@example.com").SetPhoneNum("race-phone").Exec(ctx)
 			mu.Lock()
 			defer mu.Unlock()
 			if err == nil {
@@ -276,11 +276,11 @@ func TestWhitespacePaddedEmailNotTreatedAsDuplicate(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set("dup2@example.com"), user.PhoneNum.Set("601")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("dup2@example.com").SetPhoneNum("601").Exec(ctx)
 	if err != nil {
 		t.Fatalf("first create failed: %v", err)
 	}
-	_, err = db.User.Create(user.Email.Set(" dup2@example.com"), user.PhoneNum.Set("602")).Exec(ctx)
+	_, err = db.User.Create().SetEmail(" dup2@example.com").SetPhoneNum("602").Exec(ctx)
 	if err != nil {
 		t.Fatalf("expected leading-whitespace email to be treated as a distinct value, create failed: %v", err)
 	}
@@ -299,7 +299,7 @@ func TestEmailCaseSensitivity(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set("CaseTest@Example.com"), user.PhoneNum.Set("603")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("CaseTest@Example.com").SetPhoneNum("603").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -334,7 +334,7 @@ func TestVeryLongEmailValue(t *testing.T) {
 
 	longEmail := strings.Repeat("a", 5000) + "@example.com"
 
-	_, err := db.User.Create(user.Email.Set(longEmail), user.PhoneNum.Set("999")).Exec(ctx)
+	_, err := db.User.Create().SetEmail(longEmail).SetPhoneNum("999").Exec(ctx)
 	if err != nil {
 		t.Fatalf("create with a very long email failed: %v", err)
 	}
@@ -357,7 +357,7 @@ func TestCreateWithEmptyStringEmail(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set(""), user.PhoneNum.Set("800")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("").SetPhoneNum("800").Exec(ctx)
 	if err != nil {
 		return
 	}
@@ -377,12 +377,12 @@ func TestOptionalEnumNullVsValueFilter(t *testing.T) {
 	ctx := context.Background()
 
 	adminRole := valk.UserRole.Admin
-	_, err := db.User.Create(user.Email.Set("role_set@example.com"), user.PhoneNum.Set("700"), user.RoleOptional.Set(adminRole)).Exec(ctx)
+	_, err := db.User.Create().SetEmail("role_set@example.com").SetPhoneNum("700").SetRoleOptional(adminRole).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
 
-	_, err = db.User.Create(user.Email.Set("role_unset@example.com"), user.PhoneNum.Set("701")).Exec(ctx)
+	_, err = db.User.Create().SetEmail("role_unset@example.com").SetPhoneNum("701").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -409,7 +409,7 @@ func TestSQLInjectionVariants(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set("injection_target@example.com"), user.PhoneNum.Set("900")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("injection_target@example.com").SetPhoneNum("900").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -461,11 +461,11 @@ func TestCompoundUniqueWithOneFieldMatchingWrongRow(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set("compound_a@example.com"), user.PhoneNum.Set("701a")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("compound_a@example.com").SetPhoneNum("701a").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed a failed: %v", err)
 	}
-	_, err = db.User.Create(user.Email.Set("compound_b@example.com"), user.PhoneNum.Set("701b")).Exec(ctx)
+	_, err = db.User.Create().SetEmail("compound_b@example.com").SetPhoneNum("701b").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed b failed: %v", err)
 	}
@@ -484,7 +484,7 @@ func TestCompoundUniqueConstraintEdgeCases(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(user.Email.Set("compound_edge@example.com"), user.PhoneNum.Set("800a")).Exec(ctx)
+	_, err := db.User.Create().SetEmail("compound_edge@example.com").SetPhoneNum("800a").Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -545,26 +545,18 @@ func TestJsonField(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(user.Email.Set("json_test_user@example.com"),
-		user.PhoneNum.Set("555-json")).Exec(ctx)
+	u, err := db.User.Create().SetEmail("json_test_user@example.com").SetPhoneNum("555-json").Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	p, err := db.Post.Create(post.Title.Set("JSON Post"),
-		post.AuthorId.Set(u.Id)).Exec(ctx)
+	p, err := db.Post.Create().SetTitle("JSON Post").SetAuthorId(u.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create post: %v", err)
 	}
 
 	metaVal := json.RawMessage(`{"tags":["valkyrie","orm"],"version":1}`)
-	c, err := db.Comment.Create(comment.Textify.Set(1),
-		comment.Dummy3.Set("dummy3"),
-		comment.Dummy1.Set(10),
-		comment.Dummy2.Set("dummy2"),
-		comment.PostId.Set(p.Id),
-		comment.AuthorId.Set(u.Id),
-		comment.Meta.Set(metaVal)).Exec(ctx)
+	c, err := db.Comment.Create().SetTextify(1).SetDummy3("dummy3").SetDummy1(10).SetDummy2("dummy2").SetPostId(p.Id).SetAuthorId(u.Id).SetMeta(metaVal).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create comment with JSON: %v", err)
 	}
@@ -667,50 +659,50 @@ func TestRelationSubqueries(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	uA, err := db.User.Create(user.Email.Set("user_a@example.com"), user.PhoneNum.Set("111")).Exec(ctx)
+	uA, err := db.User.Create().SetEmail("user_a@example.com").SetPhoneNum("111").Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed User A: %v", err)
 	}
-	uB, err := db.User.Create(user.Email.Set("user_b@example.com"), user.PhoneNum.Set("222")).Exec(ctx)
+	uB, err := db.User.Create().SetEmail("user_b@example.com").SetPhoneNum("222").Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed User B: %v", err)
 	}
-	uC, err := db.User.Create(user.Email.Set("user_c@example.com"), user.PhoneNum.Set("333")).Exec(ctx)
+	uC, err := db.User.Create().SetEmail("user_c@example.com").SetPhoneNum("333").Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed User C: %v", err)
 	}
 
-	p1, err := db.Post.Create(post.Title.Set("Alpha"), post.Published.Set(true), post.AuthorId.Set(uA.Id)).Exec(ctx)
+	p1, err := db.Post.Create().SetTitle("Alpha").SetPublished(true).SetAuthorId(uA.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed Post 1: %v", err)
 	}
-	_, err = db.Post.Create(post.Title.Set("Beta"), post.Published.Set(false), post.AuthorId.Set(uA.Id)).Exec(ctx)
+	_, err = db.Post.Create().SetTitle("Beta").SetPublished(false).SetAuthorId(uA.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed Post 2: %v", err)
 	}
-	p3, err := db.Post.Create(post.Title.Set("Gamma"), post.Published.Set(true), post.AuthorId.Set(uA.Id)).Exec(ctx)
+	p3, err := db.Post.Create().SetTitle("Gamma").SetPublished(true).SetAuthorId(uA.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed Post 3: %v", err)
 	}
-	_, err = db.Post.Create(post.Title.Set("Delta"), post.Published.Set(true), post.AuthorId.Set(uA.Id)).Exec(ctx)
+	_, err = db.Post.Create().SetTitle("Delta").SetPublished(true).SetAuthorId(uA.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed Post 4: %v", err)
 	}
 
-	_, err = db.Comment.Create(comment.Textify.Set(100), comment.Dummy3.Set("c1"), comment.Dummy1.Set(1), comment.Dummy2.Set("d"), comment.PostId.Set(p1.Id), comment.AuthorId.Set(uB.Id)).Exec(ctx)
+	_, err = db.Comment.Create().SetTextify(100).SetDummy3("c1").SetDummy1(1).SetDummy2("d").SetPostId(p1.Id).SetAuthorId(uB.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed Comment 1: %v", err)
 	}
-	_, err = db.Comment.Create(comment.Textify.Set(200), comment.Dummy3.Set("c2"), comment.Dummy1.Set(2), comment.Dummy2.Set("d"), comment.PostId.Set(p1.Id), comment.AuthorId.Set(uA.Id)).Exec(ctx)
+	_, err = db.Comment.Create().SetTextify(200).SetDummy3("c2").SetDummy1(2).SetDummy2("d").SetPostId(p1.Id).SetAuthorId(uA.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed Comment 2: %v", err)
 	}
-	_, err = db.Comment.Create(comment.Textify.Set(300), comment.Dummy3.Set("c3"), comment.Dummy1.Set(3), comment.Dummy2.Set("d"), comment.PostId.Set(p1.Id), comment.AuthorId.Set(uC.Id)).Exec(ctx)
+	_, err = db.Comment.Create().SetTextify(300).SetDummy3("c3").SetDummy1(3).SetDummy2("d").SetPostId(p1.Id).SetAuthorId(uC.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed Comment 3: %v", err)
 	}
 
-	_, err = db.Comment.Create(comment.Textify.Set(400), comment.Dummy3.Set("c4"), comment.Dummy1.Set(4), comment.Dummy2.Set("d"), comment.PostId.Set(p3.Id), comment.AuthorId.Set(uB.Id)).Exec(ctx)
+	_, err = db.Comment.Create().SetTextify(400).SetDummy3("c4").SetDummy1(4).SetDummy2("d").SetPostId(p3.Id).SetAuthorId(uB.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed Comment 4: %v", err)
 	}
@@ -827,20 +819,12 @@ func TestFindUniqueExtended(t *testing.T) {
 	adminRole := valk.UserRole.Admin
 	studentRole := valk.UserRole.Student
 
-	_, err := db.User.Create(
-		user.Email.Set("ext_admin@example.com"),
-		user.PhoneNum.Set("1111"),
-		user.RoleOptional.Set(adminRole),
-	).Exec(ctx)
+	_, err := db.User.Create().SetEmail("ext_admin@example.com").SetPhoneNum("1111").SetRoleOptional(adminRole).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed admin failed: %v", err)
 	}
 
-	_, err = db.User.Create(
-		user.Email.Set("ext_student@example.com"),
-		user.PhoneNum.Set("2222"),
-		user.RoleOptional.Set(studentRole),
-	).Exec(ctx)
+	_, err = db.User.Create().SetEmail("ext_student@example.com").SetPhoneNum("2222").SetRoleOptional(studentRole).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed student failed: %v", err)
 	}

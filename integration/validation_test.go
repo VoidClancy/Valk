@@ -21,12 +21,12 @@ func TestCreate_DuplicateEmail_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	if _, err := db.User.Create(user.Email.Set("dupe@example.com"), user.PhoneNum.Set("+100000001")).Exec(ctx); err != nil {
+	if _, err := db.User.Create().SetEmail("dupe@example.com").SetPhoneNum("+100000001").Exec(ctx); err != nil {
 		t.Fatalf("first insert should succeed, got: %v", err)
 	}
 
 	// Same email, different phoneNum, must still fail if email is unique
-	if _, err := db.User.Create(user.Email.Set("dupe@example.com"), user.PhoneNum.Set("+100000002")).Exec(ctx); err == nil {
+	if _, err := db.User.Create().SetEmail("dupe@example.com").SetPhoneNum("+100000002").Exec(ctx); err == nil {
 		t.Fatal("expected unique constraint violation on duplicate email, got nil error")
 	}
 
@@ -45,15 +45,15 @@ func TestCreate_DuplicateEmail_CaseVariants(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	if _, err := db.User.Create(
-		user.Email.Set("Case@Example.com"), user.PhoneNum.Set("+100000003"),
-	).Exec(ctx); err != nil {
+	if _, err := db.User.Create().
+		SetEmail("Case@Example.com").SetPhoneNum("+100000003").
+		Exec(ctx); err != nil {
 		t.Fatalf("failed initial insert: %v", err)
 	}
 
-	_, err := db.User.Create(
-		user.Email.Set("case@example.com"), user.PhoneNum.Set("+100000004"),
-	).Exec(ctx)
+	_, err := db.User.Create().
+		SetEmail("case@example.com").SetPhoneNum("+100000004").
+		Exec(ctx)
 
 	t.Logf("case-variant email insert result: err=%v (confirm this matches intended uniqueness semantics)", err)
 }
@@ -63,16 +63,16 @@ func TestCreate_CompoundUnique_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	if _, err := db.User.Create(
-		user.Email.Set("a@example.com"), user.PhoneNum.Set("+199999999"),
-	).Exec(ctx); err != nil {
+	if _, err := db.User.Create().
+		SetEmail("a@example.com").SetPhoneNum("+199999999").
+		Exec(ctx); err != nil {
 		t.Fatalf("first insert failed: %v", err)
 	}
 
 	// Same email + same phoneNum  hits @@unique([email, phoneNum]).
-	if _, err := db.User.Create(
-		user.Email.Set("a@example.com"), user.PhoneNum.Set("+199999999"),
-	).Exec(ctx); err == nil {
+	if _, err := db.User.Create().
+		SetEmail("a@example.com").SetPhoneNum("+199999999").
+		Exec(ctx); err == nil {
 		t.Fatal("expected unique constraint violation on duplicate (email, phoneNum)")
 	}
 }
@@ -93,9 +93,9 @@ func TestCreate_EmptyStringEmail_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(
-		user.Email.Set(""), user.PhoneNum.Set("+100000005"),
-	).Exec(ctx)
+	_, err := db.User.Create().
+		SetEmail("").SetPhoneNum("+100000005").
+		Exec(ctx)
 	if err == nil {
 		t.Fatal("expected error creating user with empty-string email")
 	}
@@ -106,9 +106,9 @@ func TestCreate_WhitespaceOnlyEmail_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(
-		user.Email.Set("   "), user.PhoneNum.Set("+100000006"),
-	).Exec(ctx)
+	_, err := db.User.Create().
+		SetEmail("   ").SetPhoneNum("+100000006").
+		Exec(ctx)
 
 	if err == nil {
 		t.Log("WARNING: whitespace-only email was accepted  confirm this is intentional, not an oversight")
@@ -120,11 +120,11 @@ func TestCreate_ReferredBy_NonexistentID_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	_, err := db.User.Create(
-		user.Email.Set("orphan@example.com"),
-		user.PhoneNum.Set("+100000007"),
-		user.ReferredById.Set("clnonexistent00000000000"),
-	).Exec(ctx)
+	_, err := db.User.Create().
+		SetEmail("orphan@example.com").
+		SetPhoneNum("+100000007").
+		SetReferredById("clnonexistent00000000000").
+		Exec(ctx)
 
 	if err == nil {
 		t.Fatal("expected FK violation when referredById points to a nonexistent user")
@@ -137,16 +137,16 @@ func TestCreate_ReferredBy_SelfReference_Rejected(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(
-		user.Email.Set("self@example.com"), user.PhoneNum.Set("+100000008"),
-	).Exec(ctx)
+	u, err := db.User.Create().
+		SetEmail("self@example.com").SetPhoneNum("+100000008").
+		Exec(ctx)
 	if err != nil {
 		t.Fatalf("setup insert failed: %v", err)
 	}
 
-	b, err := db.User.Create(
-		user.Email.Set("referred@example.com"), user.PhoneNum.Set("+100000009"), user.ReferredById.Set(u.Id),
-	).Exec(ctx)
+	b, err := db.User.Create().
+		SetEmail("referred@example.com").SetPhoneNum("+100000009").SetReferredById(u.Id).
+		Exec(ctx)
 	if err != nil {
 		t.Fatalf("valid referral chain should succeed: %v", err)
 	}
@@ -162,9 +162,9 @@ func TestCreate_InvalidEnumValue_BypassingTypeSystem(t *testing.T) {
 
 	pffff := valk.UserRoleType("totallyNotARole")
 
-	_, err := db.User.Create(
-		user.Email.Set("pffff-role@example.com"), user.PhoneNum.Set("+100000010"), user.Role.Set(pffff),
-	).Exec(ctx)
+	_, err := db.User.Create().
+		SetEmail("pffff-role@example.com").SetPhoneNum("+100000010").SetRole(pffff).
+		Exec(ctx)
 
 	if err == nil {
 		t.Fatal("expected rejection of an enum value outside the declared domain")
@@ -176,9 +176,9 @@ func TestCreate_DefaultEnumAppliedWhenNil(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(
-		user.Email.Set("noRole@example.com"), user.PhoneNum.Set("+100000011"),
-	).Exec(ctx)
+	u, err := db.User.Create().
+		SetEmail("noRole@example.com").SetPhoneNum("+100000011").
+		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create: %v", err)
 	}
@@ -195,8 +195,6 @@ func TestCreate_StringEdgeCases(t *testing.T) {
 		expectError bool
 	}{
 		{"unicode_email_local_part", "üñîçødé@example.com", "+200000001", false},
-		// {"emoji_in_phone", "emoji@example.com", "+2000🎉0002", true}, // should pass when i implement validation metadata///
-		// {"very_long_email", strings.Repeat("a", 300) + "@example.com", "+200000003", true},  // should pass when i implement validation metadata (or a db.VarChar() but not now to keep it valid for integration tests with sqlite)///
 		{"sql_injection_shaped_email", `test' OR '1'='1@example.com`, "+200000004", false},
 		{"null_byte_in_email", "nul\x00byte@example.com", "+200000005", true},
 		{"leading_trailing_whitespace_email", "  padded@example.com  ", "+200000006", false},
@@ -209,9 +207,9 @@ func TestCreate_StringEdgeCases(t *testing.T) {
 			defer cleanup()
 			ctx := context.Background()
 
-			u, err := db.User.Create(
-				user.Email.Set(tc.email), user.PhoneNum.Set(tc.phone),
-			).Exec(ctx)
+			u, err := db.User.Create().
+				SetEmail(tc.email).SetPhoneNum(tc.phone).
+				Exec(ctx)
 
 			if tc.expectError && err == nil {
 				t.Fatalf("expected error for input %q, got success (id=%s)", tc.email, u.Id)
@@ -241,21 +239,20 @@ func TestCreate_Select_ForceIncludesFK_EvenWhenNotExplicitlySelected(t *testing.
 	defer cleanup()
 	ctx := context.Background()
 
-	referrer, err := db.User.Create(
-		user.Email.Set("referrer@example.com"), user.PhoneNum.Set("+300000002"),
-	).Exec(ctx)
+	referrer, err := db.User.Create().
+		SetEmail("referrer@example.com").SetPhoneNum("+300000002").
+		Exec(ctx)
 	if err != nil {
 		t.Fatalf("setup failed: %v", err)
 	}
 
 	rid := referrer.Id
-	u, err := db.User.Create(
-		user.Email.Set("referredfk@example.com"), user.PhoneNum.Set("+300000003"), user.ReferredById.Set(rid),
-	).Select(user.Select{
-		Id:         true,
-		ReferredBy: &user.Select{Id: true},
-		// ReferredById itself intenionally not selected
-	}).Exec(ctx)
+	u, err := db.User.Create().
+		SetEmail("referredfk@example.com").SetPhoneNum("+300000003").SetReferredById(rid).
+		Select(user.Select{
+			Id:         true,
+			ReferredBy: &user.Select{Id: true},
+		}).Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("create failed: %v", err)
@@ -274,9 +271,9 @@ func TestCreate_Select_EmptyStruct_ReturnsEverything(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(
-		user.Email.Set("empty-select@example.com"), user.PhoneNum.Set("+300000004"),
-	).Select(valk.UserSelect{}).Exec(ctx)
+	u, err := db.User.Create().
+		SetEmail("empty-select@example.com").SetPhoneNum("+300000004").
+		Select(valk.UserSelect{}).Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("create failed: %v", err)
@@ -293,15 +290,14 @@ func TestCreate_ContextAlreadyCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel before the call even starts
 
-	_, err := db.User.Create(
-		user.Email.Set("cancelled@example.com"), user.PhoneNum.Set("+400000001"),
-	).Exec(ctx)
+	_, err := db.User.Create().
+		SetEmail("cancelled@example.com").SetPhoneNum("+400000001").
+		Exec(ctx)
 
 	if err == nil {
 		t.Fatal("expected error when context is already cancelled")
 	}
 
-	// Confirm nothing leaked through despite the cancelled context.
 	var count int
 	if qerr := db.Raw().QueryRowContext(context.Background(),
 		query("SELECT COUNT(*) FROM User WHERE email = ?", "SELECT COUNT(*) FROM \"User\" WHERE email = $1"), "cancelled@example.com").Scan(&count); qerr != nil {
@@ -316,13 +312,12 @@ func TestCreate_ContextTimeout_DuringExec(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	// should fail cleanly with no partial write.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
 	defer cancel()
 
-	_, err := db.User.Create(
-		user.Email.Set("timeout@example.com"), user.PhoneNum.Set("+400000002"),
-	).Exec(ctx)
+	_, err := db.User.Create().
+		SetEmail("timeout@example.com").SetPhoneNum("+400000002").
+		Exec(ctx)
 
 	if err == nil {
 		t.Log("create succeeded despite near-zero timeout  likely fine if driver executes faster than ctx propagation, but worth a second look under load")
@@ -343,10 +338,10 @@ func TestCreate_ConcurrentDuplicateEmail_ExactlyOneWins(t *testing.T) {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
-			_, err := db.User.Create(
-				user.Email.Set("race@example.com"),
-				user.PhoneNum.Set(fmt.Sprintf("+50000%04d", n)), // distinct phones so only email collides
-			).Exec(ctx)
+			_, err := db.User.Create().
+				SetEmail("race@example.com").
+				SetPhoneNum(fmt.Sprintf("+50000%04d", n)).
+				Exec(ctx)
 			if err != nil {
 				atomic.AddInt64(&failures, 1)
 			} else {
@@ -385,10 +380,10 @@ func TestCreate_ConcurrentUniqueIDs_NoCollision(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			u, err := db.User.Create(
-				user.Email.Set(fmt.Sprintf("bulk%d@example.com", idx)),
-				user.PhoneNum.Set(fmt.Sprintf("+600%06d", idx)),
-			).Exec(ctx)
+			u, err := db.User.Create().
+				SetEmail(fmt.Sprintf("bulk%d@example.com", idx)).
+				SetPhoneNum(fmt.Sprintf("+600%06d", idx)).
+				Exec(ctx)
 			errs[idx] = err
 			if err == nil {
 				ids[idx] = u.Id
@@ -421,11 +416,11 @@ func TestCreate_FailurePartway_LeavesNoPartialRow(t *testing.T) {
 	fakeReferrer := "clDoesNotExist00000000000"
 	before := countAllUsers(t, ctx, db)
 
-	_, err := db.User.Create(
-		user.Email.Set("partial@example.com"),
-		user.PhoneNum.Set("+700000001"),
-		user.ReferredById.Set(fakeReferrer),
-	).Exec(ctx)
+	_, err := db.User.Create().
+		SetEmail("partial@example.com").
+		SetPhoneNum("+700000001").
+		SetReferredById(fakeReferrer).
+		Exec(ctx)
 
 	if err == nil {
 		t.Fatal("expected FK failure")
@@ -465,10 +460,10 @@ func TestCreate_Hooks(t *testing.T) {
 		},
 	})
 
-	u, err := db.User.Create(
-		user.Email.Set("hook@example.com"),
-		user.PhoneNum.Set("+100000000"), // Will be modified by hook
-	).Exec(ctx)
+	u, err := db.User.Create().
+		SetEmail("hook@example.com").
+		SetPhoneNum("+100000000").
+		Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -501,11 +496,11 @@ func TestCreate_Hooks_PasswordHashing(t *testing.T) {
 
 	rawPassword := "12345678"
 
-	u, err := db.User.Create(
-		user.Email.Set("hash@example.com"),
-		user.PhoneNum.Set("+199999999"),
-		user.Password.Set(rawPassword),
-	).Exec(ctx)
+	u, err := db.User.Create().
+		SetEmail("hash@example.com").
+		SetPhoneNum("+199999999").
+		SetPassword(rawPassword).
+		Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)

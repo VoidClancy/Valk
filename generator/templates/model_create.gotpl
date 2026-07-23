@@ -39,11 +39,17 @@ func (b *{{ $.Model.Name }}CreateBuilder) Set{{ capitalize $field.Name }}(v {{ $
 }
 {{- end }}
 
-func (d *{{ .Model.Name }}Delegate) Create(assignments ...FieldAssignment) *{{ .Model.Name }}CreateBuilder {
+func (b *{{ $.Model.Name }}CreateBuilder) Assignments(assignments ...FieldAssignmentOf[{{ .Model.Name }}]) *{{ $.Model.Name }}CreateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *{{ .Model.Name }}Delegate) Create() *{{ .Model.Name }}CreateBuilder {
 	return &{{ .Model.Name }}CreateBuilder{
 		CreateBuilder: &CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
-			assignments: assignments,
-			execFunc:    d.executeCreate,
+			execFunc: d.executeCreate,
 		},
 	}
 }

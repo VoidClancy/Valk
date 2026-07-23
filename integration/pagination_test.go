@@ -382,7 +382,7 @@ func TestPagination_CompoundPK(t *testing.T) {
 	t.Cleanup(func() { _, _ = db.Post.Delete(post.Id.EQ(p3.Id)).Exec(ctx) })
 
 	// 3. Seed 3 CategoryToPost records with compound PK (postId, categoryId)
-	cp1, err := db.CategoryToPost.Create().SetPostId(p1.Id).SetCategoryId(cat.Id).Exec(ctx)
+	_, err = db.CategoryToPost.Create().SetPostId(p1.Id).SetCategoryId(cat.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create cp1: %v", err)
 	}
@@ -390,7 +390,7 @@ func TestPagination_CompoundPK(t *testing.T) {
 		_, _ = db.CategoryToPost.Delete(categoryToPost.PostIdCategoryIdUnique(p1.Id, cat.Id)).Exec(ctx)
 	})
 
-	cp2, err := db.CategoryToPost.Create().SetPostId(p2.Id).SetCategoryId(cat.Id).Exec(ctx)
+	_, err = db.CategoryToPost.Create().SetPostId(p2.Id).SetCategoryId(cat.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create cp2: %v", err)
 	}
@@ -398,17 +398,13 @@ func TestPagination_CompoundPK(t *testing.T) {
 		_, _ = db.CategoryToPost.Delete(categoryToPost.PostIdCategoryIdUnique(p2.Id, cat.Id)).Exec(ctx)
 	})
 
-	cp3, err := db.CategoryToPost.Create().SetPostId(p3.Id).SetCategoryId(cat.Id).Exec(ctx)
+	_, err = db.CategoryToPost.Create().SetPostId(p3.Id).SetCategoryId(cat.Id).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create cp3: %v", err)
 	}
 	t.Cleanup(func() {
 		_, _ = db.CategoryToPost.Delete(categoryToPost.PostIdCategoryIdUnique(p3.Id, cat.Id)).Exec(ctx)
 	})
-
-	_ = cp1
-	_ = cp2
-	_ = cp3
 
 	// Test cursor pagination on compound primary key model
 	nextCPs, err := db.CategoryToPost.FindMany(

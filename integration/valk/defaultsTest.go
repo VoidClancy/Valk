@@ -307,11 +307,17 @@ func (b *DefaultsTestCreateBuilder) SetNow(v time.Time) *DefaultsTestCreateBuild
 	return b
 }
 
-func (d *DefaultsTestDelegate) Create(assignments ...FieldAssignment) *DefaultsTestCreateBuilder {
+func (b *DefaultsTestCreateBuilder) Assignments(assignments ...FieldAssignmentOf[DefaultsTest]) *DefaultsTestCreateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *DefaultsTestDelegate) Create() *DefaultsTestCreateBuilder {
 	return &DefaultsTestCreateBuilder{
 		CreateBuilder: &CreateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
-			assignments: assignments,
-			execFunc:    d.executeCreate,
+			execFunc: d.executeCreate,
 		},
 	}
 }

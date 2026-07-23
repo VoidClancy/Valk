@@ -22,8 +22,12 @@ func Query() *QueryBuilder {
 	return &QueryBuilder{}
 }
 
-func Record(assignments ...{{ .ParentPackageName }}.FieldAssignment) {{ .ParentPackageName }}.RecordInput {
-	return {{ .ParentPackageName }}.RecordInput{Assignments: assignments}
+func Record(assignments ...{{ .ParentPackageName }}.FieldAssignmentOf[{{ .ParentPackageName }}.{{ .Model.Name }}]) {{ .ParentPackageName }}.RecordInput {
+	raw := make([]{{ .ParentPackageName }}.FieldAssignment, len(assignments))
+	for i, a := range assignments {
+		raw[i] = {{ .ParentPackageName }}.FieldAssignment{Col: a.Col, Val: a.Val}
+	}
+	return {{ .ParentPackageName }}.RecordInput{Assignments: raw}
 }
 
 func And(preds ...{{ .ParentPackageName }}.PredicateOf[{{ .ParentPackageName }}.{{ .Model.Name }}]) {{ .ParentPackageName }}.PredicateOf[{{ .ParentPackageName }}.{{ .Model.Name }}] {

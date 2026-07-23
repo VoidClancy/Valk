@@ -448,8 +448,8 @@ type Field[M any, T any] struct {
 	Column string
 }
 
-func (f Field[M, T]) Set(val T) FieldAssignment {
-	return FieldAssignment{Col: f.Column, Val: val}
+func (f Field[M, T]) Set(val T) FieldAssignmentOf[M] {
+	return FieldAssignmentOf[M]{Col: f.Column, Val: val}
 }
 
 func (f Field[M, T]) EQ(val T) Predicate[M] {
@@ -556,8 +556,8 @@ func (f UniqueField[M, T]) UniqueColumns() []string {
 	return []string{f.Column}
 }
 
-func (f UniqueField[M, T]) Set(val T) FieldAssignment {
-	return FieldAssignment{Col: f.Column, Val: val}
+func (f UniqueField[M, T]) Set(val T) FieldAssignmentOf[M] {
+	return FieldAssignmentOf[M]{Col: f.Column, Val: val}
 }
 
 func (f UniqueField[M, T]) EQ(val T) UniquePredicate[M] {
@@ -660,8 +660,8 @@ type StringField[M any] struct {
 	Column string
 }
 
-func (f StringField[M]) Set(val string) FieldAssignment {
-	return FieldAssignment{Col: f.Column, Val: val}
+func (f StringField[M]) Set(val string) FieldAssignmentOf[M] {
+	return FieldAssignmentOf[M]{Col: f.Column, Val: val}
 }
 
 func (f StringField[M]) EQ(val string) Predicate[M] {
@@ -788,8 +788,8 @@ func (f StringUniqueField[M]) UniqueColumns() []string {
 	return []string{f.Column}
 }
 
-func (f StringUniqueField[M]) Set(val string) FieldAssignment {
-	return FieldAssignment{Col: f.Column, Val: val}
+func (f StringUniqueField[M]) Set(val string) FieldAssignmentOf[M] {
+	return FieldAssignmentOf[M]{Col: f.Column, Val: val}
 }
 
 func (f StringUniqueField[M]) EQ(val string) UniquePredicate[M] {
