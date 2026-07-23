@@ -159,8 +159,8 @@ func loadRelation[P any, C any](
 	}
 	defer rows.Close()
 
-	childMap := make(map[string][]*C)
-	var allChildren []*C
+	childMap := make(map[string][]*C, len(parents))
+	allChildren := make([]*C, 0, len(parents))
 
 	for rows.Next() {
 		var child C
