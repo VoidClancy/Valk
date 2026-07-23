@@ -908,9 +908,13 @@ func (f StringUniqueField[M]) Desc() OrderBy[M] {
 	return OrderBy[M]{Field: f.Column, Direction: Desc}
 }
 
-func CompilePredicates[M any](dialect Dialect, preds []PredicateOf[M]) (string, []any) {
+func CompilePredicates[M any](dialect Dialect, preds []PredicateOf[M], startBindIdx ...int) (string, []any, int) {
+	bindIdx := 1
+	if len(startBindIdx) > 0 && startBindIdx[0] > 0 {
+		bindIdx = startBindIdx[0]
+	}
 	if len(preds) == 0 {
-		return "", nil
+		return "", nil, bindIdx
 	}
 	var data []PredicateData
 	for _, p := range preds {
@@ -918,17 +922,19 @@ func CompilePredicates[M any](dialect Dialect, preds []PredicateOf[M]) (string, 
 			data = append(data, p.ToPredicateData())
 		}
 	}
-	return CompilePredicateData(dialect, data)
+	return CompilePredicateData(dialect, data, bindIdx)
 }
 
-func CompilePredicateData(dialect Dialect, data []PredicateData) (string, []any) {
-
+func CompilePredicateData(dialect Dialect, data []PredicateData, startBindIdx ...int) (string, []any, int) {
+	bindIdx := 1
+	if len(startBindIdx) > 0 && startBindIdx[0] > 0 {
+		bindIdx = startBindIdx[0]
+	}
 	if len(data) == 0 {
-		return "", nil
+		return "", nil, bindIdx
 	}
 	var parts []string
 	var args []any
-	var bindIdx = 1
 
 	var compile func(p PredicateData) string
 	compile = func(p PredicateData) string {
@@ -992,9 +998,9 @@ func CompilePredicateData(dialect Dialect, data []PredicateData) (string, []any)
 	}
 
 	if len(parts) == 0 {
-		return "", nil
+		return "", nil, bindIdx
 	}
-	return strings.Join(parts, " AND "), args
+	return strings.Join(parts, " AND "), args, bindIdx
 }
 
 func unpackSlice(val any) []any {

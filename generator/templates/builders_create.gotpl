@@ -131,7 +131,22 @@ func loadRelation[P any, C any](
 		},
 	}, params.Where...)
 
-	whereClause, vals := CompilePredicates(q.dialect, allPreds)
+	whereClause, vals, nextIdx := CompilePredicates(q.dialect, allPreds)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(q.dialect, params.Cursor, params.OrderBy, []string{"id"}, nil, table, nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -174,7 +189,8 @@ func loadRelation[P any, C any](
 }
 
 func compileRelationSQL[M any](dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams[M]) string {
-	if params.Take != nil || params.Skip != nil {
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if params.Take != nil || params.Skip != nil || isCursorQuery {
 		return compilePartitionedRelationSQL(dialect, table, fkCol, cols, where, params)
 	}
 	return compileSimpleRelationSQL(dialect, table, cols, where, params)

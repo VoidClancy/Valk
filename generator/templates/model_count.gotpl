@@ -35,7 +35,7 @@ func (d *{{ .Model.Name }}Delegate) runCount(ctx context.Context, params QueryPa
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
