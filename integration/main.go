@@ -310,12 +310,7 @@ func main() {
 // 	).Exec(ctx); err != nil {
 // 		log.Fatalf("failed to CreateMany: %v", err)
 // 	}
-// 	referrer, err := db.User.Create(
-// 		user.Email.Set("referrer@example.com"),
-// 		user.PhoneNum.Set("555-0001"),
-// 		user.Password.Set("pass123"),
-// 		user.Role.Set(valk.UserRole.Student),
-// 	).Select(user.Select{
+// 	referrer, err := db.User.Create()// 		.SetEmail("referrer@example.com")// 		.SetPhoneNum("555-0001")// 		.SetPassword("pass123")// 		.SetRole(valk.UserRole.Student)//.Select(user.Select{
 // 		Id:    true,
 // 		Email: true,
 // 	}).
@@ -324,31 +319,19 @@ func main() {
 // 		log.Fatalf("failed to create referrer: %v", err)
 // 	}
 
-// 	referred, err := db.User.Create(
-// 		user.Email.Set("referred@example.com"),
-// 		user.PhoneNum.Set("555-0002"),
-// 		user.Password.Set("pass456"),
-// 		user.Role.Set(valk.UserRole.Student),
-// 		user.ReferredById.Set(referrer.Id),
-// 	).Exec(ctx)
+// 	referred, err := db.User.Create()// 		.SetEmail("referred@example.com")// 		.SetPhoneNum("555-0002")// 		.SetPassword("pass456")// 		.SetRole(valk.UserRole.Student)// 		.SetReferredById(referrer.Id)//.Exec(ctx)
 // 	if err != nil {
 // 		log.Fatalf("failed to create referred: %v", err)
 // 	}
 
-// 	prof, err := db.Profile.Create(
-// 		profile.Bio.Set("BLEH"),
-// 		profile.UserId.Set(referred.Id),
-// 		profile.CreatedAt.Set(time.Now()),
-// 	).Exec(ctx)
+// 	prof, err := db.Profile.Create()// 		.SetBio("BLEH")// 		.SetUserId(referred.Id)// 		.SetCreatedAt(time.Now())//.Exec(ctx)
 // 	if err != nil {
 // 		log.Fatalf("failed to create profile: %v", err)
 // 	}
 // 	fmt.Println("PROFILE:")
 // 	printJSON(prof)
 
-// 	categoryTest, err := db.Category.Create(
-// 		category.Name.Set("TEST"),
-// 	).Exec(ctx)
+// 	categoryTest, err := db.Category.Create()// 		.SetName("TEST")//.Exec(ctx)
 
 // 	if err != nil {
 // 		log.Fatalf("failed to create category: %v", err)
@@ -356,40 +339,23 @@ func main() {
 // 	fmt.Println("CATEGORY:")
 // 	printJSON(categoryTest)
 
-// 	p, err := db.Post.Create(
-// 		post.Title.Set("Valkyrie ORM Deep Dive"),
-// 		post.Content.Set("skrrrt"),
-// 		post.AuthorId.Set(referred.Id),
-// 	).Exec(ctx)
+// 	p, err := db.Post.Create()// 		.SetTitle("Valkyrie ORM Deep Dive")// 		.SetContent("skrrrt")// 		.SetAuthorId(referred.Id)//.Exec(ctx)
 // 	if err != nil {
 // 		log.Fatalf("failed to create post: %v", err)
 // 	}
 
-// 	cat, err := db.Category.Create(
-// 		category.Name.Set("Programming"),
-// 	).Exec(ctx)
+// 	cat, err := db.Category.Create()// 		.SetName("Programming")//.Exec(ctx)
 // 	if err != nil {
 // 		log.Fatalf("failed to create category: %v", err)
 // 	}
 
-// 	_, err = db.CategoryToPost.Create(
-// 		categoryToPost.PostId.Set(p.Id),
-// 		categoryToPost.CategoryId.Set(cat.Id),
-// 	).Exec(ctx)
+// 	_, err = db.CategoryToPost.Create()// 		.SetPostId(p.Id)// 		.SetCategoryId(cat.Id)//.Exec(ctx)
 // 	if err != nil {
 // 		log.Fatalf("failed to create CategoryToPost: %v", err)
 // 	}
 
 // 	meta1 := json.RawMessage(`{"rating":5,"verified":true}`)
-// 	_, err = db.Comment.Create(
-// 		comment.Textify.Set(100),
-// 		comment.Dummy3.Set("dummy_val_1"),
-// 		comment.Dummy1.Set(42),
-// 		comment.Dummy2.Set("dummy_val_2"),
-// 		comment.PostId.Set(p.Id),
-// 		comment.AuthorId.Set(referrer.Id),
-// 		comment.Meta.Set(meta1),
-// 	).Select(comment.Select{
+// 	_, err = db.Comment.Create()// 		.SetTextify(100)// 		.SetDummy3("dummy_val_1")// 		.SetDummy1(42)// 		.SetDummy2("dummy_val_2")// 		.SetPostId(p.Id)// 		.SetAuthorId(referrer.Id)// 		.SetMeta(meta1)//.Select(comment.Select{
 // 		Post: &post.Select{
 // 			Id:     true,
 // 			Title:  true,
@@ -402,15 +368,7 @@ func main() {
 // 	}
 
 // 	meta2 := json.RawMessage(`{"rating":4,"verified":false}`)
-// 	_, err = db.Comment.Create(
-// 		comment.Textify.Set(200),
-// 		comment.Dummy3.Set("dummy_val_3"),
-// 		comment.Dummy1.Set(84),
-// 		comment.Dummy2.Set("dummy_val_4"),
-// 		comment.PostId.Set(p.Id),
-// 		comment.AuthorId.Set(referred.Id),
-// 		comment.Meta.Set(meta2),
-// 	).Exec(ctx)
+// 	_, err = db.Comment.Create()// 		.SetTextify(200)// 		.SetDummy3("dummy_val_3")// 		.SetDummy1(84)// 		.SetDummy2("dummy_val_4")// 		.SetPostId(p.Id)// 		.SetAuthorId(referred.Id)// 		.SetMeta(meta2)//.Exec(ctx)
 // 	if err != nil {
 // 		log.Fatalf("failed to create comment 2: %v", err)
 // 	}
@@ -458,25 +416,25 @@ func runManualTransaction(db *valk.DB, ctx context.Context) {
 	defer tx.Rollback()
 
 	fmt.Println("Manual Transaction: started successfully")
-	author, err := tx.User.Create(
-		user.Email.Set("clancySizer@gmail.com"),
-		user.PhoneNum.Set("+1234567890"),
-	).Exec(ctx)
+	author, err := tx.User.Create().
+		SetEmail("clancySizer@gmail.com").
+		SetPhoneNum("+1234567890").
+		Exec(ctx)
 	if err != nil {
 		fmt.Printf("failed to create user: %+v", err)
 		return
 	}
 
-	postWithAuthor, err := tx.Post.Create(
-		post.Title.Set("A Post"),
-		post.AuthorId.Set(author.Id),
-	).Select(post.Select{
-		Id:    true,
-		Title: true,
-		Author: &user.Select{
-			Email: true,
-		},
-	}).Exec(ctx)
+	postWithAuthor, err := tx.Post.Create().
+		SetTitle("A Post").
+		SetAuthorId(author.Id).
+		Select(post.Select{
+			Id:    true,
+			Title: true,
+			Author: &user.Select{
+				Email: true,
+			},
+		}).Exec(ctx)
 	if err != nil {
 		fmt.Printf("failed to create Post: %+v", err)
 		return
@@ -496,24 +454,24 @@ func runBlockBasedTransaction(db *valk.DB, ctx context.Context) {
 	err := db.Transaction(ctx, func(tx *valk.Tx) error {
 		fmt.Println("Block-based Transaction: started successfully")
 
-		author, err := tx.User.Create(
-			user.Email.Set("clancySizer@gmail.com"),
-			user.PhoneNum.Set("+1234567890"),
-		).Exec(ctx)
+		author, err := tx.User.Create().
+			SetEmail("clancySizer@gmail.com").
+			SetPhoneNum("+1234567890").
+			Exec(ctx)
 		if err != nil {
 			return err
 		}
 
-		postWithAuthor, err := tx.Post.Create(
-			post.Title.Set("A Post"),
-			post.AuthorId.Set(author.Id),
-		).Select(post.Select{
-			Id:    true,
-			Title: true,
-			Author: &user.Select{
-				Email: true,
-			},
-		}).Exec(ctx)
+		postWithAuthor, err := tx.Post.Create().
+			SetTitle("A Post").
+			SetAuthorId(author.Id).
+			Select(post.Select{
+				Id:    true,
+				Title: true,
+				Author: &user.Select{
+					Email: true,
+				},
+			}).Exec(ctx)
 		if err != nil {
 			return err
 		}
@@ -537,28 +495,28 @@ func runPaginationExamples(db *valk.DB, ctx context.Context) {
 	fmt.Println("=================== PAGINATION & ORDERBY EXAMPLES ===================")
 
 	// Seed 4 test users for pagination
-	u1, err := db.User.Create(user.Email.Set("pag_alpha@example.com"), user.PhoneNum.Set("+101"), user.LoginCount.Set(50)).Exec(ctx)
+	u1, err := db.User.Create().SetEmail("pag_alpha@example.com").SetPhoneNum("+101").SetLoginCount(50).Exec(ctx)
 	if err != nil {
 		log.Printf("Pagination Seed u1 failed: %v", err)
 		return
 	}
 	defer db.User.Delete(user.Id.EQ(u1.Id)).Exec(ctx)
 
-	u2, err := db.User.Create(user.Email.Set("pag_bravo@example.com"), user.PhoneNum.Set("+102"), user.LoginCount.Set(20)).Exec(ctx)
+	u2, err := db.User.Create().SetEmail("pag_bravo@example.com").SetPhoneNum("+102").SetLoginCount(20).Exec(ctx)
 	if err != nil {
 		log.Printf("Pagination Seed u2 failed: %v", err)
 		return
 	}
 	defer db.User.Delete(user.Id.EQ(u2.Id)).Exec(ctx)
 
-	u3, err := db.User.Create(user.Email.Set("pag_charlie@example.com"), user.PhoneNum.Set("+103"), user.LoginCount.Set(50)).Exec(ctx)
+	u3, err := db.User.Create().SetEmail("pag_charlie@example.com").SetPhoneNum("+103").SetLoginCount(50).Exec(ctx)
 	if err != nil {
 		log.Printf("Pagination Seed u3 failed: %v", err)
 		return
 	}
 	defer db.User.Delete(user.Id.EQ(u3.Id)).Exec(ctx)
 
-	u4, err := db.User.Create(user.Email.Set("pag_delta@example.com"), user.PhoneNum.Set("+104"), user.LoginCount.Set(10)).Exec(ctx)
+	u4, err := db.User.Create().SetEmail("pag_delta@example.com").SetPhoneNum("+104").SetLoginCount(10).Exec(ctx)
 	if err != nil {
 		log.Printf("Pagination Seed u4 failed: %v", err)
 		return
@@ -682,10 +640,10 @@ func runPaginationExamples(db *valk.DB, ctx context.Context) {
 	// SCENARIO 5: Relation Sub-Queries with OrderBy & Take (1-to-Many relation)
 	// -------------------------------------------------------------------------
 	fmt.Println("\n--- SCENARIO 5: Relation Selection with Sub-Query OrderBy & Take ---")
-	post1, _ := db.Post.Create(post.Title.Set("Zebra Post"), post.AuthorId.Set(u1.Id)).Exec(ctx)
+	post1, _ := db.Post.Create().SetTitle("Zebra Post").SetAuthorId(u1.Id).Exec(ctx)
 	defer db.Post.Delete(post.Id.EQ(post1.Id)).Exec(ctx)
 
-	post2, _ := db.Post.Create(post.Title.Set("Apple Post"), post.AuthorId.Set(u1.Id)).Exec(ctx)
+	post2, _ := db.Post.Create().SetTitle("Apple Post").SetAuthorId(u1.Id).Exec(ctx)
 	defer db.Post.Delete(post.Id.EQ(post2.Id)).Exec(ctx)
 
 	_, err = db.User.FindUnique(user.Id.EQ(u1.Id)).Select(valk.UserSelect{

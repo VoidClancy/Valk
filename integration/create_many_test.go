@@ -306,10 +306,10 @@ func TestCreateMany(t *testing.T) {
 	})
 
 	t.Run("CreateManyAndReturn works and supports Select", func(t *testing.T) {
-		author, err := client.User.Create(
-			user.Email.Set("author@example.com"),
-			user.PhoneNum.Set("+444"),
-		).Exec(ctx)
+		author, err := client.User.Create().
+			SetEmail("author@example.com").
+			SetPhoneNum("+444").
+			Exec(ctx)
 		if err != nil {
 			t.Fatalf("failed to create author: %v", err)
 		}

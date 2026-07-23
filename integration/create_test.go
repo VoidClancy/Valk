@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"integration/valk"
-	"integration/valk/user"
 	"strings"
 	"testing"
 )
@@ -13,10 +12,10 @@ func TestCreateBasic(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(
-		user.Email.Set("test@example.com"),
-		user.PhoneNum.Set("+123456789"),
-	).Exec(ctx)
+	u, err := db.User.Create().
+		SetEmail("test@example.com").
+		SetPhoneNum("+123456789").
+		Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -54,17 +53,17 @@ func TestCreateWithSelect(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(
-		user.Email.Set("select@example.com"),
-		user.PhoneNum.Set("+999999999"),
-	).Select(valk.UserSelect{
-		Id:    true,
-		Email: true,
-		Profile: &valk.ProfileSelect{
-			Id:  true,
-			Bio: true,
-		},
-	}).Exec(ctx)
+	u, err := db.User.Create().
+		SetEmail("select@example.com").
+		SetPhoneNum("+999999999").
+		Select(valk.UserSelect{
+			Id:    true,
+			Email: true,
+			Profile: &valk.ProfileSelect{
+				Id:  true,
+				Bio: true,
+			},
+		}).Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("failed to create user with select: %v", err)
@@ -89,12 +88,12 @@ func TestCreateWithOmit(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(
-		user.Email.Set("omit@example.com"),
-		user.PhoneNum.Set("+888888888"),
-	).Omit(valk.UserOmit{
-		PhoneNum: true,
-	}).Exec(ctx)
+	u, err := db.User.Create().
+		SetEmail("omit@example.com").
+		SetPhoneNum("+888888888").
+		Omit(valk.UserOmit{
+			PhoneNum: true,
+		}).Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("failed to create user with omit: %v", err)
@@ -119,11 +118,11 @@ func TestCreateWithCustomEnum(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	u, err := db.User.Create(
-		user.Email.Set("admin@example.com"),
-		user.PhoneNum.Set("+000000000"),
-		user.Role.Set(valk.UserRole.Admin),
-	).Exec(ctx)
+	u, err := db.User.Create().
+		SetEmail("admin@example.com").
+		SetPhoneNum("+000000000").
+		SetRole(valk.UserRole.Admin).
+		Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("failed to create admin: %v", err)
@@ -140,10 +139,9 @@ func TestCreateValidation(t *testing.T) {
 	ctx := context.Background()
 
 	// basic required check
-	_, err := db.User.Create(
-		// no email
-		user.PhoneNum.Set("+123456789"),
-	).Exec(ctx)
+	_, err := db.User.Create().
+		SetPhoneNum("+123456789").
+		Exec(ctx)
 	if err == nil {
 		t.Fatal("expected error creating user with empty required email, got nil")
 	}
@@ -164,11 +162,11 @@ func TestCreateValidation(t *testing.T) {
 	}
 
 	// invalid enum
-	_, err = db.User.Create(
-		user.Email.Set("invalid_role@example.com"),
-		user.PhoneNum.Set("+123456789"),
-		user.Role.Set(valk.UserRoleType("INVALID_ROLE")),
-	).Exec(ctx)
+	_, err = db.User.Create().
+		SetEmail("invalid_role@example.com").
+		SetPhoneNum("+123456789").
+		SetRole(valk.UserRoleType("INVALID_ROLE")).
+		Exec(ctx)
 	if err == nil {
 		t.Fatal("expected error creating user with invalid enum role, got nil")
 	}
@@ -187,10 +185,9 @@ func TestCreateValidation(t *testing.T) {
 	}
 
 	// Multi-error (no email + null-byte)
-	_, err = db.User.Create(
-		// no email
-		user.PhoneNum.Set("phone\x00num"),
-	).Exec(ctx)
+	_, err = db.User.Create().
+		SetPhoneNum("phone\x00num").
+		Exec(ctx)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -203,10 +200,10 @@ func TestCreateValidation(t *testing.T) {
 	}
 
 	// UTF-8 validation
-	_, err = db.User.Create(
-		user.Email.Set("utf8@example.com"),
-		user.PhoneNum.Set("invalid\xffutf8"),
-	).Exec(ctx)
+	_, err = db.User.Create().
+		SetEmail("utf8@example.com").
+		SetPhoneNum("invalid\xffutf8").
+		Exec(ctx)
 	if err == nil {
 		t.Fatal("expected error for invalid UTF-8, got nil")
 	}

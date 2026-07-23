@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"integration/valk"
-	"integration/valk/user"
 	"strconv"
 	"testing"
 	"time"
@@ -60,10 +59,10 @@ func TestCreationBenchmark(t *testing.T) {
 	t.Logf("Running %d iterations of ORM Create...", iterations)
 	startORM := time.Now()
 	for i := range iterations {
-		_, err := db.User.Create(
-			user.Email.Set(fmt.Sprintf("orm-%d@example.com", i)),
-			user.PhoneNum.Set(fmt.Sprintf("+54321%d", i)),
-		).Exec(ctx)
+		_, err := db.User.Create().
+			SetEmail(fmt.Sprintf("orm-%d@example.com", i)).
+			SetPhoneNum(fmt.Sprintf("+54321%d", i)).
+			Exec(ctx)
 		if err != nil {
 			t.Fatalf("ORM create failed: %v", err)
 		}
@@ -113,10 +112,10 @@ func BenchmarkORMCreate(b *testing.B) {
 	ctx := context.Background()
 
 	for i := 0; b.Loop(); i++ {
-		_, err := db.User.Create(
-			user.Email.Set(fmt.Sprintf("bench-orm-%d@example.com", i)),
-			user.PhoneNum.Set(fmt.Sprintf("+98765%d", i)),
-		).Exec(ctx)
+		_, err := db.User.Create().
+			SetEmail(fmt.Sprintf("bench-orm-%d@example.com", i)).
+			SetPhoneNum(fmt.Sprintf("+98765%d", i)).
+			Exec(ctx)
 		if err != nil {
 			b.Fatalf("ORM create failed: %v", err)
 		}

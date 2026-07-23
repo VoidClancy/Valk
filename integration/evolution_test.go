@@ -31,15 +31,10 @@ model User {
   age   Int
 }
 `,
-		Imports: []string{
-			`user "integration/sandbox/valk/user"`,
-		},
+		Imports: []string{},
 		Code: `
-			u, err := db.User.Create(
-				user.Id.Set("user-1"),
-				user.Email.Set("user1@example.com"),
-				user.Age.Set(30),
-			).Exec(ctx)
+			
+			u, err := db.User.Create().SetId("user-1").SetEmail("user1@example.com").SetAge(30).Exec(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to seed user-1: %w", err)
 			}
@@ -75,11 +70,7 @@ model User {
 			}
 
 			// Create user-2 with nil age and role admin
-			u2, err := db.User.Create(
-				user.Id.Set("user-2"),
-				user.Email.Set("user2@example.com"),
-				user.Role.Set("admin"),
-			).Exec(ctx)
+			u2, err := db.User.Create().SetId("user-2").SetEmail("user2@example.com").SetRole("admin").Exec(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to create user-2: %w", err)
 			}
@@ -117,11 +108,7 @@ model User {
 			}
 
 			// Create user-3 with phone "+12345" and no status (should use default "active")
-			u3, err := db.User.Create(
-				user.Id.Set("user-3"),
-				user.Email.Set("user3@example.com"),
-				user.Phone.Set("+12345"),
-			).Exec(ctx)
+			u3, err := db.User.Create().SetId("user-3").SetEmail("user3@example.com").SetPhone("+12345").Exec(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to create user-3: %w", err)
 			}
@@ -133,11 +120,7 @@ model User {
 			}
 
 			// Test unique constraint on phone
-			_, err = db.User.Create(
-				user.Id.Set("user-4"),
-				user.Email.Set("user4@example.com"),
-				user.Phone.Set("+12345"), // duplicate phone!
-			).Exec(ctx)
+			_, err = db.User.Create().SetId("user-4").SetEmail("user4@example.com").SetPhone("+12345").Exec(ctx) // duplicate phone!
 			if err == nil {
 				return fmt.Errorf("expected unique constraint error on phone, got nil")
 			}
@@ -168,11 +151,7 @@ model Post {
 		},
 		Code: `
 			// Create a post for user-1
-			p, err := db.Post.Create(
-				post.Id.Set("post-1"),
-				post.Title.Set("ORM Evolution"),
-				post.AuthorId.Set("user-1"),
-			).Exec(ctx)
+			p, err := db.Post.Create().SetId("post-1").SetTitle("ORM Evolution").SetAuthorId("user-1").Exec(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to create post: %w", err)
 			}
