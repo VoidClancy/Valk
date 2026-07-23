@@ -24,6 +24,11 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
+      - name: Download Go modules
+        run: |
+          go mod download
+          cd integration && go mod download
+
       - name: Run golangci-lint (root)
         uses: golangci/golangci-lint-action@v6
         with:
