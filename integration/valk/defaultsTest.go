@@ -89,6 +89,7 @@ type DefaultsTestQueryBuilder struct {
 	take    *int
 	skip    *int
 	orderBy []OrderBy[DefaultsTest]
+	cursor  UniquePredicate[DefaultsTest]
 }
 
 func (b *DefaultsTestQueryBuilder) Where(preds ...PredicateOf[DefaultsTest]) *DefaultsTestQueryBuilder {
@@ -111,6 +112,11 @@ func (b *DefaultsTestQueryBuilder) OrderBy(orders ...OrderBy[DefaultsTest]) *Def
 	return b
 }
 
+func (b *DefaultsTestQueryBuilder) Cursor(where UniquePredicate[DefaultsTest]) *DefaultsTestQueryBuilder {
+	b.cursor = where
+	return b
+}
+
 func (b *DefaultsTestQueryBuilder) Select(s DefaultsTestSelect) *DefaultsTestQueryBuilder {
 	b.selects = &s
 	return b
@@ -130,6 +136,7 @@ func (b *DefaultsTestQueryBuilder) GetRelationParams() (*DefaultsTestSelect, *De
 		Take:    b.take,
 		Skip:    b.skip,
 		OrderBy: b.orderBy,
+		Cursor:  b.cursor,
 	}
 }
 
@@ -204,6 +211,10 @@ var defaultsTestDefaultCols = []string{
 }
 
 var defaultsTestPKCols = []string{
+	"uuid4",
+}
+
+var defaultsTestUniqueCols = []string{
 	"uuid4",
 }
 
@@ -1233,7 +1244,7 @@ func (d *DefaultsTestDelegate) runFindUnique(ctx context.Context, where UniquePr
 		}
 	}
 	allPreds := append([]PredicateOf[DefaultsTest]{where}, additional...)
-	whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -1244,7 +1255,7 @@ func (d *DefaultsTestDelegate) runFindUnique(ctx context.Context, where UniquePr
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.DefaultsTest.queryOne(ctx, whereClause, vals, returningCols, nil)
+			res, err = txQ.DefaultsTest.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 			if err != nil {
 				return err
 			}
@@ -1254,7 +1265,7 @@ func (d *DefaultsTestDelegate) runFindUnique(ctx context.Context, where UniquePr
 			return txQ.DefaultsTest.loadRelations(ctx, []*DefaultsTest{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, nil)
+		res, err = d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 	}
 	if err != nil {
 		return nil, err
@@ -1275,10 +1286,26 @@ func (d *DefaultsTestDelegate) runFindFirst(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, defaultsTestPKCols, defaultsTestUniqueCols, "DefaultsTest", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, defaultsTestPKCols, defaultsTestUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectDefaultsTestCols(selects, omits)
 
 	var res *DefaultsTest
@@ -1286,7 +1313,7 @@ func (d *DefaultsTestDelegate) runFindFirst(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.DefaultsTest.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+			res, err = txQ.DefaultsTest.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -1296,7 +1323,7 @@ func (d *DefaultsTestDelegate) runFindFirst(
 			return txQ.DefaultsTest.loadRelations(ctx, []*DefaultsTest{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+		res, err = d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -1317,10 +1344,26 @@ func (d *DefaultsTestDelegate) runFindMany(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, defaultsTestPKCols, defaultsTestUniqueCols, "DefaultsTest", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, defaultsTestPKCols, defaultsTestUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectDefaultsTestCols(selects, omits)
 
 	var results []*DefaultsTest
@@ -1328,7 +1371,7 @@ func (d *DefaultsTestDelegate) runFindMany(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			results, err = txQ.DefaultsTest.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+			results, err = txQ.DefaultsTest.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -1338,7 +1381,7 @@ func (d *DefaultsTestDelegate) runFindMany(
 			return txQ.DefaultsTest.loadRelations(ctx, results, selects)
 		})
 	} else {
-		results, err = d.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+		results, err = d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -1346,9 +1389,9 @@ func (d *DefaultsTestDelegate) runFindMany(
 	return results, nil
 }
 
-func (d *DefaultsTestDelegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*DefaultsTest, error) {
+func (d *DefaultsTestDelegate) queryOne(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, skip *int) (*DefaultsTest, error) {
 	limitOne := 1
-	query := buildSelectSQL(d.client, "DefaultsTest", returningCols, whereClause, &limitOne, skip)
+	query := buildSelectSQL(d.client, "DefaultsTest", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1378,8 +1421,8 @@ func (d *DefaultsTestDelegate) queryOne(ctx context.Context, whereClause string,
 	return &res, nil
 }
 
-func (d *DefaultsTestDelegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*DefaultsTest, error) {
-	query := buildSelectSQL(d.client, "DefaultsTest", returningCols, whereClause, take, skip)
+func (d *DefaultsTestDelegate) queryMany(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*DefaultsTest, error) {
+	query := buildSelectSQL(d.client, "DefaultsTest", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
@@ -1396,6 +1439,9 @@ func (d *DefaultsTestDelegate) queryMany(ctx context.Context, whereClause string
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if take != nil && *take < 0 {
+		reverseSlice(results)
 	}
 	return results, nil
 }
@@ -1436,7 +1482,7 @@ func (d *DefaultsTestDelegate) runDeleteMany(ctx context.Context, preds []Predic
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, preds)
 
 	var sb strings.Builder
 	sb.WriteString("DELETE FROM ")
@@ -1518,7 +1564,7 @@ func (d *DefaultsTestDelegate) runDelete(ctx context.Context, where UniquePredic
 				},
 			})
 
-			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			whereClause, vals, _ := CompilePredicates(txQ.dialect, pkPreds)
 			deleteSb.WriteString(whereClause)
 
 			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
@@ -1538,7 +1584,7 @@ func (d *DefaultsTestDelegate) runDelete(ctx context.Context, where UniquePredic
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "DefaultsTest")
 
-	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[DefaultsTest]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[DefaultsTest]{where})
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)
@@ -1608,7 +1654,7 @@ func (d *DefaultsTestDelegate) runCount(ctx context.Context, params QueryParams[
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}

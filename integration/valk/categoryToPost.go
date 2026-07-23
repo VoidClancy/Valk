@@ -57,6 +57,7 @@ type CategoryToPostQueryBuilder struct {
 	take    *int
 	skip    *int
 	orderBy []OrderBy[CategoryToPost]
+	cursor  UniquePredicate[CategoryToPost]
 }
 
 func (b *CategoryToPostQueryBuilder) Where(preds ...PredicateOf[CategoryToPost]) *CategoryToPostQueryBuilder {
@@ -79,6 +80,11 @@ func (b *CategoryToPostQueryBuilder) OrderBy(orders ...OrderBy[CategoryToPost]) 
 	return b
 }
 
+func (b *CategoryToPostQueryBuilder) Cursor(where UniquePredicate[CategoryToPost]) *CategoryToPostQueryBuilder {
+	b.cursor = where
+	return b
+}
+
 func (b *CategoryToPostQueryBuilder) Select(s CategoryToPostSelect) *CategoryToPostQueryBuilder {
 	b.selects = &s
 	return b
@@ -98,6 +104,7 @@ func (b *CategoryToPostQueryBuilder) GetRelationParams() (*CategoryToPostSelect,
 		Take:    b.take,
 		Skip:    b.skip,
 		OrderBy: b.orderBy,
+		Cursor:  b.cursor,
 	}
 }
 
@@ -154,6 +161,8 @@ var categoryToPostPKCols = []string{
 	"postId",
 	"categoryId",
 }
+
+var categoryToPostUniqueCols = []string{}
 
 func selectCategoryToPostCols(selects *CategoryToPostSelect, omits *CategoryToPostOmit, forceCols ...string) []string {
 	if selects == nil && omits == nil && len(forceCols) == 0 {
@@ -979,7 +988,7 @@ func (d *CategoryToPostDelegate) runFindUnique(ctx context.Context, where Unique
 		}
 	}
 	allPreds := append([]PredicateOf[CategoryToPost]{where}, additional...)
-	whereClause, vals := CompilePredicates(d.client.dialect, allPreds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, allPreds)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -990,7 +999,7 @@ func (d *CategoryToPostDelegate) runFindUnique(ctx context.Context, where Unique
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.CategoryToPost.queryOne(ctx, whereClause, vals, returningCols, nil)
+			res, err = txQ.CategoryToPost.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 			if err != nil {
 				return err
 			}
@@ -1000,7 +1009,7 @@ func (d *CategoryToPostDelegate) runFindUnique(ctx context.Context, where Unique
 			return txQ.CategoryToPost.loadRelations(ctx, []*CategoryToPost{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, nil)
+		res, err = d.queryOne(ctx, whereClause, "", vals, returningCols, nil)
 	}
 	if err != nil {
 		return nil, err
@@ -1021,10 +1030,26 @@ func (d *CategoryToPostDelegate) runFindFirst(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, categoryToPostPKCols, categoryToPostUniqueCols, "CategoryToPost", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, categoryToPostPKCols, categoryToPostUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectCategoryToPostCols(selects, omits)
 
 	var res *CategoryToPost
@@ -1032,7 +1057,7 @@ func (d *CategoryToPostDelegate) runFindFirst(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.CategoryToPost.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+			res, err = txQ.CategoryToPost.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -1042,7 +1067,7 @@ func (d *CategoryToPostDelegate) runFindFirst(
 			return txQ.CategoryToPost.loadRelations(ctx, []*CategoryToPost{res}, selects)
 		})
 	} else {
-		res, err = d.queryOne(ctx, whereClause, vals, returningCols, params.Skip)
+		res, err = d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -1063,10 +1088,26 @@ func (d *CategoryToPostDelegate) runFindMany(
 			}
 		}
 	}
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, categoryToPostPKCols, categoryToPostUniqueCols, "CategoryToPost", nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
+	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, categoryToPostPKCols, categoryToPostUniqueCols, isCursorQuery, params.Take)
 	returningCols := selectCategoryToPostCols(selects, omits)
 
 	var results []*CategoryToPost
@@ -1074,7 +1115,7 @@ func (d *CategoryToPostDelegate) runFindMany(
 	if selects.hasAnyRelation() {
 		err = d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			results, err = txQ.CategoryToPost.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+			results, err = txQ.CategoryToPost.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 			if err != nil {
 				return err
 			}
@@ -1084,7 +1125,7 @@ func (d *CategoryToPostDelegate) runFindMany(
 			return txQ.CategoryToPost.loadRelations(ctx, results, selects)
 		})
 	} else {
-		results, err = d.queryMany(ctx, whereClause, vals, returningCols, params.Take, params.Skip)
+		results, err = d.queryMany(ctx, whereClause, orderByClause, vals, returningCols, params.Take, params.Skip)
 	}
 	if err != nil {
 		return nil, err
@@ -1092,9 +1133,9 @@ func (d *CategoryToPostDelegate) runFindMany(
 	return results, nil
 }
 
-func (d *CategoryToPostDelegate) queryOne(ctx context.Context, whereClause string, whereVals []any, returningCols []string, skip *int) (*CategoryToPost, error) {
+func (d *CategoryToPostDelegate) queryOne(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, skip *int) (*CategoryToPost, error) {
 	limitOne := 1
-	query := buildSelectSQL(d.client, "CategoryToPost", returningCols, whereClause, &limitOne, skip)
+	query := buildSelectSQL(d.client, "CategoryToPost", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1124,8 +1165,8 @@ func (d *CategoryToPostDelegate) queryOne(ctx context.Context, whereClause strin
 	return &res, nil
 }
 
-func (d *CategoryToPostDelegate) queryMany(ctx context.Context, whereClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*CategoryToPost, error) {
-	query := buildSelectSQL(d.client, "CategoryToPost", returningCols, whereClause, take, skip)
+func (d *CategoryToPostDelegate) queryMany(ctx context.Context, whereClause string, orderByClause string, whereVals []any, returningCols []string, take *int, skip *int) ([]*CategoryToPost, error) {
+	query := buildSelectSQL(d.client, "CategoryToPost", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
 		return nil, err
@@ -1142,6 +1183,9 @@ func (d *CategoryToPostDelegate) queryMany(ctx context.Context, whereClause stri
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if take != nil && *take < 0 {
+		reverseSlice(results)
 	}
 	return results, nil
 }
@@ -1182,7 +1226,7 @@ func (d *CategoryToPostDelegate) runDeleteMany(ctx context.Context, preds []Pred
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, preds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, preds)
 
 	var sb strings.Builder
 	sb.WriteString("DELETE FROM ")
@@ -1271,7 +1315,7 @@ func (d *CategoryToPostDelegate) runDelete(ctx context.Context, where UniquePred
 				},
 			})
 
-			whereClause, vals := CompilePredicates(txQ.dialect, pkPreds)
+			whereClause, vals, _ := CompilePredicates(txQ.dialect, pkPreds)
 			deleteSb.WriteString(whereClause)
 
 			_, err = txQ.exec(ctx, deleteSb.String(), vals...)
@@ -1291,7 +1335,7 @@ func (d *CategoryToPostDelegate) runDelete(ctx context.Context, where UniquePred
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "CategoryToPost")
 
-	whereClause, vals := CompilePredicates(d.client.dialect, []PredicateOf[CategoryToPost]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[CategoryToPost]{where})
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)
@@ -1361,7 +1405,7 @@ func (d *CategoryToPostDelegate) runCount(ctx context.Context, params QueryParam
 		}
 	}
 
-	whereClause, vals := CompilePredicates(d.client.dialect, params.Where)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, params.Where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
