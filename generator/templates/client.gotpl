@@ -268,8 +268,13 @@ func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Resu
 	return res, err
 }
 
+func (q *Queries) inTx() bool {
+	_, ok := q.db.(*sql.Tx)
+	return ok
+}
+
 func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) error {
-	if _, ok := q.db.(*sql.Tx); ok {
+	if q.inTx() {
 		return fn(q)
 	}
 
