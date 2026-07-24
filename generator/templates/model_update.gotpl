@@ -1,0 +1,375 @@
+type {{ .Model.Name }}UpdateBuilder struct {
+	*UpdateBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]
+}
+
+type {{ .Model.Name }}UpdateManyBuilder struct {
+	*UpdateManyBuilder[{{ .Model.Name }}]
+}
+
+type {{ .Model.Name }}UpdateManyAndReturnBuilder struct {
+	*UpdateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]
+}
+
+{{ range $field := .Model.ScalarFields -}}
+{{- $fieldType := trimPrefix $field.GoType "*" -}}
+{{- if $field.EnumRef -}}
+	{{- if $field.IsArray -}}
+		{{- $fieldType = printf "[]%sType" $field.EnumRef.Name -}}
+	{{- else -}}
+		{{- $fieldType = printf "%sType" $field.EnumRef.Name -}}
+	{{- end -}}
+{{- end -}}
+func (b *{{ $.Model.Name }}UpdateBuilder) Set{{ capitalize $field.Name }}(v {{ $fieldType }}) *{{ $.Model.Name }}UpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "{{ $field.EffectiveColName }}", Val: v})
+	return b
+}
+
+func (b *{{ $.Model.Name }}UpdateManyBuilder) Set{{ capitalize $field.Name }}(v {{ $fieldType }}) *{{ $.Model.Name }}UpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "{{ $field.EffectiveColName }}", Val: v})
+	return b
+}
+
+func (b *{{ $.Model.Name }}UpdateManyAndReturnBuilder) Set{{ capitalize $field.Name }}(v {{ $fieldType }}) *{{ $.Model.Name }}UpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "{{ $field.EffectiveColName }}", Val: v})
+	return b
+}
+{{ end }}
+
+func (b *{{ $.Model.Name }}UpdateBuilder) Assignments(assignments ...FieldAssignmentOf[{{ .Model.Name }}]) *{{ $.Model.Name }}UpdateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *{{ $.Model.Name }}UpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[{{ .Model.Name }}]) *{{ $.Model.Name }}UpdateManyBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *{{ $.Model.Name }}UpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[{{ .Model.Name }}]) *{{ $.Model.Name }}UpdateManyAndReturnBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *{{ .Model.Name }}Delegate) Update(where UniquePredicate[{{ .Model.Name }}], additional ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}UpdateBuilder {
+	return &{{ .Model.Name }}UpdateBuilder{
+		UpdateBuilder: &UpdateBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
+			where:      where,
+			additional: additional,
+			execFunc:   d.executeUpdate,
+		},
+	}
+}
+
+func (d *{{ .Model.Name }}Delegate) UpdateMany(preds ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}UpdateManyBuilder {
+	return &{{ .Model.Name }}UpdateManyBuilder{
+		UpdateManyBuilder: &UpdateManyBuilder[{{ .Model.Name }}]{
+			where:    preds,
+			execFunc: d.executeUpdateMany,
+		},
+	}
+}
+
+func (d *{{ .Model.Name }}Delegate) UpdateManyAndReturn(preds ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}UpdateManyAndReturnBuilder {
+	return &{{ .Model.Name }}UpdateManyAndReturnBuilder{
+		UpdateManyAndReturnBuilder: &UpdateManyAndReturnBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]{
+			where:    preds,
+			execFunc: d.executeUpdateManyAndReturn,
+		},
+	}
+}
+
+func (d *{{ .Model.Name }}Delegate) buildUpdateSQL(preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+
+	var sb strings.Builder
+	sb.WriteString("UPDATE ")
+	d.client.dialect.WriteQuotedIdent(&sb, "{{ .Model.EffectiveTableName }}")
+	sb.WriteString(" SET ")
+
+	setVals := make([]any, 0, len(assignments)+len(predVals))
+	for i, a := range assignments {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		sb.WriteString(" = ")
+		d.client.dialect.WritePlaceholder(&sb, i+1)
+		setVals = append(setVals, a.Val)
+	}
+
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+		setVals = append(setVals, predVals...)
+	}
+
+	if len(returningCols) > 0 && d.client.dialect.SupportsUpdateReturning {
+		sb.WriteString(" RETURNING ")
+		for i, col := range returningCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			d.client.dialect.WriteQuotedIdent(&sb, col)
+		}
+	}
+
+	return sb.String(), setVals
+}
+
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
+
+func (d *{{ .Model.Name }}Delegate) executeUpdate(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[{{ .Model.Name }}], add []PredicateOf[{{ .Model.Name }}], a []FieldAssignment, s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+		return d.runUpdate(c, w, add, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Update != nil {
+			next, hook := curr, ext.Update
+			curr = func(c context.Context, w UniquePredicate[{{ .Model.Name }}], add []PredicateOf[{{ .Model.Name }}], a []FieldAssignment, s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+				return hook(c, w, add, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, additional, assignments, selects, omits)
+}
+
+func (d *{{ .Model.Name }}Delegate) runUpdate(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	if len(assignments) == 0 {
+		return d.runFindUnique(ctx, where, additional, selects, omits)
+	}
+
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	for _, pr := range additional {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res *{{ .Model.Name }}
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.{{ .Model.Name }}.runUpdate(ctx, where, additional, assignments, selects, omits)
+			} else {
+				res, err = txQ.{{ .Model.Name }}.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := select{{ .Model.Name }}Cols(selects, omits, {{ lowercase .Model.Name }}PKCols...)
+	allPreds := append([]PredicateOf[{{ .Model.Name }}]{where}, additional...)
+	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var res {{ .Model.Name }}
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*{{ .Model.Name }}{&res}, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return &res, nil
+}
+
+func (d *{{ .Model.Name }}Delegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment) (int64, error) {
+	if len(assignments) == 0 {
+		return 0, nil
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	result, err := d.client.exec(ctx, query, setVals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+func (d *{{ .Model.Name }}Delegate) runUpdateFallback(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	allPreds := append([]PredicateOf[{{ .Model.Name }}]{where}, additional...)
+	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return d.runFindUnique(ctx, where, additional, selects, omits)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateMany
+// -----------------------------------------------------------------------------
+
+func (d *{{ .Model.Name }}Delegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateMany(ctx, preds, assignments)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[{{ .Model.Name }}], a []FieldAssignment) (int64, error) {
+		return d.runUpdateMany(c, p, a)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateMany != nil {
+			next, hook := curr, ext.UpdateMany
+			curr = func(c context.Context, p []PredicateOf[{{ .Model.Name }}], a []FieldAssignment) (int64, error) {
+				return hook(c, p, a, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments)
+}
+
+func (d *{{ .Model.Name }}Delegate) runUpdateMany(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment) (int64, error) {
+	return d.execUpdateStmt(ctx, preds, assignments)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateManyAndReturn
+// -----------------------------------------------------------------------------
+
+func (d *{{ .Model.Name }}Delegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[{{ .Model.Name }}], a []FieldAssignment, s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
+		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateManyAndReturn != nil {
+			next, hook := curr, ext.UpdateManyAndReturn
+			curr = func(c context.Context, p []PredicateOf[{{ .Model.Name }}], a []FieldAssignment, s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
+				return hook(c, p, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments, selects, omits)
+}
+
+func (d *{{ .Model.Name }}Delegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
+	if len(assignments) == 0 {
+		return d.runFindMany(ctx, QueryParams[{{ .Model.Name }}]{Where: preds}, selects, omits)
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res []*{{ .Model.Name }}
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.{{ .Model.Name }}.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+			} else {
+				res, err = txQ.{{ .Model.Name }}.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := select{{ .Model.Name }}Cols(selects, omits, {{ lowercase .Model.Name }}PKCols...)
+	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]*{{ .Model.Name }}, 0)
+	for rows.Next() {
+		var res {{ .Model.Name }}
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	rowsErr := rows.Err()
+	rows.Close()
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, results, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return results, nil
+}
+
+func (d *{{ .Model.Name }}Delegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return []*{{ .Model.Name }}{}, nil
+	}
+	return d.runFindMany(ctx, QueryParams[{{ .Model.Name }}]{Where: preds}, selects, omits)
+}

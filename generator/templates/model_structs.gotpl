@@ -141,6 +141,9 @@ type {{ .Model.Name }}FindManyQuery = func(ctx context.Context, params QueryPara
 type {{ .Model.Name }}DeleteManyQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}]) (int64, error)
 type {{ .Model.Name }}DeleteQuery = func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}CountQuery = func(ctx context.Context, params QueryParams[{{ .Model.Name }}]) (int64, error)
+type {{ .Model.Name }}UpdateQuery = func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
+type {{ .Model.Name }}UpdateManyQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment) (int64, error)
+type {{ .Model.Name }}UpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error)
 
 type {{ .Model.Name }}Extension struct {
 	Create              func(ctx context.Context, input *{{ .Model.Name }}Create, next {{ .Model.Name }}CreateQuery) (*{{ .Model.Name }}, error)
@@ -152,6 +155,9 @@ type {{ .Model.Name }}Extension struct {
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], next {{ .Model.Name }}DeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}DeleteQuery) (*{{ .Model.Name }}, error)
 	Count               func(ctx context.Context, params QueryParams[{{ .Model.Name }}], next {{ .Model.Name }}CountQuery) (int64, error)
+	Update              func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}UpdateQuery) (*{{ .Model.Name }}, error)
+	UpdateMany          func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, next {{ .Model.Name }}UpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}UpdateManyAndReturnQuery) ([]*{{ .Model.Name }}, error)
 }
 
 type {{ .Model.Name }}Delegate struct {

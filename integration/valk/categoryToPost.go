@@ -117,6 +117,9 @@ type CategoryToPostFindManyQuery = func(ctx context.Context, params QueryParams[
 type CategoryToPostDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[CategoryToPost]) (int64, error)
 type CategoryToPostDeleteQuery = func(ctx context.Context, where UniquePredicate[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error)
 type CategoryToPostCountQuery = func(ctx context.Context, params QueryParams[CategoryToPost]) (int64, error)
+type CategoryToPostUpdateQuery = func(ctx context.Context, where UniquePredicate[CategoryToPost], additional []PredicateOf[CategoryToPost], assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error)
+type CategoryToPostUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[CategoryToPost], assignments []FieldAssignment) (int64, error)
+type CategoryToPostUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[CategoryToPost], assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error)
 
 type CategoryToPostExtension struct {
 	Create              func(ctx context.Context, input *CategoryToPostCreate, next CategoryToPostCreateQuery) (*CategoryToPost, error)
@@ -128,6 +131,9 @@ type CategoryToPostExtension struct {
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[CategoryToPost], next CategoryToPostDeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit, next CategoryToPostDeleteQuery) (*CategoryToPost, error)
 	Count               func(ctx context.Context, params QueryParams[CategoryToPost], next CategoryToPostCountQuery) (int64, error)
+	Update              func(ctx context.Context, where UniquePredicate[CategoryToPost], additional []PredicateOf[CategoryToPost], assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit, next CategoryToPostUpdateQuery) (*CategoryToPost, error)
+	UpdateMany          func(ctx context.Context, preds []PredicateOf[CategoryToPost], assignments []FieldAssignment, next CategoryToPostUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[CategoryToPost], assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit, next CategoryToPostUpdateManyAndReturnQuery) ([]*CategoryToPost, error)
 }
 
 type CategoryToPostDelegate struct {
@@ -886,6 +892,386 @@ func newCategoryToPostUpsert(up *ConflictUpdate) *CategoryToPostUpsert {
 			tableName:   "CategoryToPost",
 		},
 	}
+}
+
+type CategoryToPostUpdateBuilder struct {
+	*UpdateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]
+}
+
+type CategoryToPostUpdateManyBuilder struct {
+	*UpdateManyBuilder[CategoryToPost]
+}
+
+type CategoryToPostUpdateManyAndReturnBuilder struct {
+	*UpdateManyAndReturnBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]
+}
+
+func (b *CategoryToPostUpdateBuilder) SetPostId(v string) *CategoryToPostUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "postId", Val: v})
+	return b
+}
+
+func (b *CategoryToPostUpdateManyBuilder) SetPostId(v string) *CategoryToPostUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "postId", Val: v})
+	return b
+}
+
+func (b *CategoryToPostUpdateManyAndReturnBuilder) SetPostId(v string) *CategoryToPostUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "postId", Val: v})
+	return b
+}
+func (b *CategoryToPostUpdateBuilder) SetCategoryId(v int32) *CategoryToPostUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "categoryId", Val: v})
+	return b
+}
+
+func (b *CategoryToPostUpdateManyBuilder) SetCategoryId(v int32) *CategoryToPostUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "categoryId", Val: v})
+	return b
+}
+
+func (b *CategoryToPostUpdateManyAndReturnBuilder) SetCategoryId(v int32) *CategoryToPostUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "categoryId", Val: v})
+	return b
+}
+
+func (b *CategoryToPostUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[CategoryToPost]) *CategoryToPostUpdateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *CategoryToPostUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[CategoryToPost]) *CategoryToPostUpdateManyBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *CategoryToPostUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[CategoryToPost]) *CategoryToPostUpdateManyAndReturnBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *CategoryToPostDelegate) Update(where UniquePredicate[CategoryToPost], additional ...PredicateOf[CategoryToPost]) *CategoryToPostUpdateBuilder {
+	return &CategoryToPostUpdateBuilder{
+		UpdateBuilder: &UpdateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
+			where:      where,
+			additional: additional,
+			execFunc:   d.executeUpdate,
+		},
+	}
+}
+
+func (d *CategoryToPostDelegate) UpdateMany(preds ...PredicateOf[CategoryToPost]) *CategoryToPostUpdateManyBuilder {
+	return &CategoryToPostUpdateManyBuilder{
+		UpdateManyBuilder: &UpdateManyBuilder[CategoryToPost]{
+			where:    preds,
+			execFunc: d.executeUpdateMany,
+		},
+	}
+}
+
+func (d *CategoryToPostDelegate) UpdateManyAndReturn(preds ...PredicateOf[CategoryToPost]) *CategoryToPostUpdateManyAndReturnBuilder {
+	return &CategoryToPostUpdateManyAndReturnBuilder{
+		UpdateManyAndReturnBuilder: &UpdateManyAndReturnBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
+			where:    preds,
+			execFunc: d.executeUpdateManyAndReturn,
+		},
+	}
+}
+
+func (d *CategoryToPostDelegate) buildUpdateSQL(preds []PredicateOf[CategoryToPost], assignments []FieldAssignment, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+
+	var sb strings.Builder
+	sb.WriteString("UPDATE ")
+	d.client.dialect.WriteQuotedIdent(&sb, "CategoryToPost")
+	sb.WriteString(" SET ")
+
+	setVals := make([]any, 0, len(assignments)+len(predVals))
+	for i, a := range assignments {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		sb.WriteString(" = ")
+		d.client.dialect.WritePlaceholder(&sb, i+1)
+		setVals = append(setVals, a.Val)
+	}
+
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+		setVals = append(setVals, predVals...)
+	}
+
+	if len(returningCols) > 0 && d.client.dialect.SupportsUpdateReturning {
+		sb.WriteString(" RETURNING ")
+		for i, col := range returningCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			d.client.dialect.WriteQuotedIdent(&sb, col)
+		}
+	}
+
+	return sb.String(), setVals
+}
+
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
+
+func (d *CategoryToPostDelegate) executeUpdate(ctx context.Context, where UniquePredicate[CategoryToPost], additional []PredicateOf[CategoryToPost], assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[CategoryToPost], add []PredicateOf[CategoryToPost], a []FieldAssignment, s *CategoryToPostSelect, o *CategoryToPostOmit) (*CategoryToPost, error) {
+		return d.runUpdate(c, w, add, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Update != nil {
+			next, hook := curr, ext.Update
+			curr = func(c context.Context, w UniquePredicate[CategoryToPost], add []PredicateOf[CategoryToPost], a []FieldAssignment, s *CategoryToPostSelect, o *CategoryToPostOmit) (*CategoryToPost, error) {
+				return hook(c, w, add, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, additional, assignments, selects, omits)
+}
+
+func (d *CategoryToPostDelegate) runUpdate(ctx context.Context, where UniquePredicate[CategoryToPost], additional []PredicateOf[CategoryToPost], assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	if len(assignments) == 0 {
+		return d.runFindUnique(ctx, where, additional, selects, omits)
+	}
+
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	for _, pr := range additional {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res *CategoryToPost
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.CategoryToPost.runUpdate(ctx, where, additional, assignments, selects, omits)
+			} else {
+				res, err = txQ.CategoryToPost.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectCategoryToPostCols(selects, omits, categoryToPostPKCols...)
+	allPreds := append([]PredicateOf[CategoryToPost]{where}, additional...)
+	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var res CategoryToPost
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*CategoryToPost{&res}, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return &res, nil
+}
+
+func (d *CategoryToPostDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[CategoryToPost], assignments []FieldAssignment) (int64, error) {
+	if len(assignments) == 0 {
+		return 0, nil
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	result, err := d.client.exec(ctx, query, setVals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+func (d *CategoryToPostDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[CategoryToPost], additional []PredicateOf[CategoryToPost], assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	allPreds := append([]PredicateOf[CategoryToPost]{where}, additional...)
+	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return d.runFindUnique(ctx, where, additional, selects, omits)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateMany
+// -----------------------------------------------------------------------------
+
+func (d *CategoryToPostDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[CategoryToPost], assignments []FieldAssignment) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateMany(ctx, preds, assignments)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[CategoryToPost], a []FieldAssignment) (int64, error) {
+		return d.runUpdateMany(c, p, a)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateMany != nil {
+			next, hook := curr, ext.UpdateMany
+			curr = func(c context.Context, p []PredicateOf[CategoryToPost], a []FieldAssignment) (int64, error) {
+				return hook(c, p, a, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments)
+}
+
+func (d *CategoryToPostDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[CategoryToPost], assignments []FieldAssignment) (int64, error) {
+	return d.execUpdateStmt(ctx, preds, assignments)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateManyAndReturn
+// -----------------------------------------------------------------------------
+
+func (d *CategoryToPostDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[CategoryToPost], assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[CategoryToPost], a []FieldAssignment, s *CategoryToPostSelect, o *CategoryToPostOmit) ([]*CategoryToPost, error) {
+		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateManyAndReturn != nil {
+			next, hook := curr, ext.UpdateManyAndReturn
+			curr = func(c context.Context, p []PredicateOf[CategoryToPost], a []FieldAssignment, s *CategoryToPostSelect, o *CategoryToPostOmit) ([]*CategoryToPost, error) {
+				return hook(c, p, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments, selects, omits)
+}
+
+func (d *CategoryToPostDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[CategoryToPost], assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
+	if len(assignments) == 0 {
+		return d.runFindMany(ctx, QueryParams[CategoryToPost]{Where: preds}, selects, omits)
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res []*CategoryToPost
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.CategoryToPost.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+			} else {
+				res, err = txQ.CategoryToPost.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectCategoryToPostCols(selects, omits, categoryToPostPKCols...)
+	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]*CategoryToPost, 0)
+	for rows.Next() {
+		var res CategoryToPost
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	rowsErr := rows.Err()
+	rows.Close()
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, results, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return results, nil
+}
+
+func (d *CategoryToPostDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[CategoryToPost], assignments []FieldAssignment, selects *CategoryToPostSelect, omits *CategoryToPostOmit) ([]*CategoryToPost, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return []*CategoryToPost{}, nil
+	}
+	return d.runFindMany(ctx, QueryParams[CategoryToPost]{Where: preds}, selects, omits)
 }
 func (d *CategoryToPostDelegate) FindUnique(where UniquePredicate[CategoryToPost], additional ...PredicateOf[CategoryToPost]) *FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
 	return &FindUniqueBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
