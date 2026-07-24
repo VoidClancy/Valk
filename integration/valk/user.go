@@ -163,6 +163,9 @@ type UserFindManyQuery = func(ctx context.Context, params QueryParams[User], sel
 type UserDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[User]) (int64, error)
 type UserDeleteQuery = func(ctx context.Context, where UniquePredicate[User], selects *UserSelect, omits *UserOmit) (*User, error)
 type UserCountQuery = func(ctx context.Context, params QueryParams[User]) (int64, error)
+type UserUpdateQuery = func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error)
+type UserUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment) (int64, error)
+type UserUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) ([]*User, error)
 
 type UserExtension struct {
 	Create              func(ctx context.Context, input *UserCreate, next UserCreateQuery) (*User, error)
@@ -174,6 +177,9 @@ type UserExtension struct {
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[User], next UserDeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[User], selects *UserSelect, omits *UserOmit, next UserDeleteQuery) (*User, error)
 	Count               func(ctx context.Context, params QueryParams[User], next UserCountQuery) (int64, error)
+	Update              func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit, next UserUpdateQuery) (*User, error)
+	UpdateMany          func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, next UserUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit, next UserUpdateManyAndReturnQuery) ([]*User, error)
 }
 
 type UserDelegate struct {
@@ -1115,6 +1121,470 @@ func newUserUpsert(up *ConflictUpdate) *UserUpsert {
 		},
 		ReferredById: fieldUpsert[*string]{column: "referredById", update: up},
 	}
+}
+
+type UserUpdateBuilder struct {
+	*UpdateBuilder[User, UserSelect, UserOmit]
+}
+
+type UserUpdateManyBuilder struct {
+	*UpdateManyBuilder[User]
+}
+
+type UserUpdateManyAndReturnBuilder struct {
+	*UpdateManyAndReturnBuilder[User, UserSelect, UserOmit]
+}
+
+func (b *UserUpdateBuilder) SetId(v string) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetId(v string) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetId(v string) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetEmail(v string) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "email", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetEmail(v string) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "email", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetEmail(v string) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "email", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetPhoneNum(v string) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "phoneNum", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetPhoneNum(v string) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "phoneNum", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetPhoneNum(v string) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "phoneNum", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetPassword(v string) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "password", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetPassword(v string) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "password", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetPassword(v string) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "password", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetRole(v UserRoleType) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "role", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetRole(v UserRoleType) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "role", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetRole(v UserRoleType) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "role", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetRoleOptional(v UserRoleType) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "roleOptional", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetRoleOptional(v UserRoleType) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "roleOptional", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetRoleOptional(v UserRoleType) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "roleOptional", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetLoginCount(v int32) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "loginCount", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetLoginCount(v int32) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "loginCount", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetLoginCount(v int32) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "loginCount", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetReferredById(v string) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "referredById", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetReferredById(v string) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "referredById", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetReferredById(v string) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "referredById", Val: v})
+	return b
+}
+
+func (b *UserUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[User]) *UserUpdateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *UserUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[User]) *UserUpdateManyBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[User]) *UserUpdateManyAndReturnBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *UserDelegate) Update(where UniquePredicate[User], additional ...PredicateOf[User]) *UserUpdateBuilder {
+	return &UserUpdateBuilder{
+		UpdateBuilder: &UpdateBuilder[User, UserSelect, UserOmit]{
+			where:      where,
+			additional: additional,
+			execFunc:   d.executeUpdate,
+		},
+	}
+}
+
+func (d *UserDelegate) UpdateMany(preds ...PredicateOf[User]) *UserUpdateManyBuilder {
+	return &UserUpdateManyBuilder{
+		UpdateManyBuilder: &UpdateManyBuilder[User]{
+			where:    preds,
+			execFunc: d.executeUpdateMany,
+		},
+	}
+}
+
+func (d *UserDelegate) UpdateManyAndReturn(preds ...PredicateOf[User]) *UserUpdateManyAndReturnBuilder {
+	return &UserUpdateManyAndReturnBuilder{
+		UpdateManyAndReturnBuilder: &UpdateManyAndReturnBuilder[User, UserSelect, UserOmit]{
+			where:    preds,
+			execFunc: d.executeUpdateManyAndReturn,
+		},
+	}
+}
+
+func (d *UserDelegate) buildUpdateSQL(preds []PredicateOf[User], assignments []FieldAssignment, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+
+	var sb strings.Builder
+	sb.WriteString("UPDATE ")
+	d.client.dialect.WriteQuotedIdent(&sb, "User")
+	sb.WriteString(" SET ")
+
+	setVals := make([]any, 0, len(assignments)+len(predVals))
+	for i, a := range assignments {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		sb.WriteString(" = ")
+		d.client.dialect.WritePlaceholder(&sb, i+1)
+		setVals = append(setVals, a.Val)
+	}
+
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+		setVals = append(setVals, predVals...)
+	}
+
+	if len(returningCols) > 0 && d.client.dialect.SupportsUpdateReturning {
+		sb.WriteString(" RETURNING ")
+		for i, col := range returningCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			d.client.dialect.WriteQuotedIdent(&sb, col)
+		}
+	}
+
+	return sb.String(), setVals
+}
+
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
+
+func (d *UserDelegate) executeUpdate(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) (*User, error) {
+		return d.runUpdate(c, w, add, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Update != nil {
+			next, hook := curr, ext.Update
+			curr = func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) (*User, error) {
+				return hook(c, w, add, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, additional, assignments, selects, omits)
+}
+
+func (d *UserDelegate) runUpdate(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error) {
+	if len(assignments) == 0 {
+		return d.runFindUnique(ctx, where, additional, selects, omits)
+	}
+
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	for _, pr := range additional {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res *User
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.User.runUpdate(ctx, where, additional, assignments, selects, omits)
+			} else {
+				res, err = txQ.User.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectUserCols(selects, omits, userPKCols...)
+	allPreds := append([]PredicateOf[User]{where}, additional...)
+	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var res User
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*User{&res}, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return &res, nil
+}
+
+func (d *UserDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment) (int64, error) {
+	if len(assignments) == 0 {
+		return 0, nil
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	result, err := d.client.exec(ctx, query, setVals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+func (d *UserDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error) {
+	allPreds := append([]PredicateOf[User]{where}, additional...)
+	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return d.runFindUnique(ctx, where, additional, selects, omits)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateMany
+// -----------------------------------------------------------------------------
+
+func (d *UserDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateMany(ctx, preds, assignments)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[User], a []FieldAssignment) (int64, error) {
+		return d.runUpdateMany(c, p, a)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateMany != nil {
+			next, hook := curr, ext.UpdateMany
+			curr = func(c context.Context, p []PredicateOf[User], a []FieldAssignment) (int64, error) {
+				return hook(c, p, a, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments)
+}
+
+func (d *UserDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment) (int64, error) {
+	return d.execUpdateStmt(ctx, preds, assignments)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateManyAndReturn
+// -----------------------------------------------------------------------------
+
+func (d *UserDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) ([]*User, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) ([]*User, error) {
+		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateManyAndReturn != nil {
+			next, hook := curr, ext.UpdateManyAndReturn
+			curr = func(c context.Context, p []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) ([]*User, error) {
+				return hook(c, p, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments, selects, omits)
+}
+
+func (d *UserDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) ([]*User, error) {
+	if len(assignments) == 0 {
+		return d.runFindMany(ctx, QueryParams[User]{Where: preds}, selects, omits)
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res []*User
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.User.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+			} else {
+				res, err = txQ.User.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectUserCols(selects, omits, userPKCols...)
+	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]*User, 0)
+	for rows.Next() {
+		var res User
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	rowsErr := rows.Err()
+	rows.Close()
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, results, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return results, nil
+}
+
+func (d *UserDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) ([]*User, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return []*User{}, nil
+	}
+	return d.runFindMany(ctx, QueryParams[User]{Where: preds}, selects, omits)
 }
 func (d *UserDelegate) FindUnique(where UniquePredicate[User], additional ...PredicateOf[User]) *FindUniqueBuilder[User, UserSelect, UserOmit] {
 	return &FindUniqueBuilder[User, UserSelect, UserOmit]{

@@ -405,6 +405,9 @@ type AllFieldsSoFarFindManyQuery = func(ctx context.Context, params QueryParams[
 type AllFieldsSoFarDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar]) (int64, error)
 type AllFieldsSoFarDeleteQuery = func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
 type AllFieldsSoFarCountQuery = func(ctx context.Context, params QueryParams[AllFieldsSoFar]) (int64, error)
+type AllFieldsSoFarUpdateQuery = func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
+type AllFieldsSoFarUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment) (int64, error)
+type AllFieldsSoFarUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error)
 
 type AllFieldsSoFarExtension struct {
 	Create              func(ctx context.Context, input *AllFieldsSoFarCreate, next AllFieldsSoFarCreateQuery) (*AllFieldsSoFar, error)
@@ -416,6 +419,9 @@ type AllFieldsSoFarExtension struct {
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], next AllFieldsSoFarDeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarDeleteQuery) (*AllFieldsSoFar, error)
 	Count               func(ctx context.Context, params QueryParams[AllFieldsSoFar], next AllFieldsSoFarCountQuery) (int64, error)
+	Update              func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarUpdateQuery) (*AllFieldsSoFar, error)
+	UpdateMany          func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, next AllFieldsSoFarUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarUpdateManyAndReturnQuery) ([]*AllFieldsSoFar, error)
 }
 
 type AllFieldsSoFarDelegate struct {
@@ -2645,6 +2651,1114 @@ func newAllFieldsSoFarUpsert(up *ConflictUpdate) *AllFieldsSoFarUpsert {
 		LtreeField:      fieldUpsert[string]{column: "ltreeField", update: up},
 		CitextField:     fieldUpsert[*string]{column: "citextField", update: up},
 	}
+}
+
+type AllFieldsSoFarUpdateBuilder struct {
+	*UpdateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]
+}
+
+type AllFieldsSoFarUpdateManyBuilder struct {
+	*UpdateManyBuilder[AllFieldsSoFar]
+}
+
+type AllFieldsSoFarUpdateManyAndReturnBuilder struct {
+	*UpdateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]
+}
+
+func (b *AllFieldsSoFarUpdateBuilder) SetId(v int32) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetId(v int32) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetId(v int32) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetStringReq(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetStringReq(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetStringReq(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetStringOpt(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetStringOpt(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetStringOpt(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetStringDefault(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetStringDefault(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetStringDefault(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetStringVarchar(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringVarchar", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetStringVarchar(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringVarchar", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetStringVarchar(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringVarchar", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetStringChar(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringChar", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetStringChar(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringChar", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetStringChar(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "stringChar", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetBitVal(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bitVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetBitVal(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bitVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetBitVal(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bitVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetVarBitVal(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "varBitVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetVarBitVal(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "varBitVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetVarBitVal(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "varBitVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetInetVal(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "inetVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetInetVal(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "inetVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetInetVal(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "inetVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetXmlVal(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "xmlVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetXmlVal(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "xmlVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetXmlVal(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "xmlVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetCuidDefault(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuidDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetCuidDefault(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuidDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetCuidDefault(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuidDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetCuid1Default(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid1Default", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetCuid1Default(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid1Default", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetCuid1Default(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid1Default", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetCuid2Default(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid2Default", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetCuid2Default(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid2Default", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetCuid2Default(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid2Default", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetUuidDefault(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetUuidDefault(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetUuidDefault(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetUuid4Default(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid4Default", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetUuid4Default(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid4Default", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetUuid4Default(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid4Default", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetUuid7Default(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid7Default", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetUuid7Default(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid7Default", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetUuid7Default(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid7Default", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetUlidDefault(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ulidDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetUlidDefault(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ulidDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetUlidDefault(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ulidDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetNanoidDefault(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "nanoidDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetNanoidDefault(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "nanoidDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetNanoidDefault(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "nanoidDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetUuidDb(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidDb", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetUuidDb(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidDb", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetUuidDb(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidDb", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetIntReq(v int32) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetIntReq(v int32) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetIntReq(v int32) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetIntOpt(v int32) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetIntOpt(v int32) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetIntOpt(v int32) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetIntDefault(v int32) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetIntDefault(v int32) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetIntDefault(v int32) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "intDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetIntegerVal(v int32) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "integerVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetIntegerVal(v int32) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "integerVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetIntegerVal(v int32) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "integerVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetSmallInt(v int32) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "smallInt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetSmallInt(v int32) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "smallInt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetSmallInt(v int32) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "smallInt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetTinyInt(v int32) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "tinyInt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetTinyInt(v int32) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "tinyInt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetTinyInt(v int32) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "tinyInt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetOidVal(v int32) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "oidVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetOidVal(v int32) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "oidVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetOidVal(v int32) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "oidVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetBigIntReq(v int64) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bigIntReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetBigIntReq(v int64) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bigIntReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetBigIntReq(v int64) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bigIntReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetBigIntOpt(v int64) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bigIntOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetBigIntOpt(v int64) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bigIntOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetBigIntOpt(v int64) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bigIntOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetFloatReq(v float64) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "floatReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetFloatReq(v float64) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "floatReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetFloatReq(v float64) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "floatReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetFloatOpt(v float64) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "floatOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetFloatOpt(v float64) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "floatOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetFloatOpt(v float64) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "floatOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetRealVal(v float64) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "realVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetRealVal(v float64) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "realVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetRealVal(v float64) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "realVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetDecimalReq(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetDecimalReq(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetDecimalReq(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetDecimalOpt(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetDecimalOpt(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetDecimalOpt(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetDecimalPrecise(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalPrecise", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetDecimalPrecise(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalPrecise", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetDecimalPrecise(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "decimalPrecise", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetMoneyVal(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "moneyVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetMoneyVal(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "moneyVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetMoneyVal(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "moneyVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetBoolReq(v bool) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetBoolReq(v bool) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetBoolReq(v bool) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetBoolOpt(v bool) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetBoolOpt(v bool) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetBoolOpt(v bool) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetBoolDefault(v bool) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetBoolDefault(v bool) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetBoolDefault(v bool) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "boolDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetDateTimeReq(v time.Time) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetDateTimeReq(v time.Time) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetDateTimeReq(v time.Time) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetDateTimeOpt(v time.Time) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetDateTimeOpt(v time.Time) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetDateTimeOpt(v time.Time) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetDateTimeDefault(v time.Time) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetDateTimeDefault(v time.Time) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeDefault", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetDateTimeDefault(v time.Time) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeDefault", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetUpdatedAt(v time.Time) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetUpdatedAt(v time.Time) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetUpdatedAt(v time.Time) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetDateTimeTz(v time.Time) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeTz", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetDateTimeTz(v time.Time) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeTz", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetDateTimeTz(v time.Time) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dateTimeTz", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetTimestampVal(v time.Time) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timestampVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetTimestampVal(v time.Time) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timestampVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetTimestampVal(v time.Time) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timestampVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetTimeVal(v time.Time) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timeVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetTimeVal(v time.Time) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timeVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetTimeVal(v time.Time) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timeVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetTimetzVal(v time.Time) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timetzVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetTimetzVal(v time.Time) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timetzVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetTimetzVal(v time.Time) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "timetzVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetJsonReq(v json.RawMessage) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetJsonReq(v json.RawMessage) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetJsonReq(v json.RawMessage) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetJsonOpt(v json.RawMessage) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetJsonOpt(v json.RawMessage) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetJsonOpt(v json.RawMessage) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetJsonVal(v json.RawMessage) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetJsonVal(v json.RawMessage) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonVal", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetJsonVal(v json.RawMessage) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "jsonVal", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetBytesReq(v []byte) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bytesReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetBytesReq(v []byte) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bytesReq", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetBytesReq(v []byte) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bytesReq", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetBytesOpt(v []byte) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bytesOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetBytesOpt(v []byte) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bytesOpt", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetBytesOpt(v []byte) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bytesOpt", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetHstoreField(v map[string]*string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "hstoreField", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetHstoreField(v map[string]*string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "hstoreField", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetHstoreField(v map[string]*string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "hstoreField", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetLtreeField(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ltreeField", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetLtreeField(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ltreeField", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetLtreeField(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ltreeField", Val: v})
+	return b
+}
+func (b *AllFieldsSoFarUpdateBuilder) SetCitextField(v string) *AllFieldsSoFarUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "citextField", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) SetCitextField(v string) *AllFieldsSoFarUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "citextField", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetCitextField(v string) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "citextField", Val: v})
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateManyBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *AllFieldsSoFarDelegate) Update(where UniquePredicate[AllFieldsSoFar], additional ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateBuilder {
+	return &AllFieldsSoFarUpdateBuilder{
+		UpdateBuilder: &UpdateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
+			where:      where,
+			additional: additional,
+			execFunc:   d.executeUpdate,
+		},
+	}
+}
+
+func (d *AllFieldsSoFarDelegate) UpdateMany(preds ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateManyBuilder {
+	return &AllFieldsSoFarUpdateManyBuilder{
+		UpdateManyBuilder: &UpdateManyBuilder[AllFieldsSoFar]{
+			where:    preds,
+			execFunc: d.executeUpdateMany,
+		},
+	}
+}
+
+func (d *AllFieldsSoFarDelegate) UpdateManyAndReturn(preds ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateManyAndReturnBuilder {
+	return &AllFieldsSoFarUpdateManyAndReturnBuilder{
+		UpdateManyAndReturnBuilder: &UpdateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
+			where:    preds,
+			execFunc: d.executeUpdateManyAndReturn,
+		},
+	}
+}
+
+func (d *AllFieldsSoFarDelegate) buildUpdateSQL(preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+
+	var sb strings.Builder
+	sb.WriteString("UPDATE ")
+	d.client.dialect.WriteQuotedIdent(&sb, "AllFieldsSoFar")
+	sb.WriteString(" SET ")
+
+	setVals := make([]any, 0, len(assignments)+len(predVals))
+	for i, a := range assignments {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		sb.WriteString(" = ")
+		d.client.dialect.WritePlaceholder(&sb, i+1)
+		setVals = append(setVals, a.Val)
+	}
+
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+		setVals = append(setVals, predVals...)
+	}
+
+	if len(returningCols) > 0 && d.client.dialect.SupportsUpdateReturning {
+		sb.WriteString(" RETURNING ")
+		for i, col := range returningCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			d.client.dialect.WriteQuotedIdent(&sb, col)
+		}
+	}
+
+	return sb.String(), setVals
+}
+
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
+
+func (d *AllFieldsSoFarDelegate) executeUpdate(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[AllFieldsSoFar], add []PredicateOf[AllFieldsSoFar], a []FieldAssignment, s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+		return d.runUpdate(c, w, add, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Update != nil {
+			next, hook := curr, ext.Update
+			curr = func(c context.Context, w UniquePredicate[AllFieldsSoFar], add []PredicateOf[AllFieldsSoFar], a []FieldAssignment, s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+				return hook(c, w, add, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, additional, assignments, selects, omits)
+}
+
+func (d *AllFieldsSoFarDelegate) runUpdate(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	if len(assignments) == 0 {
+		return d.runFindUnique(ctx, where, additional, selects, omits)
+	}
+
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	for _, pr := range additional {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res *AllFieldsSoFar
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.AllFieldsSoFar.runUpdate(ctx, where, additional, assignments, selects, omits)
+			} else {
+				res, err = txQ.AllFieldsSoFar.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectAllFieldsSoFarCols(selects, omits, allFieldsSoFarPKCols...)
+	allPreds := append([]PredicateOf[AllFieldsSoFar]{where}, additional...)
+	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var res AllFieldsSoFar
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*AllFieldsSoFar{&res}, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return &res, nil
+}
+
+func (d *AllFieldsSoFarDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment) (int64, error) {
+	if len(assignments) == 0 {
+		return 0, nil
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	result, err := d.client.exec(ctx, query, setVals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+func (d *AllFieldsSoFarDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	allPreds := append([]PredicateOf[AllFieldsSoFar]{where}, additional...)
+	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return d.runFindUnique(ctx, where, additional, selects, omits)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateMany
+// -----------------------------------------------------------------------------
+
+func (d *AllFieldsSoFarDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateMany(ctx, preds, assignments)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[AllFieldsSoFar], a []FieldAssignment) (int64, error) {
+		return d.runUpdateMany(c, p, a)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateMany != nil {
+			next, hook := curr, ext.UpdateMany
+			curr = func(c context.Context, p []PredicateOf[AllFieldsSoFar], a []FieldAssignment) (int64, error) {
+				return hook(c, p, a, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments)
+}
+
+func (d *AllFieldsSoFarDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment) (int64, error) {
+	return d.execUpdateStmt(ctx, preds, assignments)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateManyAndReturn
+// -----------------------------------------------------------------------------
+
+func (d *AllFieldsSoFarDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[AllFieldsSoFar], a []FieldAssignment, s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
+		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateManyAndReturn != nil {
+			next, hook := curr, ext.UpdateManyAndReturn
+			curr = func(c context.Context, p []PredicateOf[AllFieldsSoFar], a []FieldAssignment, s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
+				return hook(c, p, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments, selects, omits)
+}
+
+func (d *AllFieldsSoFarDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
+	if len(assignments) == 0 {
+		return d.runFindMany(ctx, QueryParams[AllFieldsSoFar]{Where: preds}, selects, omits)
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res []*AllFieldsSoFar
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.AllFieldsSoFar.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+			} else {
+				res, err = txQ.AllFieldsSoFar.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectAllFieldsSoFarCols(selects, omits, allFieldsSoFarPKCols...)
+	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]*AllFieldsSoFar, 0)
+	for rows.Next() {
+		var res AllFieldsSoFar
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	rowsErr := rows.Err()
+	rows.Close()
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, results, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return results, nil
+}
+
+func (d *AllFieldsSoFarDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return []*AllFieldsSoFar{}, nil
+	}
+	return d.runFindMany(ctx, QueryParams[AllFieldsSoFar]{Where: preds}, selects, omits)
 }
 func (d *AllFieldsSoFarDelegate) FindUnique(where UniquePredicate[AllFieldsSoFar], additional ...PredicateOf[AllFieldsSoFar]) *FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
 	return &FindUniqueBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{

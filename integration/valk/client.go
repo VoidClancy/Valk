@@ -840,8 +840,13 @@ func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Resu
 	return res, err
 }
 
+func (q *Queries) inTx() bool {
+	_, ok := q.db.(*sql.Tx)
+	return ok
+}
+
 func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) error {
-	if _, ok := q.db.(*sql.Tx); ok {
+	if q.inTx() {
 		return fn(q)
 	}
 
@@ -1994,6 +1999,61 @@ func compileSimpleRelationSQL[M any](dialect Dialect, table string, cols []strin
 		}
 	}
 	return sb.String()
+}
+
+type UpdateBuilder[M any, S any, O any] struct {
+	where       UniquePredicate[M]
+	additional  []PredicateOf[M]
+	assignments []FieldAssignment
+	selects     *S
+	omits       *O
+	execFunc    func(ctx context.Context, where UniquePredicate[M], additional []PredicateOf[M], assignments []FieldAssignment, s *S, o *O) (*M, error)
+}
+
+func (b *UpdateBuilder[M, S, O]) Select(selects S) *UpdateBuilder[M, S, O] {
+	b.selects = &selects
+	return b
+}
+
+func (b *UpdateBuilder[M, S, O]) Omit(omits O) *UpdateBuilder[M, S, O] {
+	b.omits = &omits
+	return b
+}
+
+func (b *UpdateBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
+	return b.execFunc(ctx, b.where, b.additional, b.assignments, b.selects, b.omits)
+}
+
+type UpdateManyBuilder[M any] struct {
+	where       []PredicateOf[M]
+	assignments []FieldAssignment
+	execFunc    func(ctx context.Context, where []PredicateOf[M], assignments []FieldAssignment) (int64, error)
+}
+
+func (b *UpdateManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
+	return b.execFunc(ctx, b.where, b.assignments)
+}
+
+type UpdateManyAndReturnBuilder[M any, S any, O any] struct {
+	where       []PredicateOf[M]
+	assignments []FieldAssignment
+	selects     *S
+	omits       *O
+	execFunc    func(ctx context.Context, where []PredicateOf[M], assignments []FieldAssignment, s *S, o *O) ([]*M, error)
+}
+
+func (b *UpdateManyAndReturnBuilder[M, S, O]) Select(selects S) *UpdateManyAndReturnBuilder[M, S, O] {
+	b.selects = &selects
+	return b
+}
+
+func (b *UpdateManyAndReturnBuilder[M, S, O]) Omit(omits O) *UpdateManyAndReturnBuilder[M, S, O] {
+	b.omits = &omits
+	return b
+}
+
+func (b *UpdateManyAndReturnBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
+	return b.execFunc(ctx, b.where, b.assignments, b.selects, b.omits)
 }
 
 type FindUniqueBuilder[M any, S any, O any] struct {

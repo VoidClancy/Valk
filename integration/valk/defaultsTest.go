@@ -149,6 +149,9 @@ type DefaultsTestFindManyQuery = func(ctx context.Context, params QueryParams[De
 type DefaultsTestDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[DefaultsTest]) (int64, error)
 type DefaultsTestDeleteQuery = func(ctx context.Context, where UniquePredicate[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error)
 type DefaultsTestCountQuery = func(ctx context.Context, params QueryParams[DefaultsTest]) (int64, error)
+type DefaultsTestUpdateQuery = func(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error)
+type DefaultsTestUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment) (int64, error)
+type DefaultsTestUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error)
 
 type DefaultsTestExtension struct {
 	Create              func(ctx context.Context, input *DefaultsTestCreate, next DefaultsTestCreateQuery) (*DefaultsTest, error)
@@ -160,6 +163,9 @@ type DefaultsTestExtension struct {
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[DefaultsTest], next DefaultsTestDeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestDeleteQuery) (*DefaultsTest, error)
 	Count               func(ctx context.Context, params QueryParams[DefaultsTest], next DefaultsTestCountQuery) (int64, error)
+	Update              func(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestUpdateQuery) (*DefaultsTest, error)
+	UpdateMany          func(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, next DefaultsTestUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestUpdateManyAndReturnQuery) ([]*DefaultsTest, error)
 }
 
 type DefaultsTestDelegate struct {
@@ -1142,6 +1148,484 @@ func newDefaultsTestUpsert(up *ConflictUpdate) *DefaultsTestUpsert {
 		Nanoid:     fieldUpsert[string]{column: "nanoid", update: up},
 		Now:        fieldUpsert[time.Time]{column: "now", update: up},
 	}
+}
+
+type DefaultsTestUpdateBuilder struct {
+	*UpdateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]
+}
+
+type DefaultsTestUpdateManyBuilder struct {
+	*UpdateManyBuilder[DefaultsTest]
+}
+
+type DefaultsTestUpdateManyAndReturnBuilder struct {
+	*UpdateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]
+}
+
+func (b *DefaultsTestUpdateBuilder) SetUuid4(v string) *DefaultsTestUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid4", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyBuilder) SetUuid4(v string) *DefaultsTestUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid4", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyAndReturnBuilder) SetUuid4(v string) *DefaultsTestUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid4", Val: v})
+	return b
+}
+func (b *DefaultsTestUpdateBuilder) SetUuid7(v string) *DefaultsTestUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid7", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyBuilder) SetUuid7(v string) *DefaultsTestUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid7", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyAndReturnBuilder) SetUuid7(v string) *DefaultsTestUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuid7", Val: v})
+	return b
+}
+func (b *DefaultsTestUpdateBuilder) SetUuidNoArgs(v string) *DefaultsTestUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidNoArgs", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyBuilder) SetUuidNoArgs(v string) *DefaultsTestUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidNoArgs", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyAndReturnBuilder) SetUuidNoArgs(v string) *DefaultsTestUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "uuidNoArgs", Val: v})
+	return b
+}
+func (b *DefaultsTestUpdateBuilder) SetCuid1(v string) *DefaultsTestUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid1", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyBuilder) SetCuid1(v string) *DefaultsTestUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid1", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyAndReturnBuilder) SetCuid1(v string) *DefaultsTestUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid1", Val: v})
+	return b
+}
+func (b *DefaultsTestUpdateBuilder) SetCuid2(v string) *DefaultsTestUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid2", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyBuilder) SetCuid2(v string) *DefaultsTestUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid2", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyAndReturnBuilder) SetCuid2(v string) *DefaultsTestUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuid2", Val: v})
+	return b
+}
+func (b *DefaultsTestUpdateBuilder) SetCuidNoArgs(v string) *DefaultsTestUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuidNoArgs", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyBuilder) SetCuidNoArgs(v string) *DefaultsTestUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuidNoArgs", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyAndReturnBuilder) SetCuidNoArgs(v string) *DefaultsTestUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "cuidNoArgs", Val: v})
+	return b
+}
+func (b *DefaultsTestUpdateBuilder) SetUlid(v string) *DefaultsTestUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ulid", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyBuilder) SetUlid(v string) *DefaultsTestUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ulid", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyAndReturnBuilder) SetUlid(v string) *DefaultsTestUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "ulid", Val: v})
+	return b
+}
+func (b *DefaultsTestUpdateBuilder) SetNanoid(v string) *DefaultsTestUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "nanoid", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyBuilder) SetNanoid(v string) *DefaultsTestUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "nanoid", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyAndReturnBuilder) SetNanoid(v string) *DefaultsTestUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "nanoid", Val: v})
+	return b
+}
+func (b *DefaultsTestUpdateBuilder) SetNow(v time.Time) *DefaultsTestUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "now", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyBuilder) SetNow(v time.Time) *DefaultsTestUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "now", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateManyAndReturnBuilder) SetNow(v time.Time) *DefaultsTestUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "now", Val: v})
+	return b
+}
+
+func (b *DefaultsTestUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[DefaultsTest]) *DefaultsTestUpdateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *DefaultsTestUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[DefaultsTest]) *DefaultsTestUpdateManyBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *DefaultsTestUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[DefaultsTest]) *DefaultsTestUpdateManyAndReturnBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *DefaultsTestDelegate) Update(where UniquePredicate[DefaultsTest], additional ...PredicateOf[DefaultsTest]) *DefaultsTestUpdateBuilder {
+	return &DefaultsTestUpdateBuilder{
+		UpdateBuilder: &UpdateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
+			where:      where,
+			additional: additional,
+			execFunc:   d.executeUpdate,
+		},
+	}
+}
+
+func (d *DefaultsTestDelegate) UpdateMany(preds ...PredicateOf[DefaultsTest]) *DefaultsTestUpdateManyBuilder {
+	return &DefaultsTestUpdateManyBuilder{
+		UpdateManyBuilder: &UpdateManyBuilder[DefaultsTest]{
+			where:    preds,
+			execFunc: d.executeUpdateMany,
+		},
+	}
+}
+
+func (d *DefaultsTestDelegate) UpdateManyAndReturn(preds ...PredicateOf[DefaultsTest]) *DefaultsTestUpdateManyAndReturnBuilder {
+	return &DefaultsTestUpdateManyAndReturnBuilder{
+		UpdateManyAndReturnBuilder: &UpdateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
+			where:    preds,
+			execFunc: d.executeUpdateManyAndReturn,
+		},
+	}
+}
+
+func (d *DefaultsTestDelegate) buildUpdateSQL(preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+
+	var sb strings.Builder
+	sb.WriteString("UPDATE ")
+	d.client.dialect.WriteQuotedIdent(&sb, "DefaultsTest")
+	sb.WriteString(" SET ")
+
+	setVals := make([]any, 0, len(assignments)+len(predVals))
+	for i, a := range assignments {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		sb.WriteString(" = ")
+		d.client.dialect.WritePlaceholder(&sb, i+1)
+		setVals = append(setVals, a.Val)
+	}
+
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+		setVals = append(setVals, predVals...)
+	}
+
+	if len(returningCols) > 0 && d.client.dialect.SupportsUpdateReturning {
+		sb.WriteString(" RETURNING ")
+		for i, col := range returningCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			d.client.dialect.WriteQuotedIdent(&sb, col)
+		}
+	}
+
+	return sb.String(), setVals
+}
+
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
+
+func (d *DefaultsTestDelegate) executeUpdate(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[DefaultsTest], add []PredicateOf[DefaultsTest], a []FieldAssignment, s *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
+		return d.runUpdate(c, w, add, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Update != nil {
+			next, hook := curr, ext.Update
+			curr = func(c context.Context, w UniquePredicate[DefaultsTest], add []PredicateOf[DefaultsTest], a []FieldAssignment, s *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
+				return hook(c, w, add, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, additional, assignments, selects, omits)
+}
+
+func (d *DefaultsTestDelegate) runUpdate(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+	if len(assignments) == 0 {
+		return d.runFindUnique(ctx, where, additional, selects, omits)
+	}
+
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	for _, pr := range additional {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res *DefaultsTest
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.DefaultsTest.runUpdate(ctx, where, additional, assignments, selects, omits)
+			} else {
+				res, err = txQ.DefaultsTest.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectDefaultsTestCols(selects, omits, defaultsTestPKCols...)
+	allPreds := append([]PredicateOf[DefaultsTest]{where}, additional...)
+	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var res DefaultsTest
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*DefaultsTest{&res}, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return &res, nil
+}
+
+func (d *DefaultsTestDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment) (int64, error) {
+	if len(assignments) == 0 {
+		return 0, nil
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	result, err := d.client.exec(ctx, query, setVals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+func (d *DefaultsTestDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+	allPreds := append([]PredicateOf[DefaultsTest]{where}, additional...)
+	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return d.runFindUnique(ctx, where, additional, selects, omits)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateMany
+// -----------------------------------------------------------------------------
+
+func (d *DefaultsTestDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateMany(ctx, preds, assignments)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[DefaultsTest], a []FieldAssignment) (int64, error) {
+		return d.runUpdateMany(c, p, a)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateMany != nil {
+			next, hook := curr, ext.UpdateMany
+			curr = func(c context.Context, p []PredicateOf[DefaultsTest], a []FieldAssignment) (int64, error) {
+				return hook(c, p, a, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments)
+}
+
+func (d *DefaultsTestDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment) (int64, error) {
+	return d.execUpdateStmt(ctx, preds, assignments)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateManyAndReturn
+// -----------------------------------------------------------------------------
+
+func (d *DefaultsTestDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[DefaultsTest], a []FieldAssignment, s *DefaultsTestSelect, o *DefaultsTestOmit) ([]*DefaultsTest, error) {
+		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateManyAndReturn != nil {
+			next, hook := curr, ext.UpdateManyAndReturn
+			curr = func(c context.Context, p []PredicateOf[DefaultsTest], a []FieldAssignment, s *DefaultsTestSelect, o *DefaultsTestOmit) ([]*DefaultsTest, error) {
+				return hook(c, p, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments, selects, omits)
+}
+
+func (d *DefaultsTestDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error) {
+	if len(assignments) == 0 {
+		return d.runFindMany(ctx, QueryParams[DefaultsTest]{Where: preds}, selects, omits)
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res []*DefaultsTest
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.DefaultsTest.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+			} else {
+				res, err = txQ.DefaultsTest.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectDefaultsTestCols(selects, omits, defaultsTestPKCols...)
+	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]*DefaultsTest, 0)
+	for rows.Next() {
+		var res DefaultsTest
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	rowsErr := rows.Err()
+	rows.Close()
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, results, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return results, nil
+}
+
+func (d *DefaultsTestDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return []*DefaultsTest{}, nil
+	}
+	return d.runFindMany(ctx, QueryParams[DefaultsTest]{Where: preds}, selects, omits)
 }
 func (d *DefaultsTestDelegate) FindUnique(where UniquePredicate[DefaultsTest], additional ...PredicateOf[DefaultsTest]) *FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
 	return &FindUniqueBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{

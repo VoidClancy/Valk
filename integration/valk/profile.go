@@ -128,6 +128,9 @@ type ProfileFindManyQuery = func(ctx context.Context, params QueryParams[Profile
 type ProfileDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Profile]) (int64, error)
 type ProfileDeleteQuery = func(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
 type ProfileCountQuery = func(ctx context.Context, params QueryParams[Profile]) (int64, error)
+type ProfileUpdateQuery = func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
+type ProfileUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment) (int64, error)
+type ProfileUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error)
 
 type ProfileExtension struct {
 	Create              func(ctx context.Context, input *ProfileCreate, next ProfileCreateQuery) (*Profile, error)
@@ -139,6 +142,9 @@ type ProfileExtension struct {
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[Profile], next ProfileDeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileDeleteQuery) (*Profile, error)
 	Count               func(ctx context.Context, params QueryParams[Profile], next ProfileCountQuery) (int64, error)
+	Update              func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit, next ProfileUpdateQuery) (*Profile, error)
+	UpdateMany          func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, next ProfileUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit, next ProfileUpdateManyAndReturnQuery) ([]*Profile, error)
 }
 
 type ProfileDelegate struct {
@@ -960,6 +966,414 @@ func newProfileUpsert(up *ConflictUpdate) *ProfileUpsert {
 		UserId:    fieldUpsert[string]{column: "userId", update: up},
 		CreatedAt: fieldUpsert[time.Time]{column: "createdAt", update: up},
 	}
+}
+
+type ProfileUpdateBuilder struct {
+	*UpdateBuilder[Profile, ProfileSelect, ProfileOmit]
+}
+
+type ProfileUpdateManyBuilder struct {
+	*UpdateManyBuilder[Profile]
+}
+
+type ProfileUpdateManyAndReturnBuilder struct {
+	*UpdateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit]
+}
+
+func (b *ProfileUpdateBuilder) SetId(v string) *ProfileUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+
+func (b *ProfileUpdateManyBuilder) SetId(v string) *ProfileUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+
+func (b *ProfileUpdateManyAndReturnBuilder) SetId(v string) *ProfileUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+func (b *ProfileUpdateBuilder) SetBio(v string) *ProfileUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bio", Val: v})
+	return b
+}
+
+func (b *ProfileUpdateManyBuilder) SetBio(v string) *ProfileUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bio", Val: v})
+	return b
+}
+
+func (b *ProfileUpdateManyAndReturnBuilder) SetBio(v string) *ProfileUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "bio", Val: v})
+	return b
+}
+func (b *ProfileUpdateBuilder) SetUserId(v string) *ProfileUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "userId", Val: v})
+	return b
+}
+
+func (b *ProfileUpdateManyBuilder) SetUserId(v string) *ProfileUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "userId", Val: v})
+	return b
+}
+
+func (b *ProfileUpdateManyAndReturnBuilder) SetUserId(v string) *ProfileUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "userId", Val: v})
+	return b
+}
+func (b *ProfileUpdateBuilder) SetCreatedAt(v time.Time) *ProfileUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "createdAt", Val: v})
+	return b
+}
+
+func (b *ProfileUpdateManyBuilder) SetCreatedAt(v time.Time) *ProfileUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "createdAt", Val: v})
+	return b
+}
+
+func (b *ProfileUpdateManyAndReturnBuilder) SetCreatedAt(v time.Time) *ProfileUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "createdAt", Val: v})
+	return b
+}
+
+func (b *ProfileUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[Profile]) *ProfileUpdateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *ProfileUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[Profile]) *ProfileUpdateManyBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *ProfileUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[Profile]) *ProfileUpdateManyAndReturnBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *ProfileDelegate) Update(where UniquePredicate[Profile], additional ...PredicateOf[Profile]) *ProfileUpdateBuilder {
+	return &ProfileUpdateBuilder{
+		UpdateBuilder: &UpdateBuilder[Profile, ProfileSelect, ProfileOmit]{
+			where:      where,
+			additional: additional,
+			execFunc:   d.executeUpdate,
+		},
+	}
+}
+
+func (d *ProfileDelegate) UpdateMany(preds ...PredicateOf[Profile]) *ProfileUpdateManyBuilder {
+	return &ProfileUpdateManyBuilder{
+		UpdateManyBuilder: &UpdateManyBuilder[Profile]{
+			where:    preds,
+			execFunc: d.executeUpdateMany,
+		},
+	}
+}
+
+func (d *ProfileDelegate) UpdateManyAndReturn(preds ...PredicateOf[Profile]) *ProfileUpdateManyAndReturnBuilder {
+	return &ProfileUpdateManyAndReturnBuilder{
+		UpdateManyAndReturnBuilder: &UpdateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit]{
+			where:    preds,
+			execFunc: d.executeUpdateManyAndReturn,
+		},
+	}
+}
+
+func (d *ProfileDelegate) buildUpdateSQL(preds []PredicateOf[Profile], assignments []FieldAssignment, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+
+	var sb strings.Builder
+	sb.WriteString("UPDATE ")
+	d.client.dialect.WriteQuotedIdent(&sb, "Profile")
+	sb.WriteString(" SET ")
+
+	setVals := make([]any, 0, len(assignments)+len(predVals))
+	for i, a := range assignments {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		sb.WriteString(" = ")
+		d.client.dialect.WritePlaceholder(&sb, i+1)
+		setVals = append(setVals, a.Val)
+	}
+
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+		setVals = append(setVals, predVals...)
+	}
+
+	if len(returningCols) > 0 && d.client.dialect.SupportsUpdateReturning {
+		sb.WriteString(" RETURNING ")
+		for i, col := range returningCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			d.client.dialect.WriteQuotedIdent(&sb, col)
+		}
+	}
+
+	return sb.String(), setVals
+}
+
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
+
+func (d *ProfileDelegate) executeUpdate(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[Profile], add []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) (*Profile, error) {
+		return d.runUpdate(c, w, add, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Update != nil {
+			next, hook := curr, ext.Update
+			curr = func(c context.Context, w UniquePredicate[Profile], add []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) (*Profile, error) {
+				return hook(c, w, add, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, additional, assignments, selects, omits)
+}
+
+func (d *ProfileDelegate) runUpdate(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	if len(assignments) == 0 {
+		return d.runFindUnique(ctx, where, additional, selects, omits)
+	}
+
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	for _, pr := range additional {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res *Profile
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.Profile.runUpdate(ctx, where, additional, assignments, selects, omits)
+			} else {
+				res, err = txQ.Profile.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectProfileCols(selects, omits, profilePKCols...)
+	allPreds := append([]PredicateOf[Profile]{where}, additional...)
+	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var res Profile
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*Profile{&res}, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return &res, nil
+}
+
+func (d *ProfileDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment) (int64, error) {
+	if len(assignments) == 0 {
+		return 0, nil
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	result, err := d.client.exec(ctx, query, setVals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+func (d *ProfileDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	allPreds := append([]PredicateOf[Profile]{where}, additional...)
+	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return d.runFindUnique(ctx, where, additional, selects, omits)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateMany
+// -----------------------------------------------------------------------------
+
+func (d *ProfileDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateMany(ctx, preds, assignments)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment) (int64, error) {
+		return d.runUpdateMany(c, p, a)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateMany != nil {
+			next, hook := curr, ext.UpdateMany
+			curr = func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment) (int64, error) {
+				return hook(c, p, a, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments)
+}
+
+func (d *ProfileDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment) (int64, error) {
+	return d.execUpdateStmt(ctx, preds, assignments)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateManyAndReturn
+// -----------------------------------------------------------------------------
+
+func (d *ProfileDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) ([]*Profile, error) {
+		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateManyAndReturn != nil {
+			next, hook := curr, ext.UpdateManyAndReturn
+			curr = func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) ([]*Profile, error) {
+				return hook(c, p, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments, selects, omits)
+}
+
+func (d *ProfileDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
+	if len(assignments) == 0 {
+		return d.runFindMany(ctx, QueryParams[Profile]{Where: preds}, selects, omits)
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res []*Profile
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.Profile.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+			} else {
+				res, err = txQ.Profile.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectProfileCols(selects, omits, profilePKCols...)
+	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]*Profile, 0)
+	for rows.Next() {
+		var res Profile
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	rowsErr := rows.Err()
+	rows.Close()
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, results, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return results, nil
+}
+
+func (d *ProfileDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return []*Profile{}, nil
+	}
+	return d.runFindMany(ctx, QueryParams[Profile]{Where: preds}, selects, omits)
 }
 func (d *ProfileDelegate) FindUnique(where UniquePredicate[Profile], additional ...PredicateOf[Profile]) *FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit] {
 	return &FindUniqueBuilder[Profile, ProfileSelect, ProfileOmit]{

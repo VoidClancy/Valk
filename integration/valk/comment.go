@@ -150,6 +150,9 @@ type CommentFindManyQuery = func(ctx context.Context, params QueryParams[Comment
 type CommentDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Comment]) (int64, error)
 type CommentDeleteQuery = func(ctx context.Context, where UniquePredicate[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error)
 type CommentCountQuery = func(ctx context.Context, params QueryParams[Comment]) (int64, error)
+type CommentUpdateQuery = func(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error)
+type CommentUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment) (int64, error)
+type CommentUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error)
 
 type CommentExtension struct {
 	Create              func(ctx context.Context, input *CommentCreate, next CommentCreateQuery) (*Comment, error)
@@ -161,6 +164,9 @@ type CommentExtension struct {
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[Comment], next CommentDeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[Comment], selects *CommentSelect, omits *CommentOmit, next CommentDeleteQuery) (*Comment, error)
 	Count               func(ctx context.Context, params QueryParams[Comment], next CommentCountQuery) (int64, error)
+	Update              func(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit, next CommentUpdateQuery) (*Comment, error)
+	UpdateMany          func(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, next CommentUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit, next CommentUpdateManyAndReturnQuery) ([]*Comment, error)
 }
 
 type CommentDelegate struct {
@@ -1086,6 +1092,470 @@ func newCommentUpsert(up *ConflictUpdate) *CommentUpsert {
 		AuthorId: fieldUpsert[string]{column: "authorId", update: up},
 		Meta:     fieldUpsert[*json.RawMessage]{column: "meta", update: up},
 	}
+}
+
+type CommentUpdateBuilder struct {
+	*UpdateBuilder[Comment, CommentSelect, CommentOmit]
+}
+
+type CommentUpdateManyBuilder struct {
+	*UpdateManyBuilder[Comment]
+}
+
+type CommentUpdateManyAndReturnBuilder struct {
+	*UpdateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit]
+}
+
+func (b *CommentUpdateBuilder) SetId(v string) *CommentUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyBuilder) SetId(v string) *CommentUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyAndReturnBuilder) SetId(v string) *CommentUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+func (b *CommentUpdateBuilder) SetTextify(v int32) *CommentUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "textify", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyBuilder) SetTextify(v int32) *CommentUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "textify", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyAndReturnBuilder) SetTextify(v int32) *CommentUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "textify", Val: v})
+	return b
+}
+func (b *CommentUpdateBuilder) SetDummy3(v string) *CommentUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy3", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyBuilder) SetDummy3(v string) *CommentUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy3", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyAndReturnBuilder) SetDummy3(v string) *CommentUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy3", Val: v})
+	return b
+}
+func (b *CommentUpdateBuilder) SetDummy1(v int32) *CommentUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy1", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyBuilder) SetDummy1(v int32) *CommentUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy1", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyAndReturnBuilder) SetDummy1(v int32) *CommentUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy1", Val: v})
+	return b
+}
+func (b *CommentUpdateBuilder) SetDummy2(v string) *CommentUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy2", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyBuilder) SetDummy2(v string) *CommentUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy2", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyAndReturnBuilder) SetDummy2(v string) *CommentUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "dummy2", Val: v})
+	return b
+}
+func (b *CommentUpdateBuilder) SetPostId(v string) *CommentUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "postId", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyBuilder) SetPostId(v string) *CommentUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "postId", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyAndReturnBuilder) SetPostId(v string) *CommentUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "postId", Val: v})
+	return b
+}
+func (b *CommentUpdateBuilder) SetAuthorId(v string) *CommentUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "authorId", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyBuilder) SetAuthorId(v string) *CommentUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "authorId", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyAndReturnBuilder) SetAuthorId(v string) *CommentUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "authorId", Val: v})
+	return b
+}
+func (b *CommentUpdateBuilder) SetMeta(v json.RawMessage) *CommentUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "meta", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyBuilder) SetMeta(v json.RawMessage) *CommentUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "meta", Val: v})
+	return b
+}
+
+func (b *CommentUpdateManyAndReturnBuilder) SetMeta(v json.RawMessage) *CommentUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "meta", Val: v})
+	return b
+}
+
+func (b *CommentUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[Comment]) *CommentUpdateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *CommentUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[Comment]) *CommentUpdateManyBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *CommentUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[Comment]) *CommentUpdateManyAndReturnBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *CommentDelegate) Update(where UniquePredicate[Comment], additional ...PredicateOf[Comment]) *CommentUpdateBuilder {
+	return &CommentUpdateBuilder{
+		UpdateBuilder: &UpdateBuilder[Comment, CommentSelect, CommentOmit]{
+			where:      where,
+			additional: additional,
+			execFunc:   d.executeUpdate,
+		},
+	}
+}
+
+func (d *CommentDelegate) UpdateMany(preds ...PredicateOf[Comment]) *CommentUpdateManyBuilder {
+	return &CommentUpdateManyBuilder{
+		UpdateManyBuilder: &UpdateManyBuilder[Comment]{
+			where:    preds,
+			execFunc: d.executeUpdateMany,
+		},
+	}
+}
+
+func (d *CommentDelegate) UpdateManyAndReturn(preds ...PredicateOf[Comment]) *CommentUpdateManyAndReturnBuilder {
+	return &CommentUpdateManyAndReturnBuilder{
+		UpdateManyAndReturnBuilder: &UpdateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit]{
+			where:    preds,
+			execFunc: d.executeUpdateManyAndReturn,
+		},
+	}
+}
+
+func (d *CommentDelegate) buildUpdateSQL(preds []PredicateOf[Comment], assignments []FieldAssignment, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+
+	var sb strings.Builder
+	sb.WriteString("UPDATE ")
+	d.client.dialect.WriteQuotedIdent(&sb, "Comment")
+	sb.WriteString(" SET ")
+
+	setVals := make([]any, 0, len(assignments)+len(predVals))
+	for i, a := range assignments {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		sb.WriteString(" = ")
+		d.client.dialect.WritePlaceholder(&sb, i+1)
+		setVals = append(setVals, a.Val)
+	}
+
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+		setVals = append(setVals, predVals...)
+	}
+
+	if len(returningCols) > 0 && d.client.dialect.SupportsUpdateReturning {
+		sb.WriteString(" RETURNING ")
+		for i, col := range returningCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			d.client.dialect.WriteQuotedIdent(&sb, col)
+		}
+	}
+
+	return sb.String(), setVals
+}
+
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
+
+func (d *CommentDelegate) executeUpdate(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[Comment], add []PredicateOf[Comment], a []FieldAssignment, s *CommentSelect, o *CommentOmit) (*Comment, error) {
+		return d.runUpdate(c, w, add, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Update != nil {
+			next, hook := curr, ext.Update
+			curr = func(c context.Context, w UniquePredicate[Comment], add []PredicateOf[Comment], a []FieldAssignment, s *CommentSelect, o *CommentOmit) (*Comment, error) {
+				return hook(c, w, add, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, additional, assignments, selects, omits)
+}
+
+func (d *CommentDelegate) runUpdate(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	if len(assignments) == 0 {
+		return d.runFindUnique(ctx, where, additional, selects, omits)
+	}
+
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	for _, pr := range additional {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res *Comment
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.Comment.runUpdate(ctx, where, additional, assignments, selects, omits)
+			} else {
+				res, err = txQ.Comment.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectCommentCols(selects, omits, commentPKCols...)
+	allPreds := append([]PredicateOf[Comment]{where}, additional...)
+	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var res Comment
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*Comment{&res}, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return &res, nil
+}
+
+func (d *CommentDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment) (int64, error) {
+	if len(assignments) == 0 {
+		return 0, nil
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	result, err := d.client.exec(ctx, query, setVals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+func (d *CommentDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	allPreds := append([]PredicateOf[Comment]{where}, additional...)
+	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return d.runFindUnique(ctx, where, additional, selects, omits)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateMany
+// -----------------------------------------------------------------------------
+
+func (d *CommentDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateMany(ctx, preds, assignments)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[Comment], a []FieldAssignment) (int64, error) {
+		return d.runUpdateMany(c, p, a)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateMany != nil {
+			next, hook := curr, ext.UpdateMany
+			curr = func(c context.Context, p []PredicateOf[Comment], a []FieldAssignment) (int64, error) {
+				return hook(c, p, a, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments)
+}
+
+func (d *CommentDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment) (int64, error) {
+	return d.execUpdateStmt(ctx, preds, assignments)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateManyAndReturn
+// -----------------------------------------------------------------------------
+
+func (d *CommentDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[Comment], a []FieldAssignment, s *CommentSelect, o *CommentOmit) ([]*Comment, error) {
+		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateManyAndReturn != nil {
+			next, hook := curr, ext.UpdateManyAndReturn
+			curr = func(c context.Context, p []PredicateOf[Comment], a []FieldAssignment, s *CommentSelect, o *CommentOmit) ([]*Comment, error) {
+				return hook(c, p, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments, selects, omits)
+}
+
+func (d *CommentDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
+	if len(assignments) == 0 {
+		return d.runFindMany(ctx, QueryParams[Comment]{Where: preds}, selects, omits)
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res []*Comment
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.Comment.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+			} else {
+				res, err = txQ.Comment.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectCommentCols(selects, omits, commentPKCols...)
+	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]*Comment, 0)
+	for rows.Next() {
+		var res Comment
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	rowsErr := rows.Err()
+	rows.Close()
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, results, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return results, nil
+}
+
+func (d *CommentDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return []*Comment{}, nil
+	}
+	return d.runFindMany(ctx, QueryParams[Comment]{Where: preds}, selects, omits)
 }
 func (d *CommentDelegate) FindUnique(where UniquePredicate[Comment], additional ...PredicateOf[Comment]) *FindUniqueBuilder[Comment, CommentSelect, CommentOmit] {
 	return &FindUniqueBuilder[Comment, CommentSelect, CommentOmit]{

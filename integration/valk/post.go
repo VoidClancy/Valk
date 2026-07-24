@@ -138,6 +138,9 @@ type PostFindManyQuery = func(ctx context.Context, params QueryParams[Post], sel
 type PostDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Post]) (int64, error)
 type PostDeleteQuery = func(ctx context.Context, where UniquePredicate[Post], selects *PostSelect, omits *PostOmit) (*Post, error)
 type PostCountQuery = func(ctx context.Context, params QueryParams[Post]) (int64, error)
+type PostUpdateQuery = func(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error)
+type PostUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment) (int64, error)
+type PostUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) ([]*Post, error)
 
 type PostExtension struct {
 	Create              func(ctx context.Context, input *PostCreate, next PostCreateQuery) (*Post, error)
@@ -149,6 +152,9 @@ type PostExtension struct {
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[Post], next PostDeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[Post], selects *PostSelect, omits *PostOmit, next PostDeleteQuery) (*Post, error)
 	Count               func(ctx context.Context, params QueryParams[Post], next PostCountQuery) (int64, error)
+	Update              func(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit, next PostUpdateQuery) (*Post, error)
+	UpdateMany          func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, next PostUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit, next PostUpdateManyAndReturnQuery) ([]*Post, error)
 }
 
 type PostDelegate struct {
@@ -993,6 +999,428 @@ func newPostUpsert(up *ConflictUpdate) *PostUpsert {
 		Published: fieldUpsert[bool]{column: "published", update: up},
 		AuthorId:  fieldUpsert[string]{column: "authorId", update: up},
 	}
+}
+
+type PostUpdateBuilder struct {
+	*UpdateBuilder[Post, PostSelect, PostOmit]
+}
+
+type PostUpdateManyBuilder struct {
+	*UpdateManyBuilder[Post]
+}
+
+type PostUpdateManyAndReturnBuilder struct {
+	*UpdateManyAndReturnBuilder[Post, PostSelect, PostOmit]
+}
+
+func (b *PostUpdateBuilder) SetId(v string) *PostUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyBuilder) SetId(v string) *PostUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyAndReturnBuilder) SetId(v string) *PostUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "id", Val: v})
+	return b
+}
+func (b *PostUpdateBuilder) SetTitle(v string) *PostUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "title", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyBuilder) SetTitle(v string) *PostUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "title", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyAndReturnBuilder) SetTitle(v string) *PostUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "title", Val: v})
+	return b
+}
+func (b *PostUpdateBuilder) SetContent(v string) *PostUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "content", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyBuilder) SetContent(v string) *PostUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "content", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyAndReturnBuilder) SetContent(v string) *PostUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "content", Val: v})
+	return b
+}
+func (b *PostUpdateBuilder) SetPublished(v bool) *PostUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "published", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyBuilder) SetPublished(v bool) *PostUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "published", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyAndReturnBuilder) SetPublished(v bool) *PostUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "published", Val: v})
+	return b
+}
+func (b *PostUpdateBuilder) SetAuthorId(v string) *PostUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "authorId", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyBuilder) SetAuthorId(v string) *PostUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "authorId", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyAndReturnBuilder) SetAuthorId(v string) *PostUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "authorId", Val: v})
+	return b
+}
+
+func (b *PostUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[Post]) *PostUpdateBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *PostUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[Post]) *PostUpdateManyBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (b *PostUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[Post]) *PostUpdateManyAndReturnBuilder {
+	for _, a := range assignments {
+		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+	}
+	return b
+}
+
+func (d *PostDelegate) Update(where UniquePredicate[Post], additional ...PredicateOf[Post]) *PostUpdateBuilder {
+	return &PostUpdateBuilder{
+		UpdateBuilder: &UpdateBuilder[Post, PostSelect, PostOmit]{
+			where:      where,
+			additional: additional,
+			execFunc:   d.executeUpdate,
+		},
+	}
+}
+
+func (d *PostDelegate) UpdateMany(preds ...PredicateOf[Post]) *PostUpdateManyBuilder {
+	return &PostUpdateManyBuilder{
+		UpdateManyBuilder: &UpdateManyBuilder[Post]{
+			where:    preds,
+			execFunc: d.executeUpdateMany,
+		},
+	}
+}
+
+func (d *PostDelegate) UpdateManyAndReturn(preds ...PredicateOf[Post]) *PostUpdateManyAndReturnBuilder {
+	return &PostUpdateManyAndReturnBuilder{
+		UpdateManyAndReturnBuilder: &UpdateManyAndReturnBuilder[Post, PostSelect, PostOmit]{
+			where:    preds,
+			execFunc: d.executeUpdateManyAndReturn,
+		},
+	}
+}
+
+func (d *PostDelegate) buildUpdateSQL(preds []PredicateOf[Post], assignments []FieldAssignment, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+
+	var sb strings.Builder
+	sb.WriteString("UPDATE ")
+	d.client.dialect.WriteQuotedIdent(&sb, "Post")
+	sb.WriteString(" SET ")
+
+	setVals := make([]any, 0, len(assignments)+len(predVals))
+	for i, a := range assignments {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		sb.WriteString(" = ")
+		d.client.dialect.WritePlaceholder(&sb, i+1)
+		setVals = append(setVals, a.Val)
+	}
+
+	if whereClause != "" {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(whereClause)
+		setVals = append(setVals, predVals...)
+	}
+
+	if len(returningCols) > 0 && d.client.dialect.SupportsUpdateReturning {
+		sb.WriteString(" RETURNING ")
+		for i, col := range returningCols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			d.client.dialect.WriteQuotedIdent(&sb, col)
+		}
+	}
+
+	return sb.String(), setVals
+}
+
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
+
+func (d *PostDelegate) executeUpdate(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, w UniquePredicate[Post], add []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) (*Post, error) {
+		return d.runUpdate(c, w, add, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.Update != nil {
+			next, hook := curr, ext.Update
+			curr = func(c context.Context, w UniquePredicate[Post], add []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) (*Post, error) {
+				return hook(c, w, add, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, where, additional, assignments, selects, omits)
+}
+
+func (d *PostDelegate) runUpdate(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	if len(assignments) == 0 {
+		return d.runFindUnique(ctx, where, additional, selects, omits)
+	}
+
+	if err := where.Validate(); err != nil {
+		return nil, err
+	}
+	for _, pr := range additional {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res *Post
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.Post.runUpdate(ctx, where, additional, assignments, selects, omits)
+			} else {
+				res, err = txQ.Post.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectPostCols(selects, omits, postPKCols...)
+	allPreds := append([]PredicateOf[Post]{where}, additional...)
+	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var res Post
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, []*Post{&res}, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return &res, nil
+}
+
+func (d *PostDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment) (int64, error) {
+	if len(assignments) == 0 {
+		return 0, nil
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	result, err := d.client.exec(ctx, query, setVals...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+func (d *PostDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	allPreds := append([]PredicateOf[Post]{where}, additional...)
+	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return d.runFindUnique(ctx, where, additional, selects, omits)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateMany
+// -----------------------------------------------------------------------------
+
+func (d *PostDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment) (int64, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateMany(ctx, preds, assignments)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[Post], a []FieldAssignment) (int64, error) {
+		return d.runUpdateMany(c, p, a)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateMany != nil {
+			next, hook := curr, ext.UpdateMany
+			curr = func(c context.Context, p []PredicateOf[Post], a []FieldAssignment) (int64, error) {
+				return hook(c, p, a, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments)
+}
+
+func (d *PostDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment) (int64, error) {
+	return d.execUpdateStmt(ctx, preds, assignments)
+}
+
+// -----------------------------------------------------------------------------
+// UpdateManyAndReturn
+// -----------------------------------------------------------------------------
+
+func (d *PostDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
+	if len(d.extensions) == 0 {
+		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	curr := func(c context.Context, p []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) ([]*Post, error) {
+		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	}
+
+	for _, ext := range slices.Backward(d.extensions) {
+		if ext.UpdateManyAndReturn != nil {
+			next, hook := curr, ext.UpdateManyAndReturn
+			curr = func(c context.Context, p []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) ([]*Post, error) {
+				return hook(c, p, a, s, o, next)
+			}
+		}
+	}
+
+	return curr(ctx, preds, assignments, selects, omits)
+}
+
+func (d *PostDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
+	if len(assignments) == 0 {
+		return d.runFindMany(ctx, QueryParams[Post]{Where: preds}, selects, omits)
+	}
+
+	for _, pr := range preds {
+		if pr != nil {
+			if err := pr.Validate(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (!d.client.dialect.SupportsUpdateReturning || hasRelations) && !d.client.inTx()
+
+	if useTx {
+		var res []*Post
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if d.client.dialect.SupportsUpdateReturning {
+				res, err = txQ.Post.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+			} else {
+				res, err = txQ.Post.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+			}
+			return err
+		})
+		return res, err
+	}
+
+	returningCols := selectPostCols(selects, omits, postPKCols...)
+	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+
+	rows, err := d.client.query(ctx, query, setVals...)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]*Post, 0)
+	for rows.Next() {
+		var res Post
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	rowsErr := rows.Err()
+	rows.Close()
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, results, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return results, nil
+}
+
+func (d *PostDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return []*Post{}, nil
+	}
+	return d.runFindMany(ctx, QueryParams[Post]{Where: preds}, selects, omits)
 }
 func (d *PostDelegate) FindUnique(where UniquePredicate[Post], additional ...PredicateOf[Post]) *FindUniqueBuilder[Post, PostSelect, PostOmit] {
 	return &FindUniqueBuilder[Post, PostSelect, PostOmit]{
