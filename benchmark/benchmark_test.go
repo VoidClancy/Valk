@@ -134,3 +134,14 @@ func BenchmarkUpsertWithDeepSelect(b *testing.B) {
 		"Bun":      benchBunUpsertWithDeepSelect,
 	})
 }
+
+func BenchmarkHooksOverhead(b *testing.B) {
+	fmt.Println("\n── HooksOverhead ───────────────────────────────")
+	orms(b, map[string]func(*testing.B){
+		"Raw":      benchRawHooksOverhead,
+		"Valkyrie": benchValkyrieHooksOverhead,
+		"Ent":      benchEntHooksOverhead,
+		"GORM":     benchGORMHooksOverhead,
+		"Bun":      benchBunHooksOverhead,
+	})
+}

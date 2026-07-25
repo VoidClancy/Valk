@@ -359,3 +359,64 @@ func benchBunUpsertWithDeepSelect(b *testing.B) {
 		}
 	}
 }
+
+type heavyBunHook struct{}
+
+func (h *heavyBunHook) BeforeQuery(ctx context.Context, event *bun.QueryEvent) context.Context {
+	runHeavyHookWork("BunBeforeQuery")
+	return ctx
+}
+
+func (h *heavyBunHook) AfterQuery(ctx context.Context, event *bun.QueryEvent) {}
+
+func benchBunHooksOverhead(b *testing.B) {
+	db := openBun(b)
+	defer db.Close()
+	createSchema(db.DB)
+	ctx := context.Background()
+
+	db.AddQueryHook(&heavyBunHook{})
+
+	b.ResetTimer()
+	for i := 0; b.Loop(); i++ {
+		id := fmt.Sprintf("bun-hook-%d", i)
+		email := fmt.Sprintf("bun-hook-%d@example.com", i)
+		u := UserBun{
+			Id:       id,
+			Email:    email,
+			PhoneNum: fmt.Sprintf("bun-hook-phone-%d", i),
+			Role:     "STUDENT",
+		}
+
+		//  Create
+		_, err := db.NewInsert().Model(&u).Exec(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		//  FindUnique (Select)
+		var fetched UserBun
+		err = db.NewSelect().Model(&fetched).Where("id = ?", id).Scan(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		//  Update
+		_, err = db.NewUpdate().Model((*UserBun)(nil)).Set("loginCount = ?", i).Where("id = ?", id).Exec(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		//  Count
+		count, err := db.NewSelect().Model((*UserBun)(nil)).Where("id = ?", id).Count(ctx)
+		if err != nil || count != 1 {
+			b.Fatalf("count failed: %v", err)
+		}
+
+		//  Delete
+		_, err = db.NewDelete().Model((*UserBun)(nil)).Where("id = ?", id).Exec(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

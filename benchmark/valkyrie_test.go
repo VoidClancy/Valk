@@ -332,3 +332,74 @@ func benchValkyrieUpsertWithDeepSelect(b *testing.B) {
 		}
 	}
 }
+
+func benchValkyrieHooksOverhead(b *testing.B) {
+	ctx := context.Background()
+	db := initValkDB(b, ctx)
+	defer db.Close()
+
+	db.User.Use(valk.UserExtension{
+		Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
+			runHeavyHookWork("ValkCreate")
+			return next(ctx, input)
+		},
+		FindUnique: func(ctx context.Context, where valk.UniquePredicate[valk.User], additional []valk.PredicateOf[valk.User], selects *valk.UserSelect, omits *valk.UserOmit, next valk.UserFindUniqueQuery) (*valk.User, error) {
+			runHeavyHookWork("ValkFindUnique")
+			return next(ctx, where, additional, selects, omits)
+		},
+		Update: func(ctx context.Context, where valk.UniquePredicate[valk.User], additional []valk.PredicateOf[valk.User], assignments []valk.FieldAssignment, selects *valk.UserSelect, omits *valk.UserOmit, next valk.UserUpdateQuery) (*valk.User, error) {
+			runHeavyHookWork("ValkUpdate")
+			return next(ctx, where, additional, assignments, selects, omits)
+		},
+		Delete: func(ctx context.Context, where valk.UniquePredicate[valk.User], selects *valk.UserSelect, omits *valk.UserOmit, next valk.UserDeleteQuery) (*valk.User, error) {
+			runHeavyHookWork("ValkDelete")
+			return next(ctx, where, selects, omits)
+		},
+		Count: func(ctx context.Context, params valk.QueryParams[valk.User], next valk.UserCountQuery) (int64, error) {
+			runHeavyHookWork("ValkCount")
+			return next(ctx, params)
+		},
+	})
+
+	b.ResetTimer()
+	for i := 0; b.Loop(); i++ {
+		id := fmt.Sprintf("valk-hook-%d", i)
+		email := fmt.Sprintf("valk-hook-%d@example.com", i)
+		//  Create
+		_, err := db.User.Create().
+			SetId(id).
+			SetEmail(email).
+			SetPhoneNum(fmt.Sprintf("valk-hook-phone-%d", i)).
+			SetRole(valk.UserRoleTypeStudent).
+			Exec(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		//  FindUnique
+		_, err = db.User.FindUnique(user.Id.EQ(id)).Exec(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		//  Update
+		_, err = db.User.Update(user.Id.EQ(id)).
+			SetLoginCount(int32(i)).
+			Exec(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		//  Count
+		_, err = db.User.Count(user.Id.EQ(id)).Exec(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		//  Delete
+		_, err = db.User.Delete(user.Id.EQ(id)).Exec(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

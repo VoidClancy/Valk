@@ -445,3 +445,60 @@ func benchGORMUpsertWithDeepSelect(b *testing.B) {
 		}
 	}
 }
+
+func benchGORMHooksOverhead(b *testing.B) {
+	db := openGORM(b)
+	ctx := context.Background()
+
+	db.Callback().Create().Before("gorm:create").Register("heavy_hook_create", func(d *gorm.DB) {
+		runHeavyHookWork("GORMCreate")
+	})
+	db.Callback().Query().Before("gorm:query").Register("heavy_hook_query", func(d *gorm.DB) {
+		runHeavyHookWork("GORMQuery")
+	})
+	db.Callback().Update().Before("gorm:update").Register("heavy_hook_update", func(d *gorm.DB) {
+		runHeavyHookWork("GORMUpdate")
+	})
+	db.Callback().Delete().Before("gorm:delete").Register("heavy_hook_delete", func(d *gorm.DB) {
+		runHeavyHookWork("GORMDelete")
+	})
+
+	b.ResetTimer()
+	for i := 0; b.Loop(); i++ {
+		id := fmt.Sprintf("gorm-hook-%d", i)
+		email := fmt.Sprintf("gorm-hook-%d@example.com", i)
+		u := UserGORM{
+			Id:       id,
+			Email:    email,
+			PhoneNum: fmt.Sprintf("gorm-hook-phone-%d", i),
+			Role:     "STUDENT",
+		}
+
+		//  Create
+		if err := db.WithContext(ctx).Create(&u).Error; err != nil {
+			b.Fatal(err)
+		}
+
+		//  FindUnique (Query)
+		var fetched UserGORM
+		if err := db.WithContext(ctx).Where("id = ?", id).First(&fetched).Error; err != nil {
+			b.Fatal(err)
+		}
+
+		//  Update
+		if err := db.WithContext(ctx).Model(&UserGORM{}).Where("id = ?", id).Update("loginCount", i).Error; err != nil {
+			b.Fatal(err)
+		}
+
+		//  Count
+		var count int64
+		if err := db.WithContext(ctx).Model(&UserGORM{}).Where("id = ?", id).Count(&count).Error; err != nil {
+			b.Fatal(err)
+		}
+
+		//  Delete
+		if err := db.WithContext(ctx).Where("id = ?", id).Delete(&UserGORM{}).Error; err != nil {
+			b.Fatal(err)
+		}
+	}
+}

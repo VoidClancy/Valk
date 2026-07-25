@@ -353,3 +353,57 @@ func benchEntUpsertWithDeepSelect(b *testing.B) {
 		}
 	}
 }
+
+func benchEntHooksOverhead(b *testing.B) {
+	client := openEnt(b)
+	defer client.Close()
+	ctx := context.Background()
+
+	client.Use(func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			runHeavyHookWork("EntMutate")
+			return next.Mutate(ctx, m)
+		})
+	})
+
+	b.ResetTimer()
+	for i := 0; b.Loop(); i++ {
+		id := fmt.Sprintf("ent-hook-%d", i)
+		email := fmt.Sprintf("ent-hook-%d@example.com", i)
+
+		//  Create
+		u, err := client.User.Create().
+			SetID(id).
+			SetEmail(email).
+			SetPhoneNum(fmt.Sprintf("ent-hook-phone-%d", i)).
+			SetRole("STUDENT").
+			Save(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		//  FindUnique (Query)
+		_, err = client.User.Query().Where(user.IDEQ(id)).Only(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		//  Update
+		_, err = client.User.UpdateOneID(u.ID).SetLoginCount(int32(i)).Save(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		//  Count
+		_, err = client.User.Query().Where(user.IDEQ(id)).Count(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		//  Delete
+		err = client.User.DeleteOneID(u.ID).Exec(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
