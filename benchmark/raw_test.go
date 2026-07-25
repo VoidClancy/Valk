@@ -445,3 +445,83 @@ func benchRawUpsertWithDeepSelect(b *testing.B) {
 		}
 	}
 }
+
+func benchRawHooksOverhead(b *testing.B) {
+	db := openDB(b)
+	defer db.Close()
+	createSchema(db)
+	ctx := context.Background()
+
+	rawQueryCreate := fmt.Sprintf(
+		"INSERT INTO %s (%s, %s, %s, %s) VALUES (%s, %s, %s, %s)",
+		activeDialect.Quote("User"),
+		activeDialect.Quote("id"), activeDialect.Quote("email"), activeDialect.Quote("phoneNum"), activeDialect.Quote("role"),
+		activeDialect.BindVar(1), activeDialect.BindVar(2), activeDialect.BindVar(3), activeDialect.BindVar(4),
+	)
+	rawQueryFind := fmt.Sprintf(
+		"SELECT %s, %s, %s, %s, %s FROM %s WHERE %s = %s",
+		activeDialect.Quote("id"), activeDialect.Quote("email"), activeDialect.Quote("phoneNum"), activeDialect.Quote("role"), activeDialect.Quote("loginCount"),
+		activeDialect.Quote("User"),
+		activeDialect.Quote("id"), activeDialect.BindVar(1),
+	)
+	rawQueryUpdate := fmt.Sprintf(
+		"UPDATE %s SET %s = %s WHERE %s = %s",
+		activeDialect.Quote("User"),
+		activeDialect.Quote("loginCount"), activeDialect.BindVar(1),
+		activeDialect.Quote("id"), activeDialect.BindVar(2),
+	)
+	rawQueryCount := fmt.Sprintf(
+		"SELECT COUNT(*) FROM %s WHERE %s = %s",
+		activeDialect.Quote("User"),
+		activeDialect.Quote("id"), activeDialect.BindVar(1),
+	)
+	rawQueryDelete := fmt.Sprintf(
+		"DELETE FROM %s WHERE %s = %s",
+		activeDialect.Quote("User"),
+		activeDialect.Quote("id"), activeDialect.BindVar(1),
+	)
+
+	b.ResetTimer()
+	for i := 0; b.Loop(); i++ {
+		id := fmt.Sprintf("raw-hook-%d", i)
+		email := fmt.Sprintf("raw-hook-%d@example.com", i)
+
+		// 1. Create with hook
+		runHeavyHookWork("RawCreate")
+		_, err := db.ExecContext(ctx, rawQueryCreate, id, email, fmt.Sprintf("raw-hook-phone-%d", i), "STUDENT")
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// 2. FindUnique with hook
+		runHeavyHookWork("RawFindUnique")
+		var uId, uEmail, uPhone, uRole string
+		var uCount int32
+		err = db.QueryRowContext(ctx, rawQueryFind, id).Scan(&uId, &uEmail, &uPhone, &uRole, &uCount)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// 3. Update with hook
+		runHeavyHookWork("RawUpdate")
+		_, err = db.ExecContext(ctx, rawQueryUpdate, i, id)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// 4. Count with hook
+		runHeavyHookWork("RawCount")
+		var cnt int64
+		err = db.QueryRowContext(ctx, rawQueryCount, id).Scan(&cnt)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// 5. Delete with hook
+		runHeavyHookWork("RawDelete")
+		_, err = db.ExecContext(ctx, rawQueryDelete, id)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

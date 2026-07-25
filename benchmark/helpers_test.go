@@ -3,6 +3,7 @@ package main
 import (
 	"benchmark/valk"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"os"
@@ -13,6 +14,15 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+func runHeavyHookWork(op string) {
+	h := sha256.New()
+	for i := range 50 {
+		fmt.Fprintf(h, "%s-heavy-hook-payload-%d", op, i)
+		_ = strings.ToUpper(fmt.Sprintf("hook-op-%s-%d", op, i))
+	}
+	_ = h.Sum(nil)
+}
 
 type DialectConfig struct {
 	Name                string
