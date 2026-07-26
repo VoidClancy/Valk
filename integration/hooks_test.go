@@ -25,12 +25,12 @@ func TestHooks(t *testing.T) {
 		var executionOrder []string
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
 				executionOrder = append(executionOrder, "first_pre")
-				input.Email = input.Email + "-first"
+				args.Data.Email = args.Data.Email + "-first"
 				ctx = context.WithValue(ctx, ctxKey("key1"), "val1")
 
-				res, err := next(ctx, input)
+				res, err := next(ctx, args)
 
 				executionOrder = append(executionOrder, "first_post")
 				return res, err
@@ -38,9 +38,9 @@ func TestHooks(t *testing.T) {
 		})
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
 				executionOrder = append(executionOrder, "second_pre")
-				input.Email = input.Email + "-second"
+				args.Data.Email = args.Data.Email + "-second"
 
 				val1 := ctx.Value(ctxKey("key1"))
 				if val1 != "val1" {
@@ -48,7 +48,7 @@ func TestHooks(t *testing.T) {
 				}
 				ctx = context.WithValue(ctx, ctxKey("key2"), "val2")
 
-				res, err := next(ctx, input)
+				res, err := next(ctx, args)
 
 				executionOrder = append(executionOrder, "second_post")
 				return res, err
@@ -56,16 +56,16 @@ func TestHooks(t *testing.T) {
 		})
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
 				executionOrder = append(executionOrder, "third_pre")
-				input.Email = input.Email + "-third"
+				args.Data.Email = args.Data.Email + "-third"
 
 				val2 := ctx.Value(ctxKey("key2"))
 				if val2 != "val2" {
 					return nil, fmt.Errorf("missing key2")
 				}
 
-				res, err := next(ctx, input)
+				res, err := next(ctx, args)
 
 				executionOrder = append(executionOrder, "third_post")
 				return res, err
@@ -101,14 +101,14 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
-				if input.Email == "short-circuit@example.com" {
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+				if args.Data.Email == "short-circuit@example.com" {
 					return &valk.User{
 						Id:    "mocked-id",
 						Email: "short-circuit@example.com",
 					}, nil
 				}
-				return next(ctx, input)
+				return next(ctx, args)
 			},
 		})
 
@@ -139,7 +139,7 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
 				return nil, errShortCircuit
 			},
 		})
@@ -159,8 +159,8 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
-				res, err := next(ctx, input)
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+				res, err := next(ctx, args)
 				if err != nil {
 					return nil, errCustomUnique
 				}
@@ -184,8 +184,8 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			CreateMany: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyQuery) (int64, error) {
-				for _, input := range args {
+			CreateMany: func(ctx context.Context, args *user.CreateManyArgs, next user.CreateManyQuery) (int64, error) {
+				for _, input := range args.Data {
 					if input.Email == "invalid@example.com" {
 						return 0, fmt.Errorf("rejected invalid email")
 					}
@@ -256,9 +256,11 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			CreateManyAndReturn: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
-				for _, input := range args {
-					input.Email = strings.ToLower(input.Email)
+			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
+				for _, input := range args.Data {
+					if input.Email != "" {
+						input.Email = strings.ToLower(input.Email)
+					}
 				}
 				res, err := next(ctx, args)
 				if err == nil {
@@ -318,16 +320,17 @@ func TestHooks(t *testing.T) {
 
 		var hookCalled bool
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *valk.UserCreateArgs, next valk.UserCreateQuery) (*valk.User, error) {
+
 				hookCalled = true
-				if input.Email == "rollback@example.com" {
-					res, err := next(ctx, input)
+				if args.Data.Email != "" && args.Data.Email == "rollback@example.com" {
+					res, err := next(ctx, args)
 					if err == nil {
 						return nil, fmt.Errorf("force rollback")
 					}
 					return res, err
 				}
-				return next(ctx, input)
+				return next(ctx, args)
 			},
 		})
 

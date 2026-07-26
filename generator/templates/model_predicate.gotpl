@@ -146,14 +146,18 @@ func {{ $pkVarName }}Unique(
 {{- end }}
 
 type CreateInput = {{ $.ParentPackageName }}.{{ $.Model.Name }}Create
+type CreateArgs = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateArgs
+type CreateManyArgs = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateManyArgs
+type CreateManyAndReturnArgs = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateManyAndReturnArgs
+
 type CreateQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateQuery
-type CreateHook = func(context.Context, *CreateInput, CreateQuery) (*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
+type CreateHook = func(context.Context, *CreateArgs, CreateQuery) (*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
 
 type CreateManyQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateManyQuery
-type CreateManyHook = func(context.Context, []*CreateInput, CreateManyQuery) (int64, error)
+type CreateManyHook = func(context.Context, *CreateManyArgs, CreateManyQuery) (int64, error)
 
 type CreateManyAndReturnQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateManyAndReturnQuery
-type CreateManyAndReturnHook = func(context.Context, []*CreateInput, CreateManyAndReturnQuery) ([]*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
+type CreateManyAndReturnHook = func(context.Context, *CreateManyAndReturnArgs, CreateManyAndReturnQuery) ([]*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
 
 type FindUniqueQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}FindUniqueQuery
 type FindUniqueHook = func(context.Context, {{ $.ParentPackageName }}.UniquePredicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}], []{{ $.ParentPackageName }}.PredicateOf[{{ $.ParentPackageName }}.{{ $.Model.Name }}], *{{ $.ParentPackageName }}.{{ $.Model.Name }}Select, *{{ $.ParentPackageName }}.{{ $.Model.Name }}Omit, FindUniqueQuery) (*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)

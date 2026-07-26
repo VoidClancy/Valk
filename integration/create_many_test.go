@@ -18,8 +18,8 @@ func TestCreateMany_Hooks(t *testing.T) {
 		defer cleanup()
 
 		client.User.Use(user.Extension{
-			CreateMany: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyQuery) (int64, error) {
-				for _, input := range args {
+			CreateMany: func(ctx context.Context, args *user.CreateManyArgs, next user.CreateManyQuery) (int64, error) {
+				for _, input := range args.Data {
 					if input.Email == "hooked@example.com" {
 						input.PhoneNum = "+188888888"
 					}
@@ -54,8 +54,8 @@ func TestCreateMany_Hooks(t *testing.T) {
 		defer cleanup()
 
 		client.User.Use(user.Extension{
-			CreateManyAndReturn: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
-				for _, input := range args {
+			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
+				for _, input := range args.Data {
 					if input.Email == "hooked@example.com" {
 						input.PhoneNum = "+188888888"
 					}
@@ -88,8 +88,8 @@ func TestCreateMany_Hooks(t *testing.T) {
 		defer cleanup()
 
 		client.User.Use(user.Extension{
-			CreateMany: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyQuery) (int64, error) {
-				for _, input := range args {
+			CreateMany: func(ctx context.Context, args *user.CreateManyArgs, next user.CreateManyQuery) (int64, error) {
+				for _, input := range args.Data {
 					if input.Email == "reject@example.com" {
 						return 0, fmt.Errorf("hook rejected: %s", input.Email)
 					}
@@ -123,7 +123,7 @@ func TestCreateMany_Hooks(t *testing.T) {
 		var afterCalled bool
 		var gotRole valk.UserRoleType
 		client.User.Use(user.Extension{
-			CreateManyAndReturn: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
+			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
 				res, err := next(ctx, args)
 				if err == nil {
 					afterCalled = true
@@ -158,7 +158,7 @@ func TestCreateMany_Hooks(t *testing.T) {
 		defer cleanup()
 
 		client.User.Use(user.Extension{
-			CreateManyAndReturn: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
+			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
 				_, err := next(ctx, args)
 				if err != nil {
 					return nil, err
@@ -199,11 +199,11 @@ func TestCreateMany_Hooks(t *testing.T) {
 		var gotUsers []valk.UserCreate
 		var gotCount int64
 		client.User.Use(user.Extension{
-			CreateMany: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyQuery) (int64, error) {
+			CreateMany: func(ctx context.Context, args *user.CreateManyArgs, next user.CreateManyQuery) (int64, error) {
 				count, err := next(ctx, args)
 				if err == nil {
-					gotUsers = make([]valk.UserCreate, len(args))
-					for i, a := range args {
+					gotUsers = make([]valk.UserCreate, len(args.Data))
+					for i, a := range args.Data {
 						gotUsers[i] = *a
 					}
 					gotCount = count
@@ -230,10 +230,10 @@ func TestCreateMany_Hooks(t *testing.T) {
 			t.Fatalf("expected 2 users in hook, got %d", len(gotUsers))
 		}
 		if gotUsers[0].Email != "bulk1@example.com" {
-			t.Errorf("expected email 'bulk1@example.com', got %q", gotUsers[0].Email)
+			t.Errorf("expected email 'bulk1@example.com'")
 		}
 		if gotUsers[1].Email != "bulk2@example.com" {
-			t.Errorf("expected email 'bulk2@example.com', got %q", gotUsers[1].Email)
+			t.Errorf("expected email 'bulk2@example.com'")
 		}
 	})
 
@@ -242,7 +242,7 @@ func TestCreateMany_Hooks(t *testing.T) {
 		defer cleanup()
 
 		client.User.Use(user.Extension{
-			CreateMany: func(ctx context.Context, args []*user.CreateInput, next user.CreateManyQuery) (int64, error) {
+			CreateMany: func(ctx context.Context, args *user.CreateManyArgs, next user.CreateManyQuery) (int64, error) {
 				_, err := next(ctx, args)
 				if err != nil {
 					return 0, err

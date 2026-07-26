@@ -88,7 +88,11 @@ func assignmentsTo{{ .Model.Name }}Create(assignments []FieldAssignment) ({{ .Mo
 			}
 				{{- else }}
 			if v, ok := a.Val.({{ $enumType }}); ok {
+				{{- if $isPointer }}
 				input.{{ capitalize $field.Name }} = &v
+				{{- else }}
+				input.{{ capitalize $field.Name }} = v
+				{{- end }}
 				if !v.IsValid() {
 					errs.Add("{{ $field.Name }}", v, "enum", fmt.Sprintf("invalid enum value %q for field {{ $field.Name }}", v))
 				}
@@ -181,6 +185,8 @@ func (s *{{ .Model.Name }}Create) ToColsVals() (cols []string, vals []any) {
 	{{- range $field := .Model.ScalarFields }}
 	{{- $col := $field.EffectiveColName }}
 	{{- $fieldName := capitalize $field.Name }}
+	{{- $coreType := trimPrefix $field.GoType "*" }}
+	{{- $isPointer := or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType) }}
 	{{- if $field.EnumRef }}
 		{{- if $field.IsArray }}
 	if s.{{ $fieldName }} != nil {
@@ -236,6 +242,11 @@ func (s *{{ .Model.Name }}Create) ToColsVals() (cols []string, vals []any) {
 	} else {
 		vals = append(vals, generateCUID())
 	}
+			{{- else if $isPointer }}
+	if s.{{ $fieldName }} != nil {
+		cols = append(cols, "{{ $col }}")
+		vals = append(vals, {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }})
+	}
 			{{- else }}
 	cols = append(cols, "{{ $col }}")
 	vals = append(vals, {{ hstoreExpr $field.GoType (printf "s.%s" $fieldName) }})
@@ -281,10 +292,9 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 		return nil, err
 	}
 
-	cols, vals := input.ToColsVals()
-	returningCols := select{{ .Model.Name }}Cols(selects, omits)
-
 	if len(d.extensions) == 0 {
+		cols, vals := input.ToColsVals()
+		returningCols := select{{ .Model.Name }}Cols(selects, omits)
 		hasRelations := selects.hasAnyRelation()
 		if hasRelations {
 			var res *{{ .Model.Name }}
@@ -301,11 +311,16 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 		return d.runCreate(ctx, cols, vals, returningCols, {{ lowercase .Model.Name }}PKCols, conflictTarget, conflictAction)
 	}
 
-	curr := func(c context.Context, args *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error) {
-		cols, vals := args.ToColsVals()
-		returningCols := select{{ .Model.Name }}Cols(selects, omits)
+	args := &{{ .Model.Name }}CreateArgs{
+		Data:   &input,
+		Select: selects,
+	}
 
-		hasRelations := selects.hasAnyRelation()
+	curr := func(c context.Context, a *{{ .Model.Name }}CreateArgs) (*{{ .Model.Name }}, error) {
+		cols, vals := a.Data.ToColsVals()
+		returningCols := select{{ .Model.Name }}Cols(a.Select, omits)
+
+		hasRelations := a.Select.hasAnyRelation()
 		var res *{{ .Model.Name }}
 		var err error
 		if hasRelations {
@@ -315,7 +330,7 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 				if err != nil {
 					return err
 				}
-				return txQ.{{ .Model.Name }}.loadRelations(c, []*{{ .Model.Name }}{res}, selects)
+				return txQ.{{ .Model.Name }}.loadRelations(c, []*{{ .Model.Name }}{res}, a.Select)
 			})
 		} else {
 			res, err = d.runCreate(c, cols, vals, returningCols, {{ lowercase .Model.Name }}PKCols, conflictTarget, conflictAction)
@@ -329,13 +344,13 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
-			curr = func(c context.Context, input *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error) {
-				return hook(c, input, next)
+			curr = func(c context.Context, a *{{ .Model.Name }}CreateArgs) (*{{ .Model.Name }}, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, &input)
+	return curr(ctx, args)
 }
 
 type {{ .Model.Name }}CreateManyBuilder struct {
@@ -395,43 +410,51 @@ func (d *{{ .Model.Name }}Delegate) CreateManyAndReturn(builders ...*{{ .Model.N
 }
 
 func (d *{{ .Model.Name }}Delegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+	structs := make([]{{ .Model.Name }}Create, len(records))
 	inputs := make([]*{{ .Model.Name }}Create, len(records))
 	for i, rec := range records {
-		input, err := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
+		var err error
+		structs[i], err = assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
 		if err != nil {
 			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		inputs[i] = &input
+		inputs[i] = &structs[i]
 	}
 
 	if len(d.extensions) == 0 {
 		return d.runCreateMany(ctx, inputs, conflictTarget, conflictAction)
 	}
 
-	curr := func(c context.Context, args []*{{ .Model.Name }}Create) (int64, error) {
-		return d.runCreateMany(c, args, conflictTarget, conflictAction)
+	args := &{{ .Model.Name }}CreateManyArgs{
+		Data: inputs,
+	}
+
+	curr := func(c context.Context, a *{{ .Model.Name }}CreateManyArgs) (int64, error) {
+		return d.runCreateMany(c, a.Data, conflictTarget, conflictAction)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
-			curr = func(c context.Context, inputs []*{{ .Model.Name }}Create) (int64, error) {
-				return hook(c, inputs, next)
+			curr = func(c context.Context, a *{{ .Model.Name }}CreateManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, inputs)
+	return curr(ctx, args)
 }
 
 func (d *{{ .Model.Name }}Delegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*{{ .Model.Name }}, error) {
+	structs := make([]{{ .Model.Name }}Create, len(records))
 	inputs := make([]*{{ .Model.Name }}Create, len(records))
 	for i, rec := range records {
-		input, err := assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
+		var err error
+		structs[i], err = assignmentsTo{{ .Model.Name }}Create(rec.Assignments)
 		if err != nil {
 			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
-		inputs[i] = &input
+		inputs[i] = &structs[i]
 	}
 
 	if len(d.extensions) == 0 {
@@ -451,33 +474,38 @@ func (d *{{ .Model.Name }}Delegate) executeCreateManyAndReturn(ctx context.Conte
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
 	}
 
-	curr := func(c context.Context, args []*{{ .Model.Name }}Create) ([]*{{ .Model.Name }}, error) {
-		hasRelations := selects != nil && selects.hasAnyRelation()
+	args := &{{ .Model.Name }}CreateManyAndReturnArgs{
+		Data:   inputs,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *{{ .Model.Name }}CreateManyAndReturnArgs) ([]*{{ .Model.Name }}, error) {
+		hasRelations := a.Select != nil && a.Select.hasAnyRelation()
 		if hasRelations {
 			var res []*{{ .Model.Name }}
 			err := d.client.transaction(c, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.{{ .Model.Name }}.runCreateManyAndReturn(c, args, selects, omits, conflictTarget, conflictAction)
+				res, err = txQ.{{ .Model.Name }}.runCreateManyAndReturn(c, a.Data, a.Select, omits, conflictTarget, conflictAction)
 				if err != nil {
 					return err
 				}
-				return txQ.{{ .Model.Name }}.loadRelations(c, res, selects)
+				return txQ.{{ .Model.Name }}.loadRelations(c, res, a.Select)
 			})
 			return res, err
 		}
-		return d.runCreateManyAndReturn(c, args, selects, omits, conflictTarget, conflictAction)
+		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, conflictTarget, conflictAction)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
-			curr = func(c context.Context, inputs []*{{ .Model.Name }}Create) ([]*{{ .Model.Name }}, error) {
-				return hook(c, inputs, next)
+			curr = func(c context.Context, a *{{ .Model.Name }}CreateManyAndReturnArgs) ([]*{{ .Model.Name }}, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, inputs)
+	return curr(ctx, args)
 }
 
 func (d *{{ .Model.Name }}Delegate) runCreate(
@@ -621,7 +649,7 @@ func (d *{{ .Model.Name }}Delegate) buildBulkInsertSQL(q *Queries, batch []*{{ .
 			case "{{ $field.EffectiveColName }}":
 				{{- if and $field.IsID (eq $field.GoType "string") }}
 					{{- if $isPointer }}
-				if input.{{ capitalize $field.Name }} != nil {
+				if input.{{ capitalize $field.Name }} != nil && *input.{{ capitalize $field.Name }} != "" {
 					vals = append(vals, *input.{{ capitalize $field.Name }})
 				} else {
 					vals = append(vals, generateCUID())
@@ -646,12 +674,14 @@ func (d *{{ .Model.Name }}Delegate) buildBulkInsertSQL(q *Queries, batch []*{{ .
 				} else {
 					writeDefault = true
 				}
-					{{- else }}
+					{{- else if $isPointer }}
 				if input.{{ capitalize $field.Name }} != nil {
 					vals = append(vals, *input.{{ capitalize $field.Name }})
 				} else {
 					writeDefault = true
 				}
+					{{- else }}
+				vals = append(vals, input.{{ capitalize $field.Name }})
 					{{- end }}
 				{{- else if $field.IsArray }}
 				if input.{{ capitalize $field.Name }} != nil {
