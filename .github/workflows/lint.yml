@@ -30,6 +30,9 @@ jobs:
       - name: Run golangci-lint (root)
         run: $(go env GOPATH)/bin/golangci-lint run ./...
 
+      - name: Generate integration client
+        run: make integration-gen
+
       - name: Run golangci-lint (integration)
         run: |
           cd integration
