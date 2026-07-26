@@ -170,3 +170,8 @@ type FindManyHook = func(context.Context, {{ $.ParentPackageName }}.QueryParams[
 
 type Extension = {{ $.ParentPackageName }}.{{ $.Model.Name }}Extension
 
+// ConflictUpdate creates a custom ConflictAction for {{ $.Model.Name }} upsert conflicts in the hooks.
+func ConflictUpdate(fn func(u *{{ $.ParentPackageName }}.{{ $.Model.Name }}Upsert)) *{{ $.ParentPackageName }}.ConflictAction {
+	return {{ $.ParentPackageName }}.{{ $.Model.Name }}ConflictUpdate(fn)
+}
+

@@ -25,6 +25,42 @@ type ConflictAction struct {
 	Args        []any
 }
 
+func ConflictDoNothing() *ConflictAction {
+	return &ConflictAction{Type: ConflictActionIgnore}
+}
+
+func ConflictUpdateNewValues() *ConflictAction {
+	return &ConflictAction{Type: ConflictActionUpdateNewValues}
+}
+
+func (a *ConflictAction) IsDoNothing() bool {
+	return a != nil && a.Type == ConflictActionIgnore
+}
+
+func (a *ConflictAction) IsUpdateNewValues() bool {
+	return a != nil && a.Type == ConflictActionUpdateNewValues
+}
+
+func (a *ConflictAction) IsUpdateCustom() bool {
+	return a != nil && a.Type == ConflictActionUpdateCustom
+}
+
+func (a *ConflictAction) String() string {
+	if a == nil {
+		return "ConflictAction(NONE)"
+	}
+	switch a.Type {
+	case ConflictActionIgnore:
+		return "ConflictAction(DO NOTHING)"
+	case ConflictActionUpdateNewValues:
+		return "ConflictAction(UPDATE NEW VALUES)"
+	case ConflictActionUpdateCustom:
+		return fmt.Sprintf("ConflictAction(UPDATE CUSTOM: %v)", a.Assignments)
+	default:
+		return "ConflictAction(UNKNOWN)"
+	}
+}
+
 type ConflictUpdate struct {
 	assignments []string
 	args        []any
