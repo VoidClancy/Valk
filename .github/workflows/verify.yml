@@ -77,6 +77,9 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
+      - name: Generate integration client
+        run: make integration-gen
+
       - name: Run Formatter Check
         run: make fmt-check
 

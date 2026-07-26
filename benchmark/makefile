@@ -50,6 +50,9 @@ bench/gorm:
 bench/short:
 	go test -bench=. -benchmem -benchtime=100ms -count=1
 
+bench/hooks:
+	go test -bench="^BenchmarkHooks" -benchmem ./...
+
 NPROC   := $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
 PRLL_CPUS := $(shell awk 'BEGIN{n=$(NPROC);r="1";if(n>=2)r=r",2";if(n>=4)r=r",4";if(n>=8)r=r",8";if(n>8)r=r","n;print r}')
 

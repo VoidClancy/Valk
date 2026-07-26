@@ -8,10 +8,25 @@ type {{ .Model.Name }} struct {
 	{{- end }}
 }
 
-// {{ .Model.Name }}Create is used for hooks only — the Create API uses FieldAssignment
+{{- $maxName := 0 }}{{ $maxType := 0 }}
+{{- range $f := .Model.ScalarFields }}
+	{{- if gt (len $f.Name) $maxName }}{{ $maxName = len $f.Name }}{{ end }}
+	{{- $t := "" }}{{ if $f.EnumRef }}{{ $t = $f.EnumRef.Name }}{{ else }}{{ $t = trimPrefix $f.GoType "*" }}{{ end }}
+	{{- if gt (len $t) $maxType }}{{ $maxType = len $t }}{{ end }}
+{{- end }}
+
+// {{ .Model.Name }}Create contains model input fields for {{ .Model.Name }} creation operations.
+//
+// Fields for {{ .Model.Name }}:
+{{- range $field := .Model.ScalarFields }}
+	{{- $typeStr := "" }}{{ if $field.EnumRef }}{{ $typeStr = $field.EnumRef.Name }}{{ else }}{{ $typeStr = trimPrefix $field.GoType "*" }}{{ end }}
+//   {{ printf "%-*s" $maxName $field.Name }} {{ printf "%-*s" $maxType $typeStr }} {{ if and (eq $field.Default nil) (not $field.Optional) }}required{{ else if $field.Optional }}optional{{ else if $field.Default }}default: {{ if eq $field.Default.Kind.String "Func" }}{{ $field.Default.FuncName }}(){{ else }}{{ $field.Default.Value }}{{ end }}{{ end }}
+{{- end }}
 type {{ .Model.Name }}Create struct {
 	{{- range $field := .Model.ScalarFields }}
-	{{ capitalize $field.Name }} {{ if $field.EnumRef }}{{ if $field.IsArray }}[]{{ $field.EnumRef.Name }}Type{{ else }}*{{ $field.EnumRef.Name }}Type{{ end }}{{ else }}{{ if $field.IsArray }}{{ $field.GoType }}{{ else }}{{ if and (ne $field.Default nil) (not $field.Optional) }}*{{ end }}{{ $field.GoType }}{{ end }}{{ end }} `json:"{{ $field.Name }}"`
+	{{- $coreType := trimPrefix $field.GoType "*" }}
+	{{- $isPointer := or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType) }}
+	{{ capitalize $field.Name }} {{ if $field.EnumRef }}{{ if $field.IsArray }}[]{{ $field.EnumRef.Name }}Type{{ else }}{{ if $isPointer }}*{{ end }}{{ $field.EnumRef.Name }}Type{{ end }}{{ else }}{{ if $field.IsArray }}{{ $field.GoType }}{{ else }}{{ if $isPointer }}*{{ end }}{{ $coreType }}{{ end }}{{ end }} `json:"{{ $field.Name }}"`
 	{{- end }}
 }
 // colMask returns a bit mask of columns that are set
@@ -21,15 +36,19 @@ func (s *{{ .Model.Name }}Create) colMask() uint64 {
 		{{- $coreType := trimPrefix $field.GoType "*" }}
 		{{- $isClientDefault := or (and $field.IsID (eq $field.GoType "string")) (and $field.Default (eq $field.Default.Kind.String "Func") ($field.Default.FuncName | isKnownDefaultFunc)) }}
 		{{- $isPointer := and (or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType)) (not $isClientDefault) }}
-		{{- if $field.EnumRef }}
+		{{- if $isClientDefault }}
+	mask |= 1 << {{ $i }}
+		{{- else if $field.EnumRef }}
 			{{- if $field.IsArray }}
 	if s.{{ capitalize $field.Name }} != nil {
 		mask |= 1 << {{ $i }}
 	}
-			{{- else }}
+			{{- else if $isPointer }}
 	if s.{{ capitalize $field.Name }} != nil {
 		mask |= 1 << {{ $i }}
 	}
+			{{- else }}
+	mask |= 1 << {{ $i }}
 			{{- end }}
 		{{- else if $field.IsArray }}
 	if s.{{ capitalize $field.Name }} != nil {
@@ -47,6 +66,19 @@ func (s *{{ .Model.Name }}Create) colMask() uint64 {
 }
 
 
+// {{ .Model.Name }}Select specifies which scalar and relation fields to select for {{ .Model.Name }}.
+//
+// Selectable fields:
+//   -- Scalars --
+{{- range $field := .Model.ScalarFields }}
+//   {{ printf "%-*s" $maxName $field.Name }} (bool)
+{{- end }}
+{{- if .Model.RelationFields }}
+//   -- Relations --
+{{- range $relation := .Model.RelationFields }}
+//   {{ printf "%-*s" $maxName $relation.Name }} ({{ if $relation.IsArray }}[]{{ $relation.TargetModelName }}{{ else }}{{ $relation.TargetModelName }}{{ end }})
+{{- end }}
+{{- end }}
 type {{ .Model.Name }}Select struct {
 	{{- range $field := .Model.ScalarFields }}
 	{{ capitalize $field.Name }} bool `json:"{{ $field.Name }}"`
@@ -132,9 +164,63 @@ func (b *{{ .Model.Name }}QueryBuilder) GetRelationParams() (*{{ .Model.Name }}S
 	}
 }
 
-type {{ .Model.Name }}CreateQuery = func(ctx context.Context, args *{{ .Model.Name }}Create) (*{{ .Model.Name }}, error)
-type {{ .Model.Name }}CreateManyQuery = func(ctx context.Context, args []*{{ .Model.Name }}Create) (int64, error)
-type {{ .Model.Name }}CreateManyAndReturnQuery = func(ctx context.Context, args []*{{ .Model.Name }}Create) ([]*{{ .Model.Name }}, error)
+// {{ .Model.Name }}CreateArgs is the input argument passed to {{ .Model.Name }} Create extension hooks.
+//
+// Fields for {{ .Model.Name }}:
+{{- range $field := .Model.ScalarFields }}
+	{{- $typeStr := "" }}{{ if $field.EnumRef }}{{ $typeStr = $field.EnumRef.Name }}{{ else }}{{ $typeStr = trimPrefix $field.GoType "*" }}{{ end }}
+//   {{ printf "%-*s" $maxName $field.Name }} {{ printf "%-*s" $maxType $typeStr }} {{ if and (eq $field.Default nil) (not $field.Optional) }}required{{ else if $field.Optional }}optional{{ else if $field.Default }}default: {{ if eq $field.Default.Kind.String "Func" }}{{ $field.Default.FuncName }}(){{ else }}{{ $field.Default.Value }}{{ end }}{{ end }}
+{{- end }}
+{{- if .Model.RelationFields }}
+//
+// Relations for {{ .Model.Name }}:
+{{- range $relation := .Model.RelationFields }}
+//   {{ printf "%-*s" $maxName $relation.Name }} ({{ if $relation.IsArray }}[]{{ $relation.TargetModelName }}{{ else }}{{ $relation.TargetModelName }}{{ end }})
+{{- end }}
+{{- end }}
+type {{ .Model.Name }}CreateArgs struct {
+	// Data contains the model fields to insert.
+	Data   *{{ .Model.Name }}Create
+	// Select specifies which scalar and relation fields to select and return upon creation.
+	Select *{{ .Model.Name }}Select
+}
+
+// {{ .Model.Name }}CreateManyArgs is the input argument passed to {{ .Model.Name }} CreateMany extension hooks.
+//
+// Fields for {{ .Model.Name }}:
+{{- range $field := .Model.ScalarFields }}
+	{{- $typeStr := "" }}{{ if $field.EnumRef }}{{ $typeStr = $field.EnumRef.Name }}{{ else }}{{ $typeStr = trimPrefix $field.GoType "*" }}{{ end }}
+//   {{ printf "%-*s" $maxName $field.Name }} {{ printf "%-*s" $maxType $typeStr }} {{ if and (eq $field.Default nil) (not $field.Optional) }}required{{ else if $field.Optional }}optional{{ else if $field.Default }}default: {{ if eq $field.Default.Kind.String "Func" }}{{ $field.Default.FuncName }}(){{ else }}{{ $field.Default.Value }}{{ end }}{{ end }}
+{{- end }}
+type {{ .Model.Name }}CreateManyArgs struct {
+	// Data is the slice of model inputs to bulk insert.
+	Data []*{{ .Model.Name }}Create
+}
+
+// {{ .Model.Name }}CreateManyAndReturnArgs is the input argument passed to {{ .Model.Name }} CreateManyAndReturn extension hooks.
+//
+// Fields for {{ .Model.Name }}:
+{{- range $field := .Model.ScalarFields }}
+	{{- $typeStr := "" }}{{ if $field.EnumRef }}{{ $typeStr = $field.EnumRef.Name }}{{ else }}{{ $typeStr = trimPrefix $field.GoType "*" }}{{ end }}
+//   {{ printf "%-*s" $maxName $field.Name }} {{ printf "%-*s" $maxType $typeStr }} {{ if and (eq $field.Default nil) (not $field.Optional) }}required{{ else if $field.Optional }}optional{{ else if $field.Default }}default: {{ if eq $field.Default.Kind.String "Func" }}{{ $field.Default.FuncName }}(){{ else }}{{ $field.Default.Value }}{{ end }}{{ end }}
+{{- end }}
+{{- if .Model.RelationFields }}
+//
+// Relations for {{ .Model.Name }}:
+{{- range $relation := .Model.RelationFields }}
+//   {{ printf "%-*s" $maxName $relation.Name }} ({{ if $relation.IsArray }}[]{{ $relation.TargetModelName }}{{ else }}{{ $relation.TargetModelName }}{{ end }})
+{{- end }}
+{{- end }}
+type {{ .Model.Name }}CreateManyAndReturnArgs struct {
+	// Data is the slice of model inputs to bulk insert.
+	Data   []*{{ .Model.Name }}Create
+	// Select specifies which scalar and relation fields to select and return for created records.
+	Select *{{ .Model.Name }}Select
+}
+
+type {{ .Model.Name }}CreateQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateArgs) (*{{ .Model.Name }}, error)
+type {{ .Model.Name }}CreateManyQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateManyArgs) (int64, error)
+type {{ .Model.Name }}CreateManyAndReturnQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateManyAndReturnArgs) ([]*{{ .Model.Name }}, error)
 type {{ .Model.Name }}FindUniqueQuery = func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}FindFirstQuery = func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}FindManyQuery = func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error)
@@ -146,9 +232,9 @@ type {{ .Model.Name }}UpdateManyQuery = func(ctx context.Context, preds []Predic
 type {{ .Model.Name }}UpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error)
 
 type {{ .Model.Name }}Extension struct {
-	Create              func(ctx context.Context, input *{{ .Model.Name }}Create, next {{ .Model.Name }}CreateQuery) (*{{ .Model.Name }}, error)
-	CreateMany          func(ctx context.Context, inputs []*{{ .Model.Name }}Create, next {{ .Model.Name }}CreateManyQuery) (int64, error)
-	CreateManyAndReturn func(ctx context.Context, inputs []*{{ .Model.Name }}Create, next {{ .Model.Name }}CreateManyAndReturnQuery) ([]*{{ .Model.Name }}, error)
+	Create              func(ctx context.Context, args *{{ .Model.Name }}CreateArgs, next {{ .Model.Name }}CreateQuery) (*{{ .Model.Name }}, error)
+	CreateMany          func(ctx context.Context, args *{{ .Model.Name }}CreateManyArgs, next {{ .Model.Name }}CreateManyQuery) (int64, error)
+	CreateManyAndReturn func(ctx context.Context, args *{{ .Model.Name }}CreateManyAndReturnArgs, next {{ .Model.Name }}CreateManyAndReturnQuery) ([]*{{ .Model.Name }}, error)
 	FindUnique          func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindUniqueQuery) (*{{ .Model.Name }}, error)
 	FindFirst           func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindFirstQuery) (*{{ .Model.Name }}, error)
 	FindMany            func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindManyQuery) ([]*{{ .Model.Name }}, error)

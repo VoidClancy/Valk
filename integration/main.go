@@ -137,17 +137,37 @@ func main() {
 
 	// printJSON(count)
 	db.User.Use(user.Extension{
-		Create: func(ctx context.Context, input *valk.UserCreate, next valk.UserCreateQuery) (*valk.User, error) {
+		Create: func(ctx context.Context, args *valk.UserCreateArgs, next valk.UserCreateQuery) (*valk.User, error) {
+			args.Data.Email = "xxxx"
+			return next(ctx, args)
 
-			fmt.Println("CREATING USER WITH EMAIl: ", input.Email)
-			usr, err := next(ctx, input)
-			if err != nil {
-				return nil, fmt.Errorf("FAILED TO CREATE USER: %v ", err)
+		},
+		CreateMany: func(ctx context.Context,
+			args *valk.UserCreateManyArgs,
+			next valk.UserCreateManyQuery) (int64, error) {
+
+			for i := range args.Data {
+				args.Data[i].Email = "xxxx"
 			}
 
-			return usr, nil
+			return next(ctx, args)
+		},
+		CreateManyAndReturn: func(ctx context.Context,
+			args *valk.UserCreateManyAndReturnArgs,
+			next valk.UserCreateManyAndReturnQuery) ([]*valk.User, error) {
+
+			for i := range args.Data {
+				args.Data[i].Email = "xxxx"
+			}
+			return next(ctx, args)
+		},
+		FindUnique: func(ctx context.Context,
+			where valk.UniquePredicate[valk.User], additional []valk.PredicateOf[valk.User], selects *valk.UserSelect, omits *valk.UserOmit, next valk.UserFindUniqueQuery) (*valk.User, error) {
+			selects.LoginCount = false
+			return next(ctx, where, additional, selects, omits)
 		},
 	})
+
 	// user1, err := db.User.Create().SetEmail("a").SetPhoneNum("11").Exec(ctx)
 	// if err != nil {
 	// 	log.Fatalf("failed to seed users: %v", err)

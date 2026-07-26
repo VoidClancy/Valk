@@ -893,12 +893,12 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 		defer cleanup()
 
 		db.AllFieldsSoFar.Use(allFieldsSoFar.Extension{
-			Create: func(ctx context.Context, input *allFieldsSoFar.CreateInput, next allFieldsSoFar.CreateQuery) (*valk.AllFieldsSoFar, error) {
-				if input.StringReq == "mutate-me" {
+			Create: func(ctx context.Context, args *allFieldsSoFar.CreateArgs, next allFieldsSoFar.CreateQuery) (*valk.AllFieldsSoFar, error) {
+				if args.Data.StringReq != "" && args.Data.StringReq == "mutate-me" {
 					s := "mutated"
-					input.StringReq = s
+					args.Data.StringReq = s
 				}
-				return next(ctx, input)
+				return next(ctx, args)
 			},
 		})
 
@@ -921,11 +921,11 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 		defer cleanup()
 
 		db.AllFieldsSoFar.Use(allFieldsSoFar.Extension{
-			Create: func(ctx context.Context, input *allFieldsSoFar.CreateInput, next allFieldsSoFar.CreateQuery) (*valk.AllFieldsSoFar, error) {
-				if input.StringReq == "abort" {
-					return nil, fmt.Errorf("hook aborted: %s", input.StringReq)
+			Create: func(ctx context.Context, args *valk.AllFieldsSoFarCreateArgs, next valk.AllFieldsSoFarCreateQuery) (*valk.AllFieldsSoFar, error) {
+				if args.Data.StringReq == "abort" {
+					return nil, fmt.Errorf("hook aborted: %s", args.Data.StringReq)
 				}
-				return next(ctx, input)
+				return next(ctx, args)
 			},
 		})
 
@@ -949,11 +949,11 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 			count  int64
 		}
 		db.AllFieldsSoFar.Use(allFieldsSoFar.Extension{
-			CreateMany: func(ctx context.Context, args []*allFieldsSoFar.CreateInput, next allFieldsSoFar.CreateManyQuery) (int64, error) {
+			CreateMany: func(ctx context.Context, args *valk.AllFieldsSoFarCreateManyArgs, next valk.AllFieldsSoFarCreateManyQuery) (int64, error) {
 				count, err := next(ctx, args)
 				if err == nil {
-					captured.inputs = make([]valk.AllFieldsSoFarCreate, len(args))
-					for i, a := range args {
+					captured.inputs = make([]valk.AllFieldsSoFarCreate, len(args.Data))
+					for i, a := range args.Data {
 						captured.inputs[i] = *a
 					}
 					captured.count = count

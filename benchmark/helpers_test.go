@@ -3,7 +3,6 @@ package main
 import (
 	"benchmark/valk"
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"os"
@@ -14,15 +13,6 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
-
-func runHeavyHookWork(op string) {
-	h := sha256.New()
-	for i := range 50 {
-		fmt.Fprintf(h, "%s-heavy-hook-payload-%d", op, i)
-		_ = strings.ToUpper(fmt.Sprintf("hook-op-%s-%d", op, i))
-	}
-	_ = h.Sum(nil)
-}
 
 type DialectConfig struct {
 	Name                string
@@ -380,6 +370,36 @@ func seedData(db DBTX, prefix string) {
 		)
 		if err != nil {
 			panic(fmt.Sprintf("seed %s: %v", prefix, err))
+		}
+	}
+}
+
+func seedDeleteData(db DBTX, prefix string, count int) {
+	batchSize := 200
+	ctx := context.Background()
+	for start := 0; start < count; start += batchSize {
+		end := start + batchSize
+		if end > count {
+			end = count
+		}
+		var sb strings.Builder
+		sb.WriteString(fmt.Sprintf("INSERT INTO %s (%s, %s, %s, %s) VALUES ",
+			activeDialect.Quote("User"),
+			activeDialect.Quote("id"), activeDialect.Quote("email"), activeDialect.Quote("phoneNum"), activeDialect.Quote("role")))
+
+		vals := make([]interface{}, 0, (end-start)*4)
+		for i := start; i < end; i++ {
+			if i > start {
+				sb.WriteString(", ")
+			}
+			idx := (i - start) * 4
+			sb.WriteString(fmt.Sprintf("(%s, %s, %s, %s)",
+				activeDialect.BindVar(idx+1), activeDialect.BindVar(idx+2), activeDialect.BindVar(idx+3), activeDialect.BindVar(idx+4)))
+			vals = append(vals, fmt.Sprintf("%s-d-hook-%d", prefix, i), fmt.Sprintf("%s-d-hook-%d@example.com", prefix, i), fmt.Sprintf("%s-d-hook-phone-%d", prefix, i), "STUDENT")
+		}
+		_, err := db.ExecContext(ctx, sb.String(), vals...)
+		if err != nil {
+			panic(fmt.Sprintf("seedDeleteData %s: %v", prefix, err))
 		}
 	}
 }

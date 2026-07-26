@@ -448,11 +448,11 @@ func TestCreate_Hooks(t *testing.T) {
 
 	var afterCalled bool
 	db.User.Use(user.Extension{
-		Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
-			if input.Email == "hook@example.com" {
-				input.PhoneNum = "+188888888"
+		Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+			if args.Data.Email == "hook@example.com" {
+				args.Data.PhoneNum = "+188888888"
 			}
-			res, err := next(ctx, input)
+			res, err := next(ctx, args)
 			if err == nil && res.Email == "hook@example.com" {
 				afterCalled = true
 			}
@@ -484,13 +484,13 @@ func TestCreate_Hooks_PasswordHashing(t *testing.T) {
 	ctx := context.Background()
 
 	db.User.Use(user.Extension{
-		Create: func(ctx context.Context, input *user.CreateInput, next user.CreateQuery) (*valk.User, error) {
-			if input.Email == "hash@example.com" && input.Password != nil {
-				h := sha256.Sum256([]byte(*input.Password))
+		Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+			if args.Data.Email == "hash@example.com" && args.Data.Password != nil {
+				h := sha256.Sum256([]byte(*args.Data.Password))
 				hashed := hex.EncodeToString(h[:])
-				input.Password = &hashed
+				args.Data.Password = &hashed
 			}
-			return next(ctx, input)
+			return next(ctx, args)
 		},
 	})
 
