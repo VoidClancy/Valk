@@ -108,4 +108,4 @@ test-pg: bi db-reset test
 
 test-dbs: test-sqlite test-pg
 
-ci: fmt fmt-check tidy-check vet lint test vulncheck test-dbs
+ci: bi fmt fmt-check tidy-check vet lint test vulncheck test-dbs

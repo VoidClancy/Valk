@@ -2,12 +2,18 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"integration/valk"
+	"integration/valk/comment"
 	"integration/valk/post"
+	"integration/valk/profile"
 	"integration/valk/user"
 	"os"
+	"strings"
+	"time"
 
 	"log"
 
@@ -60,347 +66,204 @@ func main() {
 	ctx := context.Background()
 
 	runMigrations(db, ctx)
-	// _, err = db.User.Create().SetEmail("c@y.com").SetPhoneNum("+1111").SetId("1234").Exec(ctx)
-	// foundUser, err := db.User.FindUnique(
-	// 	user.EmailPhoneUnique("c@y.com", "+1111"),
-	// 	user.And(
-	// 		user.PhoneNum.Contains("1111"),
-	// 		user.Id.Contains("234"),
-	// 	),
-	// ).Select(user.Select{
-	// 	Id:    true,
-	// 	Email: true,
 
-	// 	Profile: &profile.Select{
-	// 		Id:  true,
-	// 		Bio: true,
-	// 	},
-
-	// 	Posts: post.Query().
-	// 		Where(post.AuthorId.Contains("234")).
-	// 		Select(post.Select{
-	// 			Id:    true,
-	// 			Title: true,
-	// 		}),
-	// }).
-	// 	Exec(ctx)
-
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// printJSON(foundUser)
-
-	// _, err = db.Post.FindMany(post.Id.Contains("xx")).Select(post.Select{}).Exec(ctx)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// _, err = db.Post.FindUnique(post.Id.EQ("xxx")).Select(post.Select{}).Exec(ctx)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// user, err := db.User.Create().SetId("122").SetEmail("xasx").SetPhoneNum("+122111").Exec(ctx)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// printJSON(user)
-	// bulkUsers, err := db.User.CreateManyAndReturn(
-	// 	db.User.Create().SetId("11").SetEmail("xx").SetPhoneNum("+1111"),
-	// 	db.User.Create().SetId("22").SetEmail("xy").SetPhoneNum("+11112").SetRole(valk.UserRole.Admin),
-	// 	db.User.Create().SetId("22222").SetEmail("xcy").SetPhoneNum("+ss11112").SetRole(valk.UserRole.Admin),
-	// ).Exec(ctx)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// printJSON(bulkUsers)
-
-	// var builders []*user.CreateBuilder
-	// for i := range 20 {
-	// 	builder := db.User.Create().
-	// 		SetEmail(fmt.Sprintf("user%d@gmail.com", i)).
-	// 		SetPassword(fmt.Sprintf("pass%d", i)).
-	// 		SetPhoneNum(fmt.Sprintf("+1111%d", i))
-	// 	if i%2 == 0 {
-	// 		builder.SetRole(valk.UserRole.Admin)
-
-	// 	}
-
-	// 	builders = append(builders, builder)
-	// }
-	// count, err := db.User.CreateMany(builders...).
-	// 	OnConflict(user.Email).Update(func(u *valk.UserUpsert) {
-	// 	u.Role.Set(string(valk.UserRole.Admin))
-	// }).SkipDuplicates().
-	// 	Exec(ctx)
-	// if err != nil {
-	// 	log.Fatalf("failed to seed users: %v", err)
-	// }
-
-	// printJSON(count)
 	db.User.Use(user.Extension{
 		Create: func(ctx context.Context, args *valk.UserCreateArgs, next valk.UserCreateQuery) (*valk.User, error) {
-			args.Data.Email = "xxxx"
+			fmt.Println("[Create Hook] Conflict Target: ", args.ConflictTarget)
+			fmt.Println("[Create Hook] Conflict Action: ", args.ConflictAction)
 			return next(ctx, args)
-
 		},
 		CreateMany: func(ctx context.Context,
 			args *valk.UserCreateManyArgs,
 			next valk.UserCreateManyQuery) (int64, error) {
 
-			for i := range args.Data {
-				args.Data[i].Email = "xxxx"
+			if args.ConflictTarget == user.Email {
+				args.ConflictTarget = user.PhoneNum
+
+				args.ConflictAction = user.ConflictUpdate(func(u *valk.UserUpsert) {
+					u.Role.Set(string(valk.UserRole.Admin))
+				})
 			}
 
+			fmt.Println("[CreateMany Hook] Mutated Target: ", args.ConflictTarget)
+			fmt.Println("[CreateMany Hook] Mutated Action: ", args.ConflictAction)
+			fmt.Println("[CreateMany Hook] IsUpdateCustom? ", args.ConflictAction.IsUpdateCustom())
 			return next(ctx, args)
 		},
 		CreateManyAndReturn: func(ctx context.Context,
 			args *valk.UserCreateManyAndReturnArgs,
 			next valk.UserCreateManyAndReturnQuery) ([]*valk.User, error) {
 
-			for i := range args.Data {
-				args.Data[i].Email = "xxxx"
-			}
+			fmt.Println("[CreateManyAndReturn Hook] Conflict Target: ", args.ConflictTarget)
+			fmt.Println("[CreateManyAndReturn Hook] Conflict Action: ", args.ConflictAction)
 			return next(ctx, args)
-		},
-		FindUnique: func(ctx context.Context,
-			where valk.UniquePredicate[valk.User], additional []valk.PredicateOf[valk.User], selects *valk.UserSelect, omits *valk.UserOmit, next valk.UserFindUniqueQuery) (*valk.User, error) {
-			selects.LoginCount = false
-			return next(ctx, where, additional, selects, omits)
 		},
 	})
 
-	// user1, err := db.User.Create().SetEmail("a").SetPhoneNum("11").Exec(ctx)
-	// if err != nil {
-	// 	log.Fatalf("failed to seed users: %v", err)
-	// }
-	// user2, err := db.User.Create().SetEmail("a").SetPhoneNum("11").OnConflict(user.EmailPhone).Ignore().Exec(ctx)
-	// if err != nil {
-	// 	log.Fatalf("failed to seed users: %v", err)
-	// }
-	// fmt.Println("USER1:")
-	// printJSON(user1)
-	// fmt.Println("USER2:")
-	// printJSON(user2)
-	// db.User.Create().SetEmail("xxxc").SetPhoneNum("6969").SetId("Bleh").Exec(ctx)
-	// deletedCnt, err := db.User.DeleteMany(user.Id.EQ("Bleh"), user.Password.Contains("xx")).Exec(ctx)
-	// fmt.Printf("DELETED %d USERS \n", deletedCnt)
+	fmt.Println("\n--- Testing Single Create OnConflict ---")
+	_, _ = db.User.Create().SetEmail("test1@example.com").SetPhoneNum("111").OnConflict(user.Email).Ignore().Exec(ctx)
 
-	// usersCnt, err := db.User.Count(
-	// 	user.Id.Contains("x"),
-	// 	user.Or(
-	// 		user.Password.Contains("y"),
-	// 		user.Email.NEQ("c"),
-	// 	)).
-	// 	Exec(ctx)
-	// fmt.Printf("COUNT %d USERS \n", usersCnt)
+	fmt.Println("\n--- Testing CreateMany OnConflict with user.ConflictUpdate ---")
+	_, _ = db.User.CreateMany(
+		db.User.Create().SetEmail("test2@example.com").SetPhoneNum("222"),
+		db.User.Create().SetEmail("test3@example.com").SetPhoneNum("333"),
+	).OnConflict(user.Email).Ignore().Exec(ctx)
 
-	// // --- DELETE SCENARIO 1: Simple Delete (No Select -> Returns All Scalar Fields) ---
-	// delUser1, err := db.User.Create().
-	// 	SetEmail("del1@example.com").
-	// 	SetPhoneNum("+10001").
-	// 	Exec(ctx)
-	// if err != nil {
-	// 	log.Fatalf("failed to create user 1: %v", err)
-	// }
-	// deleted1, err := db.User.Delete(user.Id.EQ(delUser1.Id)).Exec(ctx)
-	// if err != nil {
-	// 	log.Fatalf("failed to delete user 1: %v", err)
-	// }
-	// fmt.Println("DELETE SCENARIO 1 (Simple Delete - All Scalars):")
-	// printJSON(deleted1)
+	fmt.Println("\n--- Testing CreateManyAndReturn OnConflict ---")
+	_, _ = db.User.CreateManyAndReturn(
+		db.User.Create().SetEmail("test4@example.com").SetPhoneNum("444"),
+		db.User.Create().SetEmail("test5@example.com").SetPhoneNum("555"),
+	).OnConflict(user.Email).UpdateNewValues().Exec(ctx)
 
-	// // --- DELETE SCENARIO 2: Delete with Scalar Field Selection ---
-	// delUser2, err := db.User.Create().
-	// 	SetEmail("del2@example.com").
-	// 	SetPhoneNum("+10002").
-	// 	Exec(ctx)
-	// if err != nil {
-	// 	log.Fatalf("failed to create user 2: %v", err)
-	// }
-
-	// deleted2, err := db.User.Delete(user.Id.EQ(delUser2.Id)).
-	// 	Select(valk.UserSelect{
-	// 		Email: true,
-	// 		Role:  true,
-	// 	}).
-	// 	Exec(ctx)
-	// if err != nil {
-	// 	log.Fatalf("failed to delete user 2: %v", err)
-	// }
-	// fmt.Println("DELETE SCENARIO 2 (Scalar Field Selection):")
-	// printJSON(deleted2)
-
-	// // --- DELETE SCENARIO 3: Delete with Nested Relations Selection ---
-	// delUser3, err := db.User.Create().
-	// 	SetEmail("del3@example.com").
-	// 	SetPhoneNum("+10003").
-	// 	Exec(ctx)
-	// if err != nil {
-	// 	log.Fatalf("failed to create user 3: %v", err)
-	// }
-
-	// _, err = db.Profile.Create().
-	// 	SetBio("Bio of del3").
-	// 	SetUserId(delUser3.Id).
-	// 	Exec(ctx)
-	// if err != nil {
-	// 	log.Fatalf("failed to create profile for user 3: %v", err)
-	// }
-
-	// _, err = db.Post.Create().
-	// 	SetTitle("First Post of del3").
-	// 	SetAuthorId(delUser3.Id).
-	// 	Exec(ctx)
-	// if err != nil {
-	// 	log.Fatalf("failed to create post for user 3: %v", err)
-	// }
-
-	// deleted3, err := db.User.Delete(user.Id.EQ(delUser3.Id)).
-	// 	Select(valk.UserSelect{
-	// 		Email: true,
-	// 		Profile: &profile.Select{
-	// 			Bio: true,
-	// 		},
-	// 		Posts: post.Query().Select(post.Select{
-	// 			Title: true,
-	// 		}),
-	// 	}).
-	// 	Exec(ctx)
-	// if err != nil {
-	// 	log.Fatalf("failed to delete user 3: %v", err)
-	// }
-	runPaginationExamples(db, ctx)
+	// runPaginationExamples(db, ctx)
 }
 
-// func seed(db *valk.DB, ctx context.Context) *SeedData {
+func seed(db *valk.DB, ctx context.Context) *SeedData {
 
-// 	db.User.Use(user.Extension{
-// 		Create: func(ctx context.Context, input *valk.UserCreate, next valk.UserCreateQuery) (*valk.User, error) {
-// 			return next(ctx, input)
-// 		},
-// 	})
+	db.User.Use(user.Extension{
+		Create: func(ctx context.Context, args *valk.UserCreateArgs, next valk.UserCreateQuery) (*valk.User, error) {
+			if args.Data != nil {
+				args.Data.Email = strings.ToLower(args.Data.Email)
+				if args.Data.Password != nil {
+					hash := sha256.Sum256([]byte(*args.Data.Password))
+					hexStr := hex.EncodeToString(hash[:])
+					args.Data.Password = &hexStr
+				}
+			}
+			return next(ctx, args)
+		},
+	})
 
-// 	var usersToCreate []*user.CreateBuilder
+	var usersToCreate []*user.CreateBuilder
 
-// 	for i := range 20 {
-// 		usersToCreate = append(usersToCreate, db.User.Create().
-// 			SetEmail(fmt.Sprintf("email-%d", i)).
-// 			SetPhoneNum(fmt.Sprintf("555-%d", i)).
-// 			SetPassword(fmt.Sprintf("password-%d", i)),
-// 		)
-// 	}
+	for i := range 20 {
+		usersToCreate = append(usersToCreate, db.User.Create().
+			SetEmail(fmt.Sprintf("email-%d", i)).
+			SetPhoneNum(fmt.Sprintf("555-%d", i)).
+			SetPassword(fmt.Sprintf("password-%d", i)),
+		)
+	}
 
-// 	_, err := db.User.FindUnique(
-// 		user.EmailPhoneUnique("x@y.com", "+1111"),
-// 	).Select(user.Select{
-// 		Id:       true,
-// 		Email:    true,
-// 		PhoneNum: true,
-// 		Profile:  &profile.Select{},
+	_, err := db.User.FindUnique(
+		user.EmailPhoneUnique("x@y.com", "+1111"),
+	).Select(user.Select{
+		Id:       true,
+		Email:    true,
+		PhoneNum: true,
+		Profile:  &profile.Select{},
 
-// 		Posts: post.Query().Where(post.And(
-// 			post.Title.Contains("super-cool-post"),
-// 			post.Published.EQ(true),
-// 		)).
-// 			Select(post.Select{
-// 				Id:    true,
-// 				Title: true,
-// 				Comments: comment.Query().Where(comment.Or(
-// 					comment.AuthorId.Contains("xyz"),
-// 					comment.AuthorId.Contains("abc"),
-// 				)),
-// 			}),
-// 	}).
-// 		Exec(ctx)
+		Posts: post.Query().Where(post.And(
+			post.Title.Contains("super-cool-post"),
+			post.Published.EQ(true),
+		)).
+			Select(post.Select{
+				Id:    true,
+				Title: true,
+				Comments: comment.Query().Where(comment.Or(
+					comment.AuthorId.Contains("xyz"),
+					comment.AuthorId.Contains("abc"),
+				)),
+			}),
+	}).
+		Exec(ctx)
 
-// 	users, err := db.User.CreateManyAndReturn(usersToCreate...).Exec(ctx)
-// 	if err != nil {
-// 		log.Fatalf("failed to create users: %v", err)
-// 	}
-// 	fmt.Printf("CreateManyAndReturn: %d users returned with auto-generated IDs\n", len(users))
+	users, err := db.User.CreateManyAndReturn(usersToCreate...).Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create users: %v", err)
+	}
+	fmt.Printf("CreateManyAndReturn: %d users returned with auto-generated IDs\n", len(users))
 
-// 	if _, err := db.User.CreateMany(
-// 		db.User.Create().
-// 			SetEmail("test").
-// 			SetPhoneNum("555-test").
-// 			SetPassword("passwd"),
-// 		db.User.Create().
-// 			SetEmail("again").
-// 			SetPhoneNum("555-again").
-// 			SetPassword("123456"),
-// 	).Exec(ctx); err != nil {
-// 		log.Fatalf("failed to CreateMany: %v", err)
-// 	}
-// 	referrer, err := db.User.Create()// 		.SetEmail("referrer@example.com")// 		.SetPhoneNum("555-0001")// 		.SetPassword("pass123")// 		.SetRole(valk.UserRole.Student)//.Select(user.Select{
-// 		Id:    true,
-// 		Email: true,
-// 	}).
-// 		Exec(ctx)
-// 	if err != nil {
-// 		log.Fatalf("failed to create referrer: %v", err)
-// 	}
+	if _, err := db.User.CreateMany(
+		db.User.Create().
+			SetEmail("test").
+			SetPhoneNum("555-test").
+			SetPassword("passwd"),
+		db.User.Create().
+			SetEmail("again").
+			SetPhoneNum("555-again").
+			SetPassword("123456"),
+	).Exec(ctx); err != nil {
+		log.Fatalf("failed to CreateMany: %v", err)
+	}
+	referrer, err := db.User.Create().SetEmail("referrer@example.com").SetPhoneNum("555-0001").SetPassword("pass123").SetRole(valk.UserRole.Student).Select(user.Select{
+		Id:    true,
+		Email: true,
+	}).
+		Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create referrer: %v", err)
+	}
 
-// 	referred, err := db.User.Create()// 		.SetEmail("referred@example.com")// 		.SetPhoneNum("555-0002")// 		.SetPassword("pass456")// 		.SetRole(valk.UserRole.Student)// 		.SetReferredById(referrer.Id)//.Exec(ctx)
-// 	if err != nil {
-// 		log.Fatalf("failed to create referred: %v", err)
-// 	}
+	referred, err := db.User.Create().SetEmail("referred@example.com").SetPhoneNum("555-0002").SetPassword("pass456").SetRole(valk.UserRole.Student).SetReferredById(referrer.Id).Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create referred: %v", err)
+	}
 
-// 	prof, err := db.Profile.Create()// 		.SetBio("BLEH")// 		.SetUserId(referred.Id)// 		.SetCreatedAt(time.Now())//.Exec(ctx)
-// 	if err != nil {
-// 		log.Fatalf("failed to create profile: %v", err)
-// 	}
-// 	fmt.Println("PROFILE:")
-// 	printJSON(prof)
+	prof, err := db.Profile.Create().SetBio("BLEH").SetUserId(referred.Id).SetCreatedAt(time.Now()).Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create profile: %v", err)
+	}
+	fmt.Println("PROFILE:")
+	printJSON(prof)
 
-// 	categoryTest, err := db.Category.Create()// 		.SetName("TEST")//.Exec(ctx)
+	categoryTest, err := db.Category.Create().SetName("TEST").Exec(ctx)
 
-// 	if err != nil {
-// 		log.Fatalf("failed to create category: %v", err)
-// 	}
-// 	fmt.Println("CATEGORY:")
-// 	printJSON(categoryTest)
+	if err != nil {
+		log.Fatalf("failed to create category: %v", err)
+	}
+	fmt.Println("CATEGORY:")
+	printJSON(categoryTest)
 
-// 	p, err := db.Post.Create()// 		.SetTitle("Valkyrie ORM Deep Dive")// 		.SetContent("skrrrt")// 		.SetAuthorId(referred.Id)//.Exec(ctx)
-// 	if err != nil {
-// 		log.Fatalf("failed to create post: %v", err)
-// 	}
+	p, err := db.Post.Create().SetTitle("Valkyrie ORM Deep Dive").SetContent("skrrrt").SetAuthorId(referred.Id).Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create post: %v", err)
+	}
 
-// 	cat, err := db.Category.Create()// 		.SetName("Programming")//.Exec(ctx)
-// 	if err != nil {
-// 		log.Fatalf("failed to create category: %v", err)
-// 	}
+	cat, err := db.Category.Create().SetName("Programming").Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create category: %v", err)
+	}
 
-// 	_, err = db.CategoryToPost.Create()// 		.SetPostId(p.Id)// 		.SetCategoryId(cat.Id)//.Exec(ctx)
-// 	if err != nil {
-// 		log.Fatalf("failed to create CategoryToPost: %v", err)
-// 	}
+	_, err = db.CategoryToPost.Create().SetPostId(p.Id).SetCategoryId(cat.Id).Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create CategoryToPost: %v", err)
+	}
 
-// 	meta1 := json.RawMessage(`{"rating":5,"verified":true}`)
-// 	_, err = db.Comment.Create()// 		.SetTextify(100)// 		.SetDummy3("dummy_val_1")// 		.SetDummy1(42)// 		.SetDummy2("dummy_val_2")// 		.SetPostId(p.Id)// 		.SetAuthorId(referrer.Id)// 		.SetMeta(meta1)//.Select(comment.Select{
-// 		Post: &post.Select{
-// 			Id:     true,
-// 			Title:  true,
-// 			Author: user.Query().Where(user.Id.EQ(p.Id)).OrderBy(user.Id.Asc()),
-// 		},
-// 	}).
-// 		Exec(ctx)
-// 	if err != nil {
-// 		log.Fatalf("failed to create comment 1: %v", err)
-// 	}
+	meta1 := json.RawMessage(`{"rating":5,"verified":true}`)
+	_, err = db.Comment.Create().
+		SetTextify(100).
+		SetDummy3("dummy_val_1").
+		SetDummy1(42).SetDummy2("dummy_val_2").
+		SetPostId(p.Id).SetAuthorId(referrer.Id).
+		SetMeta(meta1).Select(comment.Select{
+		Post: &post.Select{
+			Id:    true,
+			Title: true,
+			Author: &user.Select{
+				Id:    true,
+				Email: true,
+			},
+		},
+	}).
+		Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create comment 1: %v", err)
+	}
 
-// 	meta2 := json.RawMessage(`{"rating":4,"verified":false}`)
-// 	_, err = db.Comment.Create()// 		.SetTextify(200)// 		.SetDummy3("dummy_val_3")// 		.SetDummy1(84)// 		.SetDummy2("dummy_val_4")// 		.SetPostId(p.Id)// 		.SetAuthorId(referred.Id)// 		.SetMeta(meta2)//.Exec(ctx)
-// 	if err != nil {
-// 		log.Fatalf("failed to create comment 2: %v", err)
-// 	}
+	meta2 := json.RawMessage(`{"rating":4,"verified":false}`)
+	_, err = db.Comment.Create().SetTextify(200).SetDummy3("dummy_val_3").SetDummy1(84).SetDummy2("dummy_val_4").SetPostId(p.Id).SetAuthorId(referred.Id).SetMeta(meta2).Exec(ctx)
+	if err != nil {
+		log.Fatalf("failed to create comment 2: %v", err)
+	}
 
-// 	return &SeedData{
-// 		ReferrerId: referrer.Id,
-// 		ReferredId: referred.Id,
-// 		PostId:     p.Id,
-// 		Meta1:      meta1,
-// 		Meta2:      meta2,
-// 	}
-// }
+	return &SeedData{
+		ReferrerId: referrer.Id,
+		ReferredId: referred.Id,
+		PostId:     p.Id,
+		Meta1:      meta1,
+		Meta2:      meta2,
+	}
+}
 
 func openConn() *valk.DB {
 	db, err := valk.Open("sqlite3", "file::memory:?_pragma=foreign_keys(1)&_time_format=sqlite")

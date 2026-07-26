@@ -183,6 +183,10 @@ type {{ .Model.Name }}CreateArgs struct {
 	Data   *{{ .Model.Name }}Create
 	// Select specifies which scalar and relation fields to select and return upon creation.
 	Select *{{ .Model.Name }}Select
+	// ConflictTarget specifies the unique constraint target for ON CONFLICT clause.
+	ConflictTarget UniqueConstraintTarget
+	// ConflictAction specifies the resolution action for ON CONFLICT clause.
+	ConflictAction *ConflictAction
 }
 
 // {{ .Model.Name }}CreateManyArgs is the input argument passed to {{ .Model.Name }} CreateMany extension hooks.
@@ -195,6 +199,10 @@ type {{ .Model.Name }}CreateArgs struct {
 type {{ .Model.Name }}CreateManyArgs struct {
 	// Data is the slice of model inputs to bulk insert.
 	Data []*{{ .Model.Name }}Create
+	// ConflictTarget specifies the unique constraint target for ON CONFLICT clause.
+	ConflictTarget UniqueConstraintTarget
+	// ConflictAction specifies the resolution action for ON CONFLICT clause.
+	ConflictAction *ConflictAction
 }
 
 // {{ .Model.Name }}CreateManyAndReturnArgs is the input argument passed to {{ .Model.Name }} CreateManyAndReturn extension hooks.
@@ -216,6 +224,10 @@ type {{ .Model.Name }}CreateManyAndReturnArgs struct {
 	Data   []*{{ .Model.Name }}Create
 	// Select specifies which scalar and relation fields to select and return for created records.
 	Select *{{ .Model.Name }}Select
+	// ConflictTarget specifies the unique constraint target for ON CONFLICT clause.
+	ConflictTarget UniqueConstraintTarget
+	// ConflictAction specifies the resolution action for ON CONFLICT clause.
+	ConflictAction *ConflictAction
 }
 
 type {{ .Model.Name }}CreateQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateArgs) (*{{ .Model.Name }}, error)

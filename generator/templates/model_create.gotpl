@@ -312,8 +312,10 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 	}
 
 	args := &{{ .Model.Name }}CreateArgs{
-		Data:   &input,
-		Select: selects,
+		Data:           &input,
+		Select:         selects,
+		ConflictTarget: conflictTarget,
+		ConflictAction: conflictAction,
 	}
 
 	curr := func(c context.Context, a *{{ .Model.Name }}CreateArgs) (*{{ .Model.Name }}, error) {
@@ -326,14 +328,14 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 		if hasRelations {
 			err = d.client.transaction(c, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.{{ .Model.Name }}.runCreate(c, cols, vals, returningCols, {{ lowercase .Model.Name }}PKCols, conflictTarget, conflictAction)
+				res, err = txQ.{{ .Model.Name }}.runCreate(c, cols, vals, returningCols, {{ lowercase .Model.Name }}PKCols, a.ConflictTarget, a.ConflictAction)
 				if err != nil {
 					return err
 				}
 				return txQ.{{ .Model.Name }}.loadRelations(c, []*{{ .Model.Name }}{res}, a.Select)
 			})
 		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, {{ lowercase .Model.Name }}PKCols, conflictTarget, conflictAction)
+			res, err = d.runCreate(c, cols, vals, returningCols, {{ lowercase .Model.Name }}PKCols, a.ConflictTarget, a.ConflictAction)
 		}
 		if err != nil {
 			return nil, err
@@ -426,11 +428,13 @@ func (d *{{ .Model.Name }}Delegate) executeCreateMany(ctx context.Context, recor
 	}
 
 	args := &{{ .Model.Name }}CreateManyArgs{
-		Data: inputs,
+		Data:           inputs,
+		ConflictTarget: conflictTarget,
+		ConflictAction: conflictAction,
 	}
 
 	curr := func(c context.Context, a *{{ .Model.Name }}CreateManyArgs) (int64, error) {
-		return d.runCreateMany(c, a.Data, conflictTarget, conflictAction)
+		return d.runCreateMany(c, a.Data, a.ConflictTarget, a.ConflictAction)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -475,8 +479,10 @@ func (d *{{ .Model.Name }}Delegate) executeCreateManyAndReturn(ctx context.Conte
 	}
 
 	args := &{{ .Model.Name }}CreateManyAndReturnArgs{
-		Data:   inputs,
-		Select: selects,
+		Data:           inputs,
+		Select:         selects,
+		ConflictTarget: conflictTarget,
+		ConflictAction: conflictAction,
 	}
 
 	curr := func(c context.Context, a *{{ .Model.Name }}CreateManyAndReturnArgs) ([]*{{ .Model.Name }}, error) {
@@ -485,7 +491,7 @@ func (d *{{ .Model.Name }}Delegate) executeCreateManyAndReturn(ctx context.Conte
 			var res []*{{ .Model.Name }}
 			err := d.client.transaction(c, func(txQ *Queries) error {
 				var err error
-				res, err = txQ.{{ .Model.Name }}.runCreateManyAndReturn(c, a.Data, a.Select, omits, conflictTarget, conflictAction)
+				res, err = txQ.{{ .Model.Name }}.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 				if err != nil {
 					return err
 				}
@@ -493,7 +499,7 @@ func (d *{{ .Model.Name }}Delegate) executeCreateManyAndReturn(ctx context.Conte
 			})
 			return res, err
 		}
-		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, conflictTarget, conflictAction)
+		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -902,15 +908,20 @@ func (cb *{{ .Model.Name }}ConflictBuilder[B]) UpdateNewValues() *B {
 }
 
 func (cb *{{ .Model.Name }}ConflictBuilder[B]) Update(fn func(u *{{ .Model.Name }}Upsert)) *B {
+	cb.setAction(*{{ .Model.Name }}ConflictUpdate(fn), cb.conflictTarget)
+	return cb.builder
+}
+
+// {{ .Model.Name }}ConflictUpdate creates a custom ConflictAction for {{ .Model.Name }} upsert conflicts.
+func {{ .Model.Name }}ConflictUpdate(fn func(u *{{ .Model.Name }}Upsert)) *ConflictAction {
 	var up ConflictUpdate
 	u := new{{ .Model.Name }}Upsert(&up)
 	fn(u)
-	cb.setAction(ConflictAction{
+	return &ConflictAction{
 		Type:        ConflictActionUpdateCustom,
 		Assignments: up.assignments,
 		Args:        up.args,
-	}, cb.conflictTarget)
-	return cb.builder
+	}
 }
 
 type {{ .Model.Name }}Upsert struct {
