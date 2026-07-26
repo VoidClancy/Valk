@@ -465,11 +465,11 @@ func benchRawHooksCreate(b *testing.B) {
 	for i := 0; b.Loop(); i++ {
 		email := fmt.Sprintf("Raw-C-Hook-%d@Example.com", i)
 		pwd := "mypassword"
-		
+
 		email = strings.ToLower(email)
 		hash := sha256.Sum256([]byte(pwd))
 		hexPwd := hex.EncodeToString(hash[:])
-		
+
 		_, err := db.ExecContext(ctx, rawQueryCreate, fmt.Sprintf("raw-c-hook-%d", i), email, fmt.Sprintf("raw-c-hook-phone-%d", i), hexPwd, "STUDENT")
 		if err != nil {
 			b.Fatal(err)

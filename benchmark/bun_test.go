@@ -366,14 +366,14 @@ func benchBunUpsertWithDeepSelect(b *testing.B) {
 // UserBunHooks is used in hook-only benchmarks to avoid polluting UserBun
 type UserBunHooks struct {
 	bun.BaseModel `bun:"table:User"`
-	Id            string   `bun:"id,pk"`
-	Email         string   `bun:"email,unique,notnull"`
-	PhoneNum      string   `bun:"phoneNum,unique,notnull"`
-	Password      *string  `bun:"password"`
-	Role          string   `bun:"role,default:'STUDENT'"`
-	RoleOptional  *string  `bun:"roleOptional"`
-	LoginCount    int32    `bun:"loginCount,default:0"`
-	ReferredById  *string  `bun:"referredById"`
+	Id            string  `bun:"id,pk"`
+	Email         string  `bun:"email,unique,notnull"`
+	PhoneNum      string  `bun:"phoneNum,unique,notnull"`
+	Password      *string `bun:"password"`
+	Role          string  `bun:"role,default:'STUDENT'"`
+	RoleOptional  *string `bun:"roleOptional"`
+	LoginCount    int32   `bun:"loginCount,default:0"`
+	ReferredById  *string `bun:"referredById"`
 }
 
 func (u *UserBunHooks) BeforeAppendModel(ctx context.Context, query bun.Query) error {
