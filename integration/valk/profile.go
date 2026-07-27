@@ -1819,45 +1819,19 @@ func (d *ProfileDelegate) runFindFirst(
 	selects *ProfileSelect,
 	omits *ProfileOmit,
 ) (*Profile, error) {
-	for _, pr := range params.Where {
-		if pr != nil {
-			if err := pr.Validate(); err != nil {
-				return nil, err
-			}
-		}
+	one := 1
+	negOne := -1
+	if params.Take != nil && *params.Take < 0 {
+		params.Take = &negOne
+	} else {
+		params.Take = &one
 	}
-	whereClause, vals, nextIdx := CompilePredicates(d.client.dialect, params.Where)
-	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
-	if isCursorQuery {
-		cClause, cVals, err := compileCursorClause(d.client.dialect, params.Cursor, params.OrderBy, profilePKCols, profileUniqueCols, "Profile", nextIdx, params.Take)
-		if err != nil {
-			return nil, err
-		}
-		if cClause != "" {
-			if whereClause == "" {
-				whereClause = cClause
-			} else {
-				whereClause = "(" + whereClause + ") AND " + cClause
-			}
-			vals = append(vals, cVals...)
-		}
-	}
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-	orderByClause := formatOrderBySQL(d.client.dialect, params.OrderBy, profilePKCols, profileUniqueCols, isCursorQuery, params.Take)
-	returningCols := selectProfileCols(selects, omits)
 
-	res, err := d.queryOne(ctx, whereClause, orderByClause, vals, returningCols, params.Skip)
-	if err != nil || res == nil {
-		return res, err
+	results, err := d.runFindMany(ctx, params, selects, omits)
+	if err != nil || len(results) == 0 {
+		return nil, err
 	}
-	if selects.hasAnyRelation() {
-		if err := d.loadRelations(ctx, []*Profile{res}, selects); err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
+	return results[0], nil
 }
 
 func (d *ProfileDelegate) runFindMany(
