@@ -54,14 +54,21 @@ type CreateManyHook = func(context.Context, *CreateManyArgs, CreateManyQuery) (i
 type CreateManyAndReturnQuery = valk.CategoryCreateManyAndReturnQuery
 type CreateManyAndReturnHook = func(context.Context, *CreateManyAndReturnArgs, CreateManyAndReturnQuery) ([]*valk.Category, error)
 
+type FindUniqueArgs = valk.CategoryFindUniqueArgs
 type FindUniqueQuery = valk.CategoryFindUniqueQuery
-type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.Category], []valk.PredicateOf[valk.Category], *valk.CategorySelect, *valk.CategoryOmit, FindUniqueQuery) (*valk.Category, error)
+type FindUniqueHook = func(context.Context, *FindUniqueArgs, FindUniqueQuery) (*valk.Category, error)
 
+type FindFirstArgs = valk.CategoryFindFirstArgs
 type FindFirstQuery = valk.CategoryFindFirstQuery
-type FindFirstHook = func(context.Context, valk.QueryParams[valk.Category], *valk.CategorySelect, *valk.CategoryOmit, FindFirstQuery) (*valk.Category, error)
+type FindFirstHook = func(context.Context, *FindFirstArgs, FindFirstQuery) (*valk.Category, error)
 
+type FindManyArgs = valk.CategoryFindManyArgs
 type FindManyQuery = valk.CategoryFindManyQuery
-type FindManyHook = func(context.Context, valk.QueryParams[valk.Category], *valk.CategorySelect, *valk.CategoryOmit, FindManyQuery) ([]*valk.Category, error)
+type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk.Category, error)
+
+type CountArgs = valk.CategoryCountArgs
+type CountQuery = valk.CategoryCountQuery
+type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
 
 type Extension = valk.CategoryExtension
 

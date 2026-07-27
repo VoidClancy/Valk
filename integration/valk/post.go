@@ -77,6 +77,30 @@ type PostSelect struct {
 	Categories CategoryToPostSelectQuery `json:"categories,omitempty"`
 }
 
+func fullPostSelect() *PostSelect {
+	return &PostSelect{
+		Id:        true,
+		Title:     true,
+		Content:   true,
+		Published: true,
+		AuthorId:  true,
+	}
+}
+
+func (s *PostSelect) hasAnyScalar() bool {
+	if s == nil {
+		return false
+	}
+	return s.Id || s.Title || s.Content || s.Published || s.AuthorId
+}
+
+func (s *PostSelect) hasAnySelected() bool {
+	if s == nil {
+		return false
+	}
+	return s.hasAnyScalar() || s.hasAnyRelation()
+}
+
 type PostOmit struct {
 	Id        bool `json:"id"`
 	Title     bool `json:"title"`
@@ -221,15 +245,137 @@ type PostCreateManyAndReturnArgs struct {
 	ConflictAction *ConflictAction
 }
 
+// PostFindUniqueArgs is the input argument passed to Post FindUnique extension hooks.
+type PostFindUniqueArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[Post]
+	// Select specifies which scalar and relation fields to select and return.
+	Select *PostSelect
+}
+
+func (a *PostFindUniqueArgs) SetWhere(unique UniquePredicate[Post], additional ...PredicateOf[Post]) *PostFindUniqueArgs {
+	a.Where = make([]PredicateOf[Post], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// PostFindFirstArgs is the input argument passed to Post FindFirst extension hooks.
+type PostFindFirstArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Post]
+	// OrderBy specifies sorting definitions.
+	OrderBy []OrderBy[Post]
+	// Cursor specifies cursor-based pagination parameters.
+	Cursor UniquePredicate[Post]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+	// Select specifies which scalar and relation fields to select and return.
+	Select *PostSelect
+}
+
+func (a *PostFindFirstArgs) SetWhere(preds ...PredicateOf[Post]) *PostFindFirstArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *PostFindFirstArgs) SetOrderBy(orders ...OrderBy[Post]) *PostFindFirstArgs {
+	a.OrderBy = orders
+	return a
+}
+
+func (a *PostFindFirstArgs) SetCursor(cursor UniquePredicate[Post]) *PostFindFirstArgs {
+	a.Cursor = cursor
+	return a
+}
+
+func (a *PostFindFirstArgs) SetSkip(n int) *PostFindFirstArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *PostFindFirstArgs) SetTake(n int) *PostFindFirstArgs {
+	a.Take = &n
+	return a
+}
+
+// PostFindManyArgs is the input argument passed to Post FindMany extension hooks.
+type PostFindManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Post]
+	// OrderBy specifies sorting definitions.
+	OrderBy []OrderBy[Post]
+	// Cursor specifies cursor-based pagination parameters.
+	Cursor UniquePredicate[Post]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+	// Select specifies which scalar and relation fields to select and return.
+	Select *PostSelect
+}
+
+func (a *PostFindManyArgs) SetWhere(preds ...PredicateOf[Post]) *PostFindManyArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *PostFindManyArgs) SetOrderBy(orders ...OrderBy[Post]) *PostFindManyArgs {
+	a.OrderBy = orders
+	return a
+}
+
+func (a *PostFindManyArgs) SetCursor(cursor UniquePredicate[Post]) *PostFindManyArgs {
+	a.Cursor = cursor
+	return a
+}
+
+func (a *PostFindManyArgs) SetSkip(n int) *PostFindManyArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *PostFindManyArgs) SetTake(n int) *PostFindManyArgs {
+	a.Take = &n
+	return a
+}
+
+// PostCountArgs is the input argument passed to Post Count extension hooks.
+type PostCountArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Post]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+}
+
+func (a *PostCountArgs) SetWhere(preds ...PredicateOf[Post]) *PostCountArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *PostCountArgs) SetSkip(n int) *PostCountArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *PostCountArgs) SetTake(n int) *PostCountArgs {
+	a.Take = &n
+	return a
+}
+
 type PostCreateQuery = func(ctx context.Context, args *PostCreateArgs) (*Post, error)
 type PostCreateManyQuery = func(ctx context.Context, args *PostCreateManyArgs) (int64, error)
 type PostCreateManyAndReturnQuery = func(ctx context.Context, args *PostCreateManyAndReturnArgs) ([]*Post, error)
-type PostFindUniqueQuery = func(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], selects *PostSelect, omits *PostOmit) (*Post, error)
-type PostFindFirstQuery = func(ctx context.Context, params QueryParams[Post], selects *PostSelect, omits *PostOmit) (*Post, error)
-type PostFindManyQuery = func(ctx context.Context, params QueryParams[Post], selects *PostSelect, omits *PostOmit) ([]*Post, error)
+type PostFindUniqueQuery = func(ctx context.Context, args *PostFindUniqueArgs) (*Post, error)
+type PostFindFirstQuery = func(ctx context.Context, args *PostFindFirstArgs) (*Post, error)
+type PostFindManyQuery = func(ctx context.Context, args *PostFindManyArgs) ([]*Post, error)
 type PostDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Post]) (int64, error)
 type PostDeleteQuery = func(ctx context.Context, where UniquePredicate[Post], selects *PostSelect, omits *PostOmit) (*Post, error)
-type PostCountQuery = func(ctx context.Context, params QueryParams[Post]) (int64, error)
+type PostCountQuery = func(ctx context.Context, args *PostCountArgs) (int64, error)
 type PostUpdateQuery = func(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error)
 type PostUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment) (int64, error)
 type PostUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) ([]*Post, error)
@@ -238,12 +384,12 @@ type PostExtension struct {
 	Create              func(ctx context.Context, args *PostCreateArgs, next PostCreateQuery) (*Post, error)
 	CreateMany          func(ctx context.Context, args *PostCreateManyArgs, next PostCreateManyQuery) (int64, error)
 	CreateManyAndReturn func(ctx context.Context, args *PostCreateManyAndReturnArgs, next PostCreateManyAndReturnQuery) ([]*Post, error)
-	FindUnique          func(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], selects *PostSelect, omits *PostOmit, next PostFindUniqueQuery) (*Post, error)
-	FindFirst           func(ctx context.Context, params QueryParams[Post], selects *PostSelect, omits *PostOmit, next PostFindFirstQuery) (*Post, error)
-	FindMany            func(ctx context.Context, params QueryParams[Post], selects *PostSelect, omits *PostOmit, next PostFindManyQuery) ([]*Post, error)
+	FindUnique          func(ctx context.Context, args *PostFindUniqueArgs, next PostFindUniqueQuery) (*Post, error)
+	FindFirst           func(ctx context.Context, args *PostFindFirstArgs, next PostFindFirstQuery) (*Post, error)
+	FindMany            func(ctx context.Context, args *PostFindManyArgs, next PostFindManyQuery) ([]*Post, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[Post], next PostDeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[Post], selects *PostSelect, omits *PostOmit, next PostDeleteQuery) (*Post, error)
-	Count               func(ctx context.Context, params QueryParams[Post], next PostCountQuery) (int64, error)
+	Count               func(ctx context.Context, args *PostCountArgs, next PostCountQuery) (int64, error)
 	Update              func(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit, next PostUpdateQuery) (*Post, error)
 	UpdateMany          func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, next PostUpdateManyQuery) (int64, error)
 	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit, next PostUpdateManyAndReturnQuery) ([]*Post, error)
@@ -524,6 +670,10 @@ func (d *PostDelegate) executeCreate(ctx context.Context, assignments []FieldAss
 		return d.runCreate(ctx, cols, vals, returningCols, postPKCols, conflictTarget, conflictAction)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullPostSelect()
+	}
+
 	args := &PostCreateArgs{
 		Data:           &input,
 		Select:         selects,
@@ -689,6 +839,10 @@ func (d *PostDelegate) executeCreateManyAndReturn(ctx context.Context, records [
 			return res, err
 		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+	}
+
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullPostSelect()
 	}
 
 	args := &PostCreateManyAndReturnArgs{
@@ -1300,6 +1454,10 @@ func (d *PostDelegate) executeUpdate(ctx context.Context, where UniquePredicate[
 		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullPostSelect()
+	}
+
 	curr := func(c context.Context, w UniquePredicate[Post], add []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) (*Post, error) {
 		return d.runUpdate(c, w, add, a, s, o)
 	}
@@ -1317,8 +1475,9 @@ func (d *PostDelegate) executeUpdate(ctx context.Context, where UniquePredicate[
 }
 
 func (d *PostDelegate) runUpdate(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	allPreds := append([]PredicateOf[Post]{where}, additional...)
 	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, where, additional, selects, omits)
+		return d.runFindUnique(ctx, allPreds, selects, omits)
 	}
 
 	if err := where.Validate(); err != nil {
@@ -1350,7 +1509,6 @@ func (d *PostDelegate) runUpdate(ctx context.Context, where UniquePredicate[Post
 	}
 
 	returningCols := selectPostCols(selects, omits, postPKCols...)
-	allPreds := append([]PredicateOf[Post]{where}, additional...)
 	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
@@ -1413,7 +1571,7 @@ func (d *PostDelegate) runUpdateFallback(ctx context.Context, where UniquePredic
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, where, additional, selects, omits)
+	return d.runFindUnique(ctx, allPreds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -1422,11 +1580,11 @@ func (d *PostDelegate) runUpdateFallback(ctx context.Context, where UniquePredic
 
 func (d *PostDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment) (int64, error) {
 	if len(d.extensions) == 0 {
-		return d.runUpdateMany(ctx, preds, assignments)
+		return d.execUpdateStmt(ctx, preds, assignments)
 	}
 
 	curr := func(c context.Context, p []PredicateOf[Post], a []FieldAssignment) (int64, error) {
-		return d.runUpdateMany(c, p, a)
+		return d.execUpdateStmt(c, p, a)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -1441,10 +1599,6 @@ func (d *PostDelegate) executeUpdateMany(ctx context.Context, preds []PredicateO
 	return curr(ctx, preds, assignments)
 }
 
-func (d *PostDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment) (int64, error) {
-	return d.execUpdateStmt(ctx, preds, assignments)
-}
-
 // -----------------------------------------------------------------------------
 // UpdateManyAndReturn
 // -----------------------------------------------------------------------------
@@ -1452,6 +1606,10 @@ func (d *PostDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[Po
 func (d *PostDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
 	if len(d.extensions) == 0 {
 		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullPostSelect()
 	}
 
 	curr := func(c context.Context, p []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) ([]*Post, error) {
@@ -1565,24 +1723,37 @@ func (d *PostDelegate) FindMany(preds ...PredicateOf[Post]) *FindManyBuilder[Pos
 }
 
 func (d *PostDelegate) executeFindUnique(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], selects *PostSelect, omits *PostOmit) (*Post, error) {
+	allWhere := make([]PredicateOf[Post], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
 	if len(d.extensions) == 0 {
-		return d.runFindUnique(ctx, where, additional, selects, omits)
+		return d.runFindUnique(ctx, allWhere, selects, omits)
 	}
 
-	curr := func(c context.Context, w UniquePredicate[Post], add []PredicateOf[Post], sel *PostSelect, o *PostOmit) (*Post, error) {
-		return d.runFindUnique(c, w, add, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullPostSelect()
+	}
+
+	args := &PostFindUniqueArgs{
+		Where:  allWhere,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *PostFindUniqueArgs) (*Post, error) {
+		return d.runFindUnique(c, a.Where, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
-			curr = func(c context.Context, w UniquePredicate[Post], add []PredicateOf[Post], sel *PostSelect, o *PostOmit) (*Post, error) {
-				return hook(c, w, add, sel, o, next)
+			curr = func(c context.Context, a *PostFindUniqueArgs) (*Post, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, additional, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *PostDelegate) executeFindFirst(
@@ -1595,20 +1766,39 @@ func (d *PostDelegate) executeFindFirst(
 		return d.runFindFirst(ctx, params, selects, omits)
 	}
 
-	curr := func(c context.Context, p QueryParams[Post], sel *PostSelect, o *PostOmit) (*Post, error) {
-		return d.runFindFirst(c, p, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullPostSelect()
+	}
+
+	args := &PostFindFirstArgs{
+		Where:   params.Where,
+		OrderBy: params.OrderBy,
+		Cursor:  params.Cursor,
+		Skip:    params.Skip,
+		Take:    params.Take,
+		Select:  selects,
+	}
+
+	curr := func(c context.Context, a *PostFindFirstArgs) (*Post, error) {
+		return d.runFindFirst(c, QueryParams[Post]{
+			Where:   a.Where,
+			OrderBy: a.OrderBy,
+			Cursor:  a.Cursor,
+			Skip:    a.Skip,
+			Take:    a.Take,
+		}, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
-			curr = func(c context.Context, p QueryParams[Post], sel *PostSelect, o *PostOmit) (*Post, error) {
-				return hook(c, p, sel, o, next)
+			curr = func(c context.Context, a *PostFindFirstArgs) (*Post, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *PostDelegate) executeFindMany(
@@ -1621,35 +1811,50 @@ func (d *PostDelegate) executeFindMany(
 		return d.runFindMany(ctx, params, selects, omits)
 	}
 
-	curr := func(c context.Context, p QueryParams[Post], sel *PostSelect, o *PostOmit) ([]*Post, error) {
-		return d.runFindMany(c, p, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullPostSelect()
+	}
+
+	args := &PostFindManyArgs{
+		Where:   params.Where,
+		OrderBy: params.OrderBy,
+		Cursor:  params.Cursor,
+		Skip:    params.Skip,
+		Take:    params.Take,
+		Select:  selects,
+	}
+
+	curr := func(c context.Context, a *PostFindManyArgs) ([]*Post, error) {
+		return d.runFindMany(c, QueryParams[Post]{
+			Where:   a.Where,
+			OrderBy: a.OrderBy,
+			Cursor:  a.Cursor,
+			Skip:    a.Skip,
+			Take:    a.Take,
+		}, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
-			curr = func(c context.Context, p QueryParams[Post], sel *PostSelect, o *PostOmit) ([]*Post, error) {
-				return hook(c, p, sel, o, next)
+			curr = func(c context.Context, a *PostFindManyArgs) ([]*Post, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *PostDelegate) runFindUnique(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], selects *PostSelect, omits *PostOmit) (*Post, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
-	}
-	for _, p := range additional {
+func (d *PostDelegate) runFindUnique(ctx context.Context, where []PredicateOf[Post], selects *PostSelect, omits *PostOmit) (*Post, error) {
+	for _, p := range where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	allPreds := append([]PredicateOf[Post]{where}, additional...)
-	whereClause, vals, _ := CompilePredicates(d.client.dialect, allPreds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -1883,6 +2088,10 @@ func (d *PostDelegate) executeDelete(ctx context.Context, where UniquePredicate[
 		return d.runDelete(ctx, where, selects, omits)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullPostSelect()
+	}
+
 	curr := func(c context.Context, w UniquePredicate[Post], s *PostSelect, o *PostOmit) (*Post, error) {
 		return d.runDelete(c, w, s, o)
 	}
@@ -2001,20 +2210,30 @@ func (d *PostDelegate) executeCount(ctx context.Context, params QueryParams[Post
 		return d.runCount(ctx, params)
 	}
 
-	curr := func(c context.Context, p QueryParams[Post]) (int64, error) {
-		return d.runCount(c, p)
+	args := &PostCountArgs{
+		Where: params.Where,
+		Skip:  params.Skip,
+		Take:  params.Take,
+	}
+
+	curr := func(c context.Context, a *PostCountArgs) (int64, error) {
+		return d.runCount(c, QueryParams[Post]{
+			Where: a.Where,
+			Skip:  a.Skip,
+			Take:  a.Take,
+		})
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Count != nil {
 			next, hook := curr, ext.Count
-			curr = func(c context.Context, p QueryParams[Post]) (int64, error) {
-				return hook(c, p, next)
+			curr = func(c context.Context, a *PostCountArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params)
+	return curr(ctx, args)
 }
 
 func (d *PostDelegate) runCount(ctx context.Context, params QueryParams[Post]) (int64, error) {

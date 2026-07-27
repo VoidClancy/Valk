@@ -84,14 +84,21 @@ type CreateManyHook = func(context.Context, *CreateManyArgs, CreateManyQuery) (i
 type CreateManyAndReturnQuery = valk.CategoryToPostCreateManyAndReturnQuery
 type CreateManyAndReturnHook = func(context.Context, *CreateManyAndReturnArgs, CreateManyAndReturnQuery) ([]*valk.CategoryToPost, error)
 
+type FindUniqueArgs = valk.CategoryToPostFindUniqueArgs
 type FindUniqueQuery = valk.CategoryToPostFindUniqueQuery
-type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.CategoryToPost], []valk.PredicateOf[valk.CategoryToPost], *valk.CategoryToPostSelect, *valk.CategoryToPostOmit, FindUniqueQuery) (*valk.CategoryToPost, error)
+type FindUniqueHook = func(context.Context, *FindUniqueArgs, FindUniqueQuery) (*valk.CategoryToPost, error)
 
+type FindFirstArgs = valk.CategoryToPostFindFirstArgs
 type FindFirstQuery = valk.CategoryToPostFindFirstQuery
-type FindFirstHook = func(context.Context, valk.QueryParams[valk.CategoryToPost], *valk.CategoryToPostSelect, *valk.CategoryToPostOmit, FindFirstQuery) (*valk.CategoryToPost, error)
+type FindFirstHook = func(context.Context, *FindFirstArgs, FindFirstQuery) (*valk.CategoryToPost, error)
 
+type FindManyArgs = valk.CategoryToPostFindManyArgs
 type FindManyQuery = valk.CategoryToPostFindManyQuery
-type FindManyHook = func(context.Context, valk.QueryParams[valk.CategoryToPost], *valk.CategoryToPostSelect, *valk.CategoryToPostOmit, FindManyQuery) ([]*valk.CategoryToPost, error)
+type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk.CategoryToPost, error)
+
+type CountArgs = valk.CategoryToPostCountArgs
+type CountQuery = valk.CategoryToPostCountQuery
+type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
 
 type Extension = valk.CategoryToPostExtension
 

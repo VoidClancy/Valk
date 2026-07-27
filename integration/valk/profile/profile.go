@@ -59,14 +59,21 @@ type CreateManyHook = func(context.Context, *CreateManyArgs, CreateManyQuery) (i
 type CreateManyAndReturnQuery = valk.ProfileCreateManyAndReturnQuery
 type CreateManyAndReturnHook = func(context.Context, *CreateManyAndReturnArgs, CreateManyAndReturnQuery) ([]*valk.Profile, error)
 
+type FindUniqueArgs = valk.ProfileFindUniqueArgs
 type FindUniqueQuery = valk.ProfileFindUniqueQuery
-type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.Profile], []valk.PredicateOf[valk.Profile], *valk.ProfileSelect, *valk.ProfileOmit, FindUniqueQuery) (*valk.Profile, error)
+type FindUniqueHook = func(context.Context, *FindUniqueArgs, FindUniqueQuery) (*valk.Profile, error)
 
+type FindFirstArgs = valk.ProfileFindFirstArgs
 type FindFirstQuery = valk.ProfileFindFirstQuery
-type FindFirstHook = func(context.Context, valk.QueryParams[valk.Profile], *valk.ProfileSelect, *valk.ProfileOmit, FindFirstQuery) (*valk.Profile, error)
+type FindFirstHook = func(context.Context, *FindFirstArgs, FindFirstQuery) (*valk.Profile, error)
 
+type FindManyArgs = valk.ProfileFindManyArgs
 type FindManyQuery = valk.ProfileFindManyQuery
-type FindManyHook = func(context.Context, valk.QueryParams[valk.Profile], *valk.ProfileSelect, *valk.ProfileOmit, FindManyQuery) ([]*valk.Profile, error)
+type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk.Profile, error)
+
+type CountArgs = valk.ProfileCountArgs
+type CountQuery = valk.ProfileCountQuery
+type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
 
 type Extension = valk.ProfileExtension
 

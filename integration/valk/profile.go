@@ -64,6 +64,29 @@ type ProfileSelect struct {
 	User      *UserSelect `json:"user,omitempty"`
 }
 
+func fullProfileSelect() *ProfileSelect {
+	return &ProfileSelect{
+		Id:        true,
+		Bio:       true,
+		UserId:    true,
+		CreatedAt: true,
+	}
+}
+
+func (s *ProfileSelect) hasAnyScalar() bool {
+	if s == nil {
+		return false
+	}
+	return s.Id || s.Bio || s.UserId || s.CreatedAt
+}
+
+func (s *ProfileSelect) hasAnySelected() bool {
+	if s == nil {
+		return false
+	}
+	return s.hasAnyScalar() || s.hasAnyRelation()
+}
+
 type ProfileOmit struct {
 	Id        bool `json:"id"`
 	Bio       bool `json:"bio"`
@@ -200,15 +223,137 @@ type ProfileCreateManyAndReturnArgs struct {
 	ConflictAction *ConflictAction
 }
 
+// ProfileFindUniqueArgs is the input argument passed to Profile FindUnique extension hooks.
+type ProfileFindUniqueArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[Profile]
+	// Select specifies which scalar and relation fields to select and return.
+	Select *ProfileSelect
+}
+
+func (a *ProfileFindUniqueArgs) SetWhere(unique UniquePredicate[Profile], additional ...PredicateOf[Profile]) *ProfileFindUniqueArgs {
+	a.Where = make([]PredicateOf[Profile], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// ProfileFindFirstArgs is the input argument passed to Profile FindFirst extension hooks.
+type ProfileFindFirstArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Profile]
+	// OrderBy specifies sorting definitions.
+	OrderBy []OrderBy[Profile]
+	// Cursor specifies cursor-based pagination parameters.
+	Cursor UniquePredicate[Profile]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+	// Select specifies which scalar and relation fields to select and return.
+	Select *ProfileSelect
+}
+
+func (a *ProfileFindFirstArgs) SetWhere(preds ...PredicateOf[Profile]) *ProfileFindFirstArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *ProfileFindFirstArgs) SetOrderBy(orders ...OrderBy[Profile]) *ProfileFindFirstArgs {
+	a.OrderBy = orders
+	return a
+}
+
+func (a *ProfileFindFirstArgs) SetCursor(cursor UniquePredicate[Profile]) *ProfileFindFirstArgs {
+	a.Cursor = cursor
+	return a
+}
+
+func (a *ProfileFindFirstArgs) SetSkip(n int) *ProfileFindFirstArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *ProfileFindFirstArgs) SetTake(n int) *ProfileFindFirstArgs {
+	a.Take = &n
+	return a
+}
+
+// ProfileFindManyArgs is the input argument passed to Profile FindMany extension hooks.
+type ProfileFindManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Profile]
+	// OrderBy specifies sorting definitions.
+	OrderBy []OrderBy[Profile]
+	// Cursor specifies cursor-based pagination parameters.
+	Cursor UniquePredicate[Profile]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+	// Select specifies which scalar and relation fields to select and return.
+	Select *ProfileSelect
+}
+
+func (a *ProfileFindManyArgs) SetWhere(preds ...PredicateOf[Profile]) *ProfileFindManyArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *ProfileFindManyArgs) SetOrderBy(orders ...OrderBy[Profile]) *ProfileFindManyArgs {
+	a.OrderBy = orders
+	return a
+}
+
+func (a *ProfileFindManyArgs) SetCursor(cursor UniquePredicate[Profile]) *ProfileFindManyArgs {
+	a.Cursor = cursor
+	return a
+}
+
+func (a *ProfileFindManyArgs) SetSkip(n int) *ProfileFindManyArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *ProfileFindManyArgs) SetTake(n int) *ProfileFindManyArgs {
+	a.Take = &n
+	return a
+}
+
+// ProfileCountArgs is the input argument passed to Profile Count extension hooks.
+type ProfileCountArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Profile]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+}
+
+func (a *ProfileCountArgs) SetWhere(preds ...PredicateOf[Profile]) *ProfileCountArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *ProfileCountArgs) SetSkip(n int) *ProfileCountArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *ProfileCountArgs) SetTake(n int) *ProfileCountArgs {
+	a.Take = &n
+	return a
+}
+
 type ProfileCreateQuery = func(ctx context.Context, args *ProfileCreateArgs) (*Profile, error)
 type ProfileCreateManyQuery = func(ctx context.Context, args *ProfileCreateManyArgs) (int64, error)
 type ProfileCreateManyAndReturnQuery = func(ctx context.Context, args *ProfileCreateManyAndReturnArgs) ([]*Profile, error)
-type ProfileFindUniqueQuery = func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
-type ProfileFindFirstQuery = func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
-type ProfileFindManyQuery = func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error)
+type ProfileFindUniqueQuery = func(ctx context.Context, args *ProfileFindUniqueArgs) (*Profile, error)
+type ProfileFindFirstQuery = func(ctx context.Context, args *ProfileFindFirstArgs) (*Profile, error)
+type ProfileFindManyQuery = func(ctx context.Context, args *ProfileFindManyArgs) ([]*Profile, error)
 type ProfileDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Profile]) (int64, error)
 type ProfileDeleteQuery = func(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
-type ProfileCountQuery = func(ctx context.Context, params QueryParams[Profile]) (int64, error)
+type ProfileCountQuery = func(ctx context.Context, args *ProfileCountArgs) (int64, error)
 type ProfileUpdateQuery = func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
 type ProfileUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment) (int64, error)
 type ProfileUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error)
@@ -217,12 +362,12 @@ type ProfileExtension struct {
 	Create              func(ctx context.Context, args *ProfileCreateArgs, next ProfileCreateQuery) (*Profile, error)
 	CreateMany          func(ctx context.Context, args *ProfileCreateManyArgs, next ProfileCreateManyQuery) (int64, error)
 	CreateManyAndReturn func(ctx context.Context, args *ProfileCreateManyAndReturnArgs, next ProfileCreateManyAndReturnQuery) ([]*Profile, error)
-	FindUnique          func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileFindUniqueQuery) (*Profile, error)
-	FindFirst           func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileFindFirstQuery) (*Profile, error)
-	FindMany            func(ctx context.Context, params QueryParams[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileFindManyQuery) ([]*Profile, error)
+	FindUnique          func(ctx context.Context, args *ProfileFindUniqueArgs, next ProfileFindUniqueQuery) (*Profile, error)
+	FindFirst           func(ctx context.Context, args *ProfileFindFirstArgs, next ProfileFindFirstQuery) (*Profile, error)
+	FindMany            func(ctx context.Context, args *ProfileFindManyArgs, next ProfileFindManyQuery) ([]*Profile, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[Profile], next ProfileDeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileDeleteQuery) (*Profile, error)
-	Count               func(ctx context.Context, params QueryParams[Profile], next ProfileCountQuery) (int64, error)
+	Count               func(ctx context.Context, args *ProfileCountArgs, next ProfileCountQuery) (int64, error)
 	Update              func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit, next ProfileUpdateQuery) (*Profile, error)
 	UpdateMany          func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, next ProfileUpdateManyQuery) (int64, error)
 	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit, next ProfileUpdateManyAndReturnQuery) ([]*Profile, error)
@@ -484,6 +629,10 @@ func (d *ProfileDelegate) executeCreate(ctx context.Context, assignments []Field
 		return d.runCreate(ctx, cols, vals, returningCols, profilePKCols, conflictTarget, conflictAction)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullProfileSelect()
+	}
+
 	args := &ProfileCreateArgs{
 		Data:           &input,
 		Select:         selects,
@@ -649,6 +798,10 @@ func (d *ProfileDelegate) executeCreateManyAndReturn(ctx context.Context, record
 			return res, err
 		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+	}
+
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullProfileSelect()
 	}
 
 	args := &ProfileCreateManyAndReturnArgs{
@@ -1242,6 +1395,10 @@ func (d *ProfileDelegate) executeUpdate(ctx context.Context, where UniquePredica
 		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullProfileSelect()
+	}
+
 	curr := func(c context.Context, w UniquePredicate[Profile], add []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) (*Profile, error) {
 		return d.runUpdate(c, w, add, a, s, o)
 	}
@@ -1259,8 +1416,9 @@ func (d *ProfileDelegate) executeUpdate(ctx context.Context, where UniquePredica
 }
 
 func (d *ProfileDelegate) runUpdate(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	allPreds := append([]PredicateOf[Profile]{where}, additional...)
 	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, where, additional, selects, omits)
+		return d.runFindUnique(ctx, allPreds, selects, omits)
 	}
 
 	if err := where.Validate(); err != nil {
@@ -1292,7 +1450,6 @@ func (d *ProfileDelegate) runUpdate(ctx context.Context, where UniquePredicate[P
 	}
 
 	returningCols := selectProfileCols(selects, omits, profilePKCols...)
-	allPreds := append([]PredicateOf[Profile]{where}, additional...)
 	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
@@ -1355,7 +1512,7 @@ func (d *ProfileDelegate) runUpdateFallback(ctx context.Context, where UniquePre
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, where, additional, selects, omits)
+	return d.runFindUnique(ctx, allPreds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -1364,11 +1521,11 @@ func (d *ProfileDelegate) runUpdateFallback(ctx context.Context, where UniquePre
 
 func (d *ProfileDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment) (int64, error) {
 	if len(d.extensions) == 0 {
-		return d.runUpdateMany(ctx, preds, assignments)
+		return d.execUpdateStmt(ctx, preds, assignments)
 	}
 
 	curr := func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment) (int64, error) {
-		return d.runUpdateMany(c, p, a)
+		return d.execUpdateStmt(c, p, a)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -1383,10 +1540,6 @@ func (d *ProfileDelegate) executeUpdateMany(ctx context.Context, preds []Predica
 	return curr(ctx, preds, assignments)
 }
 
-func (d *ProfileDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment) (int64, error) {
-	return d.execUpdateStmt(ctx, preds, assignments)
-}
-
 // -----------------------------------------------------------------------------
 // UpdateManyAndReturn
 // -----------------------------------------------------------------------------
@@ -1394,6 +1547,10 @@ func (d *ProfileDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf
 func (d *ProfileDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
 	if len(d.extensions) == 0 {
 		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullProfileSelect()
 	}
 
 	curr := func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) ([]*Profile, error) {
@@ -1507,24 +1664,37 @@ func (d *ProfileDelegate) FindMany(preds ...PredicateOf[Profile]) *FindManyBuild
 }
 
 func (d *ProfileDelegate) executeFindUnique(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	allWhere := make([]PredicateOf[Profile], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
 	if len(d.extensions) == 0 {
-		return d.runFindUnique(ctx, where, additional, selects, omits)
+		return d.runFindUnique(ctx, allWhere, selects, omits)
 	}
 
-	curr := func(c context.Context, w UniquePredicate[Profile], add []PredicateOf[Profile], sel *ProfileSelect, o *ProfileOmit) (*Profile, error) {
-		return d.runFindUnique(c, w, add, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullProfileSelect()
+	}
+
+	args := &ProfileFindUniqueArgs{
+		Where:  allWhere,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *ProfileFindUniqueArgs) (*Profile, error) {
+		return d.runFindUnique(c, a.Where, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
-			curr = func(c context.Context, w UniquePredicate[Profile], add []PredicateOf[Profile], sel *ProfileSelect, o *ProfileOmit) (*Profile, error) {
-				return hook(c, w, add, sel, o, next)
+			curr = func(c context.Context, a *ProfileFindUniqueArgs) (*Profile, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, additional, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *ProfileDelegate) executeFindFirst(
@@ -1537,20 +1707,39 @@ func (d *ProfileDelegate) executeFindFirst(
 		return d.runFindFirst(ctx, params, selects, omits)
 	}
 
-	curr := func(c context.Context, p QueryParams[Profile], sel *ProfileSelect, o *ProfileOmit) (*Profile, error) {
-		return d.runFindFirst(c, p, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullProfileSelect()
+	}
+
+	args := &ProfileFindFirstArgs{
+		Where:   params.Where,
+		OrderBy: params.OrderBy,
+		Cursor:  params.Cursor,
+		Skip:    params.Skip,
+		Take:    params.Take,
+		Select:  selects,
+	}
+
+	curr := func(c context.Context, a *ProfileFindFirstArgs) (*Profile, error) {
+		return d.runFindFirst(c, QueryParams[Profile]{
+			Where:   a.Where,
+			OrderBy: a.OrderBy,
+			Cursor:  a.Cursor,
+			Skip:    a.Skip,
+			Take:    a.Take,
+		}, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
-			curr = func(c context.Context, p QueryParams[Profile], sel *ProfileSelect, o *ProfileOmit) (*Profile, error) {
-				return hook(c, p, sel, o, next)
+			curr = func(c context.Context, a *ProfileFindFirstArgs) (*Profile, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *ProfileDelegate) executeFindMany(
@@ -1563,35 +1752,50 @@ func (d *ProfileDelegate) executeFindMany(
 		return d.runFindMany(ctx, params, selects, omits)
 	}
 
-	curr := func(c context.Context, p QueryParams[Profile], sel *ProfileSelect, o *ProfileOmit) ([]*Profile, error) {
-		return d.runFindMany(c, p, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullProfileSelect()
+	}
+
+	args := &ProfileFindManyArgs{
+		Where:   params.Where,
+		OrderBy: params.OrderBy,
+		Cursor:  params.Cursor,
+		Skip:    params.Skip,
+		Take:    params.Take,
+		Select:  selects,
+	}
+
+	curr := func(c context.Context, a *ProfileFindManyArgs) ([]*Profile, error) {
+		return d.runFindMany(c, QueryParams[Profile]{
+			Where:   a.Where,
+			OrderBy: a.OrderBy,
+			Cursor:  a.Cursor,
+			Skip:    a.Skip,
+			Take:    a.Take,
+		}, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
-			curr = func(c context.Context, p QueryParams[Profile], sel *ProfileSelect, o *ProfileOmit) ([]*Profile, error) {
-				return hook(c, p, sel, o, next)
+			curr = func(c context.Context, a *ProfileFindManyArgs) ([]*Profile, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *ProfileDelegate) runFindUnique(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
-	}
-	for _, p := range additional {
+func (d *ProfileDelegate) runFindUnique(ctx context.Context, where []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	for _, p := range where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	allPreds := append([]PredicateOf[Profile]{where}, additional...)
-	whereClause, vals, _ := CompilePredicates(d.client.dialect, allPreds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -1825,6 +2029,10 @@ func (d *ProfileDelegate) executeDelete(ctx context.Context, where UniquePredica
 		return d.runDelete(ctx, where, selects, omits)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullProfileSelect()
+	}
+
 	curr := func(c context.Context, w UniquePredicate[Profile], s *ProfileSelect, o *ProfileOmit) (*Profile, error) {
 		return d.runDelete(c, w, s, o)
 	}
@@ -1943,20 +2151,30 @@ func (d *ProfileDelegate) executeCount(ctx context.Context, params QueryParams[P
 		return d.runCount(ctx, params)
 	}
 
-	curr := func(c context.Context, p QueryParams[Profile]) (int64, error) {
-		return d.runCount(c, p)
+	args := &ProfileCountArgs{
+		Where: params.Where,
+		Skip:  params.Skip,
+		Take:  params.Take,
+	}
+
+	curr := func(c context.Context, a *ProfileCountArgs) (int64, error) {
+		return d.runCount(c, QueryParams[Profile]{
+			Where: a.Where,
+			Skip:  a.Skip,
+			Take:  a.Take,
+		})
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Count != nil {
 			next, hook := curr, ext.Count
-			curr = func(c context.Context, p QueryParams[Profile]) (int64, error) {
-				return hook(c, p, next)
+			curr = func(c context.Context, a *ProfileCountArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params)
+	return curr(ctx, args)
 }
 
 func (d *ProfileDelegate) runCount(ctx context.Context, params QueryParams[Profile]) (int64, error) {

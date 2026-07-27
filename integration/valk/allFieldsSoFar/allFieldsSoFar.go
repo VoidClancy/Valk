@@ -160,14 +160,21 @@ type CreateManyHook = func(context.Context, *CreateManyArgs, CreateManyQuery) (i
 type CreateManyAndReturnQuery = valk.AllFieldsSoFarCreateManyAndReturnQuery
 type CreateManyAndReturnHook = func(context.Context, *CreateManyAndReturnArgs, CreateManyAndReturnQuery) ([]*valk.AllFieldsSoFar, error)
 
+type FindUniqueArgs = valk.AllFieldsSoFarFindUniqueArgs
 type FindUniqueQuery = valk.AllFieldsSoFarFindUniqueQuery
-type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.AllFieldsSoFar], []valk.PredicateOf[valk.AllFieldsSoFar], *valk.AllFieldsSoFarSelect, *valk.AllFieldsSoFarOmit, FindUniqueQuery) (*valk.AllFieldsSoFar, error)
+type FindUniqueHook = func(context.Context, *FindUniqueArgs, FindUniqueQuery) (*valk.AllFieldsSoFar, error)
 
+type FindFirstArgs = valk.AllFieldsSoFarFindFirstArgs
 type FindFirstQuery = valk.AllFieldsSoFarFindFirstQuery
-type FindFirstHook = func(context.Context, valk.QueryParams[valk.AllFieldsSoFar], *valk.AllFieldsSoFarSelect, *valk.AllFieldsSoFarOmit, FindFirstQuery) (*valk.AllFieldsSoFar, error)
+type FindFirstHook = func(context.Context, *FindFirstArgs, FindFirstQuery) (*valk.AllFieldsSoFar, error)
 
+type FindManyArgs = valk.AllFieldsSoFarFindManyArgs
 type FindManyQuery = valk.AllFieldsSoFarFindManyQuery
-type FindManyHook = func(context.Context, valk.QueryParams[valk.AllFieldsSoFar], *valk.AllFieldsSoFarSelect, *valk.AllFieldsSoFarOmit, FindManyQuery) ([]*valk.AllFieldsSoFar, error)
+type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk.AllFieldsSoFar, error)
+
+type CountArgs = valk.AllFieldsSoFarCountArgs
+type CountQuery = valk.AllFieldsSoFarCountQuery
+type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
 
 type Extension = valk.AllFieldsSoFarExtension
 
