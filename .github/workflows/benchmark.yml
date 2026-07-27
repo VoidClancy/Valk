@@ -10,11 +10,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  COUNT: 3
-  BENCHTIME: 500ms
-  TIMEOUT: 10m
-
 jobs:
   benchmark:
     name: Benchmark (${{ matrix.db }})
@@ -52,20 +47,15 @@ jobs:
       - name: Run Benchmark (${{ matrix.db }})
         run: |
           cd benchmark
-          node prepareSchema.js ${{ matrix.db }}
-          rm -rf valk/migrations/*.sql
-          rm -f dev.db
-          if [ "${{ matrix.db }}" = "sqlite" ]; then
-            DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/valk migrate init
+          if [ "${{ matrix.db }}" = "postgres" ]; then
+            make bench/pg
           else
-            DATABASE_URL="postgres://postgres:postgres@localhost:5432/bench?sslmode=disable" DATABASE_DIRECT_URL="postgres://postgres:postgres@localhost:5432/bench?sslmode=disable" ../bin/valk migrate init
-          fi
-          ../bin/valk generate
-          go generate ./ent
-          BENCH_DB=${{ matrix.db }} go run ./cmd/benchsummary -count=${{ env.COUNT }} -benchtime=${{ env.BENCHTIME }} -timeout=${{ env.TIMEOUT }} | tee ../bench-${{ matrix.db }}.txt
+            make bench/sqlite
+          fi | tee ../bench-${{ matrix.db }}.txt
         env:
-          BENCH_DB: ${{ matrix.db }}
-          PG_DATABASE_URL: postgres://postgres:postgres@localhost:5432/bench?sslmode=disable
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/bench?sslmode=disable
+          DATABASE_DIRECT_URL: postgres://postgres:postgres@localhost:5432/bench?sslmode=disable
+          SKIP_DB_RESET: true
 
       - uses: actions/upload-artifact@v4
         with:
