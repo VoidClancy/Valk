@@ -159,14 +159,21 @@ type CreateManyHook = func(context.Context, *CreateManyArgs, CreateManyQuery) (i
 type CreateManyAndReturnQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateManyAndReturnQuery
 type CreateManyAndReturnHook = func(context.Context, *CreateManyAndReturnArgs, CreateManyAndReturnQuery) ([]*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
 
+type FindUniqueArgs = {{ $.ParentPackageName }}.{{ $.Model.Name }}FindUniqueArgs
 type FindUniqueQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}FindUniqueQuery
-type FindUniqueHook = func(context.Context, {{ $.ParentPackageName }}.UniquePredicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}], []{{ $.ParentPackageName }}.PredicateOf[{{ $.ParentPackageName }}.{{ $.Model.Name }}], *{{ $.ParentPackageName }}.{{ $.Model.Name }}Select, *{{ $.ParentPackageName }}.{{ $.Model.Name }}Omit, FindUniqueQuery) (*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
+type FindUniqueHook = func(context.Context, *FindUniqueArgs, FindUniqueQuery) (*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
 
+type FindFirstArgs = {{ $.ParentPackageName }}.{{ $.Model.Name }}FindFirstArgs
 type FindFirstQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}FindFirstQuery
-type FindFirstHook = func(context.Context, {{ $.ParentPackageName }}.QueryParams[{{ $.ParentPackageName }}.{{ $.Model.Name }}], *{{ $.ParentPackageName }}.{{ $.Model.Name }}Select, *{{ $.ParentPackageName }}.{{ $.Model.Name }}Omit, FindFirstQuery) (*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
+type FindFirstHook = func(context.Context, *FindFirstArgs, FindFirstQuery) (*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
 
+type FindManyArgs = {{ $.ParentPackageName }}.{{ $.Model.Name }}FindManyArgs
 type FindManyQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}FindManyQuery
-type FindManyHook = func(context.Context, {{ $.ParentPackageName }}.QueryParams[{{ $.ParentPackageName }}.{{ $.Model.Name }}], *{{ $.ParentPackageName }}.{{ $.Model.Name }}Select, *{{ $.ParentPackageName }}.{{ $.Model.Name }}Omit, FindManyQuery) ([]*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
+type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*{{ $.ParentPackageName }}.{{ $.Model.Name }}, error)
+
+type CountArgs = {{ $.ParentPackageName }}.{{ $.Model.Name }}CountArgs
+type CountQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}CountQuery
+type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
 
 type Extension = {{ $.ParentPackageName }}.{{ $.Model.Name }}Extension
 

@@ -60,14 +60,21 @@ type CreateManyHook = func(context.Context, *CreateManyArgs, CreateManyQuery) (i
 type CreateManyAndReturnQuery = valk.PostCreateManyAndReturnQuery
 type CreateManyAndReturnHook = func(context.Context, *CreateManyAndReturnArgs, CreateManyAndReturnQuery) ([]*valk.Post, error)
 
+type FindUniqueArgs = valk.PostFindUniqueArgs
 type FindUniqueQuery = valk.PostFindUniqueQuery
-type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.Post], []valk.PredicateOf[valk.Post], *valk.PostSelect, *valk.PostOmit, FindUniqueQuery) (*valk.Post, error)
+type FindUniqueHook = func(context.Context, *FindUniqueArgs, FindUniqueQuery) (*valk.Post, error)
 
+type FindFirstArgs = valk.PostFindFirstArgs
 type FindFirstQuery = valk.PostFindFirstQuery
-type FindFirstHook = func(context.Context, valk.QueryParams[valk.Post], *valk.PostSelect, *valk.PostOmit, FindFirstQuery) (*valk.Post, error)
+type FindFirstHook = func(context.Context, *FindFirstArgs, FindFirstQuery) (*valk.Post, error)
 
+type FindManyArgs = valk.PostFindManyArgs
 type FindManyQuery = valk.PostFindManyQuery
-type FindManyHook = func(context.Context, valk.QueryParams[valk.Post], *valk.PostSelect, *valk.PostOmit, FindManyQuery) ([]*valk.Post, error)
+type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk.Post, error)
+
+type CountArgs = valk.PostCountArgs
+type CountQuery = valk.PostCountQuery
+type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
 
 type Extension = valk.PostExtension
 

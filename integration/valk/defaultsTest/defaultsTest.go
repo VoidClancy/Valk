@@ -69,14 +69,21 @@ type CreateManyHook = func(context.Context, *CreateManyArgs, CreateManyQuery) (i
 type CreateManyAndReturnQuery = valk.DefaultsTestCreateManyAndReturnQuery
 type CreateManyAndReturnHook = func(context.Context, *CreateManyAndReturnArgs, CreateManyAndReturnQuery) ([]*valk.DefaultsTest, error)
 
+type FindUniqueArgs = valk.DefaultsTestFindUniqueArgs
 type FindUniqueQuery = valk.DefaultsTestFindUniqueQuery
-type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.DefaultsTest], []valk.PredicateOf[valk.DefaultsTest], *valk.DefaultsTestSelect, *valk.DefaultsTestOmit, FindUniqueQuery) (*valk.DefaultsTest, error)
+type FindUniqueHook = func(context.Context, *FindUniqueArgs, FindUniqueQuery) (*valk.DefaultsTest, error)
 
+type FindFirstArgs = valk.DefaultsTestFindFirstArgs
 type FindFirstQuery = valk.DefaultsTestFindFirstQuery
-type FindFirstHook = func(context.Context, valk.QueryParams[valk.DefaultsTest], *valk.DefaultsTestSelect, *valk.DefaultsTestOmit, FindFirstQuery) (*valk.DefaultsTest, error)
+type FindFirstHook = func(context.Context, *FindFirstArgs, FindFirstQuery) (*valk.DefaultsTest, error)
 
+type FindManyArgs = valk.DefaultsTestFindManyArgs
 type FindManyQuery = valk.DefaultsTestFindManyQuery
-type FindManyHook = func(context.Context, valk.QueryParams[valk.DefaultsTest], *valk.DefaultsTestSelect, *valk.DefaultsTestOmit, FindManyQuery) ([]*valk.DefaultsTest, error)
+type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk.DefaultsTest, error)
+
+type CountArgs = valk.DefaultsTestCountArgs
+type CountQuery = valk.DefaultsTestCountQuery
+type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
 
 type Extension = valk.DefaultsTestExtension
 

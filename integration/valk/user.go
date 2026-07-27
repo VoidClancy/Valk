@@ -107,6 +107,33 @@ type UserSelect struct {
 	Referrals    UserSelectQuery    `json:"referrals,omitempty"`
 }
 
+func fullUserSelect() *UserSelect {
+	return &UserSelect{
+		Id:           true,
+		Email:        true,
+		PhoneNum:     true,
+		Password:     true,
+		Role:         true,
+		RoleOptional: true,
+		LoginCount:   true,
+		ReferredById: true,
+	}
+}
+
+func (s *UserSelect) hasAnyScalar() bool {
+	if s == nil {
+		return false
+	}
+	return s.Id || s.Email || s.PhoneNum || s.Password || s.Role || s.RoleOptional || s.LoginCount || s.ReferredById
+}
+
+func (s *UserSelect) hasAnySelected() bool {
+	if s == nil {
+		return false
+	}
+	return s.hasAnyScalar() || s.hasAnyRelation()
+}
+
 type UserOmit struct {
 	Id           bool `json:"id"`
 	Email        bool `json:"email"`
@@ -267,15 +294,137 @@ type UserCreateManyAndReturnArgs struct {
 	ConflictAction *ConflictAction
 }
 
+// UserFindUniqueArgs is the input argument passed to User FindUnique extension hooks.
+type UserFindUniqueArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[User]
+	// Select specifies which scalar and relation fields to select and return.
+	Select *UserSelect
+}
+
+func (a *UserFindUniqueArgs) SetWhere(unique UniquePredicate[User], additional ...PredicateOf[User]) *UserFindUniqueArgs {
+	a.Where = make([]PredicateOf[User], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// UserFindFirstArgs is the input argument passed to User FindFirst extension hooks.
+type UserFindFirstArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[User]
+	// OrderBy specifies sorting definitions.
+	OrderBy []OrderBy[User]
+	// Cursor specifies cursor-based pagination parameters.
+	Cursor UniquePredicate[User]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+	// Select specifies which scalar and relation fields to select and return.
+	Select *UserSelect
+}
+
+func (a *UserFindFirstArgs) SetWhere(preds ...PredicateOf[User]) *UserFindFirstArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *UserFindFirstArgs) SetOrderBy(orders ...OrderBy[User]) *UserFindFirstArgs {
+	a.OrderBy = orders
+	return a
+}
+
+func (a *UserFindFirstArgs) SetCursor(cursor UniquePredicate[User]) *UserFindFirstArgs {
+	a.Cursor = cursor
+	return a
+}
+
+func (a *UserFindFirstArgs) SetSkip(n int) *UserFindFirstArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *UserFindFirstArgs) SetTake(n int) *UserFindFirstArgs {
+	a.Take = &n
+	return a
+}
+
+// UserFindManyArgs is the input argument passed to User FindMany extension hooks.
+type UserFindManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[User]
+	// OrderBy specifies sorting definitions.
+	OrderBy []OrderBy[User]
+	// Cursor specifies cursor-based pagination parameters.
+	Cursor UniquePredicate[User]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+	// Select specifies which scalar and relation fields to select and return.
+	Select *UserSelect
+}
+
+func (a *UserFindManyArgs) SetWhere(preds ...PredicateOf[User]) *UserFindManyArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *UserFindManyArgs) SetOrderBy(orders ...OrderBy[User]) *UserFindManyArgs {
+	a.OrderBy = orders
+	return a
+}
+
+func (a *UserFindManyArgs) SetCursor(cursor UniquePredicate[User]) *UserFindManyArgs {
+	a.Cursor = cursor
+	return a
+}
+
+func (a *UserFindManyArgs) SetSkip(n int) *UserFindManyArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *UserFindManyArgs) SetTake(n int) *UserFindManyArgs {
+	a.Take = &n
+	return a
+}
+
+// UserCountArgs is the input argument passed to User Count extension hooks.
+type UserCountArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[User]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+}
+
+func (a *UserCountArgs) SetWhere(preds ...PredicateOf[User]) *UserCountArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *UserCountArgs) SetSkip(n int) *UserCountArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *UserCountArgs) SetTake(n int) *UserCountArgs {
+	a.Take = &n
+	return a
+}
+
 type UserCreateQuery = func(ctx context.Context, args *UserCreateArgs) (*User, error)
 type UserCreateManyQuery = func(ctx context.Context, args *UserCreateManyArgs) (int64, error)
 type UserCreateManyAndReturnQuery = func(ctx context.Context, args *UserCreateManyAndReturnArgs) ([]*User, error)
-type UserFindUniqueQuery = func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error)
-type UserFindFirstQuery = func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit) (*User, error)
-type UserFindManyQuery = func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit) ([]*User, error)
+type UserFindUniqueQuery = func(ctx context.Context, args *UserFindUniqueArgs) (*User, error)
+type UserFindFirstQuery = func(ctx context.Context, args *UserFindFirstArgs) (*User, error)
+type UserFindManyQuery = func(ctx context.Context, args *UserFindManyArgs) ([]*User, error)
 type UserDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[User]) (int64, error)
 type UserDeleteQuery = func(ctx context.Context, where UniquePredicate[User], selects *UserSelect, omits *UserOmit) (*User, error)
-type UserCountQuery = func(ctx context.Context, params QueryParams[User]) (int64, error)
+type UserCountQuery = func(ctx context.Context, args *UserCountArgs) (int64, error)
 type UserUpdateQuery = func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error)
 type UserUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment) (int64, error)
 type UserUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) ([]*User, error)
@@ -284,12 +433,12 @@ type UserExtension struct {
 	Create              func(ctx context.Context, args *UserCreateArgs, next UserCreateQuery) (*User, error)
 	CreateMany          func(ctx context.Context, args *UserCreateManyArgs, next UserCreateManyQuery) (int64, error)
 	CreateManyAndReturn func(ctx context.Context, args *UserCreateManyAndReturnArgs, next UserCreateManyAndReturnQuery) ([]*User, error)
-	FindUnique          func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit, next UserFindUniqueQuery) (*User, error)
-	FindFirst           func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit, next UserFindFirstQuery) (*User, error)
-	FindMany            func(ctx context.Context, params QueryParams[User], selects *UserSelect, omits *UserOmit, next UserFindManyQuery) ([]*User, error)
+	FindUnique          func(ctx context.Context, args *UserFindUniqueArgs, next UserFindUniqueQuery) (*User, error)
+	FindFirst           func(ctx context.Context, args *UserFindFirstArgs, next UserFindFirstQuery) (*User, error)
+	FindMany            func(ctx context.Context, args *UserFindManyArgs, next UserFindManyQuery) ([]*User, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[User], next UserDeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[User], selects *UserSelect, omits *UserOmit, next UserDeleteQuery) (*User, error)
-	Count               func(ctx context.Context, params QueryParams[User], next UserCountQuery) (int64, error)
+	Count               func(ctx context.Context, args *UserCountArgs, next UserCountQuery) (int64, error)
 	Update              func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit, next UserUpdateQuery) (*User, error)
 	UpdateMany          func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, next UserUpdateManyQuery) (int64, error)
 	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit, next UserUpdateManyAndReturnQuery) ([]*User, error)
@@ -640,6 +789,10 @@ func (d *UserDelegate) executeCreate(ctx context.Context, assignments []FieldAss
 		return d.runCreate(ctx, cols, vals, returningCols, userPKCols, conflictTarget, conflictAction)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullUserSelect()
+	}
+
 	args := &UserCreateArgs{
 		Data:           &input,
 		Select:         selects,
@@ -805,6 +958,10 @@ func (d *UserDelegate) executeCreateManyAndReturn(ctx context.Context, records [
 			return res, err
 		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+	}
+
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullUserSelect()
 	}
 
 	args := &UserCreateManyAndReturnArgs{
@@ -1242,8 +1399,8 @@ type UserUpsert struct {
 	Email        fieldUpsert[string]
 	PhoneNum     fieldUpsert[string]
 	Password     fieldUpsert[*string]
-	Role         fieldUpsert[string]
-	RoleOptional fieldUpsert[*string]
+	Role         fieldUpsert[UserRoleType]
+	RoleOptional fieldUpsert[*UserRoleType]
 	LoginCount   numericFieldUpsert[int32]
 	ReferredById fieldUpsert[*string]
 }
@@ -1254,8 +1411,8 @@ func newUserUpsert(up *ConflictUpdate) *UserUpsert {
 		Email:        fieldUpsert[string]{column: "email", update: up},
 		PhoneNum:     fieldUpsert[string]{column: "phoneNum", update: up},
 		Password:     fieldUpsert[*string]{column: "password", update: up},
-		Role:         fieldUpsert[string]{column: "role", update: up},
-		RoleOptional: fieldUpsert[*string]{column: "roleOptional", update: up},
+		Role:         fieldUpsert[UserRoleType]{column: "role", update: up},
+		RoleOptional: fieldUpsert[*UserRoleType]{column: "roleOptional", update: up},
 		LoginCount: numericFieldUpsert[int32]{
 			fieldUpsert: fieldUpsert[int32]{column: "loginCount", update: up},
 			tableName:   "User",
@@ -1485,6 +1642,10 @@ func (d *UserDelegate) executeUpdate(ctx context.Context, where UniquePredicate[
 		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullUserSelect()
+	}
+
 	curr := func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) (*User, error) {
 		return d.runUpdate(c, w, add, a, s, o)
 	}
@@ -1502,8 +1663,9 @@ func (d *UserDelegate) executeUpdate(ctx context.Context, where UniquePredicate[
 }
 
 func (d *UserDelegate) runUpdate(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error) {
+	allPreds := append([]PredicateOf[User]{where}, additional...)
 	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, where, additional, selects, omits)
+		return d.runFindUnique(ctx, allPreds, selects, omits)
 	}
 
 	if err := where.Validate(); err != nil {
@@ -1535,7 +1697,6 @@ func (d *UserDelegate) runUpdate(ctx context.Context, where UniquePredicate[User
 	}
 
 	returningCols := selectUserCols(selects, omits, userPKCols...)
-	allPreds := append([]PredicateOf[User]{where}, additional...)
 	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
@@ -1598,7 +1759,7 @@ func (d *UserDelegate) runUpdateFallback(ctx context.Context, where UniquePredic
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, where, additional, selects, omits)
+	return d.runFindUnique(ctx, allPreds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -1607,11 +1768,11 @@ func (d *UserDelegate) runUpdateFallback(ctx context.Context, where UniquePredic
 
 func (d *UserDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment) (int64, error) {
 	if len(d.extensions) == 0 {
-		return d.runUpdateMany(ctx, preds, assignments)
+		return d.execUpdateStmt(ctx, preds, assignments)
 	}
 
 	curr := func(c context.Context, p []PredicateOf[User], a []FieldAssignment) (int64, error) {
-		return d.runUpdateMany(c, p, a)
+		return d.execUpdateStmt(c, p, a)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -1626,10 +1787,6 @@ func (d *UserDelegate) executeUpdateMany(ctx context.Context, preds []PredicateO
 	return curr(ctx, preds, assignments)
 }
 
-func (d *UserDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment) (int64, error) {
-	return d.execUpdateStmt(ctx, preds, assignments)
-}
-
 // -----------------------------------------------------------------------------
 // UpdateManyAndReturn
 // -----------------------------------------------------------------------------
@@ -1637,6 +1794,10 @@ func (d *UserDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[Us
 func (d *UserDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) ([]*User, error) {
 	if len(d.extensions) == 0 {
 		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullUserSelect()
 	}
 
 	curr := func(c context.Context, p []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) ([]*User, error) {
@@ -1750,24 +1911,37 @@ func (d *UserDelegate) FindMany(preds ...PredicateOf[User]) *FindManyBuilder[Use
 }
 
 func (d *UserDelegate) executeFindUnique(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error) {
+	allWhere := make([]PredicateOf[User], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
 	if len(d.extensions) == 0 {
-		return d.runFindUnique(ctx, where, additional, selects, omits)
+		return d.runFindUnique(ctx, allWhere, selects, omits)
 	}
 
-	curr := func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], sel *UserSelect, o *UserOmit) (*User, error) {
-		return d.runFindUnique(c, w, add, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullUserSelect()
+	}
+
+	args := &UserFindUniqueArgs{
+		Where:  allWhere,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *UserFindUniqueArgs) (*User, error) {
+		return d.runFindUnique(c, a.Where, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
-			curr = func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], sel *UserSelect, o *UserOmit) (*User, error) {
-				return hook(c, w, add, sel, o, next)
+			curr = func(c context.Context, a *UserFindUniqueArgs) (*User, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, additional, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *UserDelegate) executeFindFirst(
@@ -1780,20 +1954,39 @@ func (d *UserDelegate) executeFindFirst(
 		return d.runFindFirst(ctx, params, selects, omits)
 	}
 
-	curr := func(c context.Context, p QueryParams[User], sel *UserSelect, o *UserOmit) (*User, error) {
-		return d.runFindFirst(c, p, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullUserSelect()
+	}
+
+	args := &UserFindFirstArgs{
+		Where:   params.Where,
+		OrderBy: params.OrderBy,
+		Cursor:  params.Cursor,
+		Skip:    params.Skip,
+		Take:    params.Take,
+		Select:  selects,
+	}
+
+	curr := func(c context.Context, a *UserFindFirstArgs) (*User, error) {
+		return d.runFindFirst(c, QueryParams[User]{
+			Where:   a.Where,
+			OrderBy: a.OrderBy,
+			Cursor:  a.Cursor,
+			Skip:    a.Skip,
+			Take:    a.Take,
+		}, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
-			curr = func(c context.Context, p QueryParams[User], sel *UserSelect, o *UserOmit) (*User, error) {
-				return hook(c, p, sel, o, next)
+			curr = func(c context.Context, a *UserFindFirstArgs) (*User, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *UserDelegate) executeFindMany(
@@ -1806,35 +1999,50 @@ func (d *UserDelegate) executeFindMany(
 		return d.runFindMany(ctx, params, selects, omits)
 	}
 
-	curr := func(c context.Context, p QueryParams[User], sel *UserSelect, o *UserOmit) ([]*User, error) {
-		return d.runFindMany(c, p, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullUserSelect()
+	}
+
+	args := &UserFindManyArgs{
+		Where:   params.Where,
+		OrderBy: params.OrderBy,
+		Cursor:  params.Cursor,
+		Skip:    params.Skip,
+		Take:    params.Take,
+		Select:  selects,
+	}
+
+	curr := func(c context.Context, a *UserFindManyArgs) ([]*User, error) {
+		return d.runFindMany(c, QueryParams[User]{
+			Where:   a.Where,
+			OrderBy: a.OrderBy,
+			Cursor:  a.Cursor,
+			Skip:    a.Skip,
+			Take:    a.Take,
+		}, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
-			curr = func(c context.Context, p QueryParams[User], sel *UserSelect, o *UserOmit) ([]*User, error) {
-				return hook(c, p, sel, o, next)
+			curr = func(c context.Context, a *UserFindManyArgs) ([]*User, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *UserDelegate) runFindUnique(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
-	}
-	for _, p := range additional {
+func (d *UserDelegate) runFindUnique(ctx context.Context, where []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error) {
+	for _, p := range where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	allPreds := append([]PredicateOf[User]{where}, additional...)
-	whereClause, vals, _ := CompilePredicates(d.client.dialect, allPreds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -2068,6 +2276,10 @@ func (d *UserDelegate) executeDelete(ctx context.Context, where UniquePredicate[
 		return d.runDelete(ctx, where, selects, omits)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullUserSelect()
+	}
+
 	curr := func(c context.Context, w UniquePredicate[User], s *UserSelect, o *UserOmit) (*User, error) {
 		return d.runDelete(c, w, s, o)
 	}
@@ -2186,20 +2398,30 @@ func (d *UserDelegate) executeCount(ctx context.Context, params QueryParams[User
 		return d.runCount(ctx, params)
 	}
 
-	curr := func(c context.Context, p QueryParams[User]) (int64, error) {
-		return d.runCount(c, p)
+	args := &UserCountArgs{
+		Where: params.Where,
+		Skip:  params.Skip,
+		Take:  params.Take,
+	}
+
+	curr := func(c context.Context, a *UserCountArgs) (int64, error) {
+		return d.runCount(c, QueryParams[User]{
+			Where: a.Where,
+			Skip:  a.Skip,
+			Take:  a.Take,
+		})
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Count != nil {
 			next, hook := curr, ext.Count
-			curr = func(c context.Context, p QueryParams[User]) (int64, error) {
-				return hook(c, p, next)
+			curr = func(c context.Context, a *UserCountArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params)
+	return curr(ctx, args)
 }
 
 func (d *UserDelegate) runCount(ctx context.Context, params QueryParams[User]) (int64, error) {

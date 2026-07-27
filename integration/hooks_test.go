@@ -370,15 +370,19 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			FindUnique: func(ctx context.Context, where valk.UniquePredicate[valk.User], additional []valk.PredicateOf[valk.User], selects *user.Select, omits *user.Omit, next user.FindUniqueQuery) (*valk.User, error) {
+			FindUnique: func(ctx context.Context, args *user.FindUniqueArgs, next user.FindUniqueQuery) (*valk.User, error) {
 				// Short circuit if matching specific email
-				if cond, ok := where.Data.Value.(string); ok && cond == "intercept@example.com" {
-					return &valk.User{
-						Id:    "intercepted-unique-id",
-						Email: "intercept@example.com",
-					}, nil
+				if len(args.Where) > 0 {
+					if p, ok := args.Where[0].(valk.UniquePredicate[valk.User]); ok {
+						if cond, ok := p.Data.Value.(string); ok && cond == "intercept@example.com" {
+							return &valk.User{
+								Id:    "intercepted-unique-id",
+								Email: "intercept@example.com",
+							}, nil
+						}
+					}
 				}
-				return next(ctx, where, additional, selects, omits)
+				return next(ctx, args)
 			},
 		})
 
@@ -396,7 +400,7 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			FindFirst: func(ctx context.Context, params valk.QueryParams[valk.User], selects *user.Select, omits *user.Omit, next user.FindFirstQuery) (*valk.User, error) {
+			FindFirst: func(ctx context.Context, args *user.FindFirstArgs, next user.FindFirstQuery) (*valk.User, error) {
 				return &valk.User{
 					Id:    "intercepted-first-id",
 					Email: "first@example.com",
@@ -431,10 +435,19 @@ func TestHooks(t *testing.T) {
 		}
 
 		db.User.Use(user.Extension{
-			FindMany: func(ctx context.Context, params valk.QueryParams[valk.User], selects *user.Select, omits *user.Omit, next user.FindManyQuery) ([]*valk.User, error) {
+			FindMany: func(ctx context.Context, args *user.FindManyArgs, next user.FindManyQuery) ([]*valk.User, error) {
+				// Inspect predicates via w.Column() and w.Value()
+				for _, w := range args.Where {
+					_ = w.Column()
+					_ = w.Value()
+				}
+				// Use zero-alloc fluent setters on args
+				args.SetTake(2).
+					SetOrderBy(user.Email.Asc())
+
 				// Inject filter so we only allow emails starting with "allow-"
-				params.Where = append(params.Where, user.Email.Like("allow-%"))
-				return next(ctx, params, selects, omits)
+				args.Where = append(args.Where, user.Email.Like("allow-%"))
+				return next(ctx, args)
 			},
 		})
 

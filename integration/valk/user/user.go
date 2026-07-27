@@ -96,14 +96,21 @@ type CreateManyHook = func(context.Context, *CreateManyArgs, CreateManyQuery) (i
 type CreateManyAndReturnQuery = valk.UserCreateManyAndReturnQuery
 type CreateManyAndReturnHook = func(context.Context, *CreateManyAndReturnArgs, CreateManyAndReturnQuery) ([]*valk.User, error)
 
+type FindUniqueArgs = valk.UserFindUniqueArgs
 type FindUniqueQuery = valk.UserFindUniqueQuery
-type FindUniqueHook = func(context.Context, valk.UniquePredicate[valk.User], []valk.PredicateOf[valk.User], *valk.UserSelect, *valk.UserOmit, FindUniqueQuery) (*valk.User, error)
+type FindUniqueHook = func(context.Context, *FindUniqueArgs, FindUniqueQuery) (*valk.User, error)
 
+type FindFirstArgs = valk.UserFindFirstArgs
 type FindFirstQuery = valk.UserFindFirstQuery
-type FindFirstHook = func(context.Context, valk.QueryParams[valk.User], *valk.UserSelect, *valk.UserOmit, FindFirstQuery) (*valk.User, error)
+type FindFirstHook = func(context.Context, *FindFirstArgs, FindFirstQuery) (*valk.User, error)
 
+type FindManyArgs = valk.UserFindManyArgs
 type FindManyQuery = valk.UserFindManyQuery
-type FindManyHook = func(context.Context, valk.QueryParams[valk.User], *valk.UserSelect, *valk.UserOmit, FindManyQuery) ([]*valk.User, error)
+type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk.User, error)
+
+type CountArgs = valk.UserCountArgs
+type CountQuery = valk.UserCountQuery
+type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
 
 type Extension = valk.UserExtension
 

@@ -342,6 +342,8 @@ type PredicateData struct {
 type PredicateOf[M any] interface {
 	ToPredicateData() PredicateData
 	Validate() error
+	Column() string
+	Value() any
 	phantom(M)
 }
 
@@ -355,6 +357,14 @@ func (p Predicate[M]) ToPredicateData() PredicateData {
 
 func (p Predicate[M]) Validate() error {
 	return p.Data.Validate()
+}
+
+func (p Predicate[M]) Column() string {
+	return p.Data.Column
+}
+
+func (p Predicate[M]) Value() any {
+	return p.Data.Value
 }
 
 func (p Predicate[M]) phantom(M) {}
@@ -372,6 +382,14 @@ func (p UniquePredicate[M]) Validate() error {
 		return fmt.Errorf("at least one unique field must be set for FindUnique")
 	}
 	return p.Data.Validate()
+}
+
+func (p UniquePredicate[M]) Column() string {
+	return p.Data.Column
+}
+
+func (p UniquePredicate[M]) Value() any {
+	return p.Data.Value
 }
 
 func (p UniquePredicate[M]) phantom(M) {}

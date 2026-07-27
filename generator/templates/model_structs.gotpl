@@ -92,6 +92,28 @@ type {{ .Model.Name }}Select struct {
 	{{- end }}
 }
 
+func full{{ .Model.Name }}Select() *{{ .Model.Name }}Select {
+	return &{{ .Model.Name }}Select{
+		{{- range $field := .Model.ScalarFields }}
+		{{ capitalize $field.Name }}: true,
+		{{- end }}
+	}
+}
+
+func (s *{{ .Model.Name }}Select) hasAnyScalar() bool {
+	if s == nil {
+		return false
+	}
+	return {{ range $i, $f := .Model.ScalarFields }}{{ if $i }} || {{ end }}s.{{ capitalize $f.Name }}{{ end }}
+}
+
+func (s *{{ .Model.Name }}Select) hasAnySelected() bool {
+	if s == nil {
+		return false
+	}
+	return s.hasAnyScalar() || s.hasAnyRelation()
+}
+
 type {{ .Model.Name }}Omit struct {
 	{{- range $field := .Model.ScalarFields }}
 	{{ capitalize $field.Name }} bool `json:"{{ $field.Name }}"`
@@ -230,15 +252,137 @@ type {{ .Model.Name }}CreateManyAndReturnArgs struct {
 	ConflictAction *ConflictAction
 }
 
+// {{ .Model.Name }}FindUniqueArgs is the input argument passed to {{ .Model.Name }} FindUnique extension hooks.
+type {{ .Model.Name }}FindUniqueArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[{{ .Model.Name }}]
+	// Select specifies which scalar and relation fields to select and return.
+	Select *{{ .Model.Name }}Select
+}
+
+func (a *{{ .Model.Name }}FindUniqueArgs) SetWhere(unique UniquePredicate[{{ .Model.Name }}], additional ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}FindUniqueArgs {
+	a.Where = make([]PredicateOf[{{ .Model.Name }}], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// {{ .Model.Name }}FindFirstArgs is the input argument passed to {{ .Model.Name }} FindFirst extension hooks.
+type {{ .Model.Name }}FindFirstArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[{{ .Model.Name }}]
+	// OrderBy specifies sorting definitions.
+	OrderBy []OrderBy[{{ .Model.Name }}]
+	// Cursor specifies cursor-based pagination parameters.
+	Cursor UniquePredicate[{{ .Model.Name }}]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+	// Select specifies which scalar and relation fields to select and return.
+	Select *{{ .Model.Name }}Select
+}
+
+func (a *{{ .Model.Name }}FindFirstArgs) SetWhere(preds ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}FindFirstArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *{{ .Model.Name }}FindFirstArgs) SetOrderBy(orders ...OrderBy[{{ .Model.Name }}]) *{{ .Model.Name }}FindFirstArgs {
+	a.OrderBy = orders
+	return a
+}
+
+func (a *{{ .Model.Name }}FindFirstArgs) SetCursor(cursor UniquePredicate[{{ .Model.Name }}]) *{{ .Model.Name }}FindFirstArgs {
+	a.Cursor = cursor
+	return a
+}
+
+func (a *{{ .Model.Name }}FindFirstArgs) SetSkip(n int) *{{ .Model.Name }}FindFirstArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *{{ .Model.Name }}FindFirstArgs) SetTake(n int) *{{ .Model.Name }}FindFirstArgs {
+	a.Take = &n
+	return a
+}
+
+// {{ .Model.Name }}FindManyArgs is the input argument passed to {{ .Model.Name }} FindMany extension hooks.
+type {{ .Model.Name }}FindManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[{{ .Model.Name }}]
+	// OrderBy specifies sorting definitions.
+	OrderBy []OrderBy[{{ .Model.Name }}]
+	// Cursor specifies cursor-based pagination parameters.
+	Cursor UniquePredicate[{{ .Model.Name }}]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+	// Select specifies which scalar and relation fields to select and return.
+	Select *{{ .Model.Name }}Select
+}
+
+func (a *{{ .Model.Name }}FindManyArgs) SetWhere(preds ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}FindManyArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *{{ .Model.Name }}FindManyArgs) SetOrderBy(orders ...OrderBy[{{ .Model.Name }}]) *{{ .Model.Name }}FindManyArgs {
+	a.OrderBy = orders
+	return a
+}
+
+func (a *{{ .Model.Name }}FindManyArgs) SetCursor(cursor UniquePredicate[{{ .Model.Name }}]) *{{ .Model.Name }}FindManyArgs {
+	a.Cursor = cursor
+	return a
+}
+
+func (a *{{ .Model.Name }}FindManyArgs) SetSkip(n int) *{{ .Model.Name }}FindManyArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *{{ .Model.Name }}FindManyArgs) SetTake(n int) *{{ .Model.Name }}FindManyArgs {
+	a.Take = &n
+	return a
+}
+
+// {{ .Model.Name }}CountArgs is the input argument passed to {{ .Model.Name }} Count extension hooks.
+type {{ .Model.Name }}CountArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[{{ .Model.Name }}]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+}
+
+func (a *{{ .Model.Name }}CountArgs) SetWhere(preds ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}CountArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *{{ .Model.Name }}CountArgs) SetSkip(n int) *{{ .Model.Name }}CountArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *{{ .Model.Name }}CountArgs) SetTake(n int) *{{ .Model.Name }}CountArgs {
+	a.Take = &n
+	return a
+}
+
 type {{ .Model.Name }}CreateQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateArgs) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}CreateManyQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateManyArgs) (int64, error)
 type {{ .Model.Name }}CreateManyAndReturnQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateManyAndReturnArgs) ([]*{{ .Model.Name }}, error)
-type {{ .Model.Name }}FindUniqueQuery = func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
-type {{ .Model.Name }}FindFirstQuery = func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
-type {{ .Model.Name }}FindManyQuery = func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error)
+type {{ .Model.Name }}FindUniqueQuery = func(ctx context.Context, args *{{ .Model.Name }}FindUniqueArgs) (*{{ .Model.Name }}, error)
+type {{ .Model.Name }}FindFirstQuery = func(ctx context.Context, args *{{ .Model.Name }}FindFirstArgs) (*{{ .Model.Name }}, error)
+type {{ .Model.Name }}FindManyQuery = func(ctx context.Context, args *{{ .Model.Name }}FindManyArgs) ([]*{{ .Model.Name }}, error)
 type {{ .Model.Name }}DeleteManyQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}]) (int64, error)
 type {{ .Model.Name }}DeleteQuery = func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
-type {{ .Model.Name }}CountQuery = func(ctx context.Context, params QueryParams[{{ .Model.Name }}]) (int64, error)
+type {{ .Model.Name }}CountQuery = func(ctx context.Context, args *{{ .Model.Name }}CountArgs) (int64, error)
 type {{ .Model.Name }}UpdateQuery = func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}UpdateManyQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment) (int64, error)
 type {{ .Model.Name }}UpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error)
@@ -247,12 +391,12 @@ type {{ .Model.Name }}Extension struct {
 	Create              func(ctx context.Context, args *{{ .Model.Name }}CreateArgs, next {{ .Model.Name }}CreateQuery) (*{{ .Model.Name }}, error)
 	CreateMany          func(ctx context.Context, args *{{ .Model.Name }}CreateManyArgs, next {{ .Model.Name }}CreateManyQuery) (int64, error)
 	CreateManyAndReturn func(ctx context.Context, args *{{ .Model.Name }}CreateManyAndReturnArgs, next {{ .Model.Name }}CreateManyAndReturnQuery) ([]*{{ .Model.Name }}, error)
-	FindUnique          func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindUniqueQuery) (*{{ .Model.Name }}, error)
-	FindFirst           func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindFirstQuery) (*{{ .Model.Name }}, error)
-	FindMany            func(ctx context.Context, params QueryParams[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}FindManyQuery) ([]*{{ .Model.Name }}, error)
+	FindUnique          func(ctx context.Context, args *{{ .Model.Name }}FindUniqueArgs, next {{ .Model.Name }}FindUniqueQuery) (*{{ .Model.Name }}, error)
+	FindFirst           func(ctx context.Context, args *{{ .Model.Name }}FindFirstArgs, next {{ .Model.Name }}FindFirstQuery) (*{{ .Model.Name }}, error)
+	FindMany            func(ctx context.Context, args *{{ .Model.Name }}FindManyArgs, next {{ .Model.Name }}FindManyQuery) ([]*{{ .Model.Name }}, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], next {{ .Model.Name }}DeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}DeleteQuery) (*{{ .Model.Name }}, error)
-	Count               func(ctx context.Context, params QueryParams[{{ .Model.Name }}], next {{ .Model.Name }}CountQuery) (int64, error)
+	Count               func(ctx context.Context, args *{{ .Model.Name }}CountArgs, next {{ .Model.Name }}CountQuery) (int64, error)
 	Update              func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}UpdateQuery) (*{{ .Model.Name }}, error)
 	UpdateMany          func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, next {{ .Model.Name }}UpdateManyQuery) (int64, error)
 	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}UpdateManyAndReturnQuery) ([]*{{ .Model.Name }}, error)

@@ -389,6 +389,79 @@ type AllFieldsSoFarSelect struct {
 	CitextField     bool `json:"citextField"`
 }
 
+func fullAllFieldsSoFarSelect() *AllFieldsSoFarSelect {
+	return &AllFieldsSoFarSelect{
+		Id:              true,
+		StringReq:       true,
+		StringOpt:       true,
+		StringDefault:   true,
+		StringVarchar:   true,
+		StringChar:      true,
+		BitVal:          true,
+		VarBitVal:       true,
+		InetVal:         true,
+		XmlVal:          true,
+		CuidDefault:     true,
+		Cuid1Default:    true,
+		Cuid2Default:    true,
+		UuidDefault:     true,
+		Uuid4Default:    true,
+		Uuid7Default:    true,
+		UlidDefault:     true,
+		NanoidDefault:   true,
+		UuidDb:          true,
+		IntReq:          true,
+		IntOpt:          true,
+		IntDefault:      true,
+		IntegerVal:      true,
+		SmallInt:        true,
+		TinyInt:         true,
+		OidVal:          true,
+		BigIntReq:       true,
+		BigIntOpt:       true,
+		FloatReq:        true,
+		FloatOpt:        true,
+		RealVal:         true,
+		DecimalReq:      true,
+		DecimalOpt:      true,
+		DecimalPrecise:  true,
+		MoneyVal:        true,
+		BoolReq:         true,
+		BoolOpt:         true,
+		BoolDefault:     true,
+		DateTimeReq:     true,
+		DateTimeOpt:     true,
+		DateTimeDefault: true,
+		UpdatedAt:       true,
+		DateTimeTz:      true,
+		TimestampVal:    true,
+		TimeVal:         true,
+		TimetzVal:       true,
+		JsonReq:         true,
+		JsonOpt:         true,
+		JsonVal:         true,
+		BytesReq:        true,
+		BytesOpt:        true,
+		HstoreField:     true,
+		LtreeField:      true,
+		CitextField:     true,
+	}
+}
+
+func (s *AllFieldsSoFarSelect) hasAnyScalar() bool {
+	if s == nil {
+		return false
+	}
+	return s.Id || s.StringReq || s.StringOpt || s.StringDefault || s.StringVarchar || s.StringChar || s.BitVal || s.VarBitVal || s.InetVal || s.XmlVal || s.CuidDefault || s.Cuid1Default || s.Cuid2Default || s.UuidDefault || s.Uuid4Default || s.Uuid7Default || s.UlidDefault || s.NanoidDefault || s.UuidDb || s.IntReq || s.IntOpt || s.IntDefault || s.IntegerVal || s.SmallInt || s.TinyInt || s.OidVal || s.BigIntReq || s.BigIntOpt || s.FloatReq || s.FloatOpt || s.RealVal || s.DecimalReq || s.DecimalOpt || s.DecimalPrecise || s.MoneyVal || s.BoolReq || s.BoolOpt || s.BoolDefault || s.DateTimeReq || s.DateTimeOpt || s.DateTimeDefault || s.UpdatedAt || s.DateTimeTz || s.TimestampVal || s.TimeVal || s.TimetzVal || s.JsonReq || s.JsonOpt || s.JsonVal || s.BytesReq || s.BytesOpt || s.HstoreField || s.LtreeField || s.CitextField
+}
+
+func (s *AllFieldsSoFarSelect) hasAnySelected() bool {
+	if s == nil {
+		return false
+	}
+	return s.hasAnyScalar() || s.hasAnyRelation()
+}
+
 type AllFieldsSoFarOmit struct {
 	Id              bool `json:"id"`
 	StringReq       bool `json:"stringReq"`
@@ -717,15 +790,137 @@ type AllFieldsSoFarCreateManyAndReturnArgs struct {
 	ConflictAction *ConflictAction
 }
 
+// AllFieldsSoFarFindUniqueArgs is the input argument passed to AllFieldsSoFar FindUnique extension hooks.
+type AllFieldsSoFarFindUniqueArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[AllFieldsSoFar]
+	// Select specifies which scalar and relation fields to select and return.
+	Select *AllFieldsSoFarSelect
+}
+
+func (a *AllFieldsSoFarFindUniqueArgs) SetWhere(unique UniquePredicate[AllFieldsSoFar], additional ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarFindUniqueArgs {
+	a.Where = make([]PredicateOf[AllFieldsSoFar], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// AllFieldsSoFarFindFirstArgs is the input argument passed to AllFieldsSoFar FindFirst extension hooks.
+type AllFieldsSoFarFindFirstArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[AllFieldsSoFar]
+	// OrderBy specifies sorting definitions.
+	OrderBy []OrderBy[AllFieldsSoFar]
+	// Cursor specifies cursor-based pagination parameters.
+	Cursor UniquePredicate[AllFieldsSoFar]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+	// Select specifies which scalar and relation fields to select and return.
+	Select *AllFieldsSoFarSelect
+}
+
+func (a *AllFieldsSoFarFindFirstArgs) SetWhere(preds ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarFindFirstArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *AllFieldsSoFarFindFirstArgs) SetOrderBy(orders ...OrderBy[AllFieldsSoFar]) *AllFieldsSoFarFindFirstArgs {
+	a.OrderBy = orders
+	return a
+}
+
+func (a *AllFieldsSoFarFindFirstArgs) SetCursor(cursor UniquePredicate[AllFieldsSoFar]) *AllFieldsSoFarFindFirstArgs {
+	a.Cursor = cursor
+	return a
+}
+
+func (a *AllFieldsSoFarFindFirstArgs) SetSkip(n int) *AllFieldsSoFarFindFirstArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *AllFieldsSoFarFindFirstArgs) SetTake(n int) *AllFieldsSoFarFindFirstArgs {
+	a.Take = &n
+	return a
+}
+
+// AllFieldsSoFarFindManyArgs is the input argument passed to AllFieldsSoFar FindMany extension hooks.
+type AllFieldsSoFarFindManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[AllFieldsSoFar]
+	// OrderBy specifies sorting definitions.
+	OrderBy []OrderBy[AllFieldsSoFar]
+	// Cursor specifies cursor-based pagination parameters.
+	Cursor UniquePredicate[AllFieldsSoFar]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+	// Select specifies which scalar and relation fields to select and return.
+	Select *AllFieldsSoFarSelect
+}
+
+func (a *AllFieldsSoFarFindManyArgs) SetWhere(preds ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarFindManyArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *AllFieldsSoFarFindManyArgs) SetOrderBy(orders ...OrderBy[AllFieldsSoFar]) *AllFieldsSoFarFindManyArgs {
+	a.OrderBy = orders
+	return a
+}
+
+func (a *AllFieldsSoFarFindManyArgs) SetCursor(cursor UniquePredicate[AllFieldsSoFar]) *AllFieldsSoFarFindManyArgs {
+	a.Cursor = cursor
+	return a
+}
+
+func (a *AllFieldsSoFarFindManyArgs) SetSkip(n int) *AllFieldsSoFarFindManyArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *AllFieldsSoFarFindManyArgs) SetTake(n int) *AllFieldsSoFarFindManyArgs {
+	a.Take = &n
+	return a
+}
+
+// AllFieldsSoFarCountArgs is the input argument passed to AllFieldsSoFar Count extension hooks.
+type AllFieldsSoFarCountArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[AllFieldsSoFar]
+	// Skip specifies offset for pagination.
+	Skip *int
+	// Take specifies limit for pagination.
+	Take *int
+}
+
+func (a *AllFieldsSoFarCountArgs) SetWhere(preds ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarCountArgs {
+	a.Where = preds
+	return a
+}
+
+func (a *AllFieldsSoFarCountArgs) SetSkip(n int) *AllFieldsSoFarCountArgs {
+	a.Skip = &n
+	return a
+}
+
+func (a *AllFieldsSoFarCountArgs) SetTake(n int) *AllFieldsSoFarCountArgs {
+	a.Take = &n
+	return a
+}
+
 type AllFieldsSoFarCreateQuery = func(ctx context.Context, args *AllFieldsSoFarCreateArgs) (*AllFieldsSoFar, error)
 type AllFieldsSoFarCreateManyQuery = func(ctx context.Context, args *AllFieldsSoFarCreateManyArgs) (int64, error)
 type AllFieldsSoFarCreateManyAndReturnQuery = func(ctx context.Context, args *AllFieldsSoFarCreateManyAndReturnArgs) ([]*AllFieldsSoFar, error)
-type AllFieldsSoFarFindUniqueQuery = func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
-type AllFieldsSoFarFindFirstQuery = func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
-type AllFieldsSoFarFindManyQuery = func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error)
+type AllFieldsSoFarFindUniqueQuery = func(ctx context.Context, args *AllFieldsSoFarFindUniqueArgs) (*AllFieldsSoFar, error)
+type AllFieldsSoFarFindFirstQuery = func(ctx context.Context, args *AllFieldsSoFarFindFirstArgs) (*AllFieldsSoFar, error)
+type AllFieldsSoFarFindManyQuery = func(ctx context.Context, args *AllFieldsSoFarFindManyArgs) ([]*AllFieldsSoFar, error)
 type AllFieldsSoFarDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar]) (int64, error)
 type AllFieldsSoFarDeleteQuery = func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
-type AllFieldsSoFarCountQuery = func(ctx context.Context, params QueryParams[AllFieldsSoFar]) (int64, error)
+type AllFieldsSoFarCountQuery = func(ctx context.Context, args *AllFieldsSoFarCountArgs) (int64, error)
 type AllFieldsSoFarUpdateQuery = func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
 type AllFieldsSoFarUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment) (int64, error)
 type AllFieldsSoFarUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error)
@@ -734,12 +929,12 @@ type AllFieldsSoFarExtension struct {
 	Create              func(ctx context.Context, args *AllFieldsSoFarCreateArgs, next AllFieldsSoFarCreateQuery) (*AllFieldsSoFar, error)
 	CreateMany          func(ctx context.Context, args *AllFieldsSoFarCreateManyArgs, next AllFieldsSoFarCreateManyQuery) (int64, error)
 	CreateManyAndReturn func(ctx context.Context, args *AllFieldsSoFarCreateManyAndReturnArgs, next AllFieldsSoFarCreateManyAndReturnQuery) ([]*AllFieldsSoFar, error)
-	FindUnique          func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarFindUniqueQuery) (*AllFieldsSoFar, error)
-	FindFirst           func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarFindFirstQuery) (*AllFieldsSoFar, error)
-	FindMany            func(ctx context.Context, params QueryParams[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarFindManyQuery) ([]*AllFieldsSoFar, error)
+	FindUnique          func(ctx context.Context, args *AllFieldsSoFarFindUniqueArgs, next AllFieldsSoFarFindUniqueQuery) (*AllFieldsSoFar, error)
+	FindFirst           func(ctx context.Context, args *AllFieldsSoFarFindFirstArgs, next AllFieldsSoFarFindFirstQuery) (*AllFieldsSoFar, error)
+	FindMany            func(ctx context.Context, args *AllFieldsSoFarFindManyArgs, next AllFieldsSoFarFindManyQuery) ([]*AllFieldsSoFar, error)
 	DeleteMany          func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], next AllFieldsSoFarDeleteManyQuery) (int64, error)
 	Delete              func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarDeleteQuery) (*AllFieldsSoFar, error)
-	Count               func(ctx context.Context, params QueryParams[AllFieldsSoFar], next AllFieldsSoFarCountQuery) (int64, error)
+	Count               func(ctx context.Context, args *AllFieldsSoFarCountArgs, next AllFieldsSoFarCountQuery) (int64, error)
 	Update              func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarUpdateQuery) (*AllFieldsSoFar, error)
 	UpdateMany          func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, next AllFieldsSoFarUpdateManyQuery) (int64, error)
 	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarUpdateManyAndReturnQuery) ([]*AllFieldsSoFar, error)
@@ -2074,6 +2269,10 @@ func (d *AllFieldsSoFarDelegate) executeCreate(ctx context.Context, assignments 
 		return d.runCreate(ctx, cols, vals, returningCols, allFieldsSoFarPKCols, conflictTarget, conflictAction)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullAllFieldsSoFarSelect()
+	}
+
 	args := &AllFieldsSoFarCreateArgs{
 		Data:           &input,
 		Select:         selects,
@@ -2239,6 +2438,10 @@ func (d *AllFieldsSoFarDelegate) executeCreateManyAndReturn(ctx context.Context,
 			return res, err
 		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+	}
+
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullAllFieldsSoFarSelect()
 	}
 
 	args := &AllFieldsSoFarCreateManyAndReturnArgs{
@@ -3867,6 +4070,10 @@ func (d *AllFieldsSoFarDelegate) executeUpdate(ctx context.Context, where Unique
 		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullAllFieldsSoFarSelect()
+	}
+
 	curr := func(c context.Context, w UniquePredicate[AllFieldsSoFar], add []PredicateOf[AllFieldsSoFar], a []FieldAssignment, s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
 		return d.runUpdate(c, w, add, a, s, o)
 	}
@@ -3884,8 +4091,9 @@ func (d *AllFieldsSoFarDelegate) executeUpdate(ctx context.Context, where Unique
 }
 
 func (d *AllFieldsSoFarDelegate) runUpdate(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	allPreds := append([]PredicateOf[AllFieldsSoFar]{where}, additional...)
 	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, where, additional, selects, omits)
+		return d.runFindUnique(ctx, allPreds, selects, omits)
 	}
 
 	if err := where.Validate(); err != nil {
@@ -3917,7 +4125,6 @@ func (d *AllFieldsSoFarDelegate) runUpdate(ctx context.Context, where UniquePred
 	}
 
 	returningCols := selectAllFieldsSoFarCols(selects, omits, allFieldsSoFarPKCols...)
-	allPreds := append([]PredicateOf[AllFieldsSoFar]{where}, additional...)
 	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
@@ -3980,7 +4187,7 @@ func (d *AllFieldsSoFarDelegate) runUpdateFallback(ctx context.Context, where Un
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, where, additional, selects, omits)
+	return d.runFindUnique(ctx, allPreds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -3989,11 +4196,11 @@ func (d *AllFieldsSoFarDelegate) runUpdateFallback(ctx context.Context, where Un
 
 func (d *AllFieldsSoFarDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment) (int64, error) {
 	if len(d.extensions) == 0 {
-		return d.runUpdateMany(ctx, preds, assignments)
+		return d.execUpdateStmt(ctx, preds, assignments)
 	}
 
 	curr := func(c context.Context, p []PredicateOf[AllFieldsSoFar], a []FieldAssignment) (int64, error) {
-		return d.runUpdateMany(c, p, a)
+		return d.execUpdateStmt(c, p, a)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -4008,10 +4215,6 @@ func (d *AllFieldsSoFarDelegate) executeUpdateMany(ctx context.Context, preds []
 	return curr(ctx, preds, assignments)
 }
 
-func (d *AllFieldsSoFarDelegate) runUpdateMany(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment) (int64, error) {
-	return d.execUpdateStmt(ctx, preds, assignments)
-}
-
 // -----------------------------------------------------------------------------
 // UpdateManyAndReturn
 // -----------------------------------------------------------------------------
@@ -4019,6 +4222,10 @@ func (d *AllFieldsSoFarDelegate) runUpdateMany(ctx context.Context, preds []Pred
 func (d *AllFieldsSoFarDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
 	if len(d.extensions) == 0 {
 		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullAllFieldsSoFarSelect()
 	}
 
 	curr := func(c context.Context, p []PredicateOf[AllFieldsSoFar], a []FieldAssignment, s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
@@ -4132,24 +4339,37 @@ func (d *AllFieldsSoFarDelegate) FindMany(preds ...PredicateOf[AllFieldsSoFar]) 
 }
 
 func (d *AllFieldsSoFarDelegate) executeFindUnique(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	allWhere := make([]PredicateOf[AllFieldsSoFar], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
 	if len(d.extensions) == 0 {
-		return d.runFindUnique(ctx, where, additional, selects, omits)
+		return d.runFindUnique(ctx, allWhere, selects, omits)
 	}
 
-	curr := func(c context.Context, w UniquePredicate[AllFieldsSoFar], add []PredicateOf[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-		return d.runFindUnique(c, w, add, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullAllFieldsSoFarSelect()
+	}
+
+	args := &AllFieldsSoFarFindUniqueArgs{
+		Where:  allWhere,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *AllFieldsSoFarFindUniqueArgs) (*AllFieldsSoFar, error) {
+		return d.runFindUnique(c, a.Where, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
-			curr = func(c context.Context, w UniquePredicate[AllFieldsSoFar], add []PredicateOf[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-				return hook(c, w, add, sel, o, next)
+			curr = func(c context.Context, a *AllFieldsSoFarFindUniqueArgs) (*AllFieldsSoFar, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, additional, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *AllFieldsSoFarDelegate) executeFindFirst(
@@ -4162,20 +4382,39 @@ func (d *AllFieldsSoFarDelegate) executeFindFirst(
 		return d.runFindFirst(ctx, params, selects, omits)
 	}
 
-	curr := func(c context.Context, p QueryParams[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-		return d.runFindFirst(c, p, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullAllFieldsSoFarSelect()
+	}
+
+	args := &AllFieldsSoFarFindFirstArgs{
+		Where:   params.Where,
+		OrderBy: params.OrderBy,
+		Cursor:  params.Cursor,
+		Skip:    params.Skip,
+		Take:    params.Take,
+		Select:  selects,
+	}
+
+	curr := func(c context.Context, a *AllFieldsSoFarFindFirstArgs) (*AllFieldsSoFar, error) {
+		return d.runFindFirst(c, QueryParams[AllFieldsSoFar]{
+			Where:   a.Where,
+			OrderBy: a.OrderBy,
+			Cursor:  a.Cursor,
+			Skip:    a.Skip,
+			Take:    a.Take,
+		}, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
-			curr = func(c context.Context, p QueryParams[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-				return hook(c, p, sel, o, next)
+			curr = func(c context.Context, a *AllFieldsSoFarFindFirstArgs) (*AllFieldsSoFar, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *AllFieldsSoFarDelegate) executeFindMany(
@@ -4188,35 +4427,50 @@ func (d *AllFieldsSoFarDelegate) executeFindMany(
 		return d.runFindMany(ctx, params, selects, omits)
 	}
 
-	curr := func(c context.Context, p QueryParams[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
-		return d.runFindMany(c, p, sel, o)
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullAllFieldsSoFarSelect()
+	}
+
+	args := &AllFieldsSoFarFindManyArgs{
+		Where:   params.Where,
+		OrderBy: params.OrderBy,
+		Cursor:  params.Cursor,
+		Skip:    params.Skip,
+		Take:    params.Take,
+		Select:  selects,
+	}
+
+	curr := func(c context.Context, a *AllFieldsSoFarFindManyArgs) ([]*AllFieldsSoFar, error) {
+		return d.runFindMany(c, QueryParams[AllFieldsSoFar]{
+			Where:   a.Where,
+			OrderBy: a.OrderBy,
+			Cursor:  a.Cursor,
+			Skip:    a.Skip,
+			Take:    a.Take,
+		}, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
-			curr = func(c context.Context, p QueryParams[AllFieldsSoFar], sel *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
-				return hook(c, p, sel, o, next)
+			curr = func(c context.Context, a *AllFieldsSoFarFindManyArgs) ([]*AllFieldsSoFar, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *AllFieldsSoFarDelegate) runFindUnique(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
-	}
-	for _, p := range additional {
+func (d *AllFieldsSoFarDelegate) runFindUnique(ctx context.Context, where []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	for _, p := range where {
 		if p != nil {
 			if err := p.Validate(); err != nil {
 				return nil, err
 			}
 		}
 	}
-	allPreds := append([]PredicateOf[AllFieldsSoFar]{where}, additional...)
-	whereClause, vals, _ := CompilePredicates(d.client.dialect, allPreds)
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, where)
 	if whereClause != "" {
 		whereClause = " WHERE " + whereClause
 	}
@@ -4450,6 +4704,10 @@ func (d *AllFieldsSoFarDelegate) executeDelete(ctx context.Context, where Unique
 		return d.runDelete(ctx, where, selects, omits)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = fullAllFieldsSoFarSelect()
+	}
+
 	curr := func(c context.Context, w UniquePredicate[AllFieldsSoFar], s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
 		return d.runDelete(c, w, s, o)
 	}
@@ -4568,20 +4826,30 @@ func (d *AllFieldsSoFarDelegate) executeCount(ctx context.Context, params QueryP
 		return d.runCount(ctx, params)
 	}
 
-	curr := func(c context.Context, p QueryParams[AllFieldsSoFar]) (int64, error) {
-		return d.runCount(c, p)
+	args := &AllFieldsSoFarCountArgs{
+		Where: params.Where,
+		Skip:  params.Skip,
+		Take:  params.Take,
+	}
+
+	curr := func(c context.Context, a *AllFieldsSoFarCountArgs) (int64, error) {
+		return d.runCount(c, QueryParams[AllFieldsSoFar]{
+			Where: a.Where,
+			Skip:  a.Skip,
+			Take:  a.Take,
+		})
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Count != nil {
 			next, hook := curr, ext.Count
-			curr = func(c context.Context, p QueryParams[AllFieldsSoFar]) (int64, error) {
-				return hook(c, p, next)
+			curr = func(c context.Context, a *AllFieldsSoFarCountArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params)
+	return curr(ctx, args)
 }
 
 func (d *AllFieldsSoFarDelegate) runCount(ctx context.Context, params QueryParams[AllFieldsSoFar]) (int64, error) {

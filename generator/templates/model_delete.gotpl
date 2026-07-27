@@ -64,6 +64,10 @@ func (d *{{ .Model.Name }}Delegate) executeDelete(ctx context.Context, where Uni
 		return d.runDelete(ctx, where, selects, omits)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = full{{ .Model.Name }}Select()
+	}
+
 	curr := func(c context.Context, w UniquePredicate[{{ .Model.Name }}], s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
 		return d.runDelete(c, w, s, o)
 	}

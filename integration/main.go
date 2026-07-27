@@ -69,6 +69,7 @@ func main() {
 
 	db.User.Use(user.Extension{
 		Create: func(ctx context.Context, args *valk.UserCreateArgs, next valk.UserCreateQuery) (*valk.User, error) {
+
 			fmt.Println("[Create Hook] Conflict Target: ", args.ConflictTarget)
 			fmt.Println("[Create Hook] Conflict Action: ", args.ConflictAction)
 			return next(ctx, args)
@@ -81,7 +82,7 @@ func main() {
 				args.ConflictTarget = user.PhoneNum
 
 				args.ConflictAction = user.ConflictUpdate(func(u *valk.UserUpsert) {
-					u.Role.Set(string(valk.UserRole.Admin))
+					u.Role.Set(valk.UserRole.Admin)
 				})
 			}
 
@@ -96,6 +97,49 @@ func main() {
 
 			fmt.Println("[CreateManyAndReturn Hook] Conflict Target: ", args.ConflictTarget)
 			fmt.Println("[CreateManyAndReturn Hook] Conflict Action: ", args.ConflictAction)
+			return next(ctx, args)
+		},
+		FindUnique: func(ctx context.Context, args *valk.UserFindUniqueArgs, next valk.UserFindUniqueQuery) (*valk.User, error) {
+			fmt.Println(args.Where)
+			return next(ctx, args)
+		},
+		FindMany: func(ctx context.Context, args *valk.UserFindManyArgs, next valk.UserFindManyQuery) ([]*valk.User, error) {
+			fmt.Println(args.Where)
+			return next(ctx, args)
+
+		},
+
+		FindFirst: func(ctx context.Context, args *valk.UserFindFirstArgs, next valk.UserFindFirstQuery) (*valk.User, error) {
+			for _, w := range args.Where {
+				fmt.Println(w.ToPredicateData().Column, w.ToPredicateData().Value) //LEGACY
+				fmt.Println(w.Column(), w.Value())                                 //clean
+			}
+			fmt.Printf("\n %+v \n", *args.Select)
+			//LEGACY
+			// args.OrderBy = []valk.OrderBy[valk.User]{user.Email.Asc()} //assertion here is ugly, trying to make it slice since orderby is a slice
+			// args.OrderBy = nil                                         //acceptable
+			// args.OrderBy = append(args.OrderBy, user.Email.Asc())      //acceptable
+			// args.Take = new(1)                                         //new is a built-in function that returns a pointer, ugly, since skip and take are pointers
+			// args.Skip = new(0)
+			// args.Cursor = user.Email.EQ("pag_alpha@example.com")
+			// args.Select.Posts = post.Query().OrderBy(post.Content.Asc()) //this is fine
+			// args.Select.Posts = nil                                      //this is fine
+
+			//FUNC BASED
+
+			args.OrderBy = append(args.OrderBy, user.Email.Asc()) //still good
+			args.Cursor = user.Email.EQ("x@y.com")                //still good
+
+			args.SetOrderBy(user.Email.Asc()).
+				SetCursor(user.Email.EQ("x@y.com")).
+				SetSkip(10).
+				SetTake(20)
+
+			args.Select.Posts = post.Query().Where(
+				post.Id.EQ("xx"),
+				post.Title.Contains("xx"),
+			).OrderBy(post.Title.Asc())
+
 			return next(ctx, args)
 		},
 	})
@@ -115,7 +159,137 @@ func main() {
 		db.User.Create().SetEmail("test5@example.com").SetPhoneNum("555"),
 	).OnConflict(user.Email).UpdateNewValues().Exec(ctx)
 
+	db.User.FindFirst(user.Id.EQ("xxx")).Select(user.Select{}).Exec(ctx)
 	// runPaginationExamples(db, ctx)
+}
+
+func inconsistency() {
+	db := openConn()
+
+	// =========================================================================
+	// 1. EXTENSION HOOKS USAGE vs TOP-LEVEL BUILDER CONTRASTS
+	// =========================================================================
+
+	db.User.Use(user.Extension{
+
+		// --- FIND UNIQUE HOOK ---
+		FindUnique: func(ctx context.Context, args *valk.UserFindUniqueArgs, next valk.UserFindUniqueQuery) (*valk.User, error) {
+			// Inspection via w.Column() and w.Value()
+			for _, w := range args.Where {
+				_ = w.Column()
+				_ = w.Value()
+			}
+			// SetWhere forces UniquePredicate as first arg
+			args.SetWhere(user.Email.EQ("unique@example.com"), user.Role.EQ(valk.UserRole.Admin))
+			args.Select.Email = true
+			args.Select.Posts = post.Query().Where(post.Title.Contains("News")).OrderBy(post.Title.Desc())
+			return next(ctx, args)
+		},
+
+		// --- FIND FIRST HOOK ---
+		FindFirst: func(ctx context.Context, args *valk.UserFindFirstArgs, next valk.UserFindFirstQuery) (*valk.User, error) {
+			// Fluent setters on args vs builder methods
+			args.SetWhere(user.Email.Like("%@example.com")).
+				SetOrderBy(user.LoginCount.Desc(), user.Email.Asc()).
+				SetSkip(10).
+				SetTake(20).
+				SetCursor(user.Email.EQ("cursor@example.com"))
+
+			args.Select.Posts = post.Query().OrderBy(post.Title.Asc())
+			return next(ctx, args)
+		},
+
+		// --- FIND MANY HOOK ---
+		FindMany: func(ctx context.Context, args *valk.UserFindManyArgs, next valk.UserFindManyQuery) ([]*valk.User, error) {
+			// Direct slice append vs args.SetWhere(...)
+			args.Where = append(args.Where, user.LoginCount.GTE(10))
+			args.SetTake(50)
+			return next(ctx, args)
+		},
+
+		// --- COUNT HOOK ---
+		Count: func(ctx context.Context, args *valk.UserCountArgs, next valk.UserCountQuery) (int64, error) {
+			args.SetWhere(user.LoginCount.GTE(10)).SetTake(1000)
+			return next(ctx, args)
+		},
+
+		// --- CREATE HOOK ---
+		Create: func(ctx context.Context, args *valk.UserCreateArgs, next valk.UserCreateQuery) (*valk.User, error) {
+			// Direct input struct field vs Builder Set<Field>(...)
+			args.Data.Email = strings.ToLower(args.Data.Email)
+
+			// Conflict Target/Action inspection & mutation
+			if args.ConflictAction != nil && args.ConflictAction.IsDoNothing() {
+				args.ConflictTarget = user.EmailPhone
+			}
+			return next(ctx, args)
+		},
+
+		// --- CREATE MANY HOOK ---
+		CreateMany: func(ctx context.Context, args *valk.UserCreateManyArgs, next valk.UserCreateManyQuery) (int64, error) {
+			if args.ConflictAction != nil && args.ConflictAction.IsUpdateNewValues() {
+				args.ConflictAction = user.ConflictUpdate(func(u *valk.UserUpsert) {
+					u.Role.Set(valk.UserRole.Student)
+					u.LoginCount.Increment(1)
+				})
+			}
+			return next(ctx, args)
+		},
+
+		// --- CREATE MANY AND RETURN HOOK ---
+		CreateManyAndReturn: func(ctx context.Context, args *valk.UserCreateManyAndReturnArgs, next valk.UserCreateManyAndReturnQuery) ([]*valk.User, error) {
+			args.Select.Posts = post.Query()
+			return next(ctx, args)
+		},
+	})
+
+	// =========================================================================
+	// 2. TOP-LEVEL BUILDER USAGE (Contrast against Hook Args API)
+	// =========================================================================
+
+	// Top-level FindUnique
+	db.User.FindUnique(user.Email.EQ("test@example.com"), user.Role.EQ(valk.UserRole.Admin)).
+		Select(user.Select{
+			Email: true,
+			Posts: post.Query().Where(post.Title.Contains("News")).OrderBy(post.Title.Desc()),
+		})
+
+	// Top-level FindFirst
+	db.User.FindFirst(user.Email.Like("%@example.com")).
+		OrderBy(user.LoginCount.Desc(), user.Email.Asc()).
+		Skip(10).
+		Take(20).
+		Cursor(user.Email.EQ("cursor@example.com")).
+		Select(user.Select{
+			Posts: post.Query().OrderBy(post.Title.Asc()),
+		})
+
+	// Top-level FindMany
+	db.User.FindMany(user.LoginCount.GTE(10)).
+		Take(50)
+
+	// Top-level Count
+	db.User.Count(user.LoginCount.GTE(10)).
+		Take(1000)
+
+	// Top-level Create
+	db.User.Create().
+		SetEmail("new@example.com").
+		SetPhoneNum("1234567890").
+		OnConflict(user.Email).Ignore()
+
+	// Top-level CreateMany
+	db.User.CreateMany(
+		db.User.Create().SetEmail("batch1@example.com"),
+		db.User.Create().SetEmail("batch2@example.com"),
+	).OnConflict(user.Email).UpdateNewValues()
+
+	// Top-level CreateManyAndReturn
+	db.User.CreateManyAndReturn(
+		db.User.Create().SetEmail("ret1@example.com"),
+	).Select(user.Select{
+		Posts: post.Query(),
+	})
 }
 
 func seed(db *valk.DB, ctx context.Context) *SeedData {

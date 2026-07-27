@@ -10,20 +10,30 @@ func (d *{{ .Model.Name }}Delegate) executeCount(ctx context.Context, params Que
 		return d.runCount(ctx, params)
 	}
 
-	curr := func(c context.Context, p QueryParams[{{ .Model.Name }}]) (int64, error) {
-		return d.runCount(c, p)
+	args := &{{ .Model.Name }}CountArgs{
+		Where: params.Where,
+		Skip:  params.Skip,
+		Take:  params.Take,
+	}
+
+	curr := func(c context.Context, a *{{ .Model.Name }}CountArgs) (int64, error) {
+		return d.runCount(c, QueryParams[{{ .Model.Name }}]{
+			Where: a.Where,
+			Skip:  a.Skip,
+			Take:  a.Take,
+		})
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Count != nil {
 			next, hook := curr, ext.Count
-			curr = func(c context.Context, p QueryParams[{{ .Model.Name }}]) (int64, error) {
-				return hook(c, p, next)
+			curr = func(c context.Context, a *{{ .Model.Name }}CountArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, params)
+	return curr(ctx, args)
 }
 
 func (d *{{ .Model.Name }}Delegate) runCount(ctx context.Context, params QueryParams[{{ .Model.Name }}]) (int64, error) {

@@ -111,8 +111,8 @@ func TestCountHooks(t *testing.T) {
 
 	// Register count extension/hook that multiplies count by 2
 	db.User.Use(user.Extension{
-		Count: func(ctx context.Context, params valk.QueryParams[valk.User], next valk.UserCountQuery) (int64, error) {
-			res, err := next(ctx, params)
+		Count: func(ctx context.Context, args *user.CountArgs, next user.CountQuery) (int64, error) {
+			res, err := next(ctx, args)
 			if err != nil {
 				return 0, err
 			}

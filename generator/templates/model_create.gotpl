@@ -311,6 +311,10 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 		return d.runCreate(ctx, cols, vals, returningCols, {{ lowercase .Model.Name }}PKCols, conflictTarget, conflictAction)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = full{{ .Model.Name }}Select()
+	}
+
 	args := &{{ .Model.Name }}CreateArgs{
 		Data:           &input,
 		Select:         selects,
@@ -476,6 +480,10 @@ func (d *{{ .Model.Name }}Delegate) executeCreateManyAndReturn(ctx context.Conte
 			return res, err
 		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+	}
+
+	if selects == nil || !selects.hasAnySelected() {
+		selects = full{{ .Model.Name }}Select()
 	}
 
 	args := &{{ .Model.Name }}CreateManyAndReturnArgs{
@@ -927,10 +935,18 @@ func {{ .Model.Name }}ConflictUpdate(fn func(u *{{ .Model.Name }}Upsert)) *Confl
 type {{ .Model.Name }}Upsert struct {
 {{- range $field := .Model.ScalarFields }}
 {{- $col := $field.EffectiveColName }}
+{{- $type := $field.GoType }}
+{{- if $field.EnumRef }}
+	{{- if $field.Optional }}
+		{{- $type = printf "*%sType" $field.EnumRef.Name }}
+	{{- else }}
+		{{- $type = printf "%sType" $field.EnumRef.Name }}
+	{{- end }}
+{{- end }}
 {{- if or (eq $field.Type "Int") (eq $field.Type "BigInt") (eq $field.Type "Float") (eq $field.Type "Decimal") }}
-	{{ capitalize $field.Name }} numericFieldUpsert[{{ $field.GoType }}]
+	{{ capitalize $field.Name }} numericFieldUpsert[{{ $type }}]
 {{- else }}
-	{{ capitalize $field.Name }} fieldUpsert[{{ $field.GoType }}]
+	{{ capitalize $field.Name }} fieldUpsert[{{ $type }}]
 {{- end }}
 {{- end }}
 }
@@ -939,13 +955,21 @@ func new{{ .Model.Name }}Upsert(up *ConflictUpdate) *{{ .Model.Name }}Upsert {
 	return &{{ .Model.Name }}Upsert{
 {{- range $field := .Model.ScalarFields }}
 {{- $col := $field.EffectiveColName }}
+{{- $type := $field.GoType }}
+{{- if $field.EnumRef }}
+	{{- if $field.Optional }}
+		{{- $type = printf "*%sType" $field.EnumRef.Name }}
+	{{- else }}
+		{{- $type = printf "%sType" $field.EnumRef.Name }}
+	{{- end }}
+{{- end }}
 {{- if or (eq $field.Type "Int") (eq $field.Type "BigInt") (eq $field.Type "Float") (eq $field.Type "Decimal") }}
-		{{ capitalize $field.Name }}: numericFieldUpsert[{{ $field.GoType }}]{
-			fieldUpsert: fieldUpsert[{{ $field.GoType }}]{column: "{{ $col }}", update: up},
+		{{ capitalize $field.Name }}: numericFieldUpsert[{{ $type }}]{
+			fieldUpsert: fieldUpsert[{{ $type }}]{column: "{{ $col }}", update: up},
 			tableName:   "{{ $.Model.EffectiveTableName }}",
 		},
 {{- else }}
-		{{ capitalize $field.Name }}: fieldUpsert[{{ $field.GoType }}]{column: "{{ $col }}", update: up},
+		{{ capitalize $field.Name }}: fieldUpsert[{{ $type }}]{column: "{{ $col }}", update: up},
 {{- end }}
 {{- end }}
 	}

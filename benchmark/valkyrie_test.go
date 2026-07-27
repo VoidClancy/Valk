@@ -410,8 +410,8 @@ func benchValkyrieHooksFindUnique(b *testing.B) {
 	seedData(db.Raw(), "valk-f-hook")
 
 	db.User.Use(valk.UserExtension{
-		FindUnique: func(ctx context.Context, where valk.UniquePredicate[valk.User], additional []valk.PredicateOf[valk.User], selects *valk.UserSelect, omits *valk.UserOmit, next valk.UserFindUniqueQuery) (*valk.User, error) {
-			u, err := next(ctx, where, additional, selects, omits)
+		FindUnique: func(ctx context.Context, args *valk.UserFindUniqueArgs, next valk.UserFindUniqueQuery) (*valk.User, error) {
+			u, err := next(ctx, args)
 			if err == nil && u != nil {
 				u.Email += "-read"
 			}
