@@ -131,6 +131,10 @@ func (d *{{ .Model.Name }}Delegate) executeUpdate(ctx context.Context, where Uni
 		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
 	}
 
+	if selects == nil || !selects.hasAnySelected() {
+		selects = full{{ .Model.Name }}Select()
+	}
+
 	curr := func(c context.Context, w UniquePredicate[{{ .Model.Name }}], add []PredicateOf[{{ .Model.Name }}], a []FieldAssignment, s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
 		return d.runUpdate(c, w, add, a, s, o)
 	}
@@ -148,8 +152,9 @@ func (d *{{ .Model.Name }}Delegate) executeUpdate(ctx context.Context, where Uni
 }
 
 func (d *{{ .Model.Name }}Delegate) runUpdate(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
+	allPreds := append([]PredicateOf[{{ .Model.Name }}]{where}, additional...)
 	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, where, additional, selects, omits)
+		return d.runFindUnique(ctx, allPreds, selects, omits)
 	}
 
 	if err := where.Validate(); err != nil {
@@ -181,7 +186,6 @@ func (d *{{ .Model.Name }}Delegate) runUpdate(ctx context.Context, where UniqueP
 	}
 
 	returningCols := select{{ .Model.Name }}Cols(selects, omits, {{ lowercase .Model.Name }}PKCols...)
-	allPreds := append([]PredicateOf[{{ .Model.Name }}]{where}, additional...)
 	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
@@ -244,7 +248,7 @@ func (d *{{ .Model.Name }}Delegate) runUpdateFallback(ctx context.Context, where
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, where, additional, selects, omits)
+	return d.runFindUnique(ctx, allPreds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -253,11 +257,11 @@ func (d *{{ .Model.Name }}Delegate) runUpdateFallback(ctx context.Context, where
 
 func (d *{{ .Model.Name }}Delegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment) (int64, error) {
 	if len(d.extensions) == 0 {
-		return d.runUpdateMany(ctx, preds, assignments)
+		return d.execUpdateStmt(ctx, preds, assignments)
 	}
 
 	curr := func(c context.Context, p []PredicateOf[{{ .Model.Name }}], a []FieldAssignment) (int64, error) {
-		return d.runUpdateMany(c, p, a)
+		return d.execUpdateStmt(c, p, a)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
@@ -272,10 +276,6 @@ func (d *{{ .Model.Name }}Delegate) executeUpdateMany(ctx context.Context, preds
 	return curr(ctx, preds, assignments)
 }
 
-func (d *{{ .Model.Name }}Delegate) runUpdateMany(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment) (int64, error) {
-	return d.execUpdateStmt(ctx, preds, assignments)
-}
-
 // -----------------------------------------------------------------------------
 // UpdateManyAndReturn
 // -----------------------------------------------------------------------------
@@ -283,6 +283,10 @@ func (d *{{ .Model.Name }}Delegate) runUpdateMany(ctx context.Context, preds []P
 func (d *{{ .Model.Name }}Delegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {
 	if len(d.extensions) == 0 {
 		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+	}
+
+	if selects == nil || !selects.hasAnySelected() {
+		selects = full{{ .Model.Name }}Select()
 	}
 
 	curr := func(c context.Context, p []PredicateOf[{{ .Model.Name }}], a []FieldAssignment, s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {

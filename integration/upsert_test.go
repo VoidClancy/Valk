@@ -238,7 +238,6 @@ func TestUpsert_OnConflict(t *testing.T) {
 		}
 
 		newRole := valk.UserRoleTypeTeacher
-		strRole := string(newRole)
 		res, err := client.User.Create().
 			SetEmail("multi@example.com").
 			SetPhoneNum("+200").
@@ -249,7 +248,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 				u.PhoneNum.Update()
 				u.LoginCount.Increment(5)
 				u.Password.Set(nil)
-				u.RoleOptional.Set(&strRole)
+				u.RoleOptional.Set(&newRole)
 			}).
 			Exec(ctx)
 
