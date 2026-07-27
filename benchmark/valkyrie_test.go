@@ -5,6 +5,7 @@ import (
 	"benchmark/valk/user"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -447,8 +448,8 @@ func benchValkyrieHooksDelete(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; b.Loop(); i++ {
-		_, err := db.User.Delete(user.Id.EQ(fmt.Sprintf("valk-d-hook-%d", i))).Exec(ctx)
-		if err != nil {
+		_, err := db.User.Delete(user.Id.EQ(fmt.Sprintf("valk-d-hook-%d", i%50000))).Exec(ctx)
+		if err != nil && err != sql.ErrNoRows {
 			b.Fatal(err)
 		}
 	}

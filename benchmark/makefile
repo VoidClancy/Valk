@@ -1,3 +1,7 @@
+DATABASE_URL       ?= postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+DATABASE_DIRECT_URL ?= $(DATABASE_URL)
+SKIP_DB_RESET      ?= false
+
 .PHONY: run test build bench benchNS bench/raw bench/valkyrie bench/gorm bench/short bench/stress bench/prll bench/stress-gc bench/sqlite bench/postgres bench/all
 
 run:
@@ -8,6 +12,7 @@ build:
 
 bench:
 	go run ./cmd/benchsummary
+
 db-reset:
 	docker compose exec db psql -U postgres -d postgres -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 
@@ -23,8 +28,8 @@ bench/sqlite:
 bench/pg:
 	node prepareSchema.js postgres
 	rm -rf valk/migrations/*.sql
-	make db-reset
-	DATABASE_URL="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" DATABASE_DIRECT_URL="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" ../bin/valk migrate init
+	if [ "$(SKIP_DB_RESET)" != "true" ]; then $(MAKE) db-reset; fi
+	DATABASE_URL="$(DATABASE_URL)" DATABASE_DIRECT_URL="$(DATABASE_DIRECT_URL)" ../bin/valk migrate init
 	../bin/valk generate
 	go generate ./ent
 	BENCH_DB=postgres go run ./cmd/benchsummary
