@@ -202,9 +202,9 @@ func TestDeleteHooks(t *testing.T) {
 
 	hookCalled := false
 	db.User.Use(user.Extension{
-		Delete: func(ctx context.Context, where valk.UniquePredicate[valk.User], selects *valk.UserSelect, omits *valk.UserOmit, next valk.UserDeleteQuery) (*valk.User, error) {
+		Delete: func(ctx context.Context, args *valk.UserDeleteArgs, next valk.UserDeleteQuery) (*valk.User, error) {
 			hookCalled = true
-			return next(ctx, where, selects, omits)
+			return next(ctx, args)
 		},
 	})
 
@@ -223,5 +223,78 @@ func TestDeleteHooks(t *testing.T) {
 
 	if !hookCalled {
 		t.Errorf("expected delete hook to be called, but it wasn't")
+	}
+}
+
+func TestDeleteHooks_SetWhereAndInspection(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	var inspectedCol string
+	db.User.Use(user.Extension{
+		Delete: func(ctx context.Context, args *valk.UserDeleteArgs, next valk.UserDeleteQuery) (*valk.User, error) {
+			inspectedCol = args.Where.Column()
+			args.SetWhere(user.Email.EQ("hookdelete_mutated@example.com"))
+			return next(ctx, args)
+		},
+	})
+
+	_, err := db.User.Create().
+		SetEmail("hookdelete_mutated@example.com").
+		SetPhoneNum("+111").
+		Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create: %v", err)
+	}
+
+	deleted, err := db.User.Delete(user.Email.EQ("hookdelete_orig@example.com")).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to delete: %v", err)
+	}
+
+	if deleted.Email != "hookdelete_mutated@example.com" {
+		t.Errorf("expected deleted record email to be mutated email, got %s", deleted.Email)
+	}
+
+	if inspectedCol != "email" {
+		t.Errorf("expected inspected col 'email', got %s", inspectedCol)
+	}
+}
+
+func TestDeleteManyHooks(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	hookCalled := false
+	db.User.Use(user.Extension{
+		DeleteMany: func(ctx context.Context, args *valk.UserDeleteManyArgs, next valk.UserDeleteManyQuery) (int64, error) {
+			hookCalled = true
+			args.SetWhere(user.Email.Like("%delmany%"))
+			return next(ctx, args)
+		},
+	})
+
+	_, err := db.User.Create().SetEmail("delmany1@example.com").SetPhoneNum("+201").Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create: %v", err)
+	}
+	_, err = db.User.Create().SetEmail("delmany2@example.com").SetPhoneNum("+202").Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create: %v", err)
+	}
+
+	count, err := db.User.DeleteMany(user.PhoneNum.EQ("+99999")).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to deleteMany: %v", err)
+	}
+
+	if !hookCalled {
+		t.Errorf("expected deleteMany hook to be called")
+	}
+
+	if count != 2 {
+		t.Errorf("expected 2 deleted rows, got %d", count)
 	}
 }

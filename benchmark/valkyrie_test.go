@@ -437,8 +437,8 @@ func benchValkyrieHooksDelete(b *testing.B) {
 	seedDeleteData(db.Raw(), "valk", 50000)
 
 	db.User.Use(valk.UserExtension{
-		Delete: func(ctx context.Context, where valk.UniquePredicate[valk.User], selects *valk.UserSelect, omits *valk.UserOmit, next valk.UserDeleteQuery) (*valk.User, error) {
-			u, err := next(ctx, where, selects, omits)
+		Delete: func(ctx context.Context, args *valk.UserDeleteArgs, next valk.UserDeleteQuery) (*valk.User, error) {
+			u, err := next(ctx, args)
 			if err == nil && u != nil {
 				u.Id = strings.ToUpper(u.Id)
 			}

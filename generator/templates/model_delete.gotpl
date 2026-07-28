@@ -10,20 +10,24 @@ func (d *{{ .Model.Name }}Delegate) executeDeleteMany(ctx context.Context, preds
 		return d.runDeleteMany(ctx, preds)
 	}
 
-	curr := func(c context.Context, p []PredicateOf[{{ .Model.Name }}]) (int64, error) {
-		return d.runDeleteMany(c, p)
+	args := &{{ .Model.Name }}DeleteManyArgs{
+		Where: preds,
+	}
+
+	curr := func(c context.Context, a *{{ .Model.Name }}DeleteManyArgs) (int64, error) {
+		return d.runDeleteMany(c, a.Where)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.DeleteMany != nil {
 			next, hook := curr, ext.DeleteMany
-			curr = func(c context.Context, p []PredicateOf[{{ .Model.Name }}]) (int64, error) {
-				return hook(c, p, next)
+			curr = func(c context.Context, a *{{ .Model.Name }}DeleteManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds)
+	return curr(ctx, args)
 }
 
 func (d *{{ .Model.Name }}Delegate) runDeleteMany(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}]) (int64, error) {
@@ -68,20 +72,25 @@ func (d *{{ .Model.Name }}Delegate) executeDelete(ctx context.Context, where Uni
 		selects = full{{ .Model.Name }}Select()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[{{ .Model.Name }}], s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
-		return d.runDelete(c, w, s, o)
+	args := &{{ .Model.Name }}DeleteArgs{
+		Where:  where,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *{{ .Model.Name }}DeleteArgs) (*{{ .Model.Name }}, error) {
+		return d.runDelete(c, a.Where, a.Select, omits)
 	}
 
 	for _, ext := range slices.Backward(d.extensions) {
 		if ext.Delete != nil {
 			next, hook := curr, ext.Delete
-			curr = func(c context.Context, w UniquePredicate[{{ .Model.Name }}], s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
-				return hook(c, w, s, o, next)
+			curr = func(c context.Context, a *{{ .Model.Name }}DeleteArgs) (*{{ .Model.Name }}, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *{{ .Model.Name }}Delegate) runDelete(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
@@ -98,7 +107,7 @@ func (d *{{ .Model.Name }}Delegate) runDelete(ctx context.Context, where UniqueP
 		var res *{{ .Model.Name }}
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.{{ .Model.Name }}.executeFindUnique(ctx, where, nil, selects, omits)
+			res, err = txQ.{{ .Model.Name }}.runFindUnique(ctx, []PredicateOf[{{ .Model.Name }}]{where}, selects, omits)
 			if err != nil {
 				return err
 			}
