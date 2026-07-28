@@ -4,11 +4,8 @@ import (
 	"benchmark/ent"
 	"benchmark/ent/user"
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
-	"strings"
 	"testing"
 
 	_ "github.com/lib/pq"
@@ -24,7 +21,8 @@ func openEnt(b *testing.B) *ent.Client {
 		dsn = activeDialect.DSN
 	} else {
 		driverName = "sqlite3"
-		dsn = activeDialect.DSN + "&_fk=1"
+		// FK enforcement is now in the base DSN (helpers_test.go), shared by all ORMs.
+		dsn = activeDialect.DSN
 	}
 
 	client, err := ent.Open(driverName, dsn)
@@ -357,137 +355,19 @@ func benchEntUpsertWithDeepSelect(b *testing.B) {
 	}
 }
 
-func benchEntHooksCreate(b *testing.B) {
-	client := openEnt(b)
-	defer client.Close()
-	ctx := context.Background()
-
-	client.Use(func(next ent.Mutator) ent.Mutator {
-		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-			if m.Op().Is(ent.OpCreate) {
-				if userMut, ok := m.(*ent.UserMutation); ok {
-					if email, exists := userMut.Email(); exists {
-						userMut.SetEmail(strings.ToLower(email))
-					}
-					if pwd, exists := userMut.Password(); exists {
-						hash := sha256.Sum256([]byte(pwd))
-						hexStr := hex.EncodeToString(hash[:])
-						userMut.SetPassword(hexStr)
-					}
-				}
-			}
-			return next.Mutate(ctx, m)
-		})
-	})
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		_, err := client.User.Create().
-			SetID(fmt.Sprintf("ent-c-hook-%d", i)).
-			SetEmail(fmt.Sprintf("Ent-C-Hook-%d@Example.com", i)).
-			SetPhoneNum(fmt.Sprintf("ent-c-hook-phone-%d", i)).
-			SetPassword("mypassword").
-			SetRole("STUDENT").
-			Save(ctx)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchEntHooksUpdate(b *testing.B) {
+func benchEntDelete(b *testing.B) {
 	client := openEnt(b)
 	defer client.Close()
 	ctx := context.Background()
 
 	rawDB := openDB(b)
-	seedData(rawDB, "ent-u-hook")
+	seedDeleteData(rawDB, "ent", 50000)
 	rawDB.Close()
-
-	client.Use(func(next ent.Mutator) ent.Mutator {
-		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-			if m.Op().Is(ent.OpUpdate | ent.OpUpdateOne) {
-				if userMut, ok := m.(*ent.UserMutation); ok {
-					if email, exists := userMut.Email(); exists {
-						userMut.SetEmail(strings.ToLower(email))
-					}
-				}
-			}
-			return next.Mutate(ctx, m)
-		})
-	})
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		_, err := client.User.UpdateOneID(fmt.Sprintf("ent-u-hook-id-%d", i%seedCount)).
-			SetEmail(fmt.Sprintf("NEW-ENT-U-HOOK-%d@EXAMPLE.COM", i)).
-			Save(ctx)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchEntHooksFindUnique(b *testing.B) {
-	client := openEnt(b)
-	defer client.Close()
-	ctx := context.Background()
-
-	rawDB := openDB(b)
-	seedData(rawDB, "ent-f-hook")
-	rawDB.Close()
-
-	client.Intercept(ent.InterceptFunc(func(next ent.Querier) ent.Querier {
-		return ent.QuerierFunc(func(ctx context.Context, q ent.Query) (ent.Value, error) {
-			v, err := next.Query(ctx, q)
-			if err == nil {
-				if nodes, ok := v.([]*ent.User); ok {
-					for _, n := range nodes {
-						n.Email += "-read"
-					}
-				} else if node, ok := v.(*ent.User); ok {
-					node.Email += "-read"
-				}
-			}
-			return v, err
-		})
-	}))
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		_, err := client.User.Query().Where(user.IDEQ(fmt.Sprintf("ent-f-hook-id-%d", i%seedCount))).Only(ctx)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchEntHooksDelete(b *testing.B) {
-	client := openEnt(b)
-	defer client.Close()
-	ctx := context.Background()
-
-	rawDB := openDB(b)
-	seedDeleteData(rawDB, "ent", 20000)
-	rawDB.Close()
-
-	client.Use(func(next ent.Mutator) ent.Mutator {
-		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-			if m.Op().Is(ent.OpDelete | ent.OpDeleteOne) {
-				if userMut, ok := m.(*ent.UserMutation); ok {
-					if id, exists := userMut.ID(); exists {
-						_ = strings.ToUpper(id)
-					}
-				}
-			}
-			return next.Mutate(ctx, m)
-		})
-	})
 
 	b.ResetTimer()
 	for i := 0; b.Loop(); i++ {
 		err := client.User.DeleteOneID(fmt.Sprintf("ent-d-hook-%d", i)).Exec(ctx)
-		if err != nil {
+		if err != nil && !ent.IsNotFound(err) {
 			b.Fatal(err)
 		}
 	}

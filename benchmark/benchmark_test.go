@@ -135,46 +135,13 @@ func BenchmarkUpsertWithDeepSelect(b *testing.B) {
 	})
 }
 
-func BenchmarkHooksCreate(b *testing.B) {
-	fmt.Println("\n── HooksCreate ───────────────────────────────")
+func BenchmarkDelete(b *testing.B) {
+	fmt.Println("\n── Delete ────────────────────────────────────")
 	orms(b, map[string]func(*testing.B){
-		"Raw":      benchRawHooksCreate,
-		"Valkyrie": benchValkyrieHooksCreate,
-		"Ent":      benchEntHooksCreate,
-		"GORM":     benchGORMHooksCreate,
-		"Bun":      benchBunHooksCreate,
-	})
-}
-
-func BenchmarkHooksUpdate(b *testing.B) {
-	fmt.Println("\n── HooksUpdate ───────────────────────────────")
-	orms(b, map[string]func(*testing.B){
-		"Raw":      benchRawHooksUpdate,
-		"Valkyrie": benchValkyrieHooksUpdate,
-		"Ent":      benchEntHooksUpdate,
-		"GORM":     benchGORMHooksUpdate,
-		"Bun":      benchBunHooksUpdate,
-	})
-}
-
-func BenchmarkHooksFindUnique(b *testing.B) {
-	fmt.Println("\n── HooksFindUnique ───────────────────────────")
-	orms(b, map[string]func(*testing.B){
-		"Raw":      benchRawHooksFindUnique,
-		"Valkyrie": benchValkyrieHooksFindUnique,
-		"Ent":      benchEntHooksFindUnique,
-		"GORM":     benchGORMHooksFindUnique,
-		"Bun":      benchBunHooksFindUnique,
-	})
-}
-
-func BenchmarkHooksDelete(b *testing.B) {
-	fmt.Println("\n── HooksDelete ───────────────────────────────")
-	orms(b, map[string]func(*testing.B){
-		"Raw":      benchRawHooksDelete,
-		"Valkyrie": benchValkyrieHooksDelete,
-		"Ent":      benchEntHooksDelete,
-		"GORM":     benchGORMHooksDelete,
-		"Bun":      benchBunHooksDelete,
+		"Raw":      benchRawDelete,
+		"Valkyrie": benchValkyrieDelete,
+		"Ent":      benchEntDelete,
+		"GORM":     benchGORMDelete,
+		"Bun":      benchBunDelete,
 	})
 }

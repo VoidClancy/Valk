@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/uptrace/bun"
@@ -363,106 +360,7 @@ func benchBunUpsertWithDeepSelect(b *testing.B) {
 	}
 }
 
-// UserBunHooks is used in hook-only benchmarks to avoid polluting UserBun
-type UserBunHooks struct {
-	bun.BaseModel `bun:"table:User"`
-	Id            string  `bun:"id,pk"`
-	Email         string  `bun:"email,unique,notnull"`
-	PhoneNum      string  `bun:"phoneNum,unique,notnull"`
-	Password      *string `bun:"password"`
-	Role          string  `bun:"role,default:'STUDENT'"`
-	RoleOptional  *string `bun:"roleOptional"`
-	LoginCount    int32   `bun:"loginCount,default:0"`
-	ReferredById  *string `bun:"referredById"`
-}
-
-func (u *UserBunHooks) BeforeAppendModel(ctx context.Context, query bun.Query) error {
-	switch query.(type) {
-	case *bun.InsertQuery:
-		u.Email = strings.ToLower(u.Email)
-		if u.Password != nil {
-			hash := sha256.Sum256([]byte(*u.Password))
-			hexStr := hex.EncodeToString(hash[:])
-			u.Password = &hexStr
-		}
-	case *bun.UpdateQuery:
-		if u.Email != "" {
-			u.Email = strings.ToLower(u.Email)
-		}
-	case *bun.DeleteQuery:
-		u.Id = strings.ToUpper(u.Id)
-	}
-	return nil
-}
-
-func (u *UserBunHooks) AfterScanRow(ctx context.Context) error {
-	u.Email += "-read"
-	return nil
-}
-
-func benchBunHooksCreate(b *testing.B) {
-	db := openBun(b)
-	defer db.Close()
-	createSchema(db.DB)
-	ctx := context.Background()
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		pwd := "mypassword"
-		u := UserBunHooks{
-			Id:       fmt.Sprintf("bun-c-hook-%d", i),
-			Email:    fmt.Sprintf("Bun-C-Hook-%d@Example.com", i),
-			PhoneNum: fmt.Sprintf("bun-c-hook-phone-%d", i),
-			Password: &pwd,
-			Role:     "STUDENT",
-		}
-		_, err := db.NewInsert().Model(&u).Exec(ctx)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchBunHooksUpdate(b *testing.B) {
-	db := openBun(b)
-	defer db.Close()
-	createSchema(db.DB)
-	ctx := context.Background()
-
-	seedData(db.DB, "bun-u-hook")
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		u := UserBunHooks{
-			Id:    fmt.Sprintf("bun-u-hook-id-%d", i%seedCount),
-			Email: fmt.Sprintf("NEW-BUN-U-HOOK-%d@EXAMPLE.COM", i),
-		}
-		_, err := db.NewUpdate().Model(&u).Column("email").WherePK().Exec(ctx)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchBunHooksFindUnique(b *testing.B) {
-	db := openBun(b)
-	defer db.Close()
-	createSchema(db.DB)
-	ctx := context.Background()
-
-	seedData(db.DB, "bun-f-hook")
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		var fetched UserBunHooks
-		err := db.NewSelect().Model(&fetched).Where("id = ?", fmt.Sprintf("bun-f-hook-id-%d", i%seedCount)).Scan(ctx)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchBunHooksDelete(b *testing.B) {
+func benchBunDelete(b *testing.B) {
 	db := openBun(b)
 	defer db.Close()
 	createSchema(db.DB)
@@ -472,8 +370,9 @@ func benchBunHooksDelete(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; b.Loop(); i++ {
-		u := UserBunHooks{Id: fmt.Sprintf("bun-d-hook-%d", i)}
-		_, err := db.NewDelete().Model(&u).WherePK().Exec(ctx)
+		id := fmt.Sprintf("bun-d-hook-%d", i)
+		u := UserBun{Id: id}
+		_, err := db.NewDelete().Model(&u).Where("id = ?", id).Returning("*").Exec(ctx)
 		if err != nil {
 			b.Fatal(err)
 		}

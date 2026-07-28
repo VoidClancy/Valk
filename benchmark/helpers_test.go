@@ -107,9 +107,11 @@ func initDialect() {
 		}
 	default: // sqlite
 		activeDialect = DialectConfig{
-			Name:                "sqlite",
+			Name: "sqlite",
+			// All ORMs create the same FK constraints in their DDL on SQLite.
+			// _fk=1 enforces them, making SQLite consistent with Postgres.
 			Driver:              "sqlite3", // Using github.com/mattn/go-sqlite3 Cgo driver
-			DSN:                 "file:benchmark?mode=memory&cache=shared",
+			DSN:                 "file:benchmark?mode=memory&cache=shared&_fk=1",
 			QuoteChar:           '"',
 			PlaceholderFmt:      "",
 			SupportsReturning:   true,
