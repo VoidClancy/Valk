@@ -139,7 +139,14 @@ func (d *{{ .Model.Name }}Delegate) executeUpdate(ctx context.Context, where Uni
 		return d.runUpdate(c, w, add, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Update != nil {
+			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
 			curr = func(c context.Context, w UniquePredicate[{{ .Model.Name }}], add []PredicateOf[{{ .Model.Name }}], a []FieldAssignment, s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error) {
@@ -264,7 +271,14 @@ func (d *{{ .Model.Name }}Delegate) executeUpdateMany(ctx context.Context, preds
 		return d.execUpdateStmt(c, p, a)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateMany != nil {
+			return ext.UpdateMany(ctx, preds, assignments, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
 			curr = func(c context.Context, p []PredicateOf[{{ .Model.Name }}], a []FieldAssignment) (int64, error) {
@@ -293,7 +307,14 @@ func (d *{{ .Model.Name }}Delegate) executeUpdateManyAndReturn(ctx context.Conte
 		return d.runUpdateManyAndReturn(c, p, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
+			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
 			curr = func(c context.Context, p []PredicateOf[{{ .Model.Name }}], a []FieldAssignment, s *{{ .Model.Name }}Select, o *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error) {

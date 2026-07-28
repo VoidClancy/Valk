@@ -4,11 +4,8 @@ import (
 	"benchmark/valk"
 	"benchmark/valk/user"
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
-	"strings"
 	"testing"
 )
 
@@ -337,118 +334,16 @@ func benchValkyrieUpsertWithDeepSelect(b *testing.B) {
 	}
 }
 
-func benchValkyrieHooksCreate(b *testing.B) {
-	ctx := context.Background()
-	db := initValkDB(b, ctx)
-	defer db.Close()
-
-	db.User.Use(valk.UserExtension{
-		Create: func(ctx context.Context, args *valk.UserCreateArgs, next valk.UserCreateQuery) (*valk.User, error) {
-			if args.Data != nil {
-				args.Data.Email = strings.ToLower(args.Data.Email)
-				if args.Data.Password != nil {
-					hash := sha256.Sum256([]byte(*args.Data.Password))
-					hexStr := hex.EncodeToString(hash[:])
-					args.Data.Password = &hexStr
-				}
-			}
-			return next(ctx, args)
-		},
-	})
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		pwd := "mypassword"
-		_, err := db.User.Create().
-			SetId(fmt.Sprintf("valk-c-hook-%d", i)).
-			SetEmail(fmt.Sprintf("Valk-C-Hook-%d@Example.com", i)).
-			SetPhoneNum(fmt.Sprintf("valk-c-hook-phone-%d", i)).
-			SetPassword(pwd).
-			SetRole(valk.UserRoleTypeStudent).
-			Exec(ctx)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchValkyrieHooksUpdate(b *testing.B) {
-	ctx := context.Background()
-	db := initValkDB(b, ctx)
-	defer db.Close()
-
-	seedData(db.Raw(), "valk-u-hook")
-
-	db.User.Use(valk.UserExtension{
-		Update: func(ctx context.Context, where valk.UniquePredicate[valk.User], additional []valk.PredicateOf[valk.User], assignments []valk.FieldAssignment, selects *valk.UserSelect, omits *valk.UserOmit, next valk.UserUpdateQuery) (*valk.User, error) {
-			for i, a := range assignments {
-				if a.Col == "email" {
-					if s, ok := a.Val.(string); ok {
-						assignments[i].Val = strings.ToLower(s)
-					}
-				}
-			}
-			return next(ctx, where, additional, assignments, selects, omits)
-		},
-	})
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		_, err := db.User.Update(user.Id.EQ(fmt.Sprintf("valk-u-hook-id-%d", i%seedCount))).
-			SetEmail(fmt.Sprintf("NEW-VALK-U-HOOK-%d@EXAMPLE.COM", i)).
-			Exec(ctx)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchValkyrieHooksFindUnique(b *testing.B) {
-	ctx := context.Background()
-	db := initValkDB(b, ctx)
-	defer db.Close()
-
-	seedData(db.Raw(), "valk-f-hook")
-
-	db.User.Use(valk.UserExtension{
-		FindUnique: func(ctx context.Context, args *valk.UserFindUniqueArgs, next valk.UserFindUniqueQuery) (*valk.User, error) {
-			u, err := next(ctx, args)
-			if err == nil && u != nil {
-				u.Email += "-read"
-			}
-			return u, err
-		},
-	})
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		_, err := db.User.FindUnique(user.Id.EQ(fmt.Sprintf("valk-f-hook-id-%d", i%seedCount))).Exec(ctx)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchValkyrieHooksDelete(b *testing.B) {
+func benchValkyrieDelete(b *testing.B) {
 	ctx := context.Background()
 	db := initValkDB(b, ctx)
 	defer db.Close()
 
 	seedDeleteData(db.Raw(), "valk", 50000)
 
-	db.User.Use(valk.UserExtension{
-		Delete: func(ctx context.Context, where valk.UniquePredicate[valk.User], selects *valk.UserSelect, omits *valk.UserOmit, next valk.UserDeleteQuery) (*valk.User, error) {
-			u, err := next(ctx, where, selects, omits)
-			if err == nil && u != nil {
-				u.Id = strings.ToUpper(u.Id)
-			}
-			return u, err
-		},
-	})
-
 	b.ResetTimer()
 	for i := 0; b.Loop(); i++ {
-		_, err := db.User.Delete(user.Id.EQ(fmt.Sprintf("valk-d-hook-%d", i%50000))).Exec(ctx)
+		_, err := db.User.Delete(user.Id.EQ(fmt.Sprintf("valk-d-hook-%d", i))).Exec(ctx)
 		if err != nil && err != sql.ErrNoRows {
 			b.Fatal(err)
 		}

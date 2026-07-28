@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
@@ -448,91 +446,7 @@ func benchRawUpsertWithDeepSelect(b *testing.B) {
 	}
 }
 
-func benchRawHooksCreate(b *testing.B) {
-	db := openDB(b)
-	defer db.Close()
-	createSchema(db)
-	ctx := context.Background()
-
-	rawQueryCreate := fmt.Sprintf(
-		"INSERT INTO %s (%s, %s, %s, %s, %s) VALUES (%s, %s, %s, %s, %s)",
-		activeDialect.Quote("User"),
-		activeDialect.Quote("id"), activeDialect.Quote("email"), activeDialect.Quote("phoneNum"), activeDialect.Quote("password"), activeDialect.Quote("role"),
-		activeDialect.BindVar(1), activeDialect.BindVar(2), activeDialect.BindVar(3), activeDialect.BindVar(4), activeDialect.BindVar(5),
-	)
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		email := fmt.Sprintf("Raw-C-Hook-%d@Example.com", i)
-		pwd := "mypassword"
-
-		email = strings.ToLower(email)
-		hash := sha256.Sum256([]byte(pwd))
-		hexPwd := hex.EncodeToString(hash[:])
-
-		_, err := db.ExecContext(ctx, rawQueryCreate, fmt.Sprintf("raw-c-hook-%d", i), email, fmt.Sprintf("raw-c-hook-phone-%d", i), hexPwd, "STUDENT")
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchRawHooksUpdate(b *testing.B) {
-	db := openDB(b)
-	defer db.Close()
-	createSchema(db)
-	ctx := context.Background()
-
-	seedData(db, "raw-u-hook")
-
-	rawQueryUpdate := fmt.Sprintf(
-		"UPDATE %s SET %s = %s WHERE %s = %s",
-		activeDialect.Quote("User"),
-		activeDialect.Quote("email"), activeDialect.BindVar(1),
-		activeDialect.Quote("id"), activeDialect.BindVar(2),
-	)
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		email := fmt.Sprintf("NEW-RAW-U-HOOK-%d@EXAMPLE.COM", i)
-		email = strings.ToLower(email)
-
-		_, err := db.ExecContext(ctx, rawQueryUpdate, email, fmt.Sprintf("raw-u-hook-id-%d", i%seedCount))
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchRawHooksFindUnique(b *testing.B) {
-	db := openDB(b)
-	defer db.Close()
-	createSchema(db)
-	ctx := context.Background()
-
-	seedData(db, "raw-f-hook")
-
-	rawQueryFind := fmt.Sprintf(
-		"SELECT %s, %s, %s, %s, %s FROM %s WHERE %s = %s",
-		activeDialect.Quote("id"), activeDialect.Quote("email"), activeDialect.Quote("phoneNum"), activeDialect.Quote("role"), activeDialect.Quote("loginCount"),
-		activeDialect.Quote("User"),
-		activeDialect.Quote("id"), activeDialect.BindVar(1),
-	)
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		var uId, uEmail, uPhone, uRole string
-		var uCount int32
-		err := db.QueryRowContext(ctx, rawQueryFind, fmt.Sprintf("raw-f-hook-id-%d", i%seedCount)).Scan(&uId, &uEmail, &uPhone, &uRole, &uCount)
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		uEmail += "-read"
-	}
-}
-
-func benchRawHooksDelete(b *testing.B) {
+func benchRawDelete(b *testing.B) {
 	db := openDB(b)
 	defer db.Close()
 	createSchema(db)
@@ -549,8 +463,6 @@ func benchRawHooksDelete(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; b.Loop(); i++ {
 		id := fmt.Sprintf("raw-d-hook-%d", i)
-		_ = strings.ToUpper(id)
-
 		_, err := db.ExecContext(ctx, rawQueryDelete, id)
 		if err != nil {
 			b.Fatal(err)

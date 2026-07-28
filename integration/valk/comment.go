@@ -91,17 +91,19 @@ type CommentSelect struct {
 	Author   *UserSelect `json:"author,omitempty"`
 }
 
+var fullCommentSelectVal = &CommentSelect{
+	Id:       true,
+	Textify:  true,
+	Dummy3:   true,
+	Dummy1:   true,
+	Dummy2:   true,
+	PostId:   true,
+	AuthorId: true,
+	Meta:     true,
+}
+
 func fullCommentSelect() *CommentSelect {
-	return &CommentSelect{
-		Id:       true,
-		Textify:  true,
-		Dummy3:   true,
-		Dummy1:   true,
-		Dummy2:   true,
-		PostId:   true,
-		AuthorId: true,
-		Meta:     true,
-	}
+	return fullCommentSelectVal
 }
 
 func (s *CommentSelect) hasAnyScalar() bool {
@@ -394,14 +396,38 @@ func (a *CommentCountArgs) SetTake(n int) *CommentCountArgs {
 	return a
 }
 
+// CommentDeleteArgs is the input argument passed to Comment Delete extension hooks.
+type CommentDeleteArgs struct {
+	// Where is the unique predicate defining the target record.
+	Where UniquePredicate[Comment]
+	// Select specifies which scalar and relation fields to select and return for deleted record.
+	Select *CommentSelect
+}
+
+func (a *CommentDeleteArgs) SetWhere(unique UniquePredicate[Comment]) *CommentDeleteArgs {
+	a.Where = unique
+	return a
+}
+
+// CommentDeleteManyArgs is the input argument passed to Comment DeleteMany extension hooks.
+type CommentDeleteManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Comment]
+}
+
+func (a *CommentDeleteManyArgs) SetWhere(preds ...PredicateOf[Comment]) *CommentDeleteManyArgs {
+	a.Where = preds
+	return a
+}
+
 type CommentCreateQuery = func(ctx context.Context, args *CommentCreateArgs) (*Comment, error)
 type CommentCreateManyQuery = func(ctx context.Context, args *CommentCreateManyArgs) (int64, error)
 type CommentCreateManyAndReturnQuery = func(ctx context.Context, args *CommentCreateManyAndReturnArgs) ([]*Comment, error)
 type CommentFindUniqueQuery = func(ctx context.Context, args *CommentFindUniqueArgs) (*Comment, error)
 type CommentFindFirstQuery = func(ctx context.Context, args *CommentFindFirstArgs) (*Comment, error)
 type CommentFindManyQuery = func(ctx context.Context, args *CommentFindManyArgs) ([]*Comment, error)
-type CommentDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Comment]) (int64, error)
-type CommentDeleteQuery = func(ctx context.Context, where UniquePredicate[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error)
+type CommentDeleteQuery = func(ctx context.Context, args *CommentDeleteArgs) (*Comment, error)
+type CommentDeleteManyQuery = func(ctx context.Context, args *CommentDeleteManyArgs) (int64, error)
 type CommentCountQuery = func(ctx context.Context, args *CommentCountArgs) (int64, error)
 type CommentUpdateQuery = func(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error)
 type CommentUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment) (int64, error)
@@ -414,8 +440,8 @@ type CommentExtension struct {
 	FindUnique          func(ctx context.Context, args *CommentFindUniqueArgs, next CommentFindUniqueQuery) (*Comment, error)
 	FindFirst           func(ctx context.Context, args *CommentFindFirstArgs, next CommentFindFirstQuery) (*Comment, error)
 	FindMany            func(ctx context.Context, args *CommentFindManyArgs, next CommentFindManyQuery) ([]*Comment, error)
-	DeleteMany          func(ctx context.Context, preds []PredicateOf[Comment], next CommentDeleteManyQuery) (int64, error)
-	Delete              func(ctx context.Context, where UniquePredicate[Comment], selects *CommentSelect, omits *CommentOmit, next CommentDeleteQuery) (*Comment, error)
+	Delete              func(ctx context.Context, args *CommentDeleteArgs, next CommentDeleteQuery) (*Comment, error)
+	DeleteMany          func(ctx context.Context, args *CommentDeleteManyArgs, next CommentDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *CommentCountArgs, next CommentCountQuery) (int64, error)
 	Update              func(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit, next CommentUpdateQuery) (*Comment, error)
 	UpdateMany          func(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, next CommentUpdateManyQuery) (int64, error)
@@ -800,7 +826,14 @@ func (d *CommentDelegate) executeCreate(ctx context.Context, assignments []Field
 		return res, nil
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Create != nil {
+			return ext.Create(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
 			curr = func(c context.Context, a *CommentCreateArgs) (*Comment, error) {
@@ -894,7 +927,14 @@ func (d *CommentDelegate) executeCreateMany(ctx context.Context, records []Recor
 		return d.runCreateMany(c, a.Data, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateMany != nil {
+			return ext.CreateMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
 			curr = func(c context.Context, a *CommentCreateManyArgs) (int64, error) {
@@ -963,7 +1003,14 @@ func (d *CommentDelegate) executeCreateManyAndReturn(ctx context.Context, record
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateManyAndReturn != nil {
+			return ext.CreateManyAndReturn(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
 			curr = func(c context.Context, a *CommentCreateManyAndReturnArgs) ([]*Comment, error) {
@@ -1612,7 +1659,14 @@ func (d *CommentDelegate) executeUpdate(ctx context.Context, where UniquePredica
 		return d.runUpdate(c, w, add, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Update != nil {
+			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
 			curr = func(c context.Context, w UniquePredicate[Comment], add []PredicateOf[Comment], a []FieldAssignment, s *CommentSelect, o *CommentOmit) (*Comment, error) {
@@ -1737,7 +1791,14 @@ func (d *CommentDelegate) executeUpdateMany(ctx context.Context, preds []Predica
 		return d.execUpdateStmt(c, p, a)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateMany != nil {
+			return ext.UpdateMany(ctx, preds, assignments, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
 			curr = func(c context.Context, p []PredicateOf[Comment], a []FieldAssignment) (int64, error) {
@@ -1766,7 +1827,14 @@ func (d *CommentDelegate) executeUpdateManyAndReturn(ctx context.Context, preds 
 		return d.runUpdateManyAndReturn(c, p, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
+			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
 			curr = func(c context.Context, p []PredicateOf[Comment], a []FieldAssignment, s *CommentSelect, o *CommentOmit) ([]*Comment, error) {
@@ -1894,7 +1962,14 @@ func (d *CommentDelegate) executeFindUnique(ctx context.Context, where UniquePre
 		return d.runFindUnique(c, a.Where, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindUnique != nil {
+			return ext.FindUnique(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
 			curr = func(c context.Context, a *CommentFindUniqueArgs) (*Comment, error) {
@@ -1939,7 +2014,14 @@ func (d *CommentDelegate) executeFindFirst(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindFirst != nil {
+			return ext.FindFirst(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
 			curr = func(c context.Context, a *CommentFindFirstArgs) (*Comment, error) {
@@ -1984,7 +2066,14 @@ func (d *CommentDelegate) executeFindMany(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindMany != nil {
+			return ext.FindMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
 			curr = func(c context.Context, a *CommentFindManyArgs) ([]*Comment, error) {
@@ -2158,20 +2247,31 @@ func (d *CommentDelegate) executeDeleteMany(ctx context.Context, preds []Predica
 		return d.runDeleteMany(ctx, preds)
 	}
 
-	curr := func(c context.Context, p []PredicateOf[Comment]) (int64, error) {
-		return d.runDeleteMany(c, p)
+	args := &CommentDeleteManyArgs{
+		Where: preds,
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	curr := func(c context.Context, a *CommentDeleteManyArgs) (int64, error) {
+		return d.runDeleteMany(c, a.Where)
+	}
+
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.DeleteMany != nil {
+			return ext.DeleteMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.DeleteMany != nil {
 			next, hook := curr, ext.DeleteMany
-			curr = func(c context.Context, p []PredicateOf[Comment]) (int64, error) {
-				return hook(c, p, next)
+			curr = func(c context.Context, a *CommentDeleteManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds)
+	return curr(ctx, args)
 }
 
 func (d *CommentDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[Comment]) (int64, error) {
@@ -2216,20 +2316,32 @@ func (d *CommentDelegate) executeDelete(ctx context.Context, where UniquePredica
 		selects = fullCommentSelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[Comment], s *CommentSelect, o *CommentOmit) (*Comment, error) {
-		return d.runDelete(c, w, s, o)
+	args := &CommentDeleteArgs{
+		Where:  where,
+		Select: selects,
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	curr := func(c context.Context, a *CommentDeleteArgs) (*Comment, error) {
+		return d.runDelete(c, a.Where, a.Select, omits)
+	}
+
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Delete != nil {
+			return ext.Delete(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Delete != nil {
 			next, hook := curr, ext.Delete
-			curr = func(c context.Context, w UniquePredicate[Comment], s *CommentSelect, o *CommentOmit) (*Comment, error) {
-				return hook(c, w, s, o, next)
+			curr = func(c context.Context, a *CommentDeleteArgs) (*Comment, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *CommentDelegate) runDelete(ctx context.Context, where UniquePredicate[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
@@ -2246,7 +2358,7 @@ func (d *CommentDelegate) runDelete(ctx context.Context, where UniquePredicate[C
 		var res *Comment
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.Comment.executeFindUnique(ctx, where, nil, selects, omits)
+			res, err = txQ.Comment.runFindUnique(ctx, []PredicateOf[Comment]{where}, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -2348,7 +2460,14 @@ func (d *CommentDelegate) executeCount(ctx context.Context, params QueryParams[C
 		})
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Count != nil {
+			return ext.Count(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Count != nil {
 			next, hook := curr, ext.Count
 			curr = func(c context.Context, a *CommentCountArgs) (int64, error) {

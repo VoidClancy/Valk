@@ -92,12 +92,14 @@ type {{ .Model.Name }}Select struct {
 	{{- end }}
 }
 
+var full{{ .Model.Name }}SelectVal = &{{ .Model.Name }}Select{
+	{{- range $field := .Model.ScalarFields }}
+	{{ capitalize $field.Name }}: true,
+	{{- end }}
+}
+
 func full{{ .Model.Name }}Select() *{{ .Model.Name }}Select {
-	return &{{ .Model.Name }}Select{
-		{{- range $field := .Model.ScalarFields }}
-		{{ capitalize $field.Name }}: true,
-		{{- end }}
-	}
+	return full{{ .Model.Name }}SelectVal
 }
 
 func (s *{{ .Model.Name }}Select) hasAnyScalar() bool {
@@ -374,14 +376,38 @@ func (a *{{ .Model.Name }}CountArgs) SetTake(n int) *{{ .Model.Name }}CountArgs 
 	return a
 }
 
+// {{ .Model.Name }}DeleteArgs is the input argument passed to {{ .Model.Name }} Delete extension hooks.
+type {{ .Model.Name }}DeleteArgs struct {
+	// Where is the unique predicate defining the target record.
+	Where UniquePredicate[{{ .Model.Name }}]
+	// Select specifies which scalar and relation fields to select and return for deleted record.
+	Select *{{ .Model.Name }}Select
+}
+
+func (a *{{ .Model.Name }}DeleteArgs) SetWhere(unique UniquePredicate[{{ .Model.Name }}]) *{{ .Model.Name }}DeleteArgs {
+	a.Where = unique
+	return a
+}
+
+// {{ .Model.Name }}DeleteManyArgs is the input argument passed to {{ .Model.Name }} DeleteMany extension hooks.
+type {{ .Model.Name }}DeleteManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[{{ .Model.Name }}]
+}
+
+func (a *{{ .Model.Name }}DeleteManyArgs) SetWhere(preds ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}DeleteManyArgs {
+	a.Where = preds
+	return a
+}
+
 type {{ .Model.Name }}CreateQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateArgs) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}CreateManyQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateManyArgs) (int64, error)
 type {{ .Model.Name }}CreateManyAndReturnQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateManyAndReturnArgs) ([]*{{ .Model.Name }}, error)
 type {{ .Model.Name }}FindUniqueQuery = func(ctx context.Context, args *{{ .Model.Name }}FindUniqueArgs) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}FindFirstQuery = func(ctx context.Context, args *{{ .Model.Name }}FindFirstArgs) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}FindManyQuery = func(ctx context.Context, args *{{ .Model.Name }}FindManyArgs) ([]*{{ .Model.Name }}, error)
-type {{ .Model.Name }}DeleteManyQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}]) (int64, error)
-type {{ .Model.Name }}DeleteQuery = func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
+type {{ .Model.Name }}DeleteQuery = func(ctx context.Context, args *{{ .Model.Name }}DeleteArgs) (*{{ .Model.Name }}, error)
+type {{ .Model.Name }}DeleteManyQuery = func(ctx context.Context, args *{{ .Model.Name }}DeleteManyArgs) (int64, error)
 type {{ .Model.Name }}CountQuery = func(ctx context.Context, args *{{ .Model.Name }}CountArgs) (int64, error)
 type {{ .Model.Name }}UpdateQuery = func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}UpdateManyQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment) (int64, error)
@@ -394,8 +420,8 @@ type {{ .Model.Name }}Extension struct {
 	FindUnique          func(ctx context.Context, args *{{ .Model.Name }}FindUniqueArgs, next {{ .Model.Name }}FindUniqueQuery) (*{{ .Model.Name }}, error)
 	FindFirst           func(ctx context.Context, args *{{ .Model.Name }}FindFirstArgs, next {{ .Model.Name }}FindFirstQuery) (*{{ .Model.Name }}, error)
 	FindMany            func(ctx context.Context, args *{{ .Model.Name }}FindManyArgs, next {{ .Model.Name }}FindManyQuery) ([]*{{ .Model.Name }}, error)
-	DeleteMany          func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], next {{ .Model.Name }}DeleteManyQuery) (int64, error)
-	Delete              func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}DeleteQuery) (*{{ .Model.Name }}, error)
+	Delete              func(ctx context.Context, args *{{ .Model.Name }}DeleteArgs, next {{ .Model.Name }}DeleteQuery) (*{{ .Model.Name }}, error)
+	DeleteMany          func(ctx context.Context, args *{{ .Model.Name }}DeleteManyArgs, next {{ .Model.Name }}DeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *{{ .Model.Name }}CountArgs, next {{ .Model.Name }}CountQuery) (int64, error)
 	Update              func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}UpdateQuery) (*{{ .Model.Name }}, error)
 	UpdateMany          func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, next {{ .Model.Name }}UpdateManyQuery) (int64, error)

@@ -88,18 +88,20 @@ type DefaultsTestSelect struct {
 	Now        bool `json:"now"`
 }
 
+var fullDefaultsTestSelectVal = &DefaultsTestSelect{
+	Uuid4:      true,
+	Uuid7:      true,
+	UuidNoArgs: true,
+	Cuid1:      true,
+	Cuid2:      true,
+	CuidNoArgs: true,
+	Ulid:       true,
+	Nanoid:     true,
+	Now:        true,
+}
+
 func fullDefaultsTestSelect() *DefaultsTestSelect {
-	return &DefaultsTestSelect{
-		Uuid4:      true,
-		Uuid7:      true,
-		UuidNoArgs: true,
-		Cuid1:      true,
-		Cuid2:      true,
-		CuidNoArgs: true,
-		Ulid:       true,
-		Nanoid:     true,
-		Now:        true,
-	}
+	return fullDefaultsTestSelectVal
 }
 
 func (s *DefaultsTestSelect) hasAnyScalar() bool {
@@ -386,14 +388,38 @@ func (a *DefaultsTestCountArgs) SetTake(n int) *DefaultsTestCountArgs {
 	return a
 }
 
+// DefaultsTestDeleteArgs is the input argument passed to DefaultsTest Delete extension hooks.
+type DefaultsTestDeleteArgs struct {
+	// Where is the unique predicate defining the target record.
+	Where UniquePredicate[DefaultsTest]
+	// Select specifies which scalar and relation fields to select and return for deleted record.
+	Select *DefaultsTestSelect
+}
+
+func (a *DefaultsTestDeleteArgs) SetWhere(unique UniquePredicate[DefaultsTest]) *DefaultsTestDeleteArgs {
+	a.Where = unique
+	return a
+}
+
+// DefaultsTestDeleteManyArgs is the input argument passed to DefaultsTest DeleteMany extension hooks.
+type DefaultsTestDeleteManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[DefaultsTest]
+}
+
+func (a *DefaultsTestDeleteManyArgs) SetWhere(preds ...PredicateOf[DefaultsTest]) *DefaultsTestDeleteManyArgs {
+	a.Where = preds
+	return a
+}
+
 type DefaultsTestCreateQuery = func(ctx context.Context, args *DefaultsTestCreateArgs) (*DefaultsTest, error)
 type DefaultsTestCreateManyQuery = func(ctx context.Context, args *DefaultsTestCreateManyArgs) (int64, error)
 type DefaultsTestCreateManyAndReturnQuery = func(ctx context.Context, args *DefaultsTestCreateManyAndReturnArgs) ([]*DefaultsTest, error)
 type DefaultsTestFindUniqueQuery = func(ctx context.Context, args *DefaultsTestFindUniqueArgs) (*DefaultsTest, error)
 type DefaultsTestFindFirstQuery = func(ctx context.Context, args *DefaultsTestFindFirstArgs) (*DefaultsTest, error)
 type DefaultsTestFindManyQuery = func(ctx context.Context, args *DefaultsTestFindManyArgs) ([]*DefaultsTest, error)
-type DefaultsTestDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[DefaultsTest]) (int64, error)
-type DefaultsTestDeleteQuery = func(ctx context.Context, where UniquePredicate[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error)
+type DefaultsTestDeleteQuery = func(ctx context.Context, args *DefaultsTestDeleteArgs) (*DefaultsTest, error)
+type DefaultsTestDeleteManyQuery = func(ctx context.Context, args *DefaultsTestDeleteManyArgs) (int64, error)
 type DefaultsTestCountQuery = func(ctx context.Context, args *DefaultsTestCountArgs) (int64, error)
 type DefaultsTestUpdateQuery = func(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error)
 type DefaultsTestUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment) (int64, error)
@@ -406,8 +432,8 @@ type DefaultsTestExtension struct {
 	FindUnique          func(ctx context.Context, args *DefaultsTestFindUniqueArgs, next DefaultsTestFindUniqueQuery) (*DefaultsTest, error)
 	FindFirst           func(ctx context.Context, args *DefaultsTestFindFirstArgs, next DefaultsTestFindFirstQuery) (*DefaultsTest, error)
 	FindMany            func(ctx context.Context, args *DefaultsTestFindManyArgs, next DefaultsTestFindManyQuery) ([]*DefaultsTest, error)
-	DeleteMany          func(ctx context.Context, preds []PredicateOf[DefaultsTest], next DefaultsTestDeleteManyQuery) (int64, error)
-	Delete              func(ctx context.Context, where UniquePredicate[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestDeleteQuery) (*DefaultsTest, error)
+	Delete              func(ctx context.Context, args *DefaultsTestDeleteArgs, next DefaultsTestDeleteQuery) (*DefaultsTest, error)
+	DeleteMany          func(ctx context.Context, args *DefaultsTestDeleteManyArgs, next DefaultsTestDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *DefaultsTestCountArgs, next DefaultsTestCountQuery) (int64, error)
 	Update              func(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestUpdateQuery) (*DefaultsTest, error)
 	UpdateMany          func(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, next DefaultsTestUpdateManyQuery) (int64, error)
@@ -823,7 +849,14 @@ func (d *DefaultsTestDelegate) executeCreate(ctx context.Context, assignments []
 		return res, nil
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Create != nil {
+			return ext.Create(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
 			curr = func(c context.Context, a *DefaultsTestCreateArgs) (*DefaultsTest, error) {
@@ -917,7 +950,14 @@ func (d *DefaultsTestDelegate) executeCreateMany(ctx context.Context, records []
 		return d.runCreateMany(c, a.Data, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateMany != nil {
+			return ext.CreateMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
 			curr = func(c context.Context, a *DefaultsTestCreateManyArgs) (int64, error) {
@@ -986,7 +1026,14 @@ func (d *DefaultsTestDelegate) executeCreateManyAndReturn(ctx context.Context, r
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateManyAndReturn != nil {
+			return ext.CreateManyAndReturn(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
 			curr = func(c context.Context, a *DefaultsTestCreateManyAndReturnArgs) ([]*DefaultsTest, error) {
@@ -1675,7 +1722,14 @@ func (d *DefaultsTestDelegate) executeUpdate(ctx context.Context, where UniquePr
 		return d.runUpdate(c, w, add, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Update != nil {
+			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
 			curr = func(c context.Context, w UniquePredicate[DefaultsTest], add []PredicateOf[DefaultsTest], a []FieldAssignment, s *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
@@ -1800,7 +1854,14 @@ func (d *DefaultsTestDelegate) executeUpdateMany(ctx context.Context, preds []Pr
 		return d.execUpdateStmt(c, p, a)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateMany != nil {
+			return ext.UpdateMany(ctx, preds, assignments, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
 			curr = func(c context.Context, p []PredicateOf[DefaultsTest], a []FieldAssignment) (int64, error) {
@@ -1829,7 +1890,14 @@ func (d *DefaultsTestDelegate) executeUpdateManyAndReturn(ctx context.Context, p
 		return d.runUpdateManyAndReturn(c, p, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
+			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
 			curr = func(c context.Context, p []PredicateOf[DefaultsTest], a []FieldAssignment, s *DefaultsTestSelect, o *DefaultsTestOmit) ([]*DefaultsTest, error) {
@@ -1957,7 +2025,14 @@ func (d *DefaultsTestDelegate) executeFindUnique(ctx context.Context, where Uniq
 		return d.runFindUnique(c, a.Where, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindUnique != nil {
+			return ext.FindUnique(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
 			curr = func(c context.Context, a *DefaultsTestFindUniqueArgs) (*DefaultsTest, error) {
@@ -2002,7 +2077,14 @@ func (d *DefaultsTestDelegate) executeFindFirst(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindFirst != nil {
+			return ext.FindFirst(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
 			curr = func(c context.Context, a *DefaultsTestFindFirstArgs) (*DefaultsTest, error) {
@@ -2047,7 +2129,14 @@ func (d *DefaultsTestDelegate) executeFindMany(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindMany != nil {
+			return ext.FindMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
 			curr = func(c context.Context, a *DefaultsTestFindManyArgs) ([]*DefaultsTest, error) {
@@ -2221,20 +2310,31 @@ func (d *DefaultsTestDelegate) executeDeleteMany(ctx context.Context, preds []Pr
 		return d.runDeleteMany(ctx, preds)
 	}
 
-	curr := func(c context.Context, p []PredicateOf[DefaultsTest]) (int64, error) {
-		return d.runDeleteMany(c, p)
+	args := &DefaultsTestDeleteManyArgs{
+		Where: preds,
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	curr := func(c context.Context, a *DefaultsTestDeleteManyArgs) (int64, error) {
+		return d.runDeleteMany(c, a.Where)
+	}
+
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.DeleteMany != nil {
+			return ext.DeleteMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.DeleteMany != nil {
 			next, hook := curr, ext.DeleteMany
-			curr = func(c context.Context, p []PredicateOf[DefaultsTest]) (int64, error) {
-				return hook(c, p, next)
+			curr = func(c context.Context, a *DefaultsTestDeleteManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds)
+	return curr(ctx, args)
 }
 
 func (d *DefaultsTestDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[DefaultsTest]) (int64, error) {
@@ -2279,20 +2379,32 @@ func (d *DefaultsTestDelegate) executeDelete(ctx context.Context, where UniquePr
 		selects = fullDefaultsTestSelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[DefaultsTest], s *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
-		return d.runDelete(c, w, s, o)
+	args := &DefaultsTestDeleteArgs{
+		Where:  where,
+		Select: selects,
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	curr := func(c context.Context, a *DefaultsTestDeleteArgs) (*DefaultsTest, error) {
+		return d.runDelete(c, a.Where, a.Select, omits)
+	}
+
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Delete != nil {
+			return ext.Delete(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Delete != nil {
 			next, hook := curr, ext.Delete
-			curr = func(c context.Context, w UniquePredicate[DefaultsTest], s *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
-				return hook(c, w, s, o, next)
+			curr = func(c context.Context, a *DefaultsTestDeleteArgs) (*DefaultsTest, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *DefaultsTestDelegate) runDelete(ctx context.Context, where UniquePredicate[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
@@ -2309,7 +2421,7 @@ func (d *DefaultsTestDelegate) runDelete(ctx context.Context, where UniquePredic
 		var res *DefaultsTest
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.DefaultsTest.executeFindUnique(ctx, where, nil, selects, omits)
+			res, err = txQ.DefaultsTest.runFindUnique(ctx, []PredicateOf[DefaultsTest]{where}, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -2411,7 +2523,14 @@ func (d *DefaultsTestDelegate) executeCount(ctx context.Context, params QueryPar
 		})
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Count != nil {
+			return ext.Count(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Count != nil {
 			next, hook := curr, ext.Count
 			curr = func(c context.Context, a *DefaultsTestCountArgs) (int64, error) {

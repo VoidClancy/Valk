@@ -241,6 +241,19 @@ func inconsistency() {
 			args.Select.Posts = post.Query()
 			return next(ctx, args)
 		},
+
+		// --- DELETE HOOK ---
+		Delete: func(ctx context.Context, args *valk.UserDeleteArgs, next valk.UserDeleteQuery) (*valk.User, error) {
+			args.SetWhere(user.Email.EQ("delete@example.com"))
+			args.Select.Posts = post.Query()
+			return next(ctx, args)
+		},
+
+		// --- DELETE MANY HOOK ---
+		DeleteMany: func(ctx context.Context, args *valk.UserDeleteManyArgs, next valk.UserDeleteManyQuery) (int64, error) {
+			args.SetWhere(user.LoginCount.EQ(0))
+			return next(ctx, args)
+		},
 	})
 
 	// =========================================================================
@@ -290,6 +303,15 @@ func inconsistency() {
 	).Select(user.Select{
 		Posts: post.Query(),
 	})
+
+	// Top-level Delete
+	db.User.Delete(user.Email.EQ("del@example.com")).
+		Select(user.Select{
+			Posts: post.Query(),
+		})
+
+	// Top-level DeleteMany
+	db.User.DeleteMany(user.LoginCount.EQ(0))
 }
 
 func seed(db *valk.DB, ctx context.Context) *SeedData {

@@ -2,10 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -449,95 +446,18 @@ func benchGORMUpsertWithDeepSelect(b *testing.B) {
 	}
 }
 
-func benchGORMHooksCreate(b *testing.B) {
+func benchGORMDelete(b *testing.B) {
 	db := openGORM(b)
-	db.Callback().Create().Before("gorm:create").Register("bench_hook_create", func(tx *gorm.DB) {
-		if u, ok := tx.Statement.Dest.(*UserGORM); ok {
-			u.Email = strings.ToLower(u.Email)
-			if u.Password != nil {
-				hash := sha256.Sum256([]byte(*u.Password))
-				hexStr := hex.EncodeToString(hash[:])
-				u.Password = &hexStr
-			}
-		}
-	})
-	ctx := context.Background()
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		pwd := "mypassword"
-		u := UserGORM{
-			Id:       fmt.Sprintf("gorm-c-hook-%d", i),
-			Email:    fmt.Sprintf("Gorm-C-Hook-%d@Example.com", i),
-			PhoneNum: fmt.Sprintf("gorm-c-hook-phone-%d", i),
-			Password: &pwd,
-			Role:     "STUDENT",
-		}
-		if err := db.WithContext(ctx).Create(&u).Error; err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchGORMHooksUpdate(b *testing.B) {
-	db := openGORM(b)
-	db.Callback().Update().Before("gorm:update").Register("bench_hook_update", func(tx *gorm.DB) {
-		if u, ok := tx.Statement.Dest.(*UserGORM); ok && u.Email != "" {
-			u.Email = strings.ToLower(u.Email)
-		}
-	})
-	ctx := context.Background()
-
 	sqlDB, _ := db.DB()
-	seedData(sqlDB, "gorm-u-hook")
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		u := UserGORM{
-			Email: fmt.Sprintf("NEW-GORM-U-HOOK-%d@EXAMPLE.COM", i),
-		}
-		if err := db.WithContext(ctx).Model(&UserGORM{}).Where("id = ?", fmt.Sprintf("gorm-u-hook-id-%d", i%seedCount)).Updates(&u).Error; err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchGORMHooksFindUnique(b *testing.B) {
-	db := openGORM(b)
-	db.Callback().Query().After("gorm:query").Register("bench_hook_find", func(tx *gorm.DB) {
-		if u, ok := tx.Statement.Dest.(*UserGORM); ok {
-			u.Email += "-read"
-		}
-	})
+	defer sqlDB.Close()
 	ctx := context.Background()
 
-	sqlDB, _ := db.DB()
-	seedData(sqlDB, "gorm-f-hook")
-
-	b.ResetTimer()
-	for i := 0; b.Loop(); i++ {
-		var fetched UserGORM
-		if err := db.WithContext(ctx).Where("id = ?", fmt.Sprintf("gorm-f-hook-id-%d", i%seedCount)).First(&fetched).Error; err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchGORMHooksDelete(b *testing.B) {
-	db := openGORM(b)
-	db.Callback().Delete().Before("gorm:delete").Register("bench_hook_delete", func(tx *gorm.DB) {
-		if u, ok := tx.Statement.Dest.(*UserGORM); ok {
-			u.Id = strings.ToUpper(u.Id)
-		}
-	})
-	ctx := context.Background()
-
-	sqlDB, _ := db.DB()
 	seedDeleteData(sqlDB, "gorm", 50000)
 
 	b.ResetTimer()
 	for i := 0; b.Loop(); i++ {
-		if err := db.WithContext(ctx).Where("id = ?", fmt.Sprintf("gorm-d-hook-%d", i)).Delete(&UserGORM{Id: fmt.Sprintf("gorm-d-hook-%d", i)}).Error; err != nil {
+		var user UserGORM
+		if err := db.WithContext(ctx).Clauses(clause.Returning{}).Where("id = ?", fmt.Sprintf("gorm-d-hook-%d", i)).Delete(&user).Error; err != nil {
 			b.Fatal(err)
 		}
 	}

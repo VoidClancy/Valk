@@ -347,7 +347,14 @@ func (d *{{ .Model.Name }}Delegate) executeCreate(ctx context.Context, assignmen
 		return res, nil
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Create != nil {
+			return ext.Create(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
 			curr = func(c context.Context, a *{{ .Model.Name }}CreateArgs) (*{{ .Model.Name }}, error) {
@@ -441,7 +448,14 @@ func (d *{{ .Model.Name }}Delegate) executeCreateMany(ctx context.Context, recor
 		return d.runCreateMany(c, a.Data, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateMany != nil {
+			return ext.CreateMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
 			curr = func(c context.Context, a *{{ .Model.Name }}CreateManyArgs) (int64, error) {
@@ -510,7 +524,14 @@ func (d *{{ .Model.Name }}Delegate) executeCreateManyAndReturn(ctx context.Conte
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateManyAndReturn != nil {
+			return ext.CreateManyAndReturn(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
 			curr = func(c context.Context, a *{{ .Model.Name }}CreateManyAndReturnArgs) ([]*{{ .Model.Name }}, error) {
