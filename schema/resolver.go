@@ -571,7 +571,13 @@ func (r *Resolver) resolveModelAttributes() {
 					m.TableName = a.Args[0].Value.Scalar
 				}
 			case "id":
-				m.CompositePK = r.resolveFieldNameList(m, a, "@@id")
+				fields, name := r.resolveFieldNameListWithName(m, a, "@@id")
+				if fields != nil {
+					m.CompositePK = &CompositePK{
+						Fields: fields,
+						Name:   name,
+					}
+				}
 			case "unique":
 				fields, name := r.resolveFieldNameListWithName(m, a, "@@unique")
 				if fields != nil {
@@ -596,14 +602,6 @@ func (r *Resolver) resolveModelAttributes() {
 			}
 		}
 	}
-}
-
-func (r *Resolver) resolveFieldNameList(m *Model, a Attribute, attrLabel string) []string {
-	if len(a.Args) == 0 || a.Args[0].Value.Type != ValArray {
-		r.errorf(a.Line, a.Col, "%s expects an array of field names", attrLabel)
-		return nil
-	}
-	return r.fieldNamesFromArray(m, a.Args[0].Value, a.Line, a.Col)
 }
 
 func (r *Resolver) resolveFieldNameListWithName(m *Model, a Attribute, attrLabel string) ([]string, string) {
