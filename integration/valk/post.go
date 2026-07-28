@@ -77,14 +77,16 @@ type PostSelect struct {
 	Categories CategoryToPostSelectQuery `json:"categories,omitempty"`
 }
 
+var fullPostSelectVal = &PostSelect{
+	Id:        true,
+	Title:     true,
+	Content:   true,
+	Published: true,
+	AuthorId:  true,
+}
+
 func fullPostSelect() *PostSelect {
-	return &PostSelect{
-		Id:        true,
-		Title:     true,
-		Content:   true,
-		Published: true,
-		AuthorId:  true,
-	}
+	return fullPostSelectVal
 }
 
 func (s *PostSelect) hasAnyScalar() bool {
@@ -367,14 +369,38 @@ func (a *PostCountArgs) SetTake(n int) *PostCountArgs {
 	return a
 }
 
+// PostDeleteArgs is the input argument passed to Post Delete extension hooks.
+type PostDeleteArgs struct {
+	// Where is the unique predicate defining the target record.
+	Where UniquePredicate[Post]
+	// Select specifies which scalar and relation fields to select and return for deleted record.
+	Select *PostSelect
+}
+
+func (a *PostDeleteArgs) SetWhere(unique UniquePredicate[Post]) *PostDeleteArgs {
+	a.Where = unique
+	return a
+}
+
+// PostDeleteManyArgs is the input argument passed to Post DeleteMany extension hooks.
+type PostDeleteManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Post]
+}
+
+func (a *PostDeleteManyArgs) SetWhere(preds ...PredicateOf[Post]) *PostDeleteManyArgs {
+	a.Where = preds
+	return a
+}
+
 type PostCreateQuery = func(ctx context.Context, args *PostCreateArgs) (*Post, error)
 type PostCreateManyQuery = func(ctx context.Context, args *PostCreateManyArgs) (int64, error)
 type PostCreateManyAndReturnQuery = func(ctx context.Context, args *PostCreateManyAndReturnArgs) ([]*Post, error)
 type PostFindUniqueQuery = func(ctx context.Context, args *PostFindUniqueArgs) (*Post, error)
 type PostFindFirstQuery = func(ctx context.Context, args *PostFindFirstArgs) (*Post, error)
 type PostFindManyQuery = func(ctx context.Context, args *PostFindManyArgs) ([]*Post, error)
-type PostDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Post]) (int64, error)
-type PostDeleteQuery = func(ctx context.Context, where UniquePredicate[Post], selects *PostSelect, omits *PostOmit) (*Post, error)
+type PostDeleteQuery = func(ctx context.Context, args *PostDeleteArgs) (*Post, error)
+type PostDeleteManyQuery = func(ctx context.Context, args *PostDeleteManyArgs) (int64, error)
 type PostCountQuery = func(ctx context.Context, args *PostCountArgs) (int64, error)
 type PostUpdateQuery = func(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error)
 type PostUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment) (int64, error)
@@ -387,8 +413,8 @@ type PostExtension struct {
 	FindUnique          func(ctx context.Context, args *PostFindUniqueArgs, next PostFindUniqueQuery) (*Post, error)
 	FindFirst           func(ctx context.Context, args *PostFindFirstArgs, next PostFindFirstQuery) (*Post, error)
 	FindMany            func(ctx context.Context, args *PostFindManyArgs, next PostFindManyQuery) ([]*Post, error)
-	DeleteMany          func(ctx context.Context, preds []PredicateOf[Post], next PostDeleteManyQuery) (int64, error)
-	Delete              func(ctx context.Context, where UniquePredicate[Post], selects *PostSelect, omits *PostOmit, next PostDeleteQuery) (*Post, error)
+	Delete              func(ctx context.Context, args *PostDeleteArgs, next PostDeleteQuery) (*Post, error)
+	DeleteMany          func(ctx context.Context, args *PostDeleteManyArgs, next PostDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *PostCountArgs, next PostCountQuery) (int64, error)
 	Update              func(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit, next PostUpdateQuery) (*Post, error)
 	UpdateMany          func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, next PostUpdateManyQuery) (int64, error)
@@ -706,7 +732,14 @@ func (d *PostDelegate) executeCreate(ctx context.Context, assignments []FieldAss
 		return res, nil
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Create != nil {
+			return ext.Create(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
 			curr = func(c context.Context, a *PostCreateArgs) (*Post, error) {
@@ -800,7 +833,14 @@ func (d *PostDelegate) executeCreateMany(ctx context.Context, records []RecordIn
 		return d.runCreateMany(c, a.Data, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateMany != nil {
+			return ext.CreateMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
 			curr = func(c context.Context, a *PostCreateManyArgs) (int64, error) {
@@ -869,7 +909,14 @@ func (d *PostDelegate) executeCreateManyAndReturn(ctx context.Context, records [
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateManyAndReturn != nil {
+			return ext.CreateManyAndReturn(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
 			curr = func(c context.Context, a *PostCreateManyAndReturnArgs) ([]*Post, error) {
@@ -1462,7 +1509,14 @@ func (d *PostDelegate) executeUpdate(ctx context.Context, where UniquePredicate[
 		return d.runUpdate(c, w, add, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Update != nil {
+			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
 			curr = func(c context.Context, w UniquePredicate[Post], add []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) (*Post, error) {
@@ -1587,7 +1641,14 @@ func (d *PostDelegate) executeUpdateMany(ctx context.Context, preds []PredicateO
 		return d.execUpdateStmt(c, p, a)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateMany != nil {
+			return ext.UpdateMany(ctx, preds, assignments, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
 			curr = func(c context.Context, p []PredicateOf[Post], a []FieldAssignment) (int64, error) {
@@ -1616,7 +1677,14 @@ func (d *PostDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []P
 		return d.runUpdateManyAndReturn(c, p, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
+			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
 			curr = func(c context.Context, p []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) ([]*Post, error) {
@@ -1744,7 +1812,14 @@ func (d *PostDelegate) executeFindUnique(ctx context.Context, where UniquePredic
 		return d.runFindUnique(c, a.Where, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindUnique != nil {
+			return ext.FindUnique(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
 			curr = func(c context.Context, a *PostFindUniqueArgs) (*Post, error) {
@@ -1789,7 +1864,14 @@ func (d *PostDelegate) executeFindFirst(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindFirst != nil {
+			return ext.FindFirst(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
 			curr = func(c context.Context, a *PostFindFirstArgs) (*Post, error) {
@@ -1834,7 +1916,14 @@ func (d *PostDelegate) executeFindMany(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindMany != nil {
+			return ext.FindMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
 			curr = func(c context.Context, a *PostFindManyArgs) ([]*Post, error) {
@@ -2008,20 +2097,31 @@ func (d *PostDelegate) executeDeleteMany(ctx context.Context, preds []PredicateO
 		return d.runDeleteMany(ctx, preds)
 	}
 
-	curr := func(c context.Context, p []PredicateOf[Post]) (int64, error) {
-		return d.runDeleteMany(c, p)
+	args := &PostDeleteManyArgs{
+		Where: preds,
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	curr := func(c context.Context, a *PostDeleteManyArgs) (int64, error) {
+		return d.runDeleteMany(c, a.Where)
+	}
+
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.DeleteMany != nil {
+			return ext.DeleteMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.DeleteMany != nil {
 			next, hook := curr, ext.DeleteMany
-			curr = func(c context.Context, p []PredicateOf[Post]) (int64, error) {
-				return hook(c, p, next)
+			curr = func(c context.Context, a *PostDeleteManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds)
+	return curr(ctx, args)
 }
 
 func (d *PostDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[Post]) (int64, error) {
@@ -2066,20 +2166,32 @@ func (d *PostDelegate) executeDelete(ctx context.Context, where UniquePredicate[
 		selects = fullPostSelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[Post], s *PostSelect, o *PostOmit) (*Post, error) {
-		return d.runDelete(c, w, s, o)
+	args := &PostDeleteArgs{
+		Where:  where,
+		Select: selects,
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	curr := func(c context.Context, a *PostDeleteArgs) (*Post, error) {
+		return d.runDelete(c, a.Where, a.Select, omits)
+	}
+
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Delete != nil {
+			return ext.Delete(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Delete != nil {
 			next, hook := curr, ext.Delete
-			curr = func(c context.Context, w UniquePredicate[Post], s *PostSelect, o *PostOmit) (*Post, error) {
-				return hook(c, w, s, o, next)
+			curr = func(c context.Context, a *PostDeleteArgs) (*Post, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *PostDelegate) runDelete(ctx context.Context, where UniquePredicate[Post], selects *PostSelect, omits *PostOmit) (*Post, error) {
@@ -2096,7 +2208,7 @@ func (d *PostDelegate) runDelete(ctx context.Context, where UniquePredicate[Post
 		var res *Post
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.Post.executeFindUnique(ctx, where, nil, selects, omits)
+			res, err = txQ.Post.runFindUnique(ctx, []PredicateOf[Post]{where}, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -2198,7 +2310,14 @@ func (d *PostDelegate) executeCount(ctx context.Context, params QueryParams[Post
 		})
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Count != nil {
+			return ext.Count(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Count != nil {
 			next, hook := curr, ext.Count
 			curr = func(c context.Context, a *PostCountArgs) (int64, error) {

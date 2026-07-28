@@ -64,13 +64,15 @@ type ProfileSelect struct {
 	User      *UserSelect `json:"user,omitempty"`
 }
 
+var fullProfileSelectVal = &ProfileSelect{
+	Id:        true,
+	Bio:       true,
+	UserId:    true,
+	CreatedAt: true,
+}
+
 func fullProfileSelect() *ProfileSelect {
-	return &ProfileSelect{
-		Id:        true,
-		Bio:       true,
-		UserId:    true,
-		CreatedAt: true,
-	}
+	return fullProfileSelectVal
 }
 
 func (s *ProfileSelect) hasAnyScalar() bool {
@@ -345,14 +347,38 @@ func (a *ProfileCountArgs) SetTake(n int) *ProfileCountArgs {
 	return a
 }
 
+// ProfileDeleteArgs is the input argument passed to Profile Delete extension hooks.
+type ProfileDeleteArgs struct {
+	// Where is the unique predicate defining the target record.
+	Where UniquePredicate[Profile]
+	// Select specifies which scalar and relation fields to select and return for deleted record.
+	Select *ProfileSelect
+}
+
+func (a *ProfileDeleteArgs) SetWhere(unique UniquePredicate[Profile]) *ProfileDeleteArgs {
+	a.Where = unique
+	return a
+}
+
+// ProfileDeleteManyArgs is the input argument passed to Profile DeleteMany extension hooks.
+type ProfileDeleteManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Profile]
+}
+
+func (a *ProfileDeleteManyArgs) SetWhere(preds ...PredicateOf[Profile]) *ProfileDeleteManyArgs {
+	a.Where = preds
+	return a
+}
+
 type ProfileCreateQuery = func(ctx context.Context, args *ProfileCreateArgs) (*Profile, error)
 type ProfileCreateManyQuery = func(ctx context.Context, args *ProfileCreateManyArgs) (int64, error)
 type ProfileCreateManyAndReturnQuery = func(ctx context.Context, args *ProfileCreateManyAndReturnArgs) ([]*Profile, error)
 type ProfileFindUniqueQuery = func(ctx context.Context, args *ProfileFindUniqueArgs) (*Profile, error)
 type ProfileFindFirstQuery = func(ctx context.Context, args *ProfileFindFirstArgs) (*Profile, error)
 type ProfileFindManyQuery = func(ctx context.Context, args *ProfileFindManyArgs) ([]*Profile, error)
-type ProfileDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[Profile]) (int64, error)
-type ProfileDeleteQuery = func(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
+type ProfileDeleteQuery = func(ctx context.Context, args *ProfileDeleteArgs) (*Profile, error)
+type ProfileDeleteManyQuery = func(ctx context.Context, args *ProfileDeleteManyArgs) (int64, error)
 type ProfileCountQuery = func(ctx context.Context, args *ProfileCountArgs) (int64, error)
 type ProfileUpdateQuery = func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
 type ProfileUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment) (int64, error)
@@ -365,8 +391,8 @@ type ProfileExtension struct {
 	FindUnique          func(ctx context.Context, args *ProfileFindUniqueArgs, next ProfileFindUniqueQuery) (*Profile, error)
 	FindFirst           func(ctx context.Context, args *ProfileFindFirstArgs, next ProfileFindFirstQuery) (*Profile, error)
 	FindMany            func(ctx context.Context, args *ProfileFindManyArgs, next ProfileFindManyQuery) ([]*Profile, error)
-	DeleteMany          func(ctx context.Context, preds []PredicateOf[Profile], next ProfileDeleteManyQuery) (int64, error)
-	Delete              func(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit, next ProfileDeleteQuery) (*Profile, error)
+	Delete              func(ctx context.Context, args *ProfileDeleteArgs, next ProfileDeleteQuery) (*Profile, error)
+	DeleteMany          func(ctx context.Context, args *ProfileDeleteManyArgs, next ProfileDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *ProfileCountArgs, next ProfileCountQuery) (int64, error)
 	Update              func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit, next ProfileUpdateQuery) (*Profile, error)
 	UpdateMany          func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, next ProfileUpdateManyQuery) (int64, error)
@@ -665,7 +691,14 @@ func (d *ProfileDelegate) executeCreate(ctx context.Context, assignments []Field
 		return res, nil
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Create != nil {
+			return ext.Create(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
 			curr = func(c context.Context, a *ProfileCreateArgs) (*Profile, error) {
@@ -759,7 +792,14 @@ func (d *ProfileDelegate) executeCreateMany(ctx context.Context, records []Recor
 		return d.runCreateMany(c, a.Data, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateMany != nil {
+			return ext.CreateMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
 			curr = func(c context.Context, a *ProfileCreateManyArgs) (int64, error) {
@@ -828,7 +868,14 @@ func (d *ProfileDelegate) executeCreateManyAndReturn(ctx context.Context, record
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateManyAndReturn != nil {
+			return ext.CreateManyAndReturn(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
 			curr = func(c context.Context, a *ProfileCreateManyAndReturnArgs) ([]*Profile, error) {
@@ -1403,7 +1450,14 @@ func (d *ProfileDelegate) executeUpdate(ctx context.Context, where UniquePredica
 		return d.runUpdate(c, w, add, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Update != nil {
+			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
 			curr = func(c context.Context, w UniquePredicate[Profile], add []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) (*Profile, error) {
@@ -1528,7 +1582,14 @@ func (d *ProfileDelegate) executeUpdateMany(ctx context.Context, preds []Predica
 		return d.execUpdateStmt(c, p, a)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateMany != nil {
+			return ext.UpdateMany(ctx, preds, assignments, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
 			curr = func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment) (int64, error) {
@@ -1557,7 +1618,14 @@ func (d *ProfileDelegate) executeUpdateManyAndReturn(ctx context.Context, preds 
 		return d.runUpdateManyAndReturn(c, p, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
+			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
 			curr = func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) ([]*Profile, error) {
@@ -1685,7 +1753,14 @@ func (d *ProfileDelegate) executeFindUnique(ctx context.Context, where UniquePre
 		return d.runFindUnique(c, a.Where, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindUnique != nil {
+			return ext.FindUnique(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
 			curr = func(c context.Context, a *ProfileFindUniqueArgs) (*Profile, error) {
@@ -1730,7 +1805,14 @@ func (d *ProfileDelegate) executeFindFirst(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindFirst != nil {
+			return ext.FindFirst(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
 			curr = func(c context.Context, a *ProfileFindFirstArgs) (*Profile, error) {
@@ -1775,7 +1857,14 @@ func (d *ProfileDelegate) executeFindMany(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindMany != nil {
+			return ext.FindMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
 			curr = func(c context.Context, a *ProfileFindManyArgs) ([]*Profile, error) {
@@ -1949,20 +2038,31 @@ func (d *ProfileDelegate) executeDeleteMany(ctx context.Context, preds []Predica
 		return d.runDeleteMany(ctx, preds)
 	}
 
-	curr := func(c context.Context, p []PredicateOf[Profile]) (int64, error) {
-		return d.runDeleteMany(c, p)
+	args := &ProfileDeleteManyArgs{
+		Where: preds,
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	curr := func(c context.Context, a *ProfileDeleteManyArgs) (int64, error) {
+		return d.runDeleteMany(c, a.Where)
+	}
+
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.DeleteMany != nil {
+			return ext.DeleteMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.DeleteMany != nil {
 			next, hook := curr, ext.DeleteMany
-			curr = func(c context.Context, p []PredicateOf[Profile]) (int64, error) {
-				return hook(c, p, next)
+			curr = func(c context.Context, a *ProfileDeleteManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds)
+	return curr(ctx, args)
 }
 
 func (d *ProfileDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[Profile]) (int64, error) {
@@ -2007,20 +2107,32 @@ func (d *ProfileDelegate) executeDelete(ctx context.Context, where UniquePredica
 		selects = fullProfileSelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[Profile], s *ProfileSelect, o *ProfileOmit) (*Profile, error) {
-		return d.runDelete(c, w, s, o)
+	args := &ProfileDeleteArgs{
+		Where:  where,
+		Select: selects,
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	curr := func(c context.Context, a *ProfileDeleteArgs) (*Profile, error) {
+		return d.runDelete(c, a.Where, a.Select, omits)
+	}
+
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Delete != nil {
+			return ext.Delete(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Delete != nil {
 			next, hook := curr, ext.Delete
-			curr = func(c context.Context, w UniquePredicate[Profile], s *ProfileSelect, o *ProfileOmit) (*Profile, error) {
-				return hook(c, w, s, o, next)
+			curr = func(c context.Context, a *ProfileDeleteArgs) (*Profile, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *ProfileDelegate) runDelete(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
@@ -2037,7 +2149,7 @@ func (d *ProfileDelegate) runDelete(ctx context.Context, where UniquePredicate[P
 		var res *Profile
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.Profile.executeFindUnique(ctx, where, nil, selects, omits)
+			res, err = txQ.Profile.runFindUnique(ctx, []PredicateOf[Profile]{where}, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -2139,7 +2251,14 @@ func (d *ProfileDelegate) executeCount(ctx context.Context, params QueryParams[P
 		})
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Count != nil {
+			return ext.Count(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Count != nil {
 			next, hook := curr, ext.Count
 			curr = func(c context.Context, a *ProfileCountArgs) (int64, error) {

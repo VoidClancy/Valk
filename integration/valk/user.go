@@ -107,17 +107,19 @@ type UserSelect struct {
 	Referrals    UserSelectQuery    `json:"referrals,omitempty"`
 }
 
+var fullUserSelectVal = &UserSelect{
+	Id:           true,
+	Email:        true,
+	PhoneNum:     true,
+	Password:     true,
+	Role:         true,
+	RoleOptional: true,
+	LoginCount:   true,
+	ReferredById: true,
+}
+
 func fullUserSelect() *UserSelect {
-	return &UserSelect{
-		Id:           true,
-		Email:        true,
-		PhoneNum:     true,
-		Password:     true,
-		Role:         true,
-		RoleOptional: true,
-		LoginCount:   true,
-		ReferredById: true,
-	}
+	return fullUserSelectVal
 }
 
 func (s *UserSelect) hasAnyScalar() bool {
@@ -416,14 +418,38 @@ func (a *UserCountArgs) SetTake(n int) *UserCountArgs {
 	return a
 }
 
+// UserDeleteArgs is the input argument passed to User Delete extension hooks.
+type UserDeleteArgs struct {
+	// Where is the unique predicate defining the target record.
+	Where UniquePredicate[User]
+	// Select specifies which scalar and relation fields to select and return for deleted record.
+	Select *UserSelect
+}
+
+func (a *UserDeleteArgs) SetWhere(unique UniquePredicate[User]) *UserDeleteArgs {
+	a.Where = unique
+	return a
+}
+
+// UserDeleteManyArgs is the input argument passed to User DeleteMany extension hooks.
+type UserDeleteManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[User]
+}
+
+func (a *UserDeleteManyArgs) SetWhere(preds ...PredicateOf[User]) *UserDeleteManyArgs {
+	a.Where = preds
+	return a
+}
+
 type UserCreateQuery = func(ctx context.Context, args *UserCreateArgs) (*User, error)
 type UserCreateManyQuery = func(ctx context.Context, args *UserCreateManyArgs) (int64, error)
 type UserCreateManyAndReturnQuery = func(ctx context.Context, args *UserCreateManyAndReturnArgs) ([]*User, error)
 type UserFindUniqueQuery = func(ctx context.Context, args *UserFindUniqueArgs) (*User, error)
 type UserFindFirstQuery = func(ctx context.Context, args *UserFindFirstArgs) (*User, error)
 type UserFindManyQuery = func(ctx context.Context, args *UserFindManyArgs) ([]*User, error)
-type UserDeleteManyQuery = func(ctx context.Context, preds []PredicateOf[User]) (int64, error)
-type UserDeleteQuery = func(ctx context.Context, where UniquePredicate[User], selects *UserSelect, omits *UserOmit) (*User, error)
+type UserDeleteQuery = func(ctx context.Context, args *UserDeleteArgs) (*User, error)
+type UserDeleteManyQuery = func(ctx context.Context, args *UserDeleteManyArgs) (int64, error)
 type UserCountQuery = func(ctx context.Context, args *UserCountArgs) (int64, error)
 type UserUpdateQuery = func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error)
 type UserUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment) (int64, error)
@@ -436,8 +462,8 @@ type UserExtension struct {
 	FindUnique          func(ctx context.Context, args *UserFindUniqueArgs, next UserFindUniqueQuery) (*User, error)
 	FindFirst           func(ctx context.Context, args *UserFindFirstArgs, next UserFindFirstQuery) (*User, error)
 	FindMany            func(ctx context.Context, args *UserFindManyArgs, next UserFindManyQuery) ([]*User, error)
-	DeleteMany          func(ctx context.Context, preds []PredicateOf[User], next UserDeleteManyQuery) (int64, error)
-	Delete              func(ctx context.Context, where UniquePredicate[User], selects *UserSelect, omits *UserOmit, next UserDeleteQuery) (*User, error)
+	Delete              func(ctx context.Context, args *UserDeleteArgs, next UserDeleteQuery) (*User, error)
+	DeleteMany          func(ctx context.Context, args *UserDeleteManyArgs, next UserDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *UserCountArgs, next UserCountQuery) (int64, error)
 	Update              func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit, next UserUpdateQuery) (*User, error)
 	UpdateMany          func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, next UserUpdateManyQuery) (int64, error)
@@ -825,7 +851,14 @@ func (d *UserDelegate) executeCreate(ctx context.Context, assignments []FieldAss
 		return res, nil
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Create != nil {
+			return ext.Create(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Create != nil {
 			next, hook := curr, ext.Create
 			curr = func(c context.Context, a *UserCreateArgs) (*User, error) {
@@ -919,7 +952,14 @@ func (d *UserDelegate) executeCreateMany(ctx context.Context, records []RecordIn
 		return d.runCreateMany(c, a.Data, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateMany != nil {
+			return ext.CreateMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateMany != nil {
 			next, hook := curr, ext.CreateMany
 			curr = func(c context.Context, a *UserCreateManyArgs) (int64, error) {
@@ -988,7 +1028,14 @@ func (d *UserDelegate) executeCreateManyAndReturn(ctx context.Context, records [
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.CreateManyAndReturn != nil {
+			return ext.CreateManyAndReturn(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.CreateManyAndReturn != nil {
 			next, hook := curr, ext.CreateManyAndReturn
 			curr = func(c context.Context, a *UserCreateManyAndReturnArgs) ([]*User, error) {
@@ -1650,7 +1697,14 @@ func (d *UserDelegate) executeUpdate(ctx context.Context, where UniquePredicate[
 		return d.runUpdate(c, w, add, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Update != nil {
+			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
 			curr = func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) (*User, error) {
@@ -1775,7 +1829,14 @@ func (d *UserDelegate) executeUpdateMany(ctx context.Context, preds []PredicateO
 		return d.execUpdateStmt(c, p, a)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateMany != nil {
+			return ext.UpdateMany(ctx, preds, assignments, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
 			curr = func(c context.Context, p []PredicateOf[User], a []FieldAssignment) (int64, error) {
@@ -1804,7 +1865,14 @@ func (d *UserDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []P
 		return d.runUpdateManyAndReturn(c, p, a, s, o)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
+			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
 			curr = func(c context.Context, p []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) ([]*User, error) {
@@ -1932,7 +2000,14 @@ func (d *UserDelegate) executeFindUnique(ctx context.Context, where UniquePredic
 		return d.runFindUnique(c, a.Where, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindUnique != nil {
+			return ext.FindUnique(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
 			curr = func(c context.Context, a *UserFindUniqueArgs) (*User, error) {
@@ -1977,7 +2052,14 @@ func (d *UserDelegate) executeFindFirst(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindFirst != nil {
+			return ext.FindFirst(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
 			curr = func(c context.Context, a *UserFindFirstArgs) (*User, error) {
@@ -2022,7 +2104,14 @@ func (d *UserDelegate) executeFindMany(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindMany != nil {
+			return ext.FindMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
 			curr = func(c context.Context, a *UserFindManyArgs) ([]*User, error) {
@@ -2196,20 +2285,31 @@ func (d *UserDelegate) executeDeleteMany(ctx context.Context, preds []PredicateO
 		return d.runDeleteMany(ctx, preds)
 	}
 
-	curr := func(c context.Context, p []PredicateOf[User]) (int64, error) {
-		return d.runDeleteMany(c, p)
+	args := &UserDeleteManyArgs{
+		Where: preds,
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	curr := func(c context.Context, a *UserDeleteManyArgs) (int64, error) {
+		return d.runDeleteMany(c, a.Where)
+	}
+
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.DeleteMany != nil {
+			return ext.DeleteMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.DeleteMany != nil {
 			next, hook := curr, ext.DeleteMany
-			curr = func(c context.Context, p []PredicateOf[User]) (int64, error) {
-				return hook(c, p, next)
+			curr = func(c context.Context, a *UserDeleteManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds)
+	return curr(ctx, args)
 }
 
 func (d *UserDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[User]) (int64, error) {
@@ -2254,20 +2354,32 @@ func (d *UserDelegate) executeDelete(ctx context.Context, where UniquePredicate[
 		selects = fullUserSelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[User], s *UserSelect, o *UserOmit) (*User, error) {
-		return d.runDelete(c, w, s, o)
+	args := &UserDeleteArgs{
+		Where:  where,
+		Select: selects,
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	curr := func(c context.Context, a *UserDeleteArgs) (*User, error) {
+		return d.runDelete(c, a.Where, a.Select, omits)
+	}
+
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Delete != nil {
+			return ext.Delete(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Delete != nil {
 			next, hook := curr, ext.Delete
-			curr = func(c context.Context, w UniquePredicate[User], s *UserSelect, o *UserOmit) (*User, error) {
-				return hook(c, w, s, o, next)
+			curr = func(c context.Context, a *UserDeleteArgs) (*User, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, selects, omits)
+	return curr(ctx, args)
 }
 
 func (d *UserDelegate) runDelete(ctx context.Context, where UniquePredicate[User], selects *UserSelect, omits *UserOmit) (*User, error) {
@@ -2284,7 +2396,7 @@ func (d *UserDelegate) runDelete(ctx context.Context, where UniquePredicate[User
 		var res *User
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.User.executeFindUnique(ctx, where, nil, selects, omits)
+			res, err = txQ.User.runFindUnique(ctx, []PredicateOf[User]{where}, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -2386,7 +2498,14 @@ func (d *UserDelegate) executeCount(ctx context.Context, params QueryParams[User
 		})
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Count != nil {
+			return ext.Count(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Count != nil {
 			next, hook := curr, ext.Count
 			curr = func(c context.Context, a *UserCountArgs) (int64, error) {
