@@ -24,7 +24,14 @@ func (d *{{ .Model.Name }}Delegate) executeCount(ctx context.Context, params Que
 		})
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Count != nil {
+			return ext.Count(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Count != nil {
 			next, hook := curr, ext.Count
 			curr = func(c context.Context, a *{{ .Model.Name }}CountArgs) (int64, error) {

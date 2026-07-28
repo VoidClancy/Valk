@@ -42,7 +42,14 @@ func (d *{{ .Model.Name }}Delegate) executeFindUnique(ctx context.Context, where
 		return d.runFindUnique(c, a.Where, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindUnique != nil {
+			return ext.FindUnique(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindUnique != nil {
 			next, hook := curr, ext.FindUnique
 			curr = func(c context.Context, a *{{ .Model.Name }}FindUniqueArgs) (*{{ .Model.Name }}, error) {
@@ -87,7 +94,14 @@ func (d *{{ .Model.Name }}Delegate) executeFindFirst(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindFirst != nil {
+			return ext.FindFirst(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindFirst != nil {
 			next, hook := curr, ext.FindFirst
 			curr = func(c context.Context, a *{{ .Model.Name }}FindFirstArgs) (*{{ .Model.Name }}, error) {
@@ -132,7 +146,14 @@ func (d *{{ .Model.Name }}Delegate) executeFindMany(
 		}, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.FindMany != nil {
+			return ext.FindMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.FindMany != nil {
 			next, hook := curr, ext.FindMany
 			curr = func(c context.Context, a *{{ .Model.Name }}FindManyArgs) ([]*{{ .Model.Name }}, error) {

@@ -92,12 +92,14 @@ type {{ .Model.Name }}Select struct {
 	{{- end }}
 }
 
+var full{{ .Model.Name }}SelectVal = &{{ .Model.Name }}Select{
+	{{- range $field := .Model.ScalarFields }}
+	{{ capitalize $field.Name }}: true,
+	{{- end }}
+}
+
 func full{{ .Model.Name }}Select() *{{ .Model.Name }}Select {
-	return &{{ .Model.Name }}Select{
-		{{- range $field := .Model.ScalarFields }}
-		{{ capitalize $field.Name }}: true,
-		{{- end }}
-	}
+	return full{{ .Model.Name }}SelectVal
 }
 
 func (s *{{ .Model.Name }}Select) hasAnyScalar() bool {

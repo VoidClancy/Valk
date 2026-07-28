@@ -18,7 +18,14 @@ func (d *{{ .Model.Name }}Delegate) executeDeleteMany(ctx context.Context, preds
 		return d.runDeleteMany(c, a.Where)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.DeleteMany != nil {
+			return ext.DeleteMany(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.DeleteMany != nil {
 			next, hook := curr, ext.DeleteMany
 			curr = func(c context.Context, a *{{ .Model.Name }}DeleteManyArgs) (int64, error) {
@@ -81,7 +88,14 @@ func (d *{{ .Model.Name }}Delegate) executeDelete(ctx context.Context, where Uni
 		return d.runDelete(c, a.Where, a.Select, omits)
 	}
 
-	for _, ext := range slices.Backward(d.extensions) {
+	if len(d.extensions) == 1 {
+		if ext := d.extensions[0]; ext.Delete != nil {
+			return ext.Delete(ctx, args, curr)
+		}
+	}
+
+	for i := len(d.extensions) - 1; i >= 0; i-- {
+		ext := d.extensions[i]
 		if ext.Delete != nil {
 			next, hook := curr, ext.Delete
 			curr = func(c context.Context, a *{{ .Model.Name }}DeleteArgs) (*{{ .Model.Name }}, error) {
