@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"integration/valk"
+	"integration/valk/allFieldsSoFar"
 	"integration/valk/user"
 )
 
@@ -512,5 +514,109 @@ func TestCreate_Hooks_PasswordHashing(t *testing.T) {
 
 	if *u.Password == rawPassword {
 		t.Errorf("expected Password to be hashed, got %q", *u.Password)
+	}
+}
+
+func baseAllFieldsValidation(t *testing.T) []valk.FieldAssignmentOf[valk.AllFieldsSoFar] {
+	t.Helper()
+	return []valk.FieldAssignmentOf[valk.AllFieldsSoFar]{
+		allFieldsSoFar.StringReq.Set("test"),
+		allFieldsSoFar.StringVarchar.Set("varchar"),
+		allFieldsSoFar.StringChar.Set("0123456789"),
+		allFieldsSoFar.BitVal.Set("1010101010"),
+		allFieldsSoFar.VarBitVal.Set("1101"),
+		allFieldsSoFar.InetVal.Set("10.0.0.1"),
+		allFieldsSoFar.XmlVal.Set("<x/>"),
+		allFieldsSoFar.UuidDb.Set("550e8400-e29b-41d4-a716-446655440000"),
+		allFieldsSoFar.IntReq.Set(1),
+		allFieldsSoFar.IntegerVal.Set(2),
+		allFieldsSoFar.SmallInt.Set(3),
+		allFieldsSoFar.TinyInt.Set(4),
+		allFieldsSoFar.OidVal.Set(5),
+		allFieldsSoFar.BigIntReq.Set(int64(6)),
+		allFieldsSoFar.FloatReq.Set(1.5),
+		allFieldsSoFar.RealVal.Set(2.5),
+		allFieldsSoFar.DecimalReq.Set("10.50"),
+		allFieldsSoFar.DecimalPrecise.Set("99.99"),
+		allFieldsSoFar.MoneyVal.Set("12.34"),
+		allFieldsSoFar.BoolReq.Set(true),
+		allFieldsSoFar.DateTimeReq.Set(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+		allFieldsSoFar.UpdatedAt.Set(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+		allFieldsSoFar.DateTimeTz.Set(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+		allFieldsSoFar.TimestampVal.Set(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+		allFieldsSoFar.TimeVal.Set(time.Date(1, 1, 1, 10, 30, 0, 0, time.UTC)),
+		allFieldsSoFar.TimetzVal.Set(time.Date(1, 1, 1, 10, 30, 0, 0, time.UTC)),
+		allFieldsSoFar.JsonReq.Set(json.RawMessage(`{}`)),
+		allFieldsSoFar.JsonVal.Set(json.RawMessage(`[]`)),
+		allFieldsSoFar.BytesReq.Set([]byte{0x01}),
+	}
+}
+
+func TestCreate_DecimalValidation(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	base := baseAllFieldsValidation(t)
+
+	_, err := db.AllFieldsSoFar.Create().
+		Assignments(base...).
+		SetDecimalReq("not-a-number").
+		Exec(ctx)
+
+	if err == nil {
+		t.Fatal("expected ValidationError for invalid decimal format 'not-a-number', got nil")
+	}
+
+	_, err = db.AllFieldsSoFar.Create().
+		Assignments(base...).
+		SetDecimalReq("12.34.56").
+		Exec(ctx)
+
+	if err == nil {
+		t.Fatal("expected ValidationError for invalid decimal format '12.34.56', got nil")
+	}
+
+	rec, err := db.AllFieldsSoFar.Create().
+		Assignments(base...).
+		SetDecimalReq("123.456789").
+		Exec(ctx)
+
+	if err != nil {
+		t.Fatalf("expected valid decimal creation to succeed, got: %v", err)
+	}
+
+	if rec.DecimalReq != "123.456789" {
+		t.Errorf("expected DecimalReq '123.456789', got %q", rec.DecimalReq)
+	}
+}
+
+func TestCreate_JsonValidation(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	base := baseAllFieldsValidation(t)
+
+	_, err := db.AllFieldsSoFar.Create().
+		Assignments(base...).
+		SetJsonReq(json.RawMessage("{invalid_json}")).
+		Exec(ctx)
+
+	if err == nil {
+		t.Fatal("expected ValidationError for malformed JSON, got nil")
+	}
+
+	rec, err := db.AllFieldsSoFar.Create().
+		Assignments(base...).
+		SetJsonReq(json.RawMessage(`{"key":"value"}`)).
+		Exec(ctx)
+
+	if err != nil {
+		t.Fatalf("expected valid JSON create to succeed, got: %v", err)
+	}
+
+	if len(rec.JsonReq) == 0 {
+		t.Error("expected JsonReq to be populated")
 	}
 }

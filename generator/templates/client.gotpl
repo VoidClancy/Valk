@@ -1091,12 +1091,14 @@ func unpackSlice(val any) []any {
 			res[i] = x
 		}
 		return res
+	{{- if hasTimeAnywhere .Schema }}
 	case []time.Time:
 		res := make([]any, len(v))
 		for i, x := range v {
 			res[i] = x
 		}
 		return res
+	{{- end }}
 	case [][]byte:
 		res := make([]any, len(v))
 		for i, x := range v {

@@ -122,7 +122,17 @@ func assignmentsTo{{ .Model.Name }}Create(assignments []FieldAssignment) ({{ .Mo
 				{{- if and $field.NativeType (eq $field.NativeType.Name "Inet") }}
 					{{- $isInet = true }}
 				{{- end }}
-				ValidateString(&errs, "{{ $field.Name }}", v, {{ $isRequired }}, {{ $maxLen }}, {{ $isBit }}, {{ $isInet }})
+				errs.ValidateString("{{ $field.Name }}", v, {{ $isRequired }}, {{ $maxLen }}, {{ $isBit }}, {{ $isInet }})
+				{{- if and $field.NativeType (eq $field.NativeType.Name "Uuid") }}
+				errs.ValidateUUID("{{ $field.Name }}", v)
+				{{- end }}
+				{{- $scale := "0" }}
+				{{- if and $field.NativeType (or (eq $field.NativeType.Name "Decimal") (eq $field.NativeType.Name "Numeric")) (gt (len $field.NativeType.Args) 1) }}
+					{{- $scale = index $field.NativeType.Args 1 }}
+				{{- end }}
+				{{- if or (eq $field.Type "Decimal") (ne $scale "0") }}
+				errs.ValidateDecimal("{{ $field.Name }}", v, {{ $scale }})
+				{{- end }}
 			} else {
 				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type string")
 			}
@@ -139,9 +149,35 @@ func assignmentsTo{{ .Model.Name }}Create(assignments []FieldAssignment) ({{ .Mo
 				{{- if and $field.NativeType (or (eq $field.NativeType.Name "SmallInt") (eq $field.NativeType.Name "TinyInt") (eq $field.NativeType.Name "Oid")) }}
 					{{- $rule = $field.NativeType.Name }}
 				{{- end }}
-				Validate{{ capitalize $coreType }}(&errs, "{{ $field.Name }}", v, "{{ $rule }}")
+				errs.Validate{{ capitalize $coreType }}("{{ $field.Name }}", v, "{{ $rule }}")
 			} else {
 				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ $coreType }}")
+			}
+			{{- else if eq $coreType "float64" }}
+			if v, ok := a.Val.(float64); ok {
+				{{- if $field.IsArray }}
+				input.{{ capitalize $field.Name }} = v
+				{{- else if $isPointer }}
+				input.{{ capitalize $field.Name }} = &v
+				{{- else }}
+				input.{{ capitalize $field.Name }} = v
+				{{- end }}
+				errs.ValidateFloat("{{ $field.Name }}", v)
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type float64")
+			}
+			{{- else if eq $coreType "json.RawMessage" }}
+			if v, ok := a.Val.(json.RawMessage); ok {
+				{{- if $field.IsArray }}
+				input.{{ capitalize $field.Name }} = v
+				{{- else if $isPointer }}
+				input.{{ capitalize $field.Name }} = &v
+				{{- else }}
+				input.{{ capitalize $field.Name }} = v
+				{{- end }}
+				errs.ValidateJson("{{ $field.Name }}", v)
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be valid JSON")
 			}
 			{{- else if ne $coreType "any" }}
 			if v, ok := a.Val.({{ $coreType }}); ok {

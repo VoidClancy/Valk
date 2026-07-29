@@ -81,7 +81,7 @@ CREATE TABLE "public"."AllFieldsSoFar" (
   "bytesReq" bytea NOT NULL,
   "bytesOpt" bytea NULL,
   "hstoreField" hstore NULL,
-  "ltreeField" ltree NOT NULL,
+  "ltreeField" ltree NULL,
   "citextField" citext NULL,
   PRIMARY KEY ("id")
 );

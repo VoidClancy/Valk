@@ -717,7 +717,7 @@ func TestNativeDefaults_Validation_RequiredFields(t *testing.T) {
 			"tinyInt", "oidVal", "bigIntReq", "floatReq", "realVal", "decimalReq",
 			"decimalPrecise", "moneyVal", "boolReq", "dateTimeReq", "updatedAt",
 			"dateTimeTz", "timestampVal", "timeVal", "timetzVal", "jsonReq",
-			"jsonVal", "bytesReq", "ltreeField"}
+			"jsonVal", "bytesReq"}
 
 		_, err := db.AllFieldsSoFar.Create().Exec(ctx)
 		if err == nil {
@@ -1387,8 +1387,8 @@ func TestNativeDefaults_FloatNanInf(t *testing.T) {
 				allFieldsSoFar.FloatReq.Set(math.NaN()),
 			)...,
 		).Exec(ctx)
-		if err != nil {
-			t.Fatalf("NaN create: %v", err)
+		if err == nil {
+			t.Fatal("expected NaN to be rejected, got nil error")
 		}
 	})
 
@@ -1398,8 +1398,8 @@ func TestNativeDefaults_FloatNanInf(t *testing.T) {
 				allFieldsSoFar.FloatReq.Set(math.Inf(1)),
 			)...,
 		).Exec(ctx)
-		if err != nil {
-			t.Fatalf("+Inf create: %v", err)
+		if err == nil {
+			t.Fatal("expected +Inf to be rejected, got nil error")
 		}
 	})
 
@@ -1409,8 +1409,8 @@ func TestNativeDefaults_FloatNanInf(t *testing.T) {
 				allFieldsSoFar.FloatReq.Set(math.Inf(-1)),
 			)...,
 		).Exec(ctx)
-		if err != nil {
-			t.Fatalf("-Inf create: %v", err)
+		if err == nil {
+			t.Fatal("expected -Inf to be rejected, got nil error")
 		}
 	})
 }
@@ -1529,12 +1529,16 @@ func baseAllFields(t *testing.T) []valk.FieldAssignmentOf[valk.AllFieldsSoFar] {
 		allFieldsSoFar.JsonReq.Set(json.RawMessage(`{}`)),
 		allFieldsSoFar.JsonVal.Set(json.RawMessage(`[]`)),
 		allFieldsSoFar.BytesReq.Set([]byte{0x01}),
-		allFieldsSoFar.LtreeField.Set("Top"),
 	}
 }
 
 func ltreeFieldStr(v any) string {
 	switch x := v.(type) {
+	case *string:
+		if x == nil {
+			return ""
+		}
+		return *x
 	case string:
 		return x
 	case []byte:
@@ -1542,7 +1546,7 @@ func ltreeFieldStr(v any) string {
 	case fmt.Stringer:
 		return x.String()
 	default:
-		return fmt.Sprintf("%s", v)
+		return fmt.Sprintf("%v", v)
 	}
 }
 
