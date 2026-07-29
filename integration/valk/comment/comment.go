@@ -54,6 +54,8 @@ var AuthorId = valk.StringField[valk.Comment]{Column: "authorId"}
 var Meta = valk.Field[valk.Comment, json.RawMessage]{Column: "meta"}
 
 type CreateInput = valk.CommentCreate
+type Create = valk.CommentCreate
+
 type CreateArgs = valk.CommentCreateArgs
 type CreateManyArgs = valk.CommentCreateManyArgs
 type CreateManyAndReturnArgs = valk.CommentCreateManyAndReturnArgs
@@ -82,6 +84,8 @@ type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk
 type CountArgs = valk.CommentCountArgs
 type CountQuery = valk.CommentCountQuery
 type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
+
+// type Update = valk.CommentUpdate
 
 type Extension = valk.CommentExtension
 

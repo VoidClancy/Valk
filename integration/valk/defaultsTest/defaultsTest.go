@@ -56,6 +56,8 @@ var Nanoid = valk.StringField[valk.DefaultsTest]{Column: "nanoid"}
 var Now = valk.Field[valk.DefaultsTest, time.Time]{Column: "now"}
 
 type CreateInput = valk.DefaultsTestCreate
+type Create = valk.DefaultsTestCreate
+
 type CreateArgs = valk.DefaultsTestCreateArgs
 type CreateManyArgs = valk.DefaultsTestCreateManyArgs
 type CreateManyAndReturnArgs = valk.DefaultsTestCreateManyAndReturnArgs
@@ -84,6 +86,8 @@ type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk
 type CountArgs = valk.DefaultsTestCountArgs
 type CountQuery = valk.DefaultsTestCountQuery
 type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
+
+// type Update = valk.DefaultsTestUpdate
 
 type Extension = valk.DefaultsTestExtension
 

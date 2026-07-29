@@ -47,6 +47,8 @@ var Published = valk.Field[valk.Post, bool]{Column: "published"}
 var AuthorId = valk.StringField[valk.Post]{Column: "authorId"}
 
 type CreateInput = valk.PostCreate
+type Create = valk.PostCreate
+
 type CreateArgs = valk.PostCreateArgs
 type CreateManyArgs = valk.PostCreateManyArgs
 type CreateManyAndReturnArgs = valk.PostCreateManyAndReturnArgs
@@ -75,6 +77,8 @@ type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk
 type CountArgs = valk.PostCountArgs
 type CountQuery = valk.PostCountQuery
 type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
+
+// type Update = valk.PostUpdate
 
 type Extension = valk.PostExtension
 

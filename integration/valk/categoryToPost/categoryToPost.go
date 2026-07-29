@@ -40,37 +40,41 @@ var PostId = valk.StringField[valk.CategoryToPost]{Column: "postId"}
 
 var CategoryId = valk.Field[valk.CategoryToPost, int32]{Column: "categoryId"}
 
-var PostIdCategoryId = valk.CompositeUniqueConstraint[valk.CategoryToPost]{
-	Name: "PostIdCategoryId",
-	Columns: []string{
-		"postId",
-		"categoryId",
+type postId_CategoryId struct {
+	valk.CompositeUniqueConstraint[valk.CategoryToPost]
+}
+
+var PostId_CategoryId = postId_CategoryId{
+	CompositeUniqueConstraint: valk.CompositeUniqueConstraint[valk.CategoryToPost]{
+		Name: "PostId_CategoryId",
+		Columns: []string{
+			"postId",
+			"categoryId",
+		},
 	},
 }
 
-// Helper for compound primary key: PostIdCategoryId
-func PostIdCategoryIdUnique(postId string, categoryId int32) valk.UniquePredicate[valk.CategoryToPost] {
+func (f postId_CategoryId) EQ(postId string, categoryId int32) valk.UniquePredicate[valk.CategoryToPost] {
 	return valk.UniquePredicate[valk.CategoryToPost]{
-		Data: valk.And(
-			valk.Predicate[valk.CategoryToPost]{
-				Data: valk.PredicateData{
-					Column:   "postId",
-					Operator: "=",
-					Value:    postId,
-				},
+		Data: valk.PredicateData{
+			Column:   "PostId_CategoryId",
+			Operator: "AND",
+			Value: map[string]any{
+				"postId":     postId,
+				"categoryId": categoryId,
 			},
-			valk.Predicate[valk.CategoryToPost]{
-				Data: valk.PredicateData{
-					Column:   "categoryId",
-					Operator: "=",
-					Value:    categoryId,
-				},
+			IsLogical: true,
+			Children: []valk.PredicateData{
+				{Column: "postId", Operator: "=", Value: postId},
+				{Column: "categoryId", Operator: "=", Value: categoryId},
 			},
-		).ToPredicateData(),
+		},
 	}
 }
 
 type CreateInput = valk.CategoryToPostCreate
+type Create = valk.CategoryToPostCreate
+
 type CreateArgs = valk.CategoryToPostCreateArgs
 type CreateManyArgs = valk.CategoryToPostCreateManyArgs
 type CreateManyAndReturnArgs = valk.CategoryToPostCreateManyAndReturnArgs
@@ -99,6 +103,8 @@ type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk
 type CountArgs = valk.CategoryToPostCountArgs
 type CountQuery = valk.CategoryToPostCountQuery
 type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
+
+// type Update = valk.CategoryToPostUpdate
 
 type Extension = valk.CategoryToPostExtension
 

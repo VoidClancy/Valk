@@ -3,6 +3,7 @@ package schema
 import (
 	"encoding/json"
 	"fmt"
+
 	providers "github.com/voidclancy/valk/dbProviders"
 )
 
@@ -84,7 +85,7 @@ type Model struct {
 	ScalarFields    []*ScalarField
 	RelationFields  []*RelationField
 	Attributes      []Attribute
-	CompositePK     []string
+	CompositePK     *CompositePK
 	CompositeUnique []UniqueConstraint
 	Indexes         []Index
 }
@@ -106,6 +107,11 @@ func (m *Model) GetField(name string) *ScalarField {
 }
 
 type UniqueConstraint struct {
+	Fields []string
+	Name   string
+}
+
+type CompositePK struct {
 	Fields []string
 	Name   string
 }

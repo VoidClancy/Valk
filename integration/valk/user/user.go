@@ -52,37 +52,41 @@ var LoginCount = valk.Field[valk.User, int32]{Column: "loginCount"}
 
 var ReferredById = valk.StringField[valk.User]{Column: "referredById"}
 
-var EmailPhone = valk.CompositeUniqueConstraint[valk.User]{
-	Name: "emailPhone",
-	Columns: []string{
-		"email",
-		"phoneNum",
+type emailPhone struct {
+	valk.CompositeUniqueConstraint[valk.User]
+}
+
+var EmailPhone = emailPhone{
+	CompositeUniqueConstraint: valk.CompositeUniqueConstraint[valk.User]{
+		Name: "emailPhone",
+		Columns: []string{
+			"email",
+			"phoneNum",
+		},
 	},
 }
 
-// Helper for compound unique constraint: emailPhone
-func EmailPhoneUnique(email string, phoneNum string) valk.UniquePredicate[valk.User] {
+func (f emailPhone) EQ(email string, phoneNum string) valk.UniquePredicate[valk.User] {
 	return valk.UniquePredicate[valk.User]{
-		Data: valk.And(
-			valk.Predicate[valk.User]{
-				Data: valk.PredicateData{
-					Column:   "email",
-					Operator: "=",
-					Value:    email,
-				},
+		Data: valk.PredicateData{
+			Column:   "emailPhone",
+			Operator: "AND",
+			Value: map[string]any{
+				"email":    email,
+				"phoneNum": phoneNum,
 			},
-			valk.Predicate[valk.User]{
-				Data: valk.PredicateData{
-					Column:   "phoneNum",
-					Operator: "=",
-					Value:    phoneNum,
-				},
+			IsLogical: true,
+			Children: []valk.PredicateData{
+				{Column: "email", Operator: "=", Value: email},
+				{Column: "phoneNum", Operator: "=", Value: phoneNum},
 			},
-		).ToPredicateData(),
+		},
 	}
 }
 
 type CreateInput = valk.UserCreate
+type Create = valk.UserCreate
+
 type CreateArgs = valk.UserCreateArgs
 type CreateManyArgs = valk.UserCreateManyArgs
 type CreateManyAndReturnArgs = valk.UserCreateManyAndReturnArgs
@@ -111,6 +115,8 @@ type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk
 type CountArgs = valk.UserCountArgs
 type CountQuery = valk.UserCountQuery
 type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
+
+// type Update = valk.UserUpdate
 
 type Extension = valk.UserExtension
 

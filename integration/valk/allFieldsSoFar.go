@@ -723,6 +723,17 @@ type AllFieldsSoFarCreateManyArgs struct {
 	ConflictAction *ConflictAction
 }
 
+func (a *AllFieldsSoFarCreateManyArgs) AppendData(builders ...*AllFieldsSoFarCreateBuilder) *AllFieldsSoFarCreateManyArgs {
+	for _, b := range builders {
+		input, err := assignmentsToAllFieldsSoFarCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
+}
+
 // AllFieldsSoFarCreateManyAndReturnArgs is the input argument passed to AllFieldsSoFar CreateManyAndReturn extension hooks.
 //
 // Fields for AllFieldsSoFar:
@@ -790,6 +801,17 @@ type AllFieldsSoFarCreateManyAndReturnArgs struct {
 	ConflictTarget UniqueConstraintTarget
 	// ConflictAction specifies the resolution action for ON CONFLICT clause.
 	ConflictAction *ConflictAction
+}
+
+func (a *AllFieldsSoFarCreateManyAndReturnArgs) AppendData(builders ...*AllFieldsSoFarCreateBuilder) *AllFieldsSoFarCreateManyAndReturnArgs {
+	for _, b := range builders {
+		input, err := assignmentsToAllFieldsSoFarCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
 }
 
 // AllFieldsSoFarFindUniqueArgs is the input argument passed to AllFieldsSoFar FindUnique extension hooks.
@@ -916,14 +938,16 @@ func (a *AllFieldsSoFarCountArgs) SetTake(n int) *AllFieldsSoFarCountArgs {
 
 // AllFieldsSoFarDeleteArgs is the input argument passed to AllFieldsSoFar Delete extension hooks.
 type AllFieldsSoFarDeleteArgs struct {
-	// Where is the unique predicate defining the target record.
-	Where UniquePredicate[AllFieldsSoFar]
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[AllFieldsSoFar]
 	// Select specifies which scalar and relation fields to select and return for deleted record.
 	Select *AllFieldsSoFarSelect
 }
 
-func (a *AllFieldsSoFarDeleteArgs) SetWhere(unique UniquePredicate[AllFieldsSoFar]) *AllFieldsSoFarDeleteArgs {
-	a.Where = unique
+func (a *AllFieldsSoFarDeleteArgs) SetWhere(unique UniquePredicate[AllFieldsSoFar], additional ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarDeleteArgs {
+	a.Where = make([]PredicateOf[AllFieldsSoFar], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
 	return a
 }
 
@@ -4766,16 +4790,21 @@ func (d *AllFieldsSoFarDelegate) runDeleteMany(ctx context.Context, preds []Pred
 	return result.RowsAffected()
 }
 
-func (d *AllFieldsSoFarDelegate) Delete(where UniquePredicate[AllFieldsSoFar]) *DeleteBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
+func (d *AllFieldsSoFarDelegate) Delete(where UniquePredicate[AllFieldsSoFar], additional ...PredicateOf[AllFieldsSoFar]) *DeleteBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit] {
 	return &DeleteBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
-		where:    where,
-		execFunc: d.executeDelete,
+		where:      where,
+		additional: additional,
+		execFunc:   d.executeDelete,
 	}
 }
 
-func (d *AllFieldsSoFarDelegate) executeDelete(ctx context.Context, where UniquePredicate[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+func (d *AllFieldsSoFarDelegate) executeDelete(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	allWhere := make([]PredicateOf[AllFieldsSoFar], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
 	if len(d.extensions) == 0 {
-		return d.runDelete(ctx, where, selects, omits)
+		return d.runDelete(ctx, allWhere, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -4783,7 +4812,7 @@ func (d *AllFieldsSoFarDelegate) executeDelete(ctx context.Context, where Unique
 	}
 
 	args := &AllFieldsSoFarDeleteArgs{
-		Where:  where,
+		Where:  allWhere,
 		Select: selects,
 	}
 
@@ -4810,9 +4839,13 @@ func (d *AllFieldsSoFarDelegate) executeDelete(ctx context.Context, where Unique
 	return curr(ctx, args)
 }
 
-func (d *AllFieldsSoFarDelegate) runDelete(ctx context.Context, where UniquePredicate[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+func (d *AllFieldsSoFarDelegate) runDelete(ctx context.Context, where []PredicateOf[AllFieldsSoFar], selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	returningCols := selectAllFieldsSoFarCols(selects, omits, allFieldsSoFarPKCols...)
@@ -4824,7 +4857,7 @@ func (d *AllFieldsSoFarDelegate) runDelete(ctx context.Context, where UniquePred
 		var res *AllFieldsSoFar
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.AllFieldsSoFar.runFindUnique(ctx, []PredicateOf[AllFieldsSoFar]{where}, selects, omits)
+			res, err = txQ.AllFieldsSoFar.runFindUnique(ctx, where, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -4867,7 +4900,7 @@ func (d *AllFieldsSoFarDelegate) runDelete(ctx context.Context, where UniquePred
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "AllFieldsSoFar")
 
-	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[AllFieldsSoFar]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, where)
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)

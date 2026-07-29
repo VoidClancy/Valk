@@ -229,6 +229,17 @@ type {{ .Model.Name }}CreateManyArgs struct {
 	ConflictAction *ConflictAction
 }
 
+func (a *{{ .Model.Name }}CreateManyArgs) AppendData(builders ...*{{ .Model.Name }}CreateBuilder) *{{ .Model.Name }}CreateManyArgs {
+	for _, b := range builders {
+		input, err := assignmentsTo{{ .Model.Name }}Create(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
+}
+
 // {{ .Model.Name }}CreateManyAndReturnArgs is the input argument passed to {{ .Model.Name }} CreateManyAndReturn extension hooks.
 //
 // Fields for {{ .Model.Name }}:
@@ -252,6 +263,17 @@ type {{ .Model.Name }}CreateManyAndReturnArgs struct {
 	ConflictTarget UniqueConstraintTarget
 	// ConflictAction specifies the resolution action for ON CONFLICT clause.
 	ConflictAction *ConflictAction
+}
+
+func (a *{{ .Model.Name }}CreateManyAndReturnArgs) AppendData(builders ...*{{ .Model.Name }}CreateBuilder) *{{ .Model.Name }}CreateManyAndReturnArgs {
+	for _, b := range builders {
+		input, err := assignmentsTo{{ .Model.Name }}Create(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
 }
 
 // {{ .Model.Name }}FindUniqueArgs is the input argument passed to {{ .Model.Name }} FindUnique extension hooks.
@@ -378,14 +400,16 @@ func (a *{{ .Model.Name }}CountArgs) SetTake(n int) *{{ .Model.Name }}CountArgs 
 
 // {{ .Model.Name }}DeleteArgs is the input argument passed to {{ .Model.Name }} Delete extension hooks.
 type {{ .Model.Name }}DeleteArgs struct {
-	// Where is the unique predicate defining the target record.
-	Where UniquePredicate[{{ .Model.Name }}]
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[{{ .Model.Name }}]
 	// Select specifies which scalar and relation fields to select and return for deleted record.
 	Select *{{ .Model.Name }}Select
 }
 
-func (a *{{ .Model.Name }}DeleteArgs) SetWhere(unique UniquePredicate[{{ .Model.Name }}]) *{{ .Model.Name }}DeleteArgs {
-	a.Where = unique
+func (a *{{ .Model.Name }}DeleteArgs) SetWhere(unique UniquePredicate[{{ .Model.Name }}], additional ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}DeleteArgs {
+	a.Where = make([]PredicateOf[{{ .Model.Name }}], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
 	return a
 }
 
@@ -462,7 +486,7 @@ var {{ lowercase .Model.Name }}DefaultCols = []string{
 
 var {{ lowercase .Model.Name }}PKCols = []string{
 	{{- if .Model.CompositePK }}
-		{{- range $col := .Model.CompositePK }}
+		{{- range $col := .Model.CompositePK.Fields }}
 	"{{ $col }}",
 		{{- end }}
 	{{- else }}

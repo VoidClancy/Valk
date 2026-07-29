@@ -183,6 +183,17 @@ type CategoryToPostCreateManyArgs struct {
 	ConflictAction *ConflictAction
 }
 
+func (a *CategoryToPostCreateManyArgs) AppendData(builders ...*CategoryToPostCreateBuilder) *CategoryToPostCreateManyArgs {
+	for _, b := range builders {
+		input, err := assignmentsToCategoryToPostCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
+}
+
 // CategoryToPostCreateManyAndReturnArgs is the input argument passed to CategoryToPost CreateManyAndReturn extension hooks.
 //
 // Fields for CategoryToPost:
@@ -203,6 +214,17 @@ type CategoryToPostCreateManyAndReturnArgs struct {
 	ConflictTarget UniqueConstraintTarget
 	// ConflictAction specifies the resolution action for ON CONFLICT clause.
 	ConflictAction *ConflictAction
+}
+
+func (a *CategoryToPostCreateManyAndReturnArgs) AppendData(builders ...*CategoryToPostCreateBuilder) *CategoryToPostCreateManyAndReturnArgs {
+	for _, b := range builders {
+		input, err := assignmentsToCategoryToPostCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
 }
 
 // CategoryToPostFindUniqueArgs is the input argument passed to CategoryToPost FindUnique extension hooks.
@@ -329,14 +351,16 @@ func (a *CategoryToPostCountArgs) SetTake(n int) *CategoryToPostCountArgs {
 
 // CategoryToPostDeleteArgs is the input argument passed to CategoryToPost Delete extension hooks.
 type CategoryToPostDeleteArgs struct {
-	// Where is the unique predicate defining the target record.
-	Where UniquePredicate[CategoryToPost]
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[CategoryToPost]
 	// Select specifies which scalar and relation fields to select and return for deleted record.
 	Select *CategoryToPostSelect
 }
 
-func (a *CategoryToPostDeleteArgs) SetWhere(unique UniquePredicate[CategoryToPost]) *CategoryToPostDeleteArgs {
-	a.Where = unique
+func (a *CategoryToPostDeleteArgs) SetWhere(unique UniquePredicate[CategoryToPost], additional ...PredicateOf[CategoryToPost]) *CategoryToPostDeleteArgs {
+	a.Where = make([]PredicateOf[CategoryToPost], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
 	return a
 }
 
@@ -1980,16 +2004,21 @@ func (d *CategoryToPostDelegate) runDeleteMany(ctx context.Context, preds []Pred
 	return result.RowsAffected()
 }
 
-func (d *CategoryToPostDelegate) Delete(where UniquePredicate[CategoryToPost]) *DeleteBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
+func (d *CategoryToPostDelegate) Delete(where UniquePredicate[CategoryToPost], additional ...PredicateOf[CategoryToPost]) *DeleteBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit] {
 	return &DeleteBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]{
-		where:    where,
-		execFunc: d.executeDelete,
+		where:      where,
+		additional: additional,
+		execFunc:   d.executeDelete,
 	}
 }
 
-func (d *CategoryToPostDelegate) executeDelete(ctx context.Context, where UniquePredicate[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+func (d *CategoryToPostDelegate) executeDelete(ctx context.Context, where UniquePredicate[CategoryToPost], additional []PredicateOf[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	allWhere := make([]PredicateOf[CategoryToPost], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
 	if len(d.extensions) == 0 {
-		return d.runDelete(ctx, where, selects, omits)
+		return d.runDelete(ctx, allWhere, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -1997,7 +2026,7 @@ func (d *CategoryToPostDelegate) executeDelete(ctx context.Context, where Unique
 	}
 
 	args := &CategoryToPostDeleteArgs{
-		Where:  where,
+		Where:  allWhere,
 		Select: selects,
 	}
 
@@ -2024,9 +2053,13 @@ func (d *CategoryToPostDelegate) executeDelete(ctx context.Context, where Unique
 	return curr(ctx, args)
 }
 
-func (d *CategoryToPostDelegate) runDelete(ctx context.Context, where UniquePredicate[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+func (d *CategoryToPostDelegate) runDelete(ctx context.Context, where []PredicateOf[CategoryToPost], selects *CategoryToPostSelect, omits *CategoryToPostOmit) (*CategoryToPost, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	returningCols := selectCategoryToPostCols(selects, omits, categoryToPostPKCols...)
@@ -2038,7 +2071,7 @@ func (d *CategoryToPostDelegate) runDelete(ctx context.Context, where UniquePred
 		var res *CategoryToPost
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.CategoryToPost.runFindUnique(ctx, []PredicateOf[CategoryToPost]{where}, selects, omits)
+			res, err = txQ.CategoryToPost.runFindUnique(ctx, where, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -2088,7 +2121,7 @@ func (d *CategoryToPostDelegate) runDelete(ctx context.Context, where UniquePred
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "CategoryToPost")
 
-	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[CategoryToPost]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, where)
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)

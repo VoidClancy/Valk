@@ -147,6 +147,8 @@ var LtreeField = valk.Field[valk.AllFieldsSoFar, string]{Column: "ltreeField"}
 var CitextField = valk.Field[valk.AllFieldsSoFar, string]{Column: "citextField"}
 
 type CreateInput = valk.AllFieldsSoFarCreate
+type Create = valk.AllFieldsSoFarCreate
+
 type CreateArgs = valk.AllFieldsSoFarCreateArgs
 type CreateManyArgs = valk.AllFieldsSoFarCreateManyArgs
 type CreateManyAndReturnArgs = valk.AllFieldsSoFarCreateManyAndReturnArgs
@@ -175,6 +177,8 @@ type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk
 type CountArgs = valk.AllFieldsSoFarCountArgs
 type CountQuery = valk.AllFieldsSoFarCountQuery
 type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
+
+// type Update = valk.AllFieldsSoFarUpdate
 
 type Extension = valk.AllFieldsSoFarExtension
 

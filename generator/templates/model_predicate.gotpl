@@ -72,17 +72,22 @@ var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.Field[{{ $.ParentPa
 		{{- end }}
 	{{- end }}
 {{- end }}
-var {{ capitalize $constraintName }} = {{ $.ParentPackageName }}.CompositeUniqueConstraint[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
-	Name:    "{{ $constraintName }}",
-	Columns: []string{
-		{{- range $fName := $index.Fields }}
-		"{{ ($.Model.GetField $fName).EffectiveColName }}",
-		{{- end }}
+type {{ lowercase $constraintName }} struct {
+	{{ $.ParentPackageName }}.CompositeUniqueConstraint[{{ $.ParentPackageName }}.{{ $.Model.Name }}]
+}
+
+var {{ capitalize $constraintName }} = {{ lowercase $constraintName }}{
+	CompositeUniqueConstraint: {{ $.ParentPackageName }}.CompositeUniqueConstraint[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
+		Name:    "{{ $constraintName }}",
+		Columns: []string{
+			{{- range $fName := $index.Fields }}
+			"{{ ($.Model.GetField $fName).EffectiveColName }}",
+			{{- end }}
+		},
 	},
 }
 
-// Helper for compound unique constraint: {{ $constraintName }}
-func {{ capitalize $constraintName }}Unique(
+func (f {{ lowercase $constraintName }}) EQ(
 	{{- range $i, $fName := $index.Fields -}}
 		{{- $field := $.Model.GetField $fName -}}
 		{{- if $i }}, {{ end -}}
@@ -90,62 +95,87 @@ func {{ capitalize $constraintName }}Unique(
 	{{- end -}}
 ) {{ $.ParentPackageName }}.UniquePredicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}] {
 	return {{ $.ParentPackageName }}.UniquePredicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
-		Data: {{ $.ParentPackageName }}.And(
-			{{- range $fName := $index.Fields }}
-			{{- $field := $.Model.GetField $fName }}
-			{{ $.ParentPackageName }}.Predicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
-				Data: {{ $.ParentPackageName }}.PredicateData{
-					Column:   "{{ $field.EffectiveColName }}",
-					Operator: "=",
-					Value:    {{ lowercase $field.Name }},
-				},
+		Data: {{ $.ParentPackageName }}.PredicateData{
+			Column:    "{{ $constraintName }}",
+			Operator:  "AND",
+			Value: map[string]any{
+				{{- range $fName := $index.Fields }}
+				{{- $field := $.Model.GetField $fName }}
+				"{{ $field.EffectiveColName }}": {{ lowercase $field.Name }},
+				{{- end }}
 			},
-			{{- end }}
-		).ToPredicateData(),
+			IsLogical: true,
+			Children: []{{ $.ParentPackageName }}.PredicateData{
+				{{- range $fName := $index.Fields }}
+				{{- $field := $.Model.GetField $fName }}
+				{Column: "{{ $field.EffectiveColName }}", Operator: "=", Value: {{ lowercase $field.Name }}},
+				{{- end }}
+			},
+		},
 	}
 }
 {{- end }}
 
 {{- if .Model.CompositePK }}
-{{- $pkVarName := "" }}
-{{- range $f := .Model.CompositePK }}
-	{{- $pkVarName = printf "%s%s" $pkVarName (capitalize $f) }}
-{{- end }}
-var {{ $pkVarName }} = {{ $.ParentPackageName }}.CompositeUniqueConstraint[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
-	Name:    "{{ $pkVarName }}",
-	Columns: []string{
-		{{- range $fName := .Model.CompositePK }}
-		"{{ ($.Model.GetField $fName).EffectiveColName }}",
+{{- $pkDef := .Model.CompositePK }}
+{{- $pkVarName := $pkDef.Name }}
+{{- if eq $pkVarName "" }}
+	{{- $pkVarName = "" }}
+	{{- range $i, $f := $pkDef.Fields }}
+		{{- if $i }}
+			{{- $pkVarName = printf "%s_%s" $pkVarName (capitalize $f) }}
+		{{- else }}
+			{{- $pkVarName = capitalize $f }}
 		{{- end }}
+	{{- end }}
+{{- end }}
+type {{ lowercase $pkVarName }} struct {
+	{{ $.ParentPackageName }}.CompositeUniqueConstraint[{{ $.ParentPackageName }}.{{ $.Model.Name }}]
+}
+
+var {{ $pkVarName }} = {{ lowercase $pkVarName }}{
+	CompositeUniqueConstraint: {{ $.ParentPackageName }}.CompositeUniqueConstraint[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
+		Name:    "{{ $pkVarName }}",
+		Columns: []string{
+			{{- range $fName := $pkDef.Fields }}
+			"{{ ($.Model.GetField $fName).EffectiveColName }}",
+			{{- end }}
+		},
 	},
 }
 
-// Helper for compound primary key: {{ $pkVarName }}
-func {{ $pkVarName }}Unique(
-	{{- range $i, $fName := .Model.CompositePK -}}
+func (f {{ lowercase $pkVarName }}) EQ(
+	{{- range $i, $fName := $pkDef.Fields -}}
 		{{- $field := $.Model.GetField $fName -}}
 		{{- if $i }}, {{ end -}}
 		{{- lowercase $field.Name }} {{ fieldPredType $field $.ParentPackageName -}}
 	{{- end -}}
 ) {{ $.ParentPackageName }}.UniquePredicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}] {
 	return {{ $.ParentPackageName }}.UniquePredicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
-		Data: {{ $.ParentPackageName }}.And(
-			{{- range $fName := .Model.CompositePK }}
-			{{- $field := $.Model.GetField $fName }}
-			{{ $.ParentPackageName }}.Predicate[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{
-				Data: {{ $.ParentPackageName }}.PredicateData{
-					Column:   "{{ $field.EffectiveColName }}",
-					Operator: "=",
-					Value:    {{ lowercase $field.Name }},
-				},
+		Data: {{ $.ParentPackageName }}.PredicateData{
+			Column:    "{{ $pkVarName }}",
+			Operator:  "AND",
+			Value: map[string]any{
+				{{- range $fName := $pkDef.Fields }}
+				{{- $field := $.Model.GetField $fName }}
+				"{{ $field.EffectiveColName }}": {{ lowercase $field.Name }},
+				{{- end }}
 			},
-			{{- end }}
-		).ToPredicateData(),
+			IsLogical: true,
+			Children: []{{ $.ParentPackageName }}.PredicateData{
+				{{- range $fName := $pkDef.Fields }}
+				{{- $field := $.Model.GetField $fName }}
+				{Column: "{{ $field.EffectiveColName }}", Operator: "=", Value: {{ lowercase $field.Name }}},
+				{{- end }}
+			},
+		},
 	}
 }
 {{- end }}
 
 type CreateInput = {{ $.ParentPackageName }}.{{ $.Model.Name }}Create
+type Create = {{ $.ParentPackageName }}.{{ $.Model.Name }}Create
+
 type CreateArgs = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateArgs
 type CreateManyArgs = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateManyArgs
 type CreateManyAndReturnArgs = {{ $.ParentPackageName }}.{{ $.Model.Name }}CreateManyAndReturnArgs
@@ -174,6 +204,8 @@ type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*{{ $
 type CountArgs = {{ $.ParentPackageName }}.{{ $.Model.Name }}CountArgs
 type CountQuery = {{ $.ParentPackageName }}.{{ $.Model.Name }}CountQuery
 type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
+
+// type Update = {{ $.ParentPackageName }}.{{ $.Model.Name }}Update
 
 type Extension = {{ $.ParentPackageName }}.{{ $.Model.Name }}Extension
 

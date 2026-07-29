@@ -182,13 +182,13 @@ func (b *atlasSchemaBuilder) buildColumns(model *vs.Model, table *schema.Table) 
 
 func (b *atlasSchemaBuilder) buildPrimaryKey(model *vs.Model, table *schema.Table) {
 	tableName := table.Name
-	if len(model.CompositePK) > 0 {
+	if model.CompositePK != nil {
 		pk := &schema.Index{
 			Name:   tableName + "_pkey",
 			Unique: true,
 			Table:  table,
 		}
-		for _, pkField := range model.CompositePK {
+		for _, pkField := range model.CompositePK.Fields {
 			targetColName := getColName(model, pkField)
 			if col := findColumn(table, targetColName); col != nil {
 				pk.Parts = append(pk.Parts, &schema.IndexPart{C: col})
