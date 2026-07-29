@@ -646,7 +646,7 @@ func assignmentsToCommentCreate(assignments []FieldAssignment) (CommentCreate, e
 			provided |= providedCommentId
 			if v, ok := a.Val.(string); ok {
 				input.Id = &v
-				ValidateString(&errs, "id", v, false, 0, false, false)
+				errs.ValidateString("id", v, false, 0, false, false)
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
@@ -654,7 +654,7 @@ func assignmentsToCommentCreate(assignments []FieldAssignment) (CommentCreate, e
 			provided |= providedCommentTextify
 			if v, ok := a.Val.(int32); ok {
 				input.Textify = v
-				ValidateInt32(&errs, "textify", v, "")
+				errs.ValidateInt32("textify", v, "")
 			} else {
 				errs.Add("textify", a.Val, "type", "field textify must be of type int32")
 			}
@@ -662,7 +662,7 @@ func assignmentsToCommentCreate(assignments []FieldAssignment) (CommentCreate, e
 			provided |= providedCommentDummy3
 			if v, ok := a.Val.(string); ok {
 				input.Dummy3 = v
-				ValidateString(&errs, "dummy3", v, true, 0, false, false)
+				errs.ValidateString("dummy3", v, true, 0, false, false)
 			} else {
 				errs.Add("dummy3", a.Val, "type", "field dummy3 must be of type string")
 			}
@@ -670,7 +670,7 @@ func assignmentsToCommentCreate(assignments []FieldAssignment) (CommentCreate, e
 			provided |= providedCommentDummy1
 			if v, ok := a.Val.(int32); ok {
 				input.Dummy1 = v
-				ValidateInt32(&errs, "dummy1", v, "")
+				errs.ValidateInt32("dummy1", v, "")
 			} else {
 				errs.Add("dummy1", a.Val, "type", "field dummy1 must be of type int32")
 			}
@@ -678,7 +678,7 @@ func assignmentsToCommentCreate(assignments []FieldAssignment) (CommentCreate, e
 			provided |= providedCommentDummy2
 			if v, ok := a.Val.(string); ok {
 				input.Dummy2 = v
-				ValidateString(&errs, "dummy2", v, true, 0, false, false)
+				errs.ValidateString("dummy2", v, true, 0, false, false)
 			} else {
 				errs.Add("dummy2", a.Val, "type", "field dummy2 must be of type string")
 			}
@@ -686,7 +686,7 @@ func assignmentsToCommentCreate(assignments []FieldAssignment) (CommentCreate, e
 			provided |= providedCommentPostId
 			if v, ok := a.Val.(string); ok {
 				input.PostId = v
-				ValidateString(&errs, "postId", v, true, 0, false, false)
+				errs.ValidateString("postId", v, true, 0, false, false)
 			} else {
 				errs.Add("postId", a.Val, "type", "field postId must be of type string")
 			}
@@ -694,7 +694,7 @@ func assignmentsToCommentCreate(assignments []FieldAssignment) (CommentCreate, e
 			provided |= providedCommentAuthorId
 			if v, ok := a.Val.(string); ok {
 				input.AuthorId = v
-				ValidateString(&errs, "authorId", v, true, 0, false, false)
+				errs.ValidateString("authorId", v, true, 0, false, false)
 			} else {
 				errs.Add("authorId", a.Val, "type", "field authorId must be of type string")
 			}
@@ -702,8 +702,9 @@ func assignmentsToCommentCreate(assignments []FieldAssignment) (CommentCreate, e
 			provided |= providedCommentMeta
 			if v, ok := a.Val.(json.RawMessage); ok {
 				input.Meta = &v
+				errs.ValidateJson("meta", v)
 			} else {
-				errs.Add("meta", a.Val, "type", "field meta must be of type json.RawMessage")
+				errs.Add("meta", a.Val, "type", "field meta must be valid JSON")
 			}
 		}
 	}

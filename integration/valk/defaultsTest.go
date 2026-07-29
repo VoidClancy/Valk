@@ -647,7 +647,7 @@ func assignmentsToDefaultsTestCreate(assignments []FieldAssignment) (DefaultsTes
 			provided |= providedDefaultsTestUuid4
 			if v, ok := a.Val.(string); ok {
 				input.Uuid4 = &v
-				ValidateString(&errs, "uuid4", v, false, 0, false, false)
+				errs.ValidateString("uuid4", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid4", a.Val, "type", "field uuid4 must be of type string")
 			}
@@ -655,7 +655,7 @@ func assignmentsToDefaultsTestCreate(assignments []FieldAssignment) (DefaultsTes
 			provided |= providedDefaultsTestUuid7
 			if v, ok := a.Val.(string); ok {
 				input.Uuid7 = &v
-				ValidateString(&errs, "uuid7", v, false, 0, false, false)
+				errs.ValidateString("uuid7", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid7", a.Val, "type", "field uuid7 must be of type string")
 			}
@@ -663,7 +663,7 @@ func assignmentsToDefaultsTestCreate(assignments []FieldAssignment) (DefaultsTes
 			provided |= providedDefaultsTestUuidNoArgs
 			if v, ok := a.Val.(string); ok {
 				input.UuidNoArgs = &v
-				ValidateString(&errs, "uuidNoArgs", v, false, 0, false, false)
+				errs.ValidateString("uuidNoArgs", v, false, 0, false, false)
 			} else {
 				errs.Add("uuidNoArgs", a.Val, "type", "field uuidNoArgs must be of type string")
 			}
@@ -671,7 +671,7 @@ func assignmentsToDefaultsTestCreate(assignments []FieldAssignment) (DefaultsTes
 			provided |= providedDefaultsTestCuid1
 			if v, ok := a.Val.(string); ok {
 				input.Cuid1 = &v
-				ValidateString(&errs, "cuid1", v, false, 0, false, false)
+				errs.ValidateString("cuid1", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid1", a.Val, "type", "field cuid1 must be of type string")
 			}
@@ -679,7 +679,7 @@ func assignmentsToDefaultsTestCreate(assignments []FieldAssignment) (DefaultsTes
 			provided |= providedDefaultsTestCuid2
 			if v, ok := a.Val.(string); ok {
 				input.Cuid2 = &v
-				ValidateString(&errs, "cuid2", v, false, 0, false, false)
+				errs.ValidateString("cuid2", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid2", a.Val, "type", "field cuid2 must be of type string")
 			}
@@ -687,7 +687,7 @@ func assignmentsToDefaultsTestCreate(assignments []FieldAssignment) (DefaultsTes
 			provided |= providedDefaultsTestCuidNoArgs
 			if v, ok := a.Val.(string); ok {
 				input.CuidNoArgs = &v
-				ValidateString(&errs, "cuidNoArgs", v, false, 0, false, false)
+				errs.ValidateString("cuidNoArgs", v, false, 0, false, false)
 			} else {
 				errs.Add("cuidNoArgs", a.Val, "type", "field cuidNoArgs must be of type string")
 			}
@@ -695,7 +695,7 @@ func assignmentsToDefaultsTestCreate(assignments []FieldAssignment) (DefaultsTes
 			provided |= providedDefaultsTestUlid
 			if v, ok := a.Val.(string); ok {
 				input.Ulid = &v
-				ValidateString(&errs, "ulid", v, false, 0, false, false)
+				errs.ValidateString("ulid", v, false, 0, false, false)
 			} else {
 				errs.Add("ulid", a.Val, "type", "field ulid must be of type string")
 			}
@@ -703,7 +703,7 @@ func assignmentsToDefaultsTestCreate(assignments []FieldAssignment) (DefaultsTes
 			provided |= providedDefaultsTestNanoid
 			if v, ok := a.Val.(string); ok {
 				input.Nanoid = &v
-				ValidateString(&errs, "nanoid", v, false, 0, false, false)
+				errs.ValidateString("nanoid", v, false, 0, false, false)
 			} else {
 				errs.Add("nanoid", a.Val, "type", "field nanoid must be of type string")
 			}

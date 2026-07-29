@@ -562,7 +562,7 @@ func assignmentsToProfileCreate(assignments []FieldAssignment) (ProfileCreate, e
 			provided |= providedProfileId
 			if v, ok := a.Val.(string); ok {
 				input.Id = &v
-				ValidateString(&errs, "id", v, false, 0, false, false)
+				errs.ValidateString("id", v, false, 0, false, false)
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
@@ -570,7 +570,7 @@ func assignmentsToProfileCreate(assignments []FieldAssignment) (ProfileCreate, e
 			provided |= providedProfileBio
 			if v, ok := a.Val.(string); ok {
 				input.Bio = &v
-				ValidateString(&errs, "bio", v, false, 0, false, false)
+				errs.ValidateString("bio", v, false, 0, false, false)
 			} else {
 				errs.Add("bio", a.Val, "type", "field bio must be of type string")
 			}
@@ -578,7 +578,7 @@ func assignmentsToProfileCreate(assignments []FieldAssignment) (ProfileCreate, e
 			provided |= providedProfileUserId
 			if v, ok := a.Val.(string); ok {
 				input.UserId = v
-				ValidateString(&errs, "userId", v, true, 0, false, false)
+				errs.ValidateString("userId", v, true, 0, false, false)
 			} else {
 				errs.Add("userId", a.Val, "type", "field userId must be of type string")
 			}
