@@ -42,6 +42,7 @@ var CategoryId = valk.Field[valk.CategoryToPost, int32]{Column: "categoryId"}
 
 type postId_CategoryId struct {
 	valk.CompositeUniqueConstraint[valk.CategoryToPost]
+	Column string
 }
 
 var PostId_CategoryId = postId_CategoryId{
@@ -52,6 +53,7 @@ var PostId_CategoryId = postId_CategoryId{
 			"categoryId",
 		},
 	},
+	Column: "PostId_CategoryId",
 }
 
 func (f postId_CategoryId) EQ(postId string, categoryId int32) valk.UniquePredicate[valk.CategoryToPost] {
