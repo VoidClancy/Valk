@@ -202,6 +202,17 @@ type ProfileCreateManyArgs struct {
 	ConflictAction *ConflictAction
 }
 
+func (a *ProfileCreateManyArgs) AppendData(builders ...*ProfileCreateBuilder) *ProfileCreateManyArgs {
+	for _, b := range builders {
+		input, err := assignmentsToProfileCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
+}
+
 // ProfileCreateManyAndReturnArgs is the input argument passed to Profile CreateManyAndReturn extension hooks.
 //
 // Fields for Profile:
@@ -223,6 +234,17 @@ type ProfileCreateManyAndReturnArgs struct {
 	ConflictTarget UniqueConstraintTarget
 	// ConflictAction specifies the resolution action for ON CONFLICT clause.
 	ConflictAction *ConflictAction
+}
+
+func (a *ProfileCreateManyAndReturnArgs) AppendData(builders ...*ProfileCreateBuilder) *ProfileCreateManyAndReturnArgs {
+	for _, b := range builders {
+		input, err := assignmentsToProfileCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
 }
 
 // ProfileFindUniqueArgs is the input argument passed to Profile FindUnique extension hooks.
@@ -349,14 +371,16 @@ func (a *ProfileCountArgs) SetTake(n int) *ProfileCountArgs {
 
 // ProfileDeleteArgs is the input argument passed to Profile Delete extension hooks.
 type ProfileDeleteArgs struct {
-	// Where is the unique predicate defining the target record.
-	Where UniquePredicate[Profile]
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[Profile]
 	// Select specifies which scalar and relation fields to select and return for deleted record.
 	Select *ProfileSelect
 }
 
-func (a *ProfileDeleteArgs) SetWhere(unique UniquePredicate[Profile]) *ProfileDeleteArgs {
-	a.Where = unique
+func (a *ProfileDeleteArgs) SetWhere(unique UniquePredicate[Profile], additional ...PredicateOf[Profile]) *ProfileDeleteArgs {
+	a.Where = make([]PredicateOf[Profile], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
 	return a
 }
 
@@ -2091,16 +2115,21 @@ func (d *ProfileDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf
 	return result.RowsAffected()
 }
 
-func (d *ProfileDelegate) Delete(where UniquePredicate[Profile]) *DeleteBuilder[Profile, ProfileSelect, ProfileOmit] {
+func (d *ProfileDelegate) Delete(where UniquePredicate[Profile], additional ...PredicateOf[Profile]) *DeleteBuilder[Profile, ProfileSelect, ProfileOmit] {
 	return &DeleteBuilder[Profile, ProfileSelect, ProfileOmit]{
-		where:    where,
-		execFunc: d.executeDelete,
+		where:      where,
+		additional: additional,
+		execFunc:   d.executeDelete,
 	}
 }
 
-func (d *ProfileDelegate) executeDelete(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+func (d *ProfileDelegate) executeDelete(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	allWhere := make([]PredicateOf[Profile], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
 	if len(d.extensions) == 0 {
-		return d.runDelete(ctx, where, selects, omits)
+		return d.runDelete(ctx, allWhere, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -2108,7 +2137,7 @@ func (d *ProfileDelegate) executeDelete(ctx context.Context, where UniquePredica
 	}
 
 	args := &ProfileDeleteArgs{
-		Where:  where,
+		Where:  allWhere,
 		Select: selects,
 	}
 
@@ -2135,9 +2164,13 @@ func (d *ProfileDelegate) executeDelete(ctx context.Context, where UniquePredica
 	return curr(ctx, args)
 }
 
-func (d *ProfileDelegate) runDelete(ctx context.Context, where UniquePredicate[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+func (d *ProfileDelegate) runDelete(ctx context.Context, where []PredicateOf[Profile], selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	returningCols := selectProfileCols(selects, omits, profilePKCols...)
@@ -2149,7 +2182,7 @@ func (d *ProfileDelegate) runDelete(ctx context.Context, where UniquePredicate[P
 		var res *Profile
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.Profile.runFindUnique(ctx, []PredicateOf[Profile]{where}, selects, omits)
+			res, err = txQ.Profile.runFindUnique(ctx, where, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -2192,7 +2225,7 @@ func (d *ProfileDelegate) runDelete(ctx context.Context, where UniquePredicate[P
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "Profile")
 
-	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[Profile]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, where)
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)

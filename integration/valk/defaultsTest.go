@@ -242,6 +242,17 @@ type DefaultsTestCreateManyArgs struct {
 	ConflictAction *ConflictAction
 }
 
+func (a *DefaultsTestCreateManyArgs) AppendData(builders ...*DefaultsTestCreateBuilder) *DefaultsTestCreateManyArgs {
+	for _, b := range builders {
+		input, err := assignmentsToDefaultsTestCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
+}
+
 // DefaultsTestCreateManyAndReturnArgs is the input argument passed to DefaultsTest CreateManyAndReturn extension hooks.
 //
 // Fields for DefaultsTest:
@@ -264,6 +275,17 @@ type DefaultsTestCreateManyAndReturnArgs struct {
 	ConflictTarget UniqueConstraintTarget
 	// ConflictAction specifies the resolution action for ON CONFLICT clause.
 	ConflictAction *ConflictAction
+}
+
+func (a *DefaultsTestCreateManyAndReturnArgs) AppendData(builders ...*DefaultsTestCreateBuilder) *DefaultsTestCreateManyAndReturnArgs {
+	for _, b := range builders {
+		input, err := assignmentsToDefaultsTestCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
 }
 
 // DefaultsTestFindUniqueArgs is the input argument passed to DefaultsTest FindUnique extension hooks.
@@ -390,14 +412,16 @@ func (a *DefaultsTestCountArgs) SetTake(n int) *DefaultsTestCountArgs {
 
 // DefaultsTestDeleteArgs is the input argument passed to DefaultsTest Delete extension hooks.
 type DefaultsTestDeleteArgs struct {
-	// Where is the unique predicate defining the target record.
-	Where UniquePredicate[DefaultsTest]
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[DefaultsTest]
 	// Select specifies which scalar and relation fields to select and return for deleted record.
 	Select *DefaultsTestSelect
 }
 
-func (a *DefaultsTestDeleteArgs) SetWhere(unique UniquePredicate[DefaultsTest]) *DefaultsTestDeleteArgs {
-	a.Where = unique
+func (a *DefaultsTestDeleteArgs) SetWhere(unique UniquePredicate[DefaultsTest], additional ...PredicateOf[DefaultsTest]) *DefaultsTestDeleteArgs {
+	a.Where = make([]PredicateOf[DefaultsTest], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
 	return a
 }
 
@@ -2363,16 +2387,21 @@ func (d *DefaultsTestDelegate) runDeleteMany(ctx context.Context, preds []Predic
 	return result.RowsAffected()
 }
 
-func (d *DefaultsTestDelegate) Delete(where UniquePredicate[DefaultsTest]) *DeleteBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
+func (d *DefaultsTestDelegate) Delete(where UniquePredicate[DefaultsTest], additional ...PredicateOf[DefaultsTest]) *DeleteBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit] {
 	return &DeleteBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
-		where:    where,
-		execFunc: d.executeDelete,
+		where:      where,
+		additional: additional,
+		execFunc:   d.executeDelete,
 	}
 }
 
-func (d *DefaultsTestDelegate) executeDelete(ctx context.Context, where UniquePredicate[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+func (d *DefaultsTestDelegate) executeDelete(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+	allWhere := make([]PredicateOf[DefaultsTest], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
 	if len(d.extensions) == 0 {
-		return d.runDelete(ctx, where, selects, omits)
+		return d.runDelete(ctx, allWhere, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -2380,7 +2409,7 @@ func (d *DefaultsTestDelegate) executeDelete(ctx context.Context, where UniquePr
 	}
 
 	args := &DefaultsTestDeleteArgs{
-		Where:  where,
+		Where:  allWhere,
 		Select: selects,
 	}
 
@@ -2407,9 +2436,13 @@ func (d *DefaultsTestDelegate) executeDelete(ctx context.Context, where UniquePr
 	return curr(ctx, args)
 }
 
-func (d *DefaultsTestDelegate) runDelete(ctx context.Context, where UniquePredicate[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+func (d *DefaultsTestDelegate) runDelete(ctx context.Context, where []PredicateOf[DefaultsTest], selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	returningCols := selectDefaultsTestCols(selects, omits, defaultsTestPKCols...)
@@ -2421,7 +2454,7 @@ func (d *DefaultsTestDelegate) runDelete(ctx context.Context, where UniquePredic
 		var res *DefaultsTest
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.DefaultsTest.runFindUnique(ctx, []PredicateOf[DefaultsTest]{where}, selects, omits)
+			res, err = txQ.DefaultsTest.runFindUnique(ctx, where, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -2464,7 +2497,7 @@ func (d *DefaultsTestDelegate) runDelete(ctx context.Context, where UniquePredic
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "DefaultsTest")
 
-	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[DefaultsTest]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, where)
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)

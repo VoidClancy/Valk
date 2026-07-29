@@ -46,6 +46,8 @@ var UserId = valk.StringUniqueField[valk.Profile]{Column: "userId"}
 var CreatedAt = valk.Field[valk.Profile, time.Time]{Column: "createdAt"}
 
 type CreateInput = valk.ProfileCreate
+type Create = valk.ProfileCreate
+
 type CreateArgs = valk.ProfileCreateArgs
 type CreateManyArgs = valk.ProfileCreateManyArgs
 type CreateManyAndReturnArgs = valk.ProfileCreateManyAndReturnArgs
@@ -74,6 +76,8 @@ type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk
 type CountArgs = valk.ProfileCountArgs
 type CountQuery = valk.ProfileCountQuery
 type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
+
+// type Update = valk.ProfileUpdate
 
 type Extension = valk.ProfileExtension
 

@@ -2113,37 +2113,23 @@ func (b *UpdateManyAndReturnBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, e
 type FindUniqueBuilder[M any, S any, O any] struct {
 	where      UniquePredicate[M]
 	additional []PredicateOf[M]
+	selects    *S
+	omits      *O
 	execFunc   func(ctx context.Context, where UniquePredicate[M], additional []PredicateOf[M], s *S, o *O) (*M, error)
 }
 
-func (b *FindUniqueBuilder[M, S, O]) Select(s S) *FindUniqueSelectBuilder[M, S, O] {
-	return &FindUniqueSelectBuilder[M, S, O]{builder: b, selects: s}
+func (b *FindUniqueBuilder[M, S, O]) Select(s S) *FindUniqueBuilder[M, S, O] {
+	b.selects = &s
+	return b
 }
 
-func (b *FindUniqueBuilder[M, S, O]) Omit(o O) *FindUniqueOmitBuilder[M, S, O] {
-	return &FindUniqueOmitBuilder[M, S, O]{builder: b, omits: o}
+func (b *FindUniqueBuilder[M, S, O]) Omit(o O) *FindUniqueBuilder[M, S, O] {
+	b.omits = &o
+	return b
 }
 
 func (b *FindUniqueBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.execFunc(ctx, b.where, b.additional, nil, nil)
-}
-
-type FindUniqueSelectBuilder[M any, S any, O any] struct {
-	builder *FindUniqueBuilder[M, S, O]
-	selects S
-}
-
-func (b *FindUniqueSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.where, b.builder.additional, &b.selects, nil)
-}
-
-type FindUniqueOmitBuilder[M any, S any, O any] struct {
-	builder *FindUniqueBuilder[M, S, O]
-	omits   O
-}
-
-func (b *FindUniqueOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.where, b.builder.additional, nil, &b.omits)
+	return b.execFunc(ctx, b.where, b.additional, b.selects, b.omits)
 }
 
 type FindFirstBuilder[M any, S any, O any] struct {
@@ -2152,6 +2138,8 @@ type FindFirstBuilder[M any, S any, O any] struct {
 	skip     *int
 	orderBy  []OrderBy[M]
 	cursor   UniquePredicate[M]
+	selects  *S
+	omits    *O
 	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) (*M, error)
 }
 
@@ -2175,12 +2163,14 @@ func (b *FindFirstBuilder[M, S, O]) Cursor(where UniquePredicate[M]) *FindFirstB
 	return b
 }
 
-func (b *FindFirstBuilder[M, S, O]) Select(s S) *FindFirstSelectBuilder[M, S, O] {
-	return &FindFirstSelectBuilder[M, S, O]{builder: b, selects: s}
+func (b *FindFirstBuilder[M, S, O]) Select(s S) *FindFirstBuilder[M, S, O] {
+	b.selects = &s
+	return b
 }
 
-func (b *FindFirstBuilder[M, S, O]) Omit(o O) *FindFirstOmitBuilder[M, S, O] {
-	return &FindFirstOmitBuilder[M, S, O]{builder: b, omits: o}
+func (b *FindFirstBuilder[M, S, O]) Omit(o O) *FindFirstBuilder[M, S, O] {
+	b.omits = &o
+	return b
 }
 
 func (b *FindFirstBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
@@ -2191,39 +2181,7 @@ func (b *FindFirstBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
 		OrderBy: b.orderBy,
 		Cursor:  b.cursor,
 	}
-	return b.execFunc(ctx, params, nil, nil)
-}
-
-type FindFirstSelectBuilder[M any, S any, O any] struct {
-	builder *FindFirstBuilder[M, S, O]
-	selects S
-}
-
-func (b *FindFirstSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	params := QueryParams[M]{
-		Where:   b.builder.where,
-		Take:    b.builder.take,
-		Skip:    b.builder.skip,
-		OrderBy: b.builder.orderBy,
-		Cursor:  b.builder.cursor,
-	}
-	return b.builder.execFunc(ctx, params, &b.selects, nil)
-}
-
-type FindFirstOmitBuilder[M any, S any, O any] struct {
-	builder *FindFirstBuilder[M, S, O]
-	omits   O
-}
-
-func (b *FindFirstOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	params := QueryParams[M]{
-		Where:   b.builder.where,
-		Take:    b.builder.take,
-		Skip:    b.builder.skip,
-		OrderBy: b.builder.orderBy,
-		Cursor:  b.builder.cursor,
-	}
-	return b.builder.execFunc(ctx, params, nil, &b.omits)
+	return b.execFunc(ctx, params, b.selects, b.omits)
 }
 
 type FindManyBuilder[M any, S any, O any] struct {
@@ -2232,6 +2190,8 @@ type FindManyBuilder[M any, S any, O any] struct {
 	skip     *int
 	orderBy  []OrderBy[M]
 	cursor   UniquePredicate[M]
+	selects  *S
+	omits    *O
 	execFunc func(ctx context.Context, params QueryParams[M], s *S, o *O) ([]*M, error)
 }
 
@@ -2255,12 +2215,14 @@ func (b *FindManyBuilder[M, S, O]) Cursor(where UniquePredicate[M]) *FindManyBui
 	return b
 }
 
-func (b *FindManyBuilder[M, S, O]) Select(s S) *FindManySelectBuilder[M, S, O] {
-	return &FindManySelectBuilder[M, S, O]{builder: b, selects: s}
+func (b *FindManyBuilder[M, S, O]) Select(s S) *FindManyBuilder[M, S, O] {
+	b.selects = &s
+	return b
 }
 
-func (b *FindManyBuilder[M, S, O]) Omit(o O) *FindManyOmitBuilder[M, S, O] {
-	return &FindManyOmitBuilder[M, S, O]{builder: b, omits: o}
+func (b *FindManyBuilder[M, S, O]) Omit(o O) *FindManyBuilder[M, S, O] {
+	b.omits = &o
+	return b
 }
 
 func (b *FindManyBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
@@ -2271,39 +2233,7 @@ func (b *FindManyBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
 		OrderBy: b.orderBy,
 		Cursor:  b.cursor,
 	}
-	return b.execFunc(ctx, params, nil, nil)
-}
-
-type FindManySelectBuilder[M any, S any, O any] struct {
-	builder *FindManyBuilder[M, S, O]
-	selects S
-}
-
-func (b *FindManySelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	params := QueryParams[M]{
-		Where:   b.builder.where,
-		Take:    b.builder.take,
-		Skip:    b.builder.skip,
-		OrderBy: b.builder.orderBy,
-		Cursor:  b.builder.cursor,
-	}
-	return b.builder.execFunc(ctx, params, &b.selects, nil)
-}
-
-type FindManyOmitBuilder[M any, S any, O any] struct {
-	builder *FindManyBuilder[M, S, O]
-	omits   O
-}
-
-func (b *FindManyOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	params := QueryParams[M]{
-		Where:   b.builder.where,
-		Take:    b.builder.take,
-		Skip:    b.builder.skip,
-		OrderBy: b.builder.orderBy,
-		Cursor:  b.builder.cursor,
-	}
-	return b.builder.execFunc(ctx, params, nil, &b.omits)
+	return b.execFunc(ctx, params, b.selects, b.omits)
 }
 
 type DeleteManyBuilder[M any] struct {
@@ -2316,10 +2246,11 @@ func (b *DeleteManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
 }
 
 type DeleteBuilder[M any, S any, O any] struct {
-	where    UniquePredicate[M]
-	selects  *S
-	omits    *O
-	execFunc func(ctx context.Context, where UniquePredicate[M], selects *S, omits *O) (*M, error)
+	where      UniquePredicate[M]
+	additional []PredicateOf[M]
+	selects    *S
+	omits      *O
+	execFunc   func(ctx context.Context, where UniquePredicate[M], additional []PredicateOf[M], selects *S, omits *O) (*M, error)
 }
 
 func (b *DeleteBuilder[M, S, O]) Select(selects S) *DeleteBuilder[M, S, O] {
@@ -2333,7 +2264,7 @@ func (b *DeleteBuilder[M, S, O]) Omit(omits O) *DeleteBuilder[M, S, O] {
 }
 
 func (b *DeleteBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.execFunc(ctx, b.where, b.selects, b.omits)
+	return b.execFunc(ctx, b.where, b.additional, b.selects, b.omits)
 }
 
 type CountBuilder[M any] struct {

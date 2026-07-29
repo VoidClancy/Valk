@@ -265,6 +265,17 @@ type UserCreateManyArgs struct {
 	ConflictAction *ConflictAction
 }
 
+func (a *UserCreateManyArgs) AppendData(builders ...*UserCreateBuilder) *UserCreateManyArgs {
+	for _, b := range builders {
+		input, err := assignmentsToUserCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
+}
+
 // UserCreateManyAndReturnArgs is the input argument passed to User CreateManyAndReturn extension hooks.
 //
 // Fields for User:
@@ -294,6 +305,17 @@ type UserCreateManyAndReturnArgs struct {
 	ConflictTarget UniqueConstraintTarget
 	// ConflictAction specifies the resolution action for ON CONFLICT clause.
 	ConflictAction *ConflictAction
+}
+
+func (a *UserCreateManyAndReturnArgs) AppendData(builders ...*UserCreateBuilder) *UserCreateManyAndReturnArgs {
+	for _, b := range builders {
+		input, err := assignmentsToUserCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
 }
 
 // UserFindUniqueArgs is the input argument passed to User FindUnique extension hooks.
@@ -420,14 +442,16 @@ func (a *UserCountArgs) SetTake(n int) *UserCountArgs {
 
 // UserDeleteArgs is the input argument passed to User Delete extension hooks.
 type UserDeleteArgs struct {
-	// Where is the unique predicate defining the target record.
-	Where UniquePredicate[User]
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[User]
 	// Select specifies which scalar and relation fields to select and return for deleted record.
 	Select *UserSelect
 }
 
-func (a *UserDeleteArgs) SetWhere(unique UniquePredicate[User]) *UserDeleteArgs {
-	a.Where = unique
+func (a *UserDeleteArgs) SetWhere(unique UniquePredicate[User], additional ...PredicateOf[User]) *UserDeleteArgs {
+	a.Where = make([]PredicateOf[User], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
 	return a
 }
 
@@ -2338,16 +2362,21 @@ func (d *UserDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[Us
 	return result.RowsAffected()
 }
 
-func (d *UserDelegate) Delete(where UniquePredicate[User]) *DeleteBuilder[User, UserSelect, UserOmit] {
+func (d *UserDelegate) Delete(where UniquePredicate[User], additional ...PredicateOf[User]) *DeleteBuilder[User, UserSelect, UserOmit] {
 	return &DeleteBuilder[User, UserSelect, UserOmit]{
-		where:    where,
-		execFunc: d.executeDelete,
+		where:      where,
+		additional: additional,
+		execFunc:   d.executeDelete,
 	}
 }
 
-func (d *UserDelegate) executeDelete(ctx context.Context, where UniquePredicate[User], selects *UserSelect, omits *UserOmit) (*User, error) {
+func (d *UserDelegate) executeDelete(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error) {
+	allWhere := make([]PredicateOf[User], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
 	if len(d.extensions) == 0 {
-		return d.runDelete(ctx, where, selects, omits)
+		return d.runDelete(ctx, allWhere, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -2355,7 +2384,7 @@ func (d *UserDelegate) executeDelete(ctx context.Context, where UniquePredicate[
 	}
 
 	args := &UserDeleteArgs{
-		Where:  where,
+		Where:  allWhere,
 		Select: selects,
 	}
 
@@ -2382,9 +2411,13 @@ func (d *UserDelegate) executeDelete(ctx context.Context, where UniquePredicate[
 	return curr(ctx, args)
 }
 
-func (d *UserDelegate) runDelete(ctx context.Context, where UniquePredicate[User], selects *UserSelect, omits *UserOmit) (*User, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+func (d *UserDelegate) runDelete(ctx context.Context, where []PredicateOf[User], selects *UserSelect, omits *UserOmit) (*User, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	returningCols := selectUserCols(selects, omits, userPKCols...)
@@ -2396,7 +2429,7 @@ func (d *UserDelegate) runDelete(ctx context.Context, where UniquePredicate[User
 		var res *User
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.User.runFindUnique(ctx, []PredicateOf[User]{where}, selects, omits)
+			res, err = txQ.User.runFindUnique(ctx, where, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -2439,7 +2472,7 @@ func (d *UserDelegate) runDelete(ctx context.Context, where UniquePredicate[User
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "User")
 
-	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[User]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, where)
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)

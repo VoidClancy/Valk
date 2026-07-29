@@ -41,6 +41,8 @@ var Id = valk.UniqueField[valk.Category, int32]{Column: "id"}
 var Name = valk.StringUniqueField[valk.Category]{Column: "name"}
 
 type CreateInput = valk.CategoryCreate
+type Create = valk.CategoryCreate
+
 type CreateArgs = valk.CategoryCreateArgs
 type CreateManyArgs = valk.CategoryCreateManyArgs
 type CreateManyAndReturnArgs = valk.CategoryCreateManyAndReturnArgs
@@ -69,6 +71,8 @@ type FindManyHook = func(context.Context, *FindManyArgs, FindManyQuery) ([]*valk
 type CountArgs = valk.CategoryCountArgs
 type CountQuery = valk.CategoryCountQuery
 type CountHook = func(context.Context, *CountArgs, CountQuery) (int64, error)
+
+// type Update = valk.CategoryUpdate
 
 type Extension = valk.CategoryExtension
 

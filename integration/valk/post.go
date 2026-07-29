@@ -221,6 +221,17 @@ type PostCreateManyArgs struct {
 	ConflictAction *ConflictAction
 }
 
+func (a *PostCreateManyArgs) AppendData(builders ...*PostCreateBuilder) *PostCreateManyArgs {
+	for _, b := range builders {
+		input, err := assignmentsToPostCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
+}
+
 // PostCreateManyAndReturnArgs is the input argument passed to Post CreateManyAndReturn extension hooks.
 //
 // Fields for Post:
@@ -245,6 +256,17 @@ type PostCreateManyAndReturnArgs struct {
 	ConflictTarget UniqueConstraintTarget
 	// ConflictAction specifies the resolution action for ON CONFLICT clause.
 	ConflictAction *ConflictAction
+}
+
+func (a *PostCreateManyAndReturnArgs) AppendData(builders ...*PostCreateBuilder) *PostCreateManyAndReturnArgs {
+	for _, b := range builders {
+		input, err := assignmentsToPostCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
 }
 
 // PostFindUniqueArgs is the input argument passed to Post FindUnique extension hooks.
@@ -371,14 +393,16 @@ func (a *PostCountArgs) SetTake(n int) *PostCountArgs {
 
 // PostDeleteArgs is the input argument passed to Post Delete extension hooks.
 type PostDeleteArgs struct {
-	// Where is the unique predicate defining the target record.
-	Where UniquePredicate[Post]
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[Post]
 	// Select specifies which scalar and relation fields to select and return for deleted record.
 	Select *PostSelect
 }
 
-func (a *PostDeleteArgs) SetWhere(unique UniquePredicate[Post]) *PostDeleteArgs {
-	a.Where = unique
+func (a *PostDeleteArgs) SetWhere(unique UniquePredicate[Post], additional ...PredicateOf[Post]) *PostDeleteArgs {
+	a.Where = make([]PredicateOf[Post], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
 	return a
 }
 
@@ -2150,16 +2174,21 @@ func (d *PostDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf[Po
 	return result.RowsAffected()
 }
 
-func (d *PostDelegate) Delete(where UniquePredicate[Post]) *DeleteBuilder[Post, PostSelect, PostOmit] {
+func (d *PostDelegate) Delete(where UniquePredicate[Post], additional ...PredicateOf[Post]) *DeleteBuilder[Post, PostSelect, PostOmit] {
 	return &DeleteBuilder[Post, PostSelect, PostOmit]{
-		where:    where,
-		execFunc: d.executeDelete,
+		where:      where,
+		additional: additional,
+		execFunc:   d.executeDelete,
 	}
 }
 
-func (d *PostDelegate) executeDelete(ctx context.Context, where UniquePredicate[Post], selects *PostSelect, omits *PostOmit) (*Post, error) {
+func (d *PostDelegate) executeDelete(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], selects *PostSelect, omits *PostOmit) (*Post, error) {
+	allWhere := make([]PredicateOf[Post], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
 	if len(d.extensions) == 0 {
-		return d.runDelete(ctx, where, selects, omits)
+		return d.runDelete(ctx, allWhere, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -2167,7 +2196,7 @@ func (d *PostDelegate) executeDelete(ctx context.Context, where UniquePredicate[
 	}
 
 	args := &PostDeleteArgs{
-		Where:  where,
+		Where:  allWhere,
 		Select: selects,
 	}
 
@@ -2194,9 +2223,13 @@ func (d *PostDelegate) executeDelete(ctx context.Context, where UniquePredicate[
 	return curr(ctx, args)
 }
 
-func (d *PostDelegate) runDelete(ctx context.Context, where UniquePredicate[Post], selects *PostSelect, omits *PostOmit) (*Post, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+func (d *PostDelegate) runDelete(ctx context.Context, where []PredicateOf[Post], selects *PostSelect, omits *PostOmit) (*Post, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	returningCols := selectPostCols(selects, omits, postPKCols...)
@@ -2208,7 +2241,7 @@ func (d *PostDelegate) runDelete(ctx context.Context, where UniquePredicate[Post
 		var res *Post
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.Post.runFindUnique(ctx, []PredicateOf[Post]{where}, selects, omits)
+			res, err = txQ.Post.runFindUnique(ctx, where, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -2251,7 +2284,7 @@ func (d *PostDelegate) runDelete(ctx context.Context, where UniquePredicate[Post
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "Post")
 
-	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[Post]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, where)
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)

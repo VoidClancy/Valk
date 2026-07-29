@@ -246,6 +246,17 @@ type CommentCreateManyArgs struct {
 	ConflictAction *ConflictAction
 }
 
+func (a *CommentCreateManyArgs) AppendData(builders ...*CommentCreateBuilder) *CommentCreateManyArgs {
+	for _, b := range builders {
+		input, err := assignmentsToCommentCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
+}
+
 // CommentCreateManyAndReturnArgs is the input argument passed to Comment CreateManyAndReturn extension hooks.
 //
 // Fields for Comment:
@@ -272,6 +283,17 @@ type CommentCreateManyAndReturnArgs struct {
 	ConflictTarget UniqueConstraintTarget
 	// ConflictAction specifies the resolution action for ON CONFLICT clause.
 	ConflictAction *ConflictAction
+}
+
+func (a *CommentCreateManyAndReturnArgs) AppendData(builders ...*CommentCreateBuilder) *CommentCreateManyAndReturnArgs {
+	for _, b := range builders {
+		input, err := assignmentsToCommentCreate(b.assignments)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, &input)
+	}
+	return a
 }
 
 // CommentFindUniqueArgs is the input argument passed to Comment FindUnique extension hooks.
@@ -398,14 +420,16 @@ func (a *CommentCountArgs) SetTake(n int) *CommentCountArgs {
 
 // CommentDeleteArgs is the input argument passed to Comment Delete extension hooks.
 type CommentDeleteArgs struct {
-	// Where is the unique predicate defining the target record.
-	Where UniquePredicate[Comment]
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[Comment]
 	// Select specifies which scalar and relation fields to select and return for deleted record.
 	Select *CommentSelect
 }
 
-func (a *CommentDeleteArgs) SetWhere(unique UniquePredicate[Comment]) *CommentDeleteArgs {
-	a.Where = unique
+func (a *CommentDeleteArgs) SetWhere(unique UniquePredicate[Comment], additional ...PredicateOf[Comment]) *CommentDeleteArgs {
+	a.Where = make([]PredicateOf[Comment], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
 	return a
 }
 
@@ -2300,16 +2324,21 @@ func (d *CommentDelegate) runDeleteMany(ctx context.Context, preds []PredicateOf
 	return result.RowsAffected()
 }
 
-func (d *CommentDelegate) Delete(where UniquePredicate[Comment]) *DeleteBuilder[Comment, CommentSelect, CommentOmit] {
+func (d *CommentDelegate) Delete(where UniquePredicate[Comment], additional ...PredicateOf[Comment]) *DeleteBuilder[Comment, CommentSelect, CommentOmit] {
 	return &DeleteBuilder[Comment, CommentSelect, CommentOmit]{
-		where:    where,
-		execFunc: d.executeDelete,
+		where:      where,
+		additional: additional,
+		execFunc:   d.executeDelete,
 	}
 }
 
-func (d *CommentDelegate) executeDelete(ctx context.Context, where UniquePredicate[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+func (d *CommentDelegate) executeDelete(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	allWhere := make([]PredicateOf[Comment], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
 	if len(d.extensions) == 0 {
-		return d.runDelete(ctx, where, selects, omits)
+		return d.runDelete(ctx, allWhere, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -2317,7 +2346,7 @@ func (d *CommentDelegate) executeDelete(ctx context.Context, where UniquePredica
 	}
 
 	args := &CommentDeleteArgs{
-		Where:  where,
+		Where:  allWhere,
 		Select: selects,
 	}
 
@@ -2344,9 +2373,13 @@ func (d *CommentDelegate) executeDelete(ctx context.Context, where UniquePredica
 	return curr(ctx, args)
 }
 
-func (d *CommentDelegate) runDelete(ctx context.Context, where UniquePredicate[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
-	if err := where.Validate(); err != nil {
-		return nil, err
+func (d *CommentDelegate) runDelete(ctx context.Context, where []PredicateOf[Comment], selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	for _, p := range where {
+		if p != nil {
+			if err := p.Validate(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	returningCols := selectCommentCols(selects, omits, commentPKCols...)
@@ -2358,7 +2391,7 @@ func (d *CommentDelegate) runDelete(ctx context.Context, where UniquePredicate[C
 		var res *Comment
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
-			res, err = txQ.Comment.runFindUnique(ctx, []PredicateOf[Comment]{where}, selects, omits)
+			res, err = txQ.Comment.runFindUnique(ctx, where, selects, omits)
 			if err != nil {
 				return err
 			}
@@ -2401,7 +2434,7 @@ func (d *CommentDelegate) runDelete(ctx context.Context, where UniquePredicate[C
 	sb.WriteString("DELETE FROM ")
 	d.client.dialect.WriteQuotedIdent(&sb, "Comment")
 
-	whereClause, vals, _ := CompilePredicates(d.client.dialect, []PredicateOf[Comment]{where})
+	whereClause, vals, _ := CompilePredicates(d.client.dialect, where)
 	if whereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(whereClause)
