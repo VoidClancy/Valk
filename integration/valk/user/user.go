@@ -54,6 +54,7 @@ var ReferredById = valk.StringField[valk.User]{Column: "referredById"}
 
 type emailPhone struct {
 	valk.CompositeUniqueConstraint[valk.User]
+	Column string
 }
 
 var EmailPhone = emailPhone{
@@ -64,6 +65,7 @@ var EmailPhone = emailPhone{
 			"phoneNum",
 		},
 	},
+	Column: "emailPhone",
 }
 
 func (f emailPhone) EQ(email string, phoneNum string) valk.UniquePredicate[valk.User] {

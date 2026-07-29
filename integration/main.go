@@ -492,6 +492,14 @@ func runCTP(db *valk.DB, ctx context.Context) {
 
 			for _, w := range args.Where {
 				column, value := w.Column(), w.Value()
+
+				if w.Column() == categoryToPost.PostId.Column {
+
+				}
+
+				if w.Column() == categoryToPost.PostId_CategoryId.Column {
+					//since it is a one logical col now, for consistency with scalars col access pattern
+				}
 				fmt.Println(column, value)
 			}
 			args.Where = append(args.Where, categoryToPost.PostId_CategoryId.EQ("xc", 22))
@@ -499,6 +507,7 @@ func runCTP(db *valk.DB, ctx context.Context) {
 		},
 	})
 	db.CategoryToPost.FindUnique(categoryToPost.PostId_CategoryId.EQ("x", 23), categoryToPost.CategoryId.EQ(12)).Exec(ctx)
+	db.CategoryToPost.Create().SetCategoryId(22).SetPostId("x").Exec(ctx) //creates with the composite PK constraint
 }
 
 // =============================================================================

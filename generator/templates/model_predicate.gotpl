@@ -74,6 +74,7 @@ var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.Field[{{ $.ParentPa
 {{- end }}
 type {{ lowercase $constraintName }} struct {
 	{{ $.ParentPackageName }}.CompositeUniqueConstraint[{{ $.ParentPackageName }}.{{ $.Model.Name }}]
+	Column string
 }
 
 var {{ capitalize $constraintName }} = {{ lowercase $constraintName }}{
@@ -85,6 +86,7 @@ var {{ capitalize $constraintName }} = {{ lowercase $constraintName }}{
 			{{- end }}
 		},
 	},
+	Column: "{{ $constraintName }}",
 }
 
 func (f {{ lowercase $constraintName }}) EQ(
@@ -131,6 +133,7 @@ func (f {{ lowercase $constraintName }}) EQ(
 {{- end }}
 type {{ lowercase $pkVarName }} struct {
 	{{ $.ParentPackageName }}.CompositeUniqueConstraint[{{ $.ParentPackageName }}.{{ $.Model.Name }}]
+	Column string
 }
 
 var {{ $pkVarName }} = {{ lowercase $pkVarName }}{
@@ -142,6 +145,7 @@ var {{ $pkVarName }} = {{ lowercase $pkVarName }}{
 			{{- end }}
 		},
 	},
+	Column: "{{ $pkVarName }}",
 }
 
 func (f {{ lowercase $pkVarName }}) EQ(
