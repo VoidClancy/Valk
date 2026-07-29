@@ -521,7 +521,7 @@ func assignmentsToCategoryCreate(assignments []FieldAssignment) (CategoryCreate,
 			provided |= providedCategoryId
 			if v, ok := a.Val.(int32); ok {
 				input.Id = &v
-				ValidateInt32(&errs, "id", v, "")
+				errs.ValidateInt32("id", v, "")
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type int32")
 			}
@@ -529,7 +529,7 @@ func assignmentsToCategoryCreate(assignments []FieldAssignment) (CategoryCreate,
 			provided |= providedCategoryName
 			if v, ok := a.Val.(string); ok {
 				input.Name = v
-				ValidateString(&errs, "name", v, true, 0, false, false)
+				errs.ValidateString("name", v, true, 0, false, false)
 			} else {
 				errs.Add("name", a.Val, "type", "field name must be of type string")
 			}

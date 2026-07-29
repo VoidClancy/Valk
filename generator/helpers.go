@@ -66,21 +66,25 @@ func fieldPredType(f *schema.ScalarField, parentPkg string) string {
 	return t
 }
 
+func hasFieldWhere(m *schema.Model, pred func(*schema.ScalarField) bool) bool {
+	return slices.ContainsFunc(m.ScalarFields, pred)
+}
+
 func hasJsonField(m *schema.Model) bool {
-	for _, sf := range m.ScalarFields {
-		if sf.Type == "Json" || strings.Contains(sf.GoType, "json.RawMessage") {
-			return true
-		}
-	}
-	return false
+	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
+		return sf.Type == "Json" || strings.Contains(sf.GoType, "json.RawMessage")
+	})
+}
+func hasJsonAnywhere(sch schema.Schema) bool {
+	return slices.ContainsFunc(sch.Models, hasJsonField)
 }
 func hasTimeField(m *schema.Model) bool {
-	for _, sf := range m.ScalarFields {
-		if sf.Type == "DateTime" || strings.Contains(sf.GoType, "time.Time") {
-			return true
-		}
-	}
-	return false
+	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
+		return sf.Type == "DateTime" || strings.Contains(sf.GoType, "time.Time")
+	})
+}
+func hasTimeAnywhere(sch schema.Schema) bool {
+	return slices.ContainsFunc(sch.Models, hasTimeField)
 }
 func isKnownDefaultFunc(funcName string) bool {
 	val, ok := DEFAULT_FUNCS[funcName]
@@ -90,35 +94,45 @@ func isKnownDefaultFunc(funcName string) bool {
 func defaultFuncCall(funcName string) string {
 	return DEFAULT_FUNCS[funcName]
 }
-func hasStringField(m *schema.Model) bool {
-	for _, sf := range m.ScalarFields {
-		if sf.GoType == "string" || strings.Contains(sf.GoType, "string") {
-			return true
-		}
-	}
-	return false
+func hasUuidField(m *schema.Model) bool {
+	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
+		return sf.NativeType != nil && sf.NativeType.Name == "Uuid"
+	})
+}
+func hasUuidAnywhere(sch schema.Schema) bool {
+	return slices.ContainsFunc(sch.Models, hasUuidField)
+}
+func hasFloatField(m *schema.Model) bool {
+	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
+		return sf.Type == "Float"
+	})
+}
+func hasFloatAnywhere(sch schema.Schema) bool {
+	return slices.ContainsFunc(sch.Models, hasFloatField)
+}
+func hasDecimalField(m *schema.Model) bool {
+	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
+		return sf.Type == "Decimal"
+	})
+}
+func hasDecimalAnywhere(sch schema.Schema) bool {
+	return slices.ContainsFunc(sch.Models, hasDecimalField)
 }
 func hasNetField(m *schema.Model) bool {
-	for _, sf := range m.ScalarFields {
-		if sf.NativeType != nil && sf.NativeType.Name == "Inet" {
-			return true
-		}
-	}
-	return false
-}
-func hasHstoreField(m *schema.Model) bool {
-	for _, sf := range m.ScalarFields {
-		if strings.TrimPrefix(sf.GoType, "*") == "map[string]*string" {
-			return true
-		}
-	}
-	return false
-}
-func hasHstoreAnywhere(sch schema.Schema) bool {
-	return slices.ContainsFunc(sch.Models, hasHstoreField)
+	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
+		return sf.NativeType != nil && sf.NativeType.Name == "Inet"
+	})
 }
 func hasNetAnywhere(sch schema.Schema) bool {
 	return slices.ContainsFunc(sch.Models, hasNetField)
+}
+func hasHstoreField(m *schema.Model) bool {
+	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
+		return strings.TrimPrefix(sf.GoType, "*") == "map[string]*string"
+	})
+}
+func hasHstoreAnywhere(sch schema.Schema) bool {
+	return slices.ContainsFunc(sch.Models, hasHstoreField)
 }
 func hstoreExpr(goType string, expr string) string {
 	if strings.TrimPrefix(goType, "*") == "map[string]*string" {

@@ -163,7 +163,7 @@ model AllFieldsSoFar {
 
     // Unsupported (extension-backed types)
     hstoreField Unsupported("hstore")?
-    ltreeField  Unsupported("ltree")
+    ltreeField  Unsupported("ltree")?
     citextField Unsupported("citext")?
 
     // require postgis extension installation first

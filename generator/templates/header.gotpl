@@ -2,6 +2,9 @@ package {{ .PackageName }}
 
 import (
 	"context"
+	{{- if hasFloatAnywhere .Schema }}
+	"math"
+	{{- end }}
 	{{- if or .NeedCUID .NeedCUID2 .NeedULID .NeedNanoID }}
 	"crypto/rand"
 	{{- end }}
@@ -17,11 +20,16 @@ import (
 	{{- if hasNetAnywhere .Schema }}
 	"net"
 	{{- end }}
+	{{- if or (hasUuidAnywhere .Schema) (hasDecimalAnywhere .Schema) }}
+	"regexp"
+	{{- end }}
 	"strconv"
 	"slices"
 	"strings"
 	"sync"
+	{{- if or (hasTimeAnywhere .Schema) .NeedCUID .NeedCUID2 .NeedULID }}
 	"time"
+	{{- end }}
 	"unicode/utf8"
 
 	{{- if hasHstoreAnywhere .Schema }}
@@ -34,7 +42,9 @@ import (
 	{{- end }}
 )
 
+{{- if or (hasTimeAnywhere .Schema) .NeedCUID .NeedCUID2 .NeedULID }}
 var _ = time.Time{}
+{{- end }}
 {{- if hasHstoreAnywhere .Schema }}
 var _ = hstore.Hstore{}
 {{- end }}

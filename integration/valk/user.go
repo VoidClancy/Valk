@@ -670,7 +670,7 @@ func assignmentsToUserCreate(assignments []FieldAssignment) (UserCreate, error) 
 			provided |= providedUserId
 			if v, ok := a.Val.(string); ok {
 				input.Id = &v
-				ValidateString(&errs, "id", v, false, 0, false, false)
+				errs.ValidateString("id", v, false, 0, false, false)
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
@@ -678,7 +678,7 @@ func assignmentsToUserCreate(assignments []FieldAssignment) (UserCreate, error) 
 			provided |= providedUserEmail
 			if v, ok := a.Val.(string); ok {
 				input.Email = v
-				ValidateString(&errs, "email", v, true, 0, false, false)
+				errs.ValidateString("email", v, true, 0, false, false)
 			} else {
 				errs.Add("email", a.Val, "type", "field email must be of type string")
 			}
@@ -686,7 +686,7 @@ func assignmentsToUserCreate(assignments []FieldAssignment) (UserCreate, error) 
 			provided |= providedUserPhoneNum
 			if v, ok := a.Val.(string); ok {
 				input.PhoneNum = v
-				ValidateString(&errs, "phoneNum", v, true, 0, false, false)
+				errs.ValidateString("phoneNum", v, true, 0, false, false)
 			} else {
 				errs.Add("phoneNum", a.Val, "type", "field phoneNum must be of type string")
 			}
@@ -694,7 +694,7 @@ func assignmentsToUserCreate(assignments []FieldAssignment) (UserCreate, error) 
 			provided |= providedUserPassword
 			if v, ok := a.Val.(string); ok {
 				input.Password = &v
-				ValidateString(&errs, "password", v, false, 0, false, false)
+				errs.ValidateString("password", v, false, 0, false, false)
 			} else {
 				errs.Add("password", a.Val, "type", "field password must be of type string")
 			}
@@ -722,7 +722,7 @@ func assignmentsToUserCreate(assignments []FieldAssignment) (UserCreate, error) 
 			provided |= providedUserLoginCount
 			if v, ok := a.Val.(int32); ok {
 				input.LoginCount = &v
-				ValidateInt32(&errs, "loginCount", v, "")
+				errs.ValidateInt32("loginCount", v, "")
 			} else {
 				errs.Add("loginCount", a.Val, "type", "field loginCount must be of type int32")
 			}
@@ -730,7 +730,7 @@ func assignmentsToUserCreate(assignments []FieldAssignment) (UserCreate, error) 
 			provided |= providedUserReferredById
 			if v, ok := a.Val.(string); ok {
 				input.ReferredById = &v
-				ValidateString(&errs, "referredById", v, false, 0, false, false)
+				errs.ValidateString("referredById", v, false, 0, false, false)
 			} else {
 				errs.Add("referredById", a.Val, "type", "field referredById must be of type string")
 			}

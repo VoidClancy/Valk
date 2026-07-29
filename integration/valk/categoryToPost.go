@@ -522,7 +522,7 @@ func assignmentsToCategoryToPostCreate(assignments []FieldAssignment) (CategoryT
 			provided |= providedCategoryToPostPostId
 			if v, ok := a.Val.(string); ok {
 				input.PostId = v
-				ValidateString(&errs, "postId", v, true, 0, false, false)
+				errs.ValidateString("postId", v, true, 0, false, false)
 			} else {
 				errs.Add("postId", a.Val, "type", "field postId must be of type string")
 			}
@@ -530,7 +530,7 @@ func assignmentsToCategoryToPostCreate(assignments []FieldAssignment) (CategoryT
 			provided |= providedCategoryToPostCategoryId
 			if v, ok := a.Val.(int32); ok {
 				input.CategoryId = v
-				ValidateInt32(&errs, "categoryId", v, "")
+				errs.ValidateInt32("categoryId", v, "")
 			} else {
 				errs.Add("categoryId", a.Val, "type", "field categoryId must be of type int32")
 			}

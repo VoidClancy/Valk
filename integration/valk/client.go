@@ -10,7 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq/hstore"
 	"github.com/pressly/goose/v3"
+	"math"
 	"net"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -406,7 +408,7 @@ func (s HstoreScan) Scan(src any) error {
 	return nil
 }
 
-func ValidateString(errs *ValidationError, fieldName string, val string, isRequired bool, maxLen int, isBit bool, isInet bool) {
+func (errs *ValidationError) ValidateString(fieldName string, val string, isRequired bool, maxLen int, isBit bool, isInet bool) {
 	if isRequired && val == "" {
 		errs.Add(fieldName, val, "required", fmt.Sprintf("field %s is required", fieldName))
 	}
@@ -433,7 +435,7 @@ func ValidateString(errs *ValidationError, fieldName string, val string, isRequi
 	}
 }
 
-func ValidateInt32(errs *ValidationError, fieldName string, val int32, rule string) {
+func (errs *ValidationError) ValidateInt32(fieldName string, val int32, rule string) {
 	switch rule {
 	case "SmallInt":
 		if val < -32768 || val > 32767 {
@@ -450,7 +452,7 @@ func ValidateInt32(errs *ValidationError, fieldName string, val int32, rule stri
 	}
 }
 
-func ValidateInt64(errs *ValidationError, fieldName string, val int64, rule string) {
+func (errs *ValidationError) ValidateInt64(fieldName string, val int64, rule string) {
 	switch rule {
 	case "SmallInt":
 		if val < -32768 || val > 32767 {
@@ -467,7 +469,7 @@ func ValidateInt64(errs *ValidationError, fieldName string, val int64, rule stri
 	}
 }
 
-func ValidateInt(errs *ValidationError, fieldName string, val int, rule string) {
+func (errs *ValidationError) ValidateInt(fieldName string, val int, rule string) {
 	switch rule {
 	case "SmallInt":
 		if val < -32768 || val > 32767 {
@@ -481,6 +483,45 @@ func ValidateInt(errs *ValidationError, fieldName string, val int, rule string) 
 		if val < 0 {
 			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
 		}
+	}
+}
+
+var uuidRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+func (errs *ValidationError) ValidateUUID(fieldName string, val string) {
+	if !uuidRegex.MatchString(val) {
+		errs.Add(fieldName, val, "format", "field must be a valid UUID")
+	}
+}
+func (errs *ValidationError) ValidateFloat(fieldName string, val float64) {
+	if math.IsInf(val, 0) || math.IsNaN(val) {
+		errs.Add(fieldName, val, "range", "field must be a finite number")
+	}
+}
+
+var decimalRegex = regexp.MustCompile(`^[-+]?(\d+(\.\d*)?|\.\d+)$`)
+
+func (errs *ValidationError) ValidateDecimal(fieldName string, val string, scale int) {
+	if val == "" {
+		return
+	}
+	if !decimalRegex.MatchString(val) {
+		errs.Add(fieldName, val, "format", fmt.Sprintf("field %s must be a valid decimal number string", fieldName))
+		return
+	}
+	if scale > 0 {
+		dot := strings.IndexByte(val, '.')
+		if dot >= 0 && len(val)-dot-1 > scale {
+			errs.Add(fieldName, val, "format", fmt.Sprintf("field %s cannot have more than %d decimal places", fieldName, scale))
+		}
+	}
+}
+func (errs *ValidationError) ValidateJson(fieldName string, val json.RawMessage) {
+	if val == nil {
+		return
+	}
+	if !json.Valid(val) {
+		errs.Add(fieldName, val, "format", "field must be valid JSON")
 	}
 }
 
@@ -720,7 +761,7 @@ type Queries struct {
 	//   bytesReq        []byte             required
 	//   bytesOpt        []byte             optional
 	//   hstoreField     map[string]*string optional
-	//   ltreeField      string             required
+	//   ltreeField      string             optional
 	//   citextField     string             optional
 	AllFieldsSoFar *AllFieldsSoFarDelegate
 	UserRole       userRoleNamespace

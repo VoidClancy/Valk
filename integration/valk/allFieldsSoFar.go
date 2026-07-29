@@ -64,7 +64,7 @@ type AllFieldsSoFar struct {
 	BytesReq        []byte              `db:"bytesReq" json:"bytesReq"`
 	BytesOpt        *[]byte             `db:"bytesOpt" json:"bytesOpt,omitempty"`
 	HstoreField     *map[string]*string `db:"hstoreField" json:"hstoreField,omitempty"`
-	LtreeField      string              `db:"ltreeField" json:"ltreeField"`
+	LtreeField      *string             `db:"ltreeField" json:"ltreeField,omitempty"`
 	CitextField     *string             `db:"citextField" json:"citextField,omitempty"`
 }
 
@@ -124,7 +124,7 @@ type AllFieldsSoFar struct {
 //	bytesReq        []byte             required
 //	bytesOpt        []byte             optional
 //	hstoreField     map[string]*string optional
-//	ltreeField      string             required
+//	ltreeField      string             optional
 //	citextField     string             optional
 type AllFieldsSoFarCreate struct {
 	Id              *int32              `json:"id"`
@@ -179,7 +179,7 @@ type AllFieldsSoFarCreate struct {
 	BytesReq        []byte              `json:"bytesReq"`
 	BytesOpt        *[]byte             `json:"bytesOpt"`
 	HstoreField     *map[string]*string `json:"hstoreField"`
-	LtreeField      string              `json:"ltreeField"`
+	LtreeField      *string             `json:"ltreeField"`
 	CitextField     *string             `json:"citextField"`
 }
 
@@ -266,7 +266,9 @@ func (s *AllFieldsSoFarCreate) colMask() uint64 {
 	if s.HstoreField != nil {
 		mask |= 1 << 51
 	}
-	mask |= 1 << 52
+	if s.LtreeField != nil {
+		mask |= 1 << 52
+	}
 	if s.CitextField != nil {
 		mask |= 1 << 53
 	}
@@ -643,7 +645,7 @@ func (b *AllFieldsSoFarQueryBuilder) GetRelationParams() (*AllFieldsSoFarSelect,
 //	bytesReq        []byte             required
 //	bytesOpt        []byte             optional
 //	hstoreField     map[string]*string optional
-//	ltreeField      string             required
+//	ltreeField      string             optional
 //	citextField     string             optional
 type AllFieldsSoFarCreateArgs struct {
 	// Data contains the model fields to insert.
@@ -712,7 +714,7 @@ type AllFieldsSoFarCreateArgs struct {
 //	bytesReq        []byte             required
 //	bytesOpt        []byte             optional
 //	hstoreField     map[string]*string optional
-//	ltreeField      string             required
+//	ltreeField      string             optional
 //	citextField     string             optional
 type AllFieldsSoFarCreateManyArgs struct {
 	// Data is the slice of model inputs to bulk insert.
@@ -790,7 +792,7 @@ func (a *AllFieldsSoFarCreateManyArgs) AppendData(builders ...*AllFieldsSoFarCre
 //	bytesReq        []byte             required
 //	bytesOpt        []byte             optional
 //	hstoreField     map[string]*string optional
-//	ltreeField      string             required
+//	ltreeField      string             optional
 //	citextField     string             optional
 type AllFieldsSoFarCreateManyAndReturnArgs struct {
 	// Data is the slice of model inputs to bulk insert.
@@ -1578,7 +1580,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarId
 			if v, ok := a.Val.(int32); ok {
 				input.Id = &v
-				ValidateInt32(&errs, "id", v, "")
+				errs.ValidateInt32("id", v, "")
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type int32")
 			}
@@ -1586,7 +1588,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarStringReq
 			if v, ok := a.Val.(string); ok {
 				input.StringReq = v
-				ValidateString(&errs, "stringReq", v, true, 0, false, false)
+				errs.ValidateString("stringReq", v, true, 0, false, false)
 			} else {
 				errs.Add("stringReq", a.Val, "type", "field stringReq must be of type string")
 			}
@@ -1594,7 +1596,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarStringOpt
 			if v, ok := a.Val.(string); ok {
 				input.StringOpt = &v
-				ValidateString(&errs, "stringOpt", v, false, 0, false, false)
+				errs.ValidateString("stringOpt", v, false, 0, false, false)
 			} else {
 				errs.Add("stringOpt", a.Val, "type", "field stringOpt must be of type string")
 			}
@@ -1602,7 +1604,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarStringDefault
 			if v, ok := a.Val.(string); ok {
 				input.StringDefault = &v
-				ValidateString(&errs, "stringDefault", v, false, 0, false, false)
+				errs.ValidateString("stringDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("stringDefault", a.Val, "type", "field stringDefault must be of type string")
 			}
@@ -1610,7 +1612,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarStringVarchar
 			if v, ok := a.Val.(string); ok {
 				input.StringVarchar = v
-				ValidateString(&errs, "stringVarchar", v, true, 255, false, false)
+				errs.ValidateString("stringVarchar", v, true, 255, false, false)
 			} else {
 				errs.Add("stringVarchar", a.Val, "type", "field stringVarchar must be of type string")
 			}
@@ -1618,7 +1620,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarStringChar
 			if v, ok := a.Val.(string); ok {
 				input.StringChar = v
-				ValidateString(&errs, "stringChar", v, true, 10, false, false)
+				errs.ValidateString("stringChar", v, true, 10, false, false)
 			} else {
 				errs.Add("stringChar", a.Val, "type", "field stringChar must be of type string")
 			}
@@ -1626,7 +1628,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarBitVal
 			if v, ok := a.Val.(string); ok {
 				input.BitVal = v
-				ValidateString(&errs, "bitVal", v, true, 0, true, false)
+				errs.ValidateString("bitVal", v, true, 0, true, false)
 			} else {
 				errs.Add("bitVal", a.Val, "type", "field bitVal must be of type string")
 			}
@@ -1634,7 +1636,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarVarBitVal
 			if v, ok := a.Val.(string); ok {
 				input.VarBitVal = v
-				ValidateString(&errs, "varBitVal", v, true, 0, true, false)
+				errs.ValidateString("varBitVal", v, true, 0, true, false)
 			} else {
 				errs.Add("varBitVal", a.Val, "type", "field varBitVal must be of type string")
 			}
@@ -1642,7 +1644,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarInetVal
 			if v, ok := a.Val.(string); ok {
 				input.InetVal = v
-				ValidateString(&errs, "inetVal", v, true, 0, false, true)
+				errs.ValidateString("inetVal", v, true, 0, false, true)
 			} else {
 				errs.Add("inetVal", a.Val, "type", "field inetVal must be of type string")
 			}
@@ -1650,7 +1652,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarXmlVal
 			if v, ok := a.Val.(string); ok {
 				input.XmlVal = v
-				ValidateString(&errs, "xmlVal", v, true, 0, false, false)
+				errs.ValidateString("xmlVal", v, true, 0, false, false)
 			} else {
 				errs.Add("xmlVal", a.Val, "type", "field xmlVal must be of type string")
 			}
@@ -1658,7 +1660,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarCuidDefault
 			if v, ok := a.Val.(string); ok {
 				input.CuidDefault = &v
-				ValidateString(&errs, "cuidDefault", v, false, 0, false, false)
+				errs.ValidateString("cuidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("cuidDefault", a.Val, "type", "field cuidDefault must be of type string")
 			}
@@ -1666,7 +1668,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarCuid1Default
 			if v, ok := a.Val.(string); ok {
 				input.Cuid1Default = &v
-				ValidateString(&errs, "cuid1Default", v, false, 0, false, false)
+				errs.ValidateString("cuid1Default", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid1Default", a.Val, "type", "field cuid1Default must be of type string")
 			}
@@ -1674,7 +1676,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarCuid2Default
 			if v, ok := a.Val.(string); ok {
 				input.Cuid2Default = &v
-				ValidateString(&errs, "cuid2Default", v, false, 0, false, false)
+				errs.ValidateString("cuid2Default", v, false, 0, false, false)
 			} else {
 				errs.Add("cuid2Default", a.Val, "type", "field cuid2Default must be of type string")
 			}
@@ -1682,7 +1684,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarUuidDefault
 			if v, ok := a.Val.(string); ok {
 				input.UuidDefault = &v
-				ValidateString(&errs, "uuidDefault", v, false, 0, false, false)
+				errs.ValidateString("uuidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("uuidDefault", a.Val, "type", "field uuidDefault must be of type string")
 			}
@@ -1690,7 +1692,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarUuid4Default
 			if v, ok := a.Val.(string); ok {
 				input.Uuid4Default = &v
-				ValidateString(&errs, "uuid4Default", v, false, 0, false, false)
+				errs.ValidateString("uuid4Default", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid4Default", a.Val, "type", "field uuid4Default must be of type string")
 			}
@@ -1698,7 +1700,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarUuid7Default
 			if v, ok := a.Val.(string); ok {
 				input.Uuid7Default = &v
-				ValidateString(&errs, "uuid7Default", v, false, 0, false, false)
+				errs.ValidateString("uuid7Default", v, false, 0, false, false)
 			} else {
 				errs.Add("uuid7Default", a.Val, "type", "field uuid7Default must be of type string")
 			}
@@ -1706,7 +1708,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarUlidDefault
 			if v, ok := a.Val.(string); ok {
 				input.UlidDefault = &v
-				ValidateString(&errs, "ulidDefault", v, false, 0, false, false)
+				errs.ValidateString("ulidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("ulidDefault", a.Val, "type", "field ulidDefault must be of type string")
 			}
@@ -1714,7 +1716,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarNanoidDefault
 			if v, ok := a.Val.(string); ok {
 				input.NanoidDefault = &v
-				ValidateString(&errs, "nanoidDefault", v, false, 0, false, false)
+				errs.ValidateString("nanoidDefault", v, false, 0, false, false)
 			} else {
 				errs.Add("nanoidDefault", a.Val, "type", "field nanoidDefault must be of type string")
 			}
@@ -1722,7 +1724,8 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarUuidDb
 			if v, ok := a.Val.(string); ok {
 				input.UuidDb = v
-				ValidateString(&errs, "uuidDb", v, true, 0, false, false)
+				errs.ValidateString("uuidDb", v, true, 0, false, false)
+				errs.ValidateUUID("uuidDb", v)
 			} else {
 				errs.Add("uuidDb", a.Val, "type", "field uuidDb must be of type string")
 			}
@@ -1730,7 +1733,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarIntReq
 			if v, ok := a.Val.(int32); ok {
 				input.IntReq = v
-				ValidateInt32(&errs, "intReq", v, "")
+				errs.ValidateInt32("intReq", v, "")
 			} else {
 				errs.Add("intReq", a.Val, "type", "field intReq must be of type int32")
 			}
@@ -1738,7 +1741,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarIntOpt
 			if v, ok := a.Val.(int32); ok {
 				input.IntOpt = &v
-				ValidateInt32(&errs, "intOpt", v, "")
+				errs.ValidateInt32("intOpt", v, "")
 			} else {
 				errs.Add("intOpt", a.Val, "type", "field intOpt must be of type int32")
 			}
@@ -1746,7 +1749,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarIntDefault
 			if v, ok := a.Val.(int32); ok {
 				input.IntDefault = &v
-				ValidateInt32(&errs, "intDefault", v, "")
+				errs.ValidateInt32("intDefault", v, "")
 			} else {
 				errs.Add("intDefault", a.Val, "type", "field intDefault must be of type int32")
 			}
@@ -1754,7 +1757,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarIntegerVal
 			if v, ok := a.Val.(int32); ok {
 				input.IntegerVal = v
-				ValidateInt32(&errs, "integerVal", v, "")
+				errs.ValidateInt32("integerVal", v, "")
 			} else {
 				errs.Add("integerVal", a.Val, "type", "field integerVal must be of type int32")
 			}
@@ -1762,7 +1765,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarSmallInt
 			if v, ok := a.Val.(int32); ok {
 				input.SmallInt = v
-				ValidateInt32(&errs, "smallInt", v, "SmallInt")
+				errs.ValidateInt32("smallInt", v, "SmallInt")
 			} else {
 				errs.Add("smallInt", a.Val, "type", "field smallInt must be of type int32")
 			}
@@ -1770,7 +1773,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarTinyInt
 			if v, ok := a.Val.(int32); ok {
 				input.TinyInt = v
-				ValidateInt32(&errs, "tinyInt", v, "")
+				errs.ValidateInt32("tinyInt", v, "")
 			} else {
 				errs.Add("tinyInt", a.Val, "type", "field tinyInt must be of type int32")
 			}
@@ -1778,7 +1781,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarOidVal
 			if v, ok := a.Val.(int32); ok {
 				input.OidVal = v
-				ValidateInt32(&errs, "oidVal", v, "Oid")
+				errs.ValidateInt32("oidVal", v, "Oid")
 			} else {
 				errs.Add("oidVal", a.Val, "type", "field oidVal must be of type int32")
 			}
@@ -1786,7 +1789,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarBigIntReq
 			if v, ok := a.Val.(int64); ok {
 				input.BigIntReq = v
-				ValidateInt64(&errs, "bigIntReq", v, "")
+				errs.ValidateInt64("bigIntReq", v, "")
 			} else {
 				errs.Add("bigIntReq", a.Val, "type", "field bigIntReq must be of type int64")
 			}
@@ -1794,7 +1797,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarBigIntOpt
 			if v, ok := a.Val.(int64); ok {
 				input.BigIntOpt = &v
-				ValidateInt64(&errs, "bigIntOpt", v, "")
+				errs.ValidateInt64("bigIntOpt", v, "")
 			} else {
 				errs.Add("bigIntOpt", a.Val, "type", "field bigIntOpt must be of type int64")
 			}
@@ -1802,6 +1805,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarFloatReq
 			if v, ok := a.Val.(float64); ok {
 				input.FloatReq = v
+				errs.ValidateFloat("floatReq", v)
 			} else {
 				errs.Add("floatReq", a.Val, "type", "field floatReq must be of type float64")
 			}
@@ -1809,6 +1813,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarFloatOpt
 			if v, ok := a.Val.(float64); ok {
 				input.FloatOpt = &v
+				errs.ValidateFloat("floatOpt", v)
 			} else {
 				errs.Add("floatOpt", a.Val, "type", "field floatOpt must be of type float64")
 			}
@@ -1816,6 +1821,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarRealVal
 			if v, ok := a.Val.(float64); ok {
 				input.RealVal = v
+				errs.ValidateFloat("realVal", v)
 			} else {
 				errs.Add("realVal", a.Val, "type", "field realVal must be of type float64")
 			}
@@ -1823,7 +1829,8 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarDecimalReq
 			if v, ok := a.Val.(string); ok {
 				input.DecimalReq = v
-				ValidateString(&errs, "decimalReq", v, true, 0, false, false)
+				errs.ValidateString("decimalReq", v, true, 0, false, false)
+				errs.ValidateDecimal("decimalReq", v, 0)
 			} else {
 				errs.Add("decimalReq", a.Val, "type", "field decimalReq must be of type string")
 			}
@@ -1831,7 +1838,8 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarDecimalOpt
 			if v, ok := a.Val.(string); ok {
 				input.DecimalOpt = &v
-				ValidateString(&errs, "decimalOpt", v, false, 0, false, false)
+				errs.ValidateString("decimalOpt", v, false, 0, false, false)
+				errs.ValidateDecimal("decimalOpt", v, 0)
 			} else {
 				errs.Add("decimalOpt", a.Val, "type", "field decimalOpt must be of type string")
 			}
@@ -1839,7 +1847,8 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarDecimalPrecise
 			if v, ok := a.Val.(string); ok {
 				input.DecimalPrecise = v
-				ValidateString(&errs, "decimalPrecise", v, true, 0, false, false)
+				errs.ValidateString("decimalPrecise", v, true, 0, false, false)
+				errs.ValidateDecimal("decimalPrecise", v, 2)
 			} else {
 				errs.Add("decimalPrecise", a.Val, "type", "field decimalPrecise must be of type string")
 			}
@@ -1847,7 +1856,8 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarMoneyVal
 			if v, ok := a.Val.(string); ok {
 				input.MoneyVal = v
-				ValidateString(&errs, "moneyVal", v, true, 0, false, false)
+				errs.ValidateString("moneyVal", v, true, 0, false, false)
+				errs.ValidateDecimal("moneyVal", v, 0)
 			} else {
 				errs.Add("moneyVal", a.Val, "type", "field moneyVal must be of type string")
 			}
@@ -1932,22 +1942,25 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarJsonReq
 			if v, ok := a.Val.(json.RawMessage); ok {
 				input.JsonReq = v
+				errs.ValidateJson("jsonReq", v)
 			} else {
-				errs.Add("jsonReq", a.Val, "type", "field jsonReq must be of type json.RawMessage")
+				errs.Add("jsonReq", a.Val, "type", "field jsonReq must be valid JSON")
 			}
 		case "jsonOpt":
 			provided |= providedAllFieldsSoFarJsonOpt
 			if v, ok := a.Val.(json.RawMessage); ok {
 				input.JsonOpt = &v
+				errs.ValidateJson("jsonOpt", v)
 			} else {
-				errs.Add("jsonOpt", a.Val, "type", "field jsonOpt must be of type json.RawMessage")
+				errs.Add("jsonOpt", a.Val, "type", "field jsonOpt must be valid JSON")
 			}
 		case "jsonVal":
 			provided |= providedAllFieldsSoFarJsonVal
 			if v, ok := a.Val.(json.RawMessage); ok {
 				input.JsonVal = v
+				errs.ValidateJson("jsonVal", v)
 			} else {
-				errs.Add("jsonVal", a.Val, "type", "field jsonVal must be of type json.RawMessage")
+				errs.Add("jsonVal", a.Val, "type", "field jsonVal must be valid JSON")
 			}
 		case "bytesReq":
 			provided |= providedAllFieldsSoFarBytesReq
@@ -1973,8 +1986,8 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 		case "ltreeField":
 			provided |= providedAllFieldsSoFarLtreeField
 			if v, ok := a.Val.(string); ok {
-				input.LtreeField = v
-				ValidateString(&errs, "ltreeField", v, true, 0, false, false)
+				input.LtreeField = &v
+				errs.ValidateString("ltreeField", v, false, 0, false, false)
 			} else {
 				errs.Add("ltreeField", a.Val, "type", "field ltreeField must be of type string")
 			}
@@ -1982,7 +1995,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 			provided |= providedAllFieldsSoFarCitextField
 			if v, ok := a.Val.(string); ok {
 				input.CitextField = &v
-				ValidateString(&errs, "citextField", v, false, 0, false, false)
+				errs.ValidateString("citextField", v, false, 0, false, false)
 			} else {
 				errs.Add("citextField", a.Val, "type", "field citextField must be of type string")
 			}
@@ -2074,9 +2087,6 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 	}
 	if provided&providedAllFieldsSoFarBytesReq == 0 {
 		errs.Add("bytesReq", nil, "required", "field BytesReq is required")
-	}
-	if provided&providedAllFieldsSoFarLtreeField == 0 {
-		errs.Add("ltreeField", "", "required", "field LtreeField is required")
 	}
 
 	if errs.HasErrors() {
@@ -2256,8 +2266,10 @@ func (s *AllFieldsSoFarCreate) ToColsVals() (cols []string, vals []any) {
 		cols = append(cols, "hstoreField")
 		vals = append(vals, ToHstore(*s.HstoreField))
 	}
-	cols = append(cols, "ltreeField")
-	vals = append(vals, s.LtreeField)
+	if s.LtreeField != nil {
+		cols = append(cols, "ltreeField")
+		vals = append(vals, *s.LtreeField)
+	}
 	if s.CitextField != nil {
 		cols = append(cols, "citextField")
 		vals = append(vals, *s.CitextField)
@@ -2883,7 +2895,11 @@ func (d *AllFieldsSoFarDelegate) buildBulkInsertSQL(q *Queries, batch []*AllFiel
 					writeDefault = true
 				}
 			case "ltreeField":
-				vals = append(vals, input.LtreeField)
+				if input.LtreeField != nil {
+					vals = append(vals, *input.LtreeField)
+				} else {
+					writeDefault = true
+				}
 			case "citextField":
 				if input.CitextField != nil {
 					vals = append(vals, *input.CitextField)
@@ -3162,7 +3178,7 @@ type AllFieldsSoFarUpsert struct {
 	BytesReq        fieldUpsert[[]byte]
 	BytesOpt        fieldUpsert[*[]byte]
 	HstoreField     fieldUpsert[*map[string]*string]
-	LtreeField      fieldUpsert[string]
+	LtreeField      fieldUpsert[*string]
 	CitextField     fieldUpsert[*string]
 }
 
@@ -3271,7 +3287,7 @@ func newAllFieldsSoFarUpsert(up *ConflictUpdate) *AllFieldsSoFarUpsert {
 		BytesReq:        fieldUpsert[[]byte]{column: "bytesReq", update: up},
 		BytesOpt:        fieldUpsert[*[]byte]{column: "bytesOpt", update: up},
 		HstoreField:     fieldUpsert[*map[string]*string]{column: "hstoreField", update: up},
-		LtreeField:      fieldUpsert[string]{column: "ltreeField", update: up},
+		LtreeField:      fieldUpsert[*string]{column: "ltreeField", update: up},
 		CitextField:     fieldUpsert[*string]{column: "citextField", update: up},
 	}
 }

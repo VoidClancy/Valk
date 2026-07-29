@@ -592,7 +592,7 @@ func assignmentsToPostCreate(assignments []FieldAssignment) (PostCreate, error) 
 			provided |= providedPostId
 			if v, ok := a.Val.(string); ok {
 				input.Id = &v
-				ValidateString(&errs, "id", v, false, 0, false, false)
+				errs.ValidateString("id", v, false, 0, false, false)
 			} else {
 				errs.Add("id", a.Val, "type", "field id must be of type string")
 			}
@@ -600,7 +600,7 @@ func assignmentsToPostCreate(assignments []FieldAssignment) (PostCreate, error) 
 			provided |= providedPostTitle
 			if v, ok := a.Val.(string); ok {
 				input.Title = v
-				ValidateString(&errs, "title", v, true, 0, false, false)
+				errs.ValidateString("title", v, true, 0, false, false)
 			} else {
 				errs.Add("title", a.Val, "type", "field title must be of type string")
 			}
@@ -608,7 +608,7 @@ func assignmentsToPostCreate(assignments []FieldAssignment) (PostCreate, error) 
 			provided |= providedPostContent
 			if v, ok := a.Val.(string); ok {
 				input.Content = &v
-				ValidateString(&errs, "content", v, false, 0, false, false)
+				errs.ValidateString("content", v, false, 0, false, false)
 			} else {
 				errs.Add("content", a.Val, "type", "field content must be of type string")
 			}
@@ -623,7 +623,7 @@ func assignmentsToPostCreate(assignments []FieldAssignment) (PostCreate, error) 
 			provided |= providedPostAuthorId
 			if v, ok := a.Val.(string); ok {
 				input.AuthorId = v
-				ValidateString(&errs, "authorId", v, true, 0, false, false)
+				errs.ValidateString("authorId", v, true, 0, false, false)
 			} else {
 				errs.Add("authorId", a.Val, "type", "field authorId must be of type string")
 			}
