@@ -373,7 +373,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 		ignoredLink, err := client.CategoryToPost.Create().
 			SetPostId(pst.Id).
 			SetCategoryId(cat.Id).
-			OnConflict(categoryToPost.PostIdCategoryId).
+			OnConflict(categoryToPost.PostId_CategoryId).
 			Ignore().
 			Exec(ctx)
 		if err != nil {
@@ -385,7 +385,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 
 		affected, err := client.CategoryToPost.CreateMany(
 			client.CategoryToPost.Create().SetPostId(pst.Id).SetCategoryId(cat.Id),
-		).OnConflict(categoryToPost.PostIdCategoryId).Ignore().Exec(ctx)
+		).OnConflict(categoryToPost.PostId_CategoryId).Ignore().Exec(ctx)
 		if err != nil {
 			t.Fatalf("CreateMany OnConflict.Ignore on composite key failed: %v", err)
 		}

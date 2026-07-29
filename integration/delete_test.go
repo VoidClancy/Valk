@@ -234,7 +234,12 @@ func TestDeleteHooks_SetWhereAndInspection(t *testing.T) {
 	var inspectedCol string
 	db.User.Use(user.Extension{
 		Delete: func(ctx context.Context, args *valk.UserDeleteArgs, next valk.UserDeleteQuery) (*valk.User, error) {
-			inspectedCol = args.Where.Column()
+			for _, w := range args.Where {
+				if w.Column() == user.Email.Column {
+					inspectedCol = w.Column()
+				}
+
+			}
 			args.SetWhere(user.Email.EQ("hookdelete_mutated@example.com"))
 			return next(ctx, args)
 		},

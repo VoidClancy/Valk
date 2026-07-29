@@ -44,7 +44,7 @@ func TestFindUniqueConflictingCompoundFields(t *testing.T) {
 		t.Fatalf("seed b failed: %v", err)
 	}
 
-	res, err := db.User.FindUnique(user.EmailPhoneUnique("a@example.com", "222")).Exec(ctx)
+	res, err := db.User.FindUnique(user.EmailPhone.EQ("a@example.com", "222")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("query failed: %v", err)
 	}
@@ -470,7 +470,7 @@ func TestCompoundUniqueWithOneFieldMatchingWrongRow(t *testing.T) {
 		t.Fatalf("seed b failed: %v", err)
 	}
 
-	res, err := db.User.FindUnique(user.EmailPhoneUnique("compound_a@example.com", "701b")).Exec(ctx)
+	res, err := db.User.FindUnique(user.EmailPhone.EQ("compound_a@example.com", "701b")).Exec(ctx)
 	if err != nil {
 		t.Fatalf("query failed: %v", err)
 	}
@@ -490,7 +490,7 @@ func TestCompoundUniqueConstraintEdgeCases(t *testing.T) {
 	}
 
 	t.Run("Happy path", func(t *testing.T) {
-		res, err := db.User.FindUnique(user.EmailPhoneUnique("compound_edge@example.com", "800a")).Exec(ctx)
+		res, err := db.User.FindUnique(user.EmailPhone.EQ("compound_edge@example.com", "800a")).Exec(ctx)
 		if err != nil {
 			t.Fatalf("happy path failed: %v", err)
 		}
@@ -500,7 +500,7 @@ func TestCompoundUniqueConstraintEdgeCases(t *testing.T) {
 	})
 
 	t.Run("SQL Injection in one compound field", func(t *testing.T) {
-		res, err := db.User.FindUnique(user.EmailPhoneUnique("compound_edge@example.com", "800a' OR '1'='1")).Exec(ctx)
+		res, err := db.User.FindUnique(user.EmailPhone.EQ("compound_edge@example.com", "800a' OR '1'='1")).Exec(ctx)
 		if err != nil {
 			t.Fatalf("query failed: %v", err)
 		}
@@ -510,7 +510,7 @@ func TestCompoundUniqueConstraintEdgeCases(t *testing.T) {
 	})
 
 	t.Run("Partial mismatch", func(t *testing.T) {
-		res, err := db.User.FindUnique(user.EmailPhoneUnique("compound_edge@example.com", "wrong_phone")).Exec(ctx)
+		res, err := db.User.FindUnique(user.EmailPhone.EQ("compound_edge@example.com", "wrong_phone")).Exec(ctx)
 		if err != nil {
 			t.Fatalf("query failed: %v", err)
 		}
@@ -520,7 +520,7 @@ func TestCompoundUniqueConstraintEdgeCases(t *testing.T) {
 	})
 
 	t.Run("Empty strings in both compound fields", func(t *testing.T) {
-		res, err := db.User.FindUnique(user.EmailPhoneUnique("", "")).Exec(ctx)
+		res, err := db.User.FindUnique(user.EmailPhone.EQ("", "")).Exec(ctx)
 		if err != nil {
 			t.Fatalf("query failed: %v", err)
 		}
@@ -530,7 +530,7 @@ func TestCompoundUniqueConstraintEdgeCases(t *testing.T) {
 	})
 
 	t.Run("Control characters", func(t *testing.T) {
-		res, err := db.User.FindUnique(user.EmailPhoneUnique("compound_edge@example.com\x00", "800a\r\n")).Exec(ctx)
+		res, err := db.User.FindUnique(user.EmailPhone.EQ("compound_edge@example.com\x00", "800a\r\n")).Exec(ctx)
 		if err == nil {
 			t.Fatalf("expected validation error for control-character mutated fields, got nil")
 		}
