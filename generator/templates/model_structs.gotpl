@@ -65,6 +65,160 @@ func (s *{{ .Model.Name }}Create) colMask() uint64 {
 	return mask
 }
 
+// {{ .Model.Name }}Update contains model input fields for {{ .Model.Name }} update operations.
+type {{ .Model.Name }}Update struct {
+	{{- range $field := .Model.ScalarFields }}
+	{{- $coreType := trimPrefix $field.GoType "*" }}
+	{{ capitalize $field.Name }} {{ if $field.EnumRef }}{{ if $field.IsArray }}[]{{ $field.EnumRef.Name }}Type{{ else }}*{{ $field.EnumRef.Name }}Type{{ end }}{{ else }}{{ if $field.IsArray }}{{ $field.GoType }}{{ else }}*{{ $coreType }}{{ end }}{{ end }} `json:"{{ $field.Name }}"`
+	{{- end }}
+}
+
+func (u *{{ .Model.Name }}Update) ToColsVals() ([]string, []any) {
+	var cols []string
+	var vals []any
+	{{- range $field := .Model.ScalarFields }}
+	if u.{{ capitalize $field.Name }} != nil {
+		cols = append(cols, "{{ $field.EffectiveColName }}")
+		vals = append(vals, u.{{ capitalize $field.Name }})
+	}
+	{{- end }}
+	return cols, vals
+}
+
+func assignmentsTo{{ .Model.Name }}Update(assignments []FieldAssignment) ({{ .Model.Name }}Update, error) {
+	var input {{ .Model.Name }}Update
+	var errs ValidationError
+
+	for _, a := range assignments {
+		switch a.Col {
+		{{- range $field := .Model.ScalarFields }}
+		{{- $col := $field.EffectiveColName }}
+		{{- $coreType := trimPrefix $field.GoType "*" }}
+		case "{{ $col }}":
+			{{- if $field.EnumRef }}
+				{{- $enumType := printf "%sType" $field.EnumRef.Name }}
+				{{- if $field.IsArray }}
+			if v, ok := a.Val.([]{{ $enumType }}); ok {
+				input.{{ capitalize $field.Name }} = v
+				for i, val := range v {
+					if !val.IsValid() {
+						errs.Add(fmt.Sprintf("{{ $field.Name }}[%d]", i), val, "enum", fmt.Sprintf("invalid enum value %q for field {{ $field.Name }}", val))
+					}
+				}
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type []{{ $enumType }}")
+			}
+				{{- else }}
+			if v, ok := a.Val.({{ $enumType }}); ok {
+				input.{{ capitalize $field.Name }} = &v
+				if !v.IsValid() {
+					errs.Add("{{ $field.Name }}", v, "enum", fmt.Sprintf("invalid enum value %q for field {{ $field.Name }}", v))
+				}
+			} else if v, ok := a.Val.(*{{ $enumType }}); ok {
+				input.{{ capitalize $field.Name }} = v
+				if v != nil && !v.IsValid() {
+					errs.Add("{{ $field.Name }}", *v, "enum", fmt.Sprintf("invalid enum value %q for field {{ $field.Name }}", *v))
+				}
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ $enumType }}")
+			}
+				{{- end }}
+			{{- else if eq $coreType "string" }}
+			if v, ok := a.Val.(string); ok {
+				input.{{ capitalize $field.Name }} = &v
+				{{- $maxLen := 0 }}
+				{{- if and $field.NativeType (or (eq $field.NativeType.Name "VarChar") (eq $field.NativeType.Name "Char")) }}
+					{{- $maxLen = index $field.NativeType.Args 0 }}
+				{{- end }}
+				{{- $isBit := false }}
+				{{- if and $field.NativeType (or (eq $field.NativeType.Name "Bit") (eq $field.NativeType.Name "VarBit")) }}
+					{{- $isBit = true }}
+				{{- end }}
+				{{- $isInet := false }}
+				{{- if and $field.NativeType (eq $field.NativeType.Name "Inet") }}
+					{{- $isInet = true }}
+				{{- end }}
+				errs.ValidateString("{{ $field.Name }}", v, false, {{ $maxLen }}, {{ $isBit }}, {{ $isInet }})
+				{{- if and $field.NativeType (eq $field.NativeType.Name "Uuid") }}
+				errs.ValidateUUID("{{ $field.Name }}", v)
+				{{- end }}
+				{{- $scale := "0" }}
+				{{- if and $field.NativeType (or (eq $field.NativeType.Name "Decimal") (eq $field.NativeType.Name "Numeric")) (gt (len $field.NativeType.Args) 1) }}
+					{{- $scale = index $field.NativeType.Args 1 }}
+				{{- end }}
+				{{- if or (eq $field.Type "Decimal") (ne $scale "0") }}
+				errs.ValidateDecimal("{{ $field.Name }}", v, {{ $scale }})
+				{{- end }}
+			} else if v, ok := a.Val.(*string); ok {
+				input.{{ capitalize $field.Name }} = v
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type string")
+			}
+			{{- else if or (eq $coreType "int32") (eq $coreType "int64") (eq $coreType "int") }}
+			if v, ok := a.Val.({{ $coreType }}); ok {
+				input.{{ capitalize $field.Name }} = &v
+			} else if v, ok := a.Val.(*{{ $coreType }}); ok {
+				input.{{ capitalize $field.Name }} = v
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ $coreType }}")
+			}
+			{{- else if eq $coreType "bool" }}
+			if v, ok := a.Val.(bool); ok {
+				input.{{ capitalize $field.Name }} = &v
+			} else if v, ok := a.Val.(*bool); ok {
+				input.{{ capitalize $field.Name }} = v
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type bool")
+			}
+			{{- else if eq $coreType "float64" }}
+			if v, ok := a.Val.(float64); ok {
+				input.{{ capitalize $field.Name }} = &v
+			} else if v, ok := a.Val.(*float64); ok {
+				input.{{ capitalize $field.Name }} = v
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type float64")
+			}
+			{{- else if eq $coreType "time.Time" }}
+			if v, ok := a.Val.(time.Time); ok {
+				input.{{ capitalize $field.Name }} = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.{{ capitalize $field.Name }} = v
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type time.Time")
+			}
+			{{- else if eq $coreType "[]byte" }}
+			if v, ok := a.Val.([]byte); ok {
+				input.{{ capitalize $field.Name }} = &v
+			} else if v, ok := a.Val.(*[]byte); ok {
+				input.{{ capitalize $field.Name }} = v
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type []byte")
+			}
+			{{- else }}
+			if v, ok := a.Val.({{ $coreType }}); ok {
+				input.{{ capitalize $field.Name }} = &v
+			} else if v, ok := a.Val.(*{{ $coreType }}); ok {
+				input.{{ capitalize $field.Name }} = v
+			} else if v, ok := a.Val.({{ $field.GoType }}); ok {
+				{{- if eq (trimPrefix $field.GoType "*") $field.GoType }}
+				input.{{ capitalize $field.Name }} = &v
+				{{- else }}
+				input.{{ capitalize $field.Name }} = v
+				{{- end }}
+			} else {
+				errs.Add("{{ $field.Name }}", a.Val, "type", "field {{ $field.Name }} must be of type {{ $field.GoType }}")
+			}
+			{{- end }}
+		{{- end }}
+		}
+	}
+
+	if errs.HasErrors() {
+		return input, errs
+	}
+	return input, nil
+}
+
 
 // {{ .Model.Name }}Select specifies which scalar and relation fields to select for {{ .Model.Name }}.
 //
@@ -424,6 +578,51 @@ func (a *{{ .Model.Name }}DeleteManyArgs) SetWhere(preds ...PredicateOf[{{ .Mode
 	return a
 }
 
+// {{ .Model.Name }}UpdateArgs is the input argument passed to {{ .Model.Name }} Update extension hooks.
+type {{ .Model.Name }}UpdateArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[{{ .Model.Name }}]
+	// Data contains the model fields to update.
+	Data *{{ .Model.Name }}Update
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *{{ .Model.Name }}Select
+}
+
+func (a *{{ .Model.Name }}UpdateArgs) SetWhere(unique UniquePredicate[{{ .Model.Name }}], additional ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}UpdateArgs {
+	a.Where = make([]PredicateOf[{{ .Model.Name }}], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// {{ .Model.Name }}UpdateManyArgs is the input argument passed to {{ .Model.Name }} UpdateMany extension hooks.
+type {{ .Model.Name }}UpdateManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[{{ .Model.Name }}]
+	// Data contains the model fields to update.
+	Data *{{ .Model.Name }}Update
+}
+
+func (a *{{ .Model.Name }}UpdateManyArgs) SetWhere(preds ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}UpdateManyArgs {
+	a.Where = preds
+	return a
+}
+
+// {{ .Model.Name }}UpdateManyAndReturnArgs is the input argument passed to {{ .Model.Name }} UpdateManyAndReturn extension hooks.
+type {{ .Model.Name }}UpdateManyAndReturnArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[{{ .Model.Name }}]
+	// Data contains the model fields to update.
+	Data *{{ .Model.Name }}Update
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *{{ .Model.Name }}Select
+}
+
+func (a *{{ .Model.Name }}UpdateManyAndReturnArgs) SetWhere(preds ...PredicateOf[{{ .Model.Name }}]) *{{ .Model.Name }}UpdateManyAndReturnArgs {
+	a.Where = preds
+	return a
+}
+
 type {{ .Model.Name }}CreateQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateArgs) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}CreateManyQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateManyArgs) (int64, error)
 type {{ .Model.Name }}CreateManyAndReturnQuery = func(ctx context.Context, args *{{ .Model.Name }}CreateManyAndReturnArgs) ([]*{{ .Model.Name }}, error)
@@ -433,9 +632,9 @@ type {{ .Model.Name }}FindManyQuery = func(ctx context.Context, args *{{ .Model.
 type {{ .Model.Name }}DeleteQuery = func(ctx context.Context, args *{{ .Model.Name }}DeleteArgs) (*{{ .Model.Name }}, error)
 type {{ .Model.Name }}DeleteManyQuery = func(ctx context.Context, args *{{ .Model.Name }}DeleteManyArgs) (int64, error)
 type {{ .Model.Name }}CountQuery = func(ctx context.Context, args *{{ .Model.Name }}CountArgs) (int64, error)
-type {{ .Model.Name }}UpdateQuery = func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) (*{{ .Model.Name }}, error)
-type {{ .Model.Name }}UpdateManyQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment) (int64, error)
-type {{ .Model.Name }}UpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit) ([]*{{ .Model.Name }}, error)
+type {{ .Model.Name }}UpdateQuery = func(ctx context.Context, args *{{ .Model.Name }}UpdateArgs) (*{{ .Model.Name }}, error)
+type {{ .Model.Name }}UpdateManyQuery = func(ctx context.Context, args *{{ .Model.Name }}UpdateManyArgs) (int64, error)
+type {{ .Model.Name }}UpdateManyAndReturnQuery = func(ctx context.Context, args *{{ .Model.Name }}UpdateManyAndReturnArgs) ([]*{{ .Model.Name }}, error)
 
 type {{ .Model.Name }}Extension struct {
 	Create              func(ctx context.Context, args *{{ .Model.Name }}CreateArgs, next {{ .Model.Name }}CreateQuery) (*{{ .Model.Name }}, error)
@@ -447,9 +646,9 @@ type {{ .Model.Name }}Extension struct {
 	Delete              func(ctx context.Context, args *{{ .Model.Name }}DeleteArgs, next {{ .Model.Name }}DeleteQuery) (*{{ .Model.Name }}, error)
 	DeleteMany          func(ctx context.Context, args *{{ .Model.Name }}DeleteManyArgs, next {{ .Model.Name }}DeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *{{ .Model.Name }}CountArgs, next {{ .Model.Name }}CountQuery) (int64, error)
-	Update              func(ctx context.Context, where UniquePredicate[{{ .Model.Name }}], additional []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}UpdateQuery) (*{{ .Model.Name }}, error)
-	UpdateMany          func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, next {{ .Model.Name }}UpdateManyQuery) (int64, error)
-	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[{{ .Model.Name }}], assignments []FieldAssignment, selects *{{ .Model.Name }}Select, omits *{{ .Model.Name }}Omit, next {{ .Model.Name }}UpdateManyAndReturnQuery) ([]*{{ .Model.Name }}, error)
+	Update              func(ctx context.Context, args *{{ .Model.Name }}UpdateArgs, next {{ .Model.Name }}UpdateQuery) (*{{ .Model.Name }}, error)
+	UpdateMany          func(ctx context.Context, args *{{ .Model.Name }}UpdateManyArgs, next {{ .Model.Name }}UpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, args *{{ .Model.Name }}UpdateManyAndReturnArgs, next {{ .Model.Name }}UpdateManyAndReturnQuery) ([]*{{ .Model.Name }}, error)
 }
 
 type {{ .Model.Name }}Delegate struct {

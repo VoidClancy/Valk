@@ -45,6 +45,86 @@ func (s *ProfileCreate) colMask() uint64 {
 	return mask
 }
 
+// ProfileUpdate contains model input fields for Profile update operations.
+type ProfileUpdate struct {
+	Id        *string    `json:"id"`
+	Bio       *string    `json:"bio"`
+	UserId    *string    `json:"userId"`
+	CreatedAt *time.Time `json:"createdAt"`
+}
+
+func (u *ProfileUpdate) ToColsVals() ([]string, []any) {
+	var cols []string
+	var vals []any
+	if u.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, u.Id)
+	}
+	if u.Bio != nil {
+		cols = append(cols, "bio")
+		vals = append(vals, u.Bio)
+	}
+	if u.UserId != nil {
+		cols = append(cols, "userId")
+		vals = append(vals, u.UserId)
+	}
+	if u.CreatedAt != nil {
+		cols = append(cols, "createdAt")
+		vals = append(vals, u.CreatedAt)
+	}
+	return cols, vals
+}
+
+func assignmentsToProfileUpdate(assignments []FieldAssignment) (ProfileUpdate, error) {
+	var input ProfileUpdate
+	var errs ValidationError
+
+	for _, a := range assignments {
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				input.Id = &v
+				errs.ValidateString("id", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Id = v
+			} else {
+				errs.Add("id", a.Val, "type", "field id must be of type string")
+			}
+		case "bio":
+			if v, ok := a.Val.(string); ok {
+				input.Bio = &v
+				errs.ValidateString("bio", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Bio = v
+			} else {
+				errs.Add("bio", a.Val, "type", "field bio must be of type string")
+			}
+		case "userId":
+			if v, ok := a.Val.(string); ok {
+				input.UserId = &v
+				errs.ValidateString("userId", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.UserId = v
+			} else {
+				errs.Add("userId", a.Val, "type", "field userId must be of type string")
+			}
+		case "createdAt":
+			if v, ok := a.Val.(time.Time); ok {
+				input.CreatedAt = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.CreatedAt = v
+			} else {
+				errs.Add("createdAt", a.Val, "type", "field createdAt must be of type time.Time")
+			}
+		}
+	}
+
+	if errs.HasErrors() {
+		return input, errs
+	}
+	return input, nil
+}
+
 // ProfileSelect specifies which scalar and relation fields to select for Profile.
 //
 // Selectable fields:
@@ -395,6 +475,51 @@ func (a *ProfileDeleteManyArgs) SetWhere(preds ...PredicateOf[Profile]) *Profile
 	return a
 }
 
+// ProfileUpdateArgs is the input argument passed to Profile Update extension hooks.
+type ProfileUpdateArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[Profile]
+	// Data contains the model fields to update.
+	Data *ProfileUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *ProfileSelect
+}
+
+func (a *ProfileUpdateArgs) SetWhere(unique UniquePredicate[Profile], additional ...PredicateOf[Profile]) *ProfileUpdateArgs {
+	a.Where = make([]PredicateOf[Profile], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// ProfileUpdateManyArgs is the input argument passed to Profile UpdateMany extension hooks.
+type ProfileUpdateManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Profile]
+	// Data contains the model fields to update.
+	Data *ProfileUpdate
+}
+
+func (a *ProfileUpdateManyArgs) SetWhere(preds ...PredicateOf[Profile]) *ProfileUpdateManyArgs {
+	a.Where = preds
+	return a
+}
+
+// ProfileUpdateManyAndReturnArgs is the input argument passed to Profile UpdateManyAndReturn extension hooks.
+type ProfileUpdateManyAndReturnArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Profile]
+	// Data contains the model fields to update.
+	Data *ProfileUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *ProfileSelect
+}
+
+func (a *ProfileUpdateManyAndReturnArgs) SetWhere(preds ...PredicateOf[Profile]) *ProfileUpdateManyAndReturnArgs {
+	a.Where = preds
+	return a
+}
+
 type ProfileCreateQuery = func(ctx context.Context, args *ProfileCreateArgs) (*Profile, error)
 type ProfileCreateManyQuery = func(ctx context.Context, args *ProfileCreateManyArgs) (int64, error)
 type ProfileCreateManyAndReturnQuery = func(ctx context.Context, args *ProfileCreateManyAndReturnArgs) ([]*Profile, error)
@@ -404,9 +529,9 @@ type ProfileFindManyQuery = func(ctx context.Context, args *ProfileFindManyArgs)
 type ProfileDeleteQuery = func(ctx context.Context, args *ProfileDeleteArgs) (*Profile, error)
 type ProfileDeleteManyQuery = func(ctx context.Context, args *ProfileDeleteManyArgs) (int64, error)
 type ProfileCountQuery = func(ctx context.Context, args *ProfileCountArgs) (int64, error)
-type ProfileUpdateQuery = func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error)
-type ProfileUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment) (int64, error)
-type ProfileUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error)
+type ProfileUpdateQuery = func(ctx context.Context, args *ProfileUpdateArgs) (*Profile, error)
+type ProfileUpdateManyQuery = func(ctx context.Context, args *ProfileUpdateManyArgs) (int64, error)
+type ProfileUpdateManyAndReturnQuery = func(ctx context.Context, args *ProfileUpdateManyAndReturnArgs) ([]*Profile, error)
 
 type ProfileExtension struct {
 	Create              func(ctx context.Context, args *ProfileCreateArgs, next ProfileCreateQuery) (*Profile, error)
@@ -418,9 +543,9 @@ type ProfileExtension struct {
 	Delete              func(ctx context.Context, args *ProfileDeleteArgs, next ProfileDeleteQuery) (*Profile, error)
 	DeleteMany          func(ctx context.Context, args *ProfileDeleteManyArgs, next ProfileDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *ProfileCountArgs, next ProfileCountQuery) (int64, error)
-	Update              func(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit, next ProfileUpdateQuery) (*Profile, error)
-	UpdateMany          func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, next ProfileUpdateManyQuery) (int64, error)
-	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit, next ProfileUpdateManyAndReturnQuery) ([]*Profile, error)
+	Update              func(ctx context.Context, args *ProfileUpdateArgs, next ProfileUpdateQuery) (*Profile, error)
+	UpdateMany          func(ctx context.Context, args *ProfileUpdateManyArgs, next ProfileUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, args *ProfileUpdateManyAndReturnArgs, next ProfileUpdateManyAndReturnQuery) ([]*Profile, error)
 }
 
 type ProfileDelegate struct {
@@ -499,6 +624,16 @@ func (s *ProfileSelect) hasAnyRelation() bool {
 
 type ProfileCreateBuilder struct {
 	*CreateBuilder[Profile, ProfileSelect, ProfileOmit]
+}
+
+func (b *ProfileCreateBuilder) Select(s ProfileSelect) *ProfileCreateBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *ProfileCreateBuilder) Omit(o ProfileOmit) *ProfileCreateBuilder {
+	b.omits = &o
+	return b
 }
 
 func (b *ProfileCreateBuilder) OnConflict(target UniqueConstraintTarget) *ProfileConflictBuilder[ProfileCreateBuilder] {
@@ -660,23 +795,11 @@ func (d *ProfileDelegate) executeCreate(ctx context.Context, assignments []Field
 		return nil, err
 	}
 
+	cols, vals := input.ToColsVals()
+	returningCols := selectProfileCols(selects, omits)
+
 	if len(d.extensions) == 0 {
-		cols, vals := input.ToColsVals()
-		returningCols := selectProfileCols(selects, omits)
-		hasRelations := selects.hasAnyRelation()
-		if hasRelations {
-			var res *Profile
-			err = d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Profile.runCreate(ctx, cols, vals, returningCols, profilePKCols, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Profile.loadRelations(ctx, []*Profile{res}, selects)
-			})
-			return res, err
-		}
-		return d.runCreate(ctx, cols, vals, returningCols, profilePKCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -691,28 +814,9 @@ func (d *ProfileDelegate) executeCreate(ctx context.Context, assignments []Field
 	}
 
 	curr := func(c context.Context, a *ProfileCreateArgs) (*Profile, error) {
-		cols, vals := a.Data.ToColsVals()
-		returningCols := selectProfileCols(a.Select, omits)
-
-		hasRelations := a.Select.hasAnyRelation()
-		var res *Profile
-		var err error
-		if hasRelations {
-			err = d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Profile.runCreate(c, cols, vals, returningCols, profilePKCols, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Profile.loadRelations(c, []*Profile{res}, a.Select)
-			})
-		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, profilePKCols, a.ConflictTarget, a.ConflictAction)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return res, nil
+		cCols, cVals := a.Data.ToColsVals()
+		cReturningCols := selectProfileCols(a.Select, omits)
+		return d.runCreate(c, cCols, cVals, cReturningCols, a.Select, a.ConflictTarget, a.ConflictAction)
 	}
 
 	if len(d.extensions) == 1 {
@@ -753,6 +857,16 @@ type ProfileCreateManyAndReturnBuilder struct {
 	*CreateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit]
 }
 
+func (b *ProfileCreateManyAndReturnBuilder) Select(s ProfileSelect) *ProfileCreateManyAndReturnBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *ProfileCreateManyAndReturnBuilder) Omit(o ProfileOmit) *ProfileCreateManyAndReturnBuilder {
+	b.omits = &o
+	return b
+}
+
 func (b *ProfileCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *ProfileConflictBuilder[ProfileCreateManyAndReturnBuilder] {
 	return &ProfileConflictBuilder[ProfileCreateManyAndReturnBuilder]{
 		builder:        b,
@@ -764,42 +878,50 @@ func (b *ProfileCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTa
 	}
 }
 
-func (d *ProfileDelegate) CreateMany(builders ...*ProfileCreateBuilder) *ProfileCreateManyBuilder {
+func createBuildersToProfileRecordInputs(builders []*ProfileCreateBuilder) []RecordInput {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
+	return records
+}
+
+func (d *ProfileDelegate) CreateMany(builders ...*ProfileCreateBuilder) *ProfileCreateManyBuilder {
 	return &ProfileCreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[Profile]{
-			records:  records,
+			records:  createBuildersToProfileRecordInputs(builders),
 			execFunc: d.executeCreateMany,
 		},
 	}
 }
 
 func (d *ProfileDelegate) CreateManyAndReturn(builders ...*ProfileCreateBuilder) *ProfileCreateManyAndReturnBuilder {
-	records := make([]RecordInput, len(builders))
-	for i, b := range builders {
-		records[i] = RecordInput{Assignments: b.assignments}
-	}
 	return &ProfileCreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[Profile, ProfileSelect, ProfileOmit]{
-			records:  records,
+			records:  createBuildersToProfileRecordInputs(builders),
 			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (d *ProfileDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func recordsToProfileCreateInputs(records []RecordInput) ([]*ProfileCreate, error) {
 	structs := make([]ProfileCreate, len(records))
 	inputs := make([]*ProfileCreate, len(records))
 	for i, rec := range records {
 		var err error
 		structs[i], err = assignmentsToProfileCreate(rec.Assignments)
 		if err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		inputs[i] = &structs[i]
+	}
+	return inputs, nil
+}
+
+func (d *ProfileDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+	inputs, err := recordsToProfileCreateInputs(records)
+	if err != nil {
+		return 0, err
 	}
 
 	if len(d.extensions) == 0 {
@@ -836,31 +958,12 @@ func (d *ProfileDelegate) executeCreateMany(ctx context.Context, records []Recor
 }
 
 func (d *ProfileDelegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *ProfileSelect, omits *ProfileOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Profile, error) {
-	structs := make([]ProfileCreate, len(records))
-	inputs := make([]*ProfileCreate, len(records))
-	for i, rec := range records {
-		var err error
-		structs[i], err = assignmentsToProfileCreate(rec.Assignments)
-		if err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-		inputs[i] = &structs[i]
+	inputs, err := recordsToProfileCreateInputs(records)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(d.extensions) == 0 {
-		hasRelations := selects != nil && selects.hasAnyRelation()
-		if hasRelations {
-			var res []*Profile
-			err := d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Profile.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Profile.loadRelations(ctx, res, selects)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
 	}
 
@@ -876,19 +979,6 @@ func (d *ProfileDelegate) executeCreateManyAndReturn(ctx context.Context, record
 	}
 
 	curr := func(c context.Context, a *ProfileCreateManyAndReturnArgs) ([]*Profile, error) {
-		hasRelations := a.Select != nil && a.Select.hasAnyRelation()
-		if hasRelations {
-			var res []*Profile
-			err := d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Profile.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Profile.loadRelations(c, res, a.Select)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
@@ -916,36 +1006,67 @@ func (d *ProfileDelegate) runCreate(
 	cols []string,
 	vals []any,
 	returningCols []string,
-	pkCols []string,
+	selects *ProfileSelect,
 	conflictTarget UniqueConstraintTarget,
 	conflictAction *ConflictAction,
 ) (*Profile, error) {
-	query, clauseArgs := buildSingleInsertSQL(d.client, "Profile", cols, returningCols, pkCols, conflictTarget, conflictAction, len(vals))
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := hasRelations && !d.client.inTx()
+
+	if useTx {
+		var res *Profile
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.Profile.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
+			if err != nil {
+				return err
+			}
+			return txQ.Profile.loadRelations(ctx, []*Profile{res}, selects)
+		})
+		return res, err
+	}
+
+	query, clauseArgs := buildSingleInsertSQL(d.client, "Profile", cols, returningCols, profilePKCols, conflictTarget, conflictAction, len(vals))
 	if len(clauseArgs) > 0 {
 		vals = append(vals, clauseArgs...)
 	}
 
-	var res Profile
 	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
 
-		if rows.Next() {
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+		if !rows.Next() {
+			err := rows.Err()
+			rows.Close()
+			if err != nil {
 				return nil, err
 			}
-			return &res, nil
+			return nil, nil
 		}
-		return nil, rows.Err()
+
+		var res Profile
+		scanErr := rows.Scan(res.ScanFields(returningCols)...)
+		rows.Close()
+		if scanErr != nil {
+			return nil, scanErr
+		}
+
+		return &res, nil
 	}
 
-	return d.runCreateFallback(ctx, query, vals, cols, returningCols, pkCols)
+	return d.runCreateFallback(ctx, query, vals, cols, returningCols, profilePKCols)
 }
 
-func (d *ProfileDelegate) runCreateFallback(ctx context.Context, query string, vals []any, cols []string, returningCols []string, pkCols []string) (*Profile, error) {
+func (d *ProfileDelegate) runCreateFallback(
+	ctx context.Context,
+	query string,
+	vals []any,
+	cols []string,
+	returningCols []string,
+	pkCols []string,
+) (*Profile, error) {
 	result, err := d.client.exec(ctx, query, vals...)
 	if err != nil {
 		return nil, err
@@ -995,16 +1116,24 @@ func (d *ProfileDelegate) runCreateFallback(ctx context.Context, query string, v
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var res Profile
-	if rows.Next() {
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
 			return nil, err
 		}
-		return &res, nil
+		return nil, nil
 	}
-	return nil, rows.Err()
+
+	var res Profile
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	return &res, nil
 }
 
 func (d *ProfileDelegate) buildBulkInsertSQL(q *Queries, batch []*ProfileCreate, paramStartIdx int) (cols []string, vals []any, queryStr string) {
@@ -1080,6 +1209,41 @@ func (d *ProfileDelegate) buildBulkInsertSQL(q *Queries, batch []*ProfileCreate,
 	return cols, vals, queryStr
 }
 
+func applyProfileConflictClause(dialect Dialect, queryStr string, vals []any, cols []string, pkCols []string, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (string, []any) {
+	var conflictCols []string
+	if conflictTarget != nil {
+		conflictCols = conflictTarget.UniqueColumns()
+	}
+	var nonConflictCols []string
+	if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+		nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+	}
+	clause, clauseArgs := dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+	queryStr += clause
+	if len(clauseArgs) > 0 {
+		vals = append(vals, clauseArgs...)
+	}
+	return queryStr, vals
+}
+
+func scanProfileRows(rows *sql.Rows, returningCols []string) ([]*Profile, error) {
+	var records []*Profile
+	for rows.Next() {
+		var res Profile
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		records = append(records, &res)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	return records, nil
+}
+
 func (d *ProfileDelegate) runCreateMany(ctx context.Context, inputs []*ProfileCreate, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	if len(inputs) == 0 {
 		return 0, nil
@@ -1090,18 +1254,7 @@ func (d *ProfileDelegate) runCreateMany(ctx context.Context, inputs []*ProfileCr
 	var count int64
 	for _, batch := range batches {
 		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
-
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, profilePKCols)
-		}
-		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
+		queryStr, vals = applyProfileConflictClause(d.client.dialect, queryStr, vals, cols, profilePKCols, conflictTarget, conflictAction)
 
 		result, err := d.client.exec(ctx, queryStr, vals...)
 		if err != nil {
@@ -1129,27 +1282,37 @@ func (d *ProfileDelegate) runCreateManyAndReturn(
 	}
 
 	batches := partitionProfileInputs(d.client.dialect, inputs)
-	returningCols := selectProfileCols(selects, omits)
 	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning) && !d.client.inTx()
 
+	if useTx {
+		var res []*Profile
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if txQ.dialect.SupportsInsertReturning {
+				res, err = txQ.Profile.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			} else {
+				res, err = txQ.Profile.runCreateManyAndReturnFallback(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			}
+			if err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.Profile.loadRelations(ctx, res, selects)
+			}
+			return nil
+		})
+		return res, err
+	}
+
+	returningCols := selectProfileCols(selects, omits, profilePKCols...)
 	recordsOut := make([]*Profile, 0, len(inputs))
 
-	runBatch := func(txQ *Queries, batch []*ProfileCreate) error {
-		cols, vals, queryStr := d.buildBulkInsertSQL(txQ, batch, 1)
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyProfileConflictClause(d.client.dialect, queryStr, vals, cols, profilePKCols, conflictTarget, conflictAction)
 
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, profilePKCols)
-		}
-		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
-
-		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
+		if len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -1157,40 +1320,58 @@ func (d *ProfileDelegate) runCreateManyAndReturn(
 				if i > 0 {
 					retSb.WriteString(", ")
 				}
-				txQ.dialect.WriteQuotedIdent(&retSb, col)
+				d.client.dialect.WriteQuotedIdent(&retSb, col)
 			}
 			queryStr += retSb.String()
-			rows, err := txQ.query(ctx, queryStr, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-
-			for rows.Next() {
-				var res Profile
-				if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &res)
-			}
-			return rows.Err()
 		}
 
-		// Fallback for dialects without RETURNING (MySQL)
-		result, err := txQ.exec(ctx, queryStr, vals...)
+		rows, err := d.client.query(ctx, queryStr, vals...)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// We need to fetch the inserted records for this batch
-		// Note: MySQL bulk inserts only return the ID of the FIRST inserted row
+		scanned, err := scanProfileRows(rows, returningCols)
+		if err != nil {
+			return nil, err
+		}
+		recordsOut = append(recordsOut, scanned...)
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, recordsOut, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return recordsOut, nil
+}
+
+func (d *ProfileDelegate) runCreateManyAndReturnFallback(
+	ctx context.Context,
+	inputs []*ProfileCreate,
+	selects *ProfileSelect,
+	omits *ProfileOmit,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) ([]*Profile, error) {
+	batches := partitionProfileInputs(d.client.dialect, inputs)
+	returningCols := selectProfileCols(selects, omits, profilePKCols...)
+	recordsOut := make([]*Profile, 0, len(inputs))
+
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyProfileConflictClause(d.client.dialect, queryStr, vals, cols, profilePKCols, conflictTarget, conflictAction)
+
+		result, err := d.client.exec(ctx, queryStr, vals...)
+		if err != nil {
+			return nil, err
+		}
+
 		lastID, err := result.LastInsertId()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// Query back the rows by IDs (assuming autoincrement ID and single PK)
-		// If composite PK, it's more complex, but this is a standard fallback
 		var selectSb strings.Builder
 		selectSb.Grow(64 + len(returningCols)*15 + len("Profile") + len(batch)*15)
 		selectSb.WriteString("SELECT ")
@@ -1198,55 +1379,29 @@ func (d *ProfileDelegate) runCreateManyAndReturn(
 			if i > 0 {
 				selectSb.WriteString(", ")
 			}
-			txQ.dialect.WriteQuotedIdent(&selectSb, col)
+			d.client.dialect.WriteQuotedIdent(&selectSb, col)
 		}
 		selectSb.WriteString(" FROM ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, "Profile")
+		d.client.dialect.WriteQuotedIdent(&selectSb, "Profile")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, profilePKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, profilePKCols[0])
 		selectSb.WriteString(" >= ")
-		txQ.dialect.WritePlaceholder(&selectSb, 1)
+		d.client.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, profilePKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, profilePKCols[0])
 		selectSb.WriteString(" < ")
-		txQ.dialect.WritePlaceholder(&selectSb, 2)
+		d.client.dialect.WritePlaceholder(&selectSb, 2)
 
-		rows, err := txQ.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var res Profile
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, &res)
-		}
-		return rows.Err()
-	}
-
-	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
-		err := d.client.transaction(ctx, func(txQ *Queries) error {
-			for _, batch := range batches {
-				if err := runBatch(txQ, batch); err != nil {
-					return err
-				}
-			}
-			if hasRelations {
-				return txQ.Profile.loadRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
+		rows, err := d.client.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		if err := runBatch(d.client, batches[0]); err != nil {
+
+		scanned, err := scanProfileRows(rows, returningCols)
+		if err != nil {
 			return nil, err
 		}
+		recordsOut = append(recordsOut, scanned...)
 	}
 
 	return recordsOut, nil
@@ -1419,23 +1574,23 @@ func (d *ProfileDelegate) UpdateManyAndReturn(preds ...PredicateOf[Profile]) *Pr
 	}
 }
 
-func (d *ProfileDelegate) buildUpdateSQL(preds []PredicateOf[Profile], assignments []FieldAssignment, returningCols []string) (string, []any) {
-	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+func (d *ProfileDelegate) buildUpdateSQL(preds []PredicateOf[Profile], cols []string, vals []any, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(cols)+1)
 
 	var sb strings.Builder
 	sb.WriteString("UPDATE ")
 	d.client.dialect.WriteQuotedIdent(&sb, "Profile")
 	sb.WriteString(" SET ")
 
-	setVals := make([]any, 0, len(assignments)+len(predVals))
-	for i, a := range assignments {
+	setVals := make([]any, 0, len(cols)+len(predVals))
+	for i, col := range cols {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		d.client.dialect.WriteQuotedIdent(&sb, col)
 		sb.WriteString(" = ")
 		d.client.dialect.WritePlaceholder(&sb, i+1)
-		setVals = append(setVals, a.Val)
+		setVals = append(setVals, vals[i])
 	}
 
 	if whereClause != "" {
@@ -1462,21 +1617,39 @@ func (d *ProfileDelegate) buildUpdateSQL(preds []PredicateOf[Profile], assignmen
 // -----------------------------------------------------------------------------
 
 func (d *ProfileDelegate) executeUpdate(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	allWhere := make([]PredicateOf[Profile], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
+	input, err := assignmentsToProfileUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+		return d.runUpdate(ctx, allWhere, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullProfileSelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[Profile], add []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) (*Profile, error) {
-		return d.runUpdate(c, w, add, a, s, o)
+	args := &ProfileUpdateArgs{
+		Where:  allWhere,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *ProfileUpdateArgs) (*Profile, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdate(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.Update != nil {
-			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+			return ext.Update(ctx, args, curr)
 		}
 	}
 
@@ -1484,25 +1657,21 @@ func (d *ProfileDelegate) executeUpdate(ctx context.Context, where UniquePredica
 		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
-			curr = func(c context.Context, w UniquePredicate[Profile], add []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) (*Profile, error) {
-				return hook(c, w, add, a, s, o, next)
+			curr = func(c context.Context, a *ProfileUpdateArgs) (*Profile, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, additional, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *ProfileDelegate) runUpdate(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
-	allPreds := append([]PredicateOf[Profile]{where}, additional...)
-	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, allPreds, selects, omits)
+func (d *ProfileDelegate) runUpdate(ctx context.Context, preds []PredicateOf[Profile], cols []string, vals []any, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	if len(cols) == 0 {
+		return d.runFindUnique(ctx, preds, selects, omits)
 	}
 
-	if err := where.Validate(); err != nil {
-		return nil, err
-	}
-	for _, pr := range additional {
+	for _, pr := range preds {
 		if pr != nil {
 			if err := pr.Validate(); err != nil {
 				return nil, err
@@ -1518,9 +1687,9 @@ func (d *ProfileDelegate) runUpdate(ctx context.Context, where UniquePredicate[P
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.Profile.runUpdate(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.Profile.runUpdate(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.Profile.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.Profile.runUpdateFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1528,7 +1697,7 @@ func (d *ProfileDelegate) runUpdate(ctx context.Context, where UniquePredicate[P
 	}
 
 	returningCols := selectProfileCols(selects, omits, profilePKCols...)
-	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
@@ -1560,8 +1729,8 @@ func (d *ProfileDelegate) runUpdate(ctx context.Context, where UniquePredicate[P
 	return &res, nil
 }
 
-func (d *ProfileDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment) (int64, error) {
-	if len(assignments) == 0 {
+func (d *ProfileDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[Profile], cols []string, vals []any) (int64, error) {
+	if len(cols) == 0 {
 		return 0, nil
 	}
 
@@ -1573,7 +1742,7 @@ func (d *ProfileDelegate) execUpdateStmt(ctx context.Context, preds []PredicateO
 		}
 	}
 
-	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, nil)
 	result, err := d.client.exec(ctx, query, setVals...)
 	if err != nil {
 		return 0, err
@@ -1581,16 +1750,15 @@ func (d *ProfileDelegate) execUpdateStmt(ctx context.Context, preds []PredicateO
 	return result.RowsAffected()
 }
 
-func (d *ProfileDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[Profile], additional []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
-	allPreds := append([]PredicateOf[Profile]{where}, additional...)
-	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+func (d *ProfileDelegate) runUpdateFallback(ctx context.Context, preds []PredicateOf[Profile], cols []string, vals []any, selects *ProfileSelect, omits *ProfileOmit) (*Profile, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, allPreds, selects, omits)
+	return d.runFindUnique(ctx, preds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -1598,17 +1766,30 @@ func (d *ProfileDelegate) runUpdateFallback(ctx context.Context, where UniquePre
 // -----------------------------------------------------------------------------
 
 func (d *ProfileDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment) (int64, error) {
-	if len(d.extensions) == 0 {
-		return d.execUpdateStmt(ctx, preds, assignments)
+	input, err := assignmentsToProfileUpdate(assignments)
+	if err != nil {
+		return 0, err
 	}
 
-	curr := func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment) (int64, error) {
-		return d.execUpdateStmt(c, p, a)
+	cols, vals := input.ToColsVals()
+
+	if len(d.extensions) == 0 {
+		return d.execUpdateStmt(ctx, preds, cols, vals)
+	}
+
+	args := &ProfileUpdateManyArgs{
+		Where: preds,
+		Data:  &input,
+	}
+
+	curr := func(c context.Context, a *ProfileUpdateManyArgs) (int64, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.execUpdateStmt(c, a.Where, extCols, extVals)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateMany != nil {
-			return ext.UpdateMany(ctx, preds, assignments, curr)
+			return ext.UpdateMany(ctx, args, curr)
 		}
 	}
 
@@ -1616,13 +1797,13 @@ func (d *ProfileDelegate) executeUpdateMany(ctx context.Context, preds []Predica
 		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
-			curr = func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment) (int64, error) {
-				return hook(c, p, a, next)
+			curr = func(c context.Context, a *ProfileUpdateManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments)
+	return curr(ctx, args)
 }
 
 // -----------------------------------------------------------------------------
@@ -1630,21 +1811,35 @@ func (d *ProfileDelegate) executeUpdateMany(ctx context.Context, preds []Predica
 // -----------------------------------------------------------------------------
 
 func (d *ProfileDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
+	input, err := assignmentsToProfileUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+		return d.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullProfileSelect()
 	}
 
-	curr := func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) ([]*Profile, error) {
-		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	args := &ProfileUpdateManyAndReturnArgs{
+		Where:  preds,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *ProfileUpdateManyAndReturnArgs) ([]*Profile, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdateManyAndReturn(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
-			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+			return ext.UpdateManyAndReturn(ctx, args, curr)
 		}
 	}
 
@@ -1652,17 +1847,17 @@ func (d *ProfileDelegate) executeUpdateManyAndReturn(ctx context.Context, preds 
 		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
-			curr = func(c context.Context, p []PredicateOf[Profile], a []FieldAssignment, s *ProfileSelect, o *ProfileOmit) ([]*Profile, error) {
-				return hook(c, p, a, s, o, next)
+			curr = func(c context.Context, a *ProfileUpdateManyAndReturnArgs) ([]*Profile, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *ProfileDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
-	if len(assignments) == 0 {
+func (d *ProfileDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Profile], cols []string, vals []any, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
+	if len(cols) == 0 {
 		return d.runFindMany(ctx, QueryParams[Profile]{Where: preds}, selects, omits)
 	}
 
@@ -1682,9 +1877,9 @@ func (d *ProfileDelegate) runUpdateManyAndReturn(ctx context.Context, preds []Pr
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.Profile.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+				res, err = txQ.Profile.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.Profile.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+				res, err = txQ.Profile.runUpdateManyAndReturnFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1692,39 +1887,29 @@ func (d *ProfileDelegate) runUpdateManyAndReturn(ctx context.Context, preds []Pr
 	}
 
 	returningCols := selectProfileCols(selects, omits, profilePKCols...)
-	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]*Profile, 0)
-	for rows.Next() {
-		var res Profile
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		results = append(results, &res)
-	}
-	rowsErr := rows.Err()
-	rows.Close()
-	if rowsErr != nil {
-		return nil, rowsErr
+	scanned, err := scanProfileRows(rows, returningCols)
+	if err != nil {
+		return nil, err
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
-		if err := d.loadRelations(ctx, results, selects); err != nil {
+		if err := d.loadRelations(ctx, scanned, selects); err != nil {
 			return nil, err
 		}
 	}
 
-	return results, nil
+	return scanned, nil
 }
 
-func (d *ProfileDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[Profile], assignments []FieldAssignment, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
-	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+func (d *ProfileDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[Profile], cols []string, vals []any, selects *ProfileSelect, omits *ProfileOmit) ([]*Profile, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}

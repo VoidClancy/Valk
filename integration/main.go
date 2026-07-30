@@ -57,12 +57,11 @@ func main() {
 	}
 	db := openConn()
 	// db := openPGConn()
-	defer dbReset(db)
+	// defer dbReset(db)
 	defer db.Close()
 	rawDB := db.Raw()
 	rawDB.SetMaxOpenConns(10)
 	ctx := context.Background()
-
 	runMigrations(db, ctx)
 
 	// seed(db, ctx)
@@ -71,6 +70,7 @@ func main() {
 	// runPaginationExamples(db, ctx)
 	// runExtensionExamples(db, ctx)
 	runCTP(db, ctx)
+	db.User.FindMany().Exec(ctx)
 
 }
 
@@ -116,6 +116,34 @@ func runExtensionExamples(db *valk.DB, ctx context.Context) {
 		},
 		DeleteMany: func(ctx context.Context, args *valk.UserDeleteManyArgs, next valk.UserDeleteManyQuery) (int64, error) {
 			return next(ctx, args)
+		},
+		Update: func(ctx context.Context, args *valk.UserUpdateArgs, next valk.UserUpdateQuery) (*valk.User, error) {
+			if args.Data.Email != nil {
+				lower := strings.ToLower(*args.Data.Email)
+				args.Data.Email = &lower
+			}
+
+			for _, w := range args.Where {
+				if w.Column() == user.Email.Column {
+
+				}
+				if w.Column() == user.EmailPhone.Column {
+
+				}
+			}
+			return next(ctx, args)
+		},
+		UpdateMany: func(ctx context.Context, args *valk.UserUpdateManyArgs, next valk.UserUpdateManyQuery) (int64, error) {
+
+			return next(ctx, args)
+		},
+
+		UpdateManyAndReturn: func(ctx context.Context,
+			args *valk.UserUpdateManyAndReturnArgs,
+			next valk.UserUpdateManyAndReturnQuery) ([]*valk.User, error) {
+
+			return next(ctx, args)
+
 		},
 	})
 }
@@ -298,6 +326,24 @@ func inconsistency() {
 		})
 
 	db.User.DeleteMany(user.LoginCount.EQ(0))
+
+	db.User.Create().
+		SetEmail("x").
+		SetPhoneNum("x").
+		OnConflict(user.Email).
+		Ignore().
+		Select(
+			user.Select{
+				Email: true,
+				Profile: &profile.Select{
+					Id:  true,
+					Bio: true,
+				},
+
+				Posts: post.Query().Where(post.Id.EQ("xx")),
+			},
+		)
+
 }
 
 // =============================================================================
@@ -453,7 +499,7 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 // CONNECTIONS
 // =============================================================================
 func openConn() *valk.DB {
-	db, err := valk.Open("sqlite3", "file::memory:?_pragma=foreign_keys(1)&_time_format=sqlite")
+	db, err := valk.Open("sqlite3", "file:memdb1?mode=memory&cache=shared&_pragma=foreign_keys(1)&_time_format=sqlite")
 
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)

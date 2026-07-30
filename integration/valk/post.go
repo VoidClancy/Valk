@@ -52,6 +52,100 @@ func (s *PostCreate) colMask() uint64 {
 	return mask
 }
 
+// PostUpdate contains model input fields for Post update operations.
+type PostUpdate struct {
+	Id        *string `json:"id"`
+	Title     *string `json:"title"`
+	Content   *string `json:"content"`
+	Published *bool   `json:"published"`
+	AuthorId  *string `json:"authorId"`
+}
+
+func (u *PostUpdate) ToColsVals() ([]string, []any) {
+	var cols []string
+	var vals []any
+	if u.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, u.Id)
+	}
+	if u.Title != nil {
+		cols = append(cols, "title")
+		vals = append(vals, u.Title)
+	}
+	if u.Content != nil {
+		cols = append(cols, "content")
+		vals = append(vals, u.Content)
+	}
+	if u.Published != nil {
+		cols = append(cols, "published")
+		vals = append(vals, u.Published)
+	}
+	if u.AuthorId != nil {
+		cols = append(cols, "authorId")
+		vals = append(vals, u.AuthorId)
+	}
+	return cols, vals
+}
+
+func assignmentsToPostUpdate(assignments []FieldAssignment) (PostUpdate, error) {
+	var input PostUpdate
+	var errs ValidationError
+
+	for _, a := range assignments {
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				input.Id = &v
+				errs.ValidateString("id", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Id = v
+			} else {
+				errs.Add("id", a.Val, "type", "field id must be of type string")
+			}
+		case "title":
+			if v, ok := a.Val.(string); ok {
+				input.Title = &v
+				errs.ValidateString("title", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Title = v
+			} else {
+				errs.Add("title", a.Val, "type", "field title must be of type string")
+			}
+		case "content":
+			if v, ok := a.Val.(string); ok {
+				input.Content = &v
+				errs.ValidateString("content", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Content = v
+			} else {
+				errs.Add("content", a.Val, "type", "field content must be of type string")
+			}
+		case "published":
+			if v, ok := a.Val.(bool); ok {
+				input.Published = &v
+			} else if v, ok := a.Val.(*bool); ok {
+				input.Published = v
+			} else {
+				errs.Add("published", a.Val, "type", "field published must be of type bool")
+			}
+		case "authorId":
+			if v, ok := a.Val.(string); ok {
+				input.AuthorId = &v
+				errs.ValidateString("authorId", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.AuthorId = v
+			} else {
+				errs.Add("authorId", a.Val, "type", "field authorId must be of type string")
+			}
+		}
+	}
+
+	if errs.HasErrors() {
+		return input, errs
+	}
+	return input, nil
+}
+
 // PostSelect specifies which scalar and relation fields to select for Post.
 //
 // Selectable fields:
@@ -417,6 +511,51 @@ func (a *PostDeleteManyArgs) SetWhere(preds ...PredicateOf[Post]) *PostDeleteMan
 	return a
 }
 
+// PostUpdateArgs is the input argument passed to Post Update extension hooks.
+type PostUpdateArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[Post]
+	// Data contains the model fields to update.
+	Data *PostUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *PostSelect
+}
+
+func (a *PostUpdateArgs) SetWhere(unique UniquePredicate[Post], additional ...PredicateOf[Post]) *PostUpdateArgs {
+	a.Where = make([]PredicateOf[Post], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// PostUpdateManyArgs is the input argument passed to Post UpdateMany extension hooks.
+type PostUpdateManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Post]
+	// Data contains the model fields to update.
+	Data *PostUpdate
+}
+
+func (a *PostUpdateManyArgs) SetWhere(preds ...PredicateOf[Post]) *PostUpdateManyArgs {
+	a.Where = preds
+	return a
+}
+
+// PostUpdateManyAndReturnArgs is the input argument passed to Post UpdateManyAndReturn extension hooks.
+type PostUpdateManyAndReturnArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Post]
+	// Data contains the model fields to update.
+	Data *PostUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *PostSelect
+}
+
+func (a *PostUpdateManyAndReturnArgs) SetWhere(preds ...PredicateOf[Post]) *PostUpdateManyAndReturnArgs {
+	a.Where = preds
+	return a
+}
+
 type PostCreateQuery = func(ctx context.Context, args *PostCreateArgs) (*Post, error)
 type PostCreateManyQuery = func(ctx context.Context, args *PostCreateManyArgs) (int64, error)
 type PostCreateManyAndReturnQuery = func(ctx context.Context, args *PostCreateManyAndReturnArgs) ([]*Post, error)
@@ -426,9 +565,9 @@ type PostFindManyQuery = func(ctx context.Context, args *PostFindManyArgs) ([]*P
 type PostDeleteQuery = func(ctx context.Context, args *PostDeleteArgs) (*Post, error)
 type PostDeleteManyQuery = func(ctx context.Context, args *PostDeleteManyArgs) (int64, error)
 type PostCountQuery = func(ctx context.Context, args *PostCountArgs) (int64, error)
-type PostUpdateQuery = func(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error)
-type PostUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment) (int64, error)
-type PostUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) ([]*Post, error)
+type PostUpdateQuery = func(ctx context.Context, args *PostUpdateArgs) (*Post, error)
+type PostUpdateManyQuery = func(ctx context.Context, args *PostUpdateManyArgs) (int64, error)
+type PostUpdateManyAndReturnQuery = func(ctx context.Context, args *PostUpdateManyAndReturnArgs) ([]*Post, error)
 
 type PostExtension struct {
 	Create              func(ctx context.Context, args *PostCreateArgs, next PostCreateQuery) (*Post, error)
@@ -440,9 +579,9 @@ type PostExtension struct {
 	Delete              func(ctx context.Context, args *PostDeleteArgs, next PostDeleteQuery) (*Post, error)
 	DeleteMany          func(ctx context.Context, args *PostDeleteManyArgs, next PostDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *PostCountArgs, next PostCountQuery) (int64, error)
-	Update              func(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit, next PostUpdateQuery) (*Post, error)
-	UpdateMany          func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, next PostUpdateManyQuery) (int64, error)
-	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit, next PostUpdateManyAndReturnQuery) ([]*Post, error)
+	Update              func(ctx context.Context, args *PostUpdateArgs, next PostUpdateQuery) (*Post, error)
+	UpdateMany          func(ctx context.Context, args *PostUpdateManyArgs, next PostUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, args *PostUpdateManyAndReturnArgs, next PostUpdateManyAndReturnQuery) ([]*Post, error)
 }
 
 type PostDelegate struct {
@@ -524,6 +663,16 @@ func (s *PostSelect) hasAnyRelation() bool {
 
 type PostCreateBuilder struct {
 	*CreateBuilder[Post, PostSelect, PostOmit]
+}
+
+func (b *PostCreateBuilder) Select(s PostSelect) *PostCreateBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *PostCreateBuilder) Omit(o PostOmit) *PostCreateBuilder {
+	b.omits = &o
+	return b
 }
 
 func (b *PostCreateBuilder) OnConflict(target UniqueConstraintTarget) *PostConflictBuilder[PostCreateBuilder] {
@@ -701,23 +850,11 @@ func (d *PostDelegate) executeCreate(ctx context.Context, assignments []FieldAss
 		return nil, err
 	}
 
+	cols, vals := input.ToColsVals()
+	returningCols := selectPostCols(selects, omits)
+
 	if len(d.extensions) == 0 {
-		cols, vals := input.ToColsVals()
-		returningCols := selectPostCols(selects, omits)
-		hasRelations := selects.hasAnyRelation()
-		if hasRelations {
-			var res *Post
-			err = d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Post.runCreate(ctx, cols, vals, returningCols, postPKCols, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Post.loadRelations(ctx, []*Post{res}, selects)
-			})
-			return res, err
-		}
-		return d.runCreate(ctx, cols, vals, returningCols, postPKCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -732,28 +869,9 @@ func (d *PostDelegate) executeCreate(ctx context.Context, assignments []FieldAss
 	}
 
 	curr := func(c context.Context, a *PostCreateArgs) (*Post, error) {
-		cols, vals := a.Data.ToColsVals()
-		returningCols := selectPostCols(a.Select, omits)
-
-		hasRelations := a.Select.hasAnyRelation()
-		var res *Post
-		var err error
-		if hasRelations {
-			err = d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Post.runCreate(c, cols, vals, returningCols, postPKCols, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Post.loadRelations(c, []*Post{res}, a.Select)
-			})
-		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, postPKCols, a.ConflictTarget, a.ConflictAction)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return res, nil
+		cCols, cVals := a.Data.ToColsVals()
+		cReturningCols := selectPostCols(a.Select, omits)
+		return d.runCreate(c, cCols, cVals, cReturningCols, a.Select, a.ConflictTarget, a.ConflictAction)
 	}
 
 	if len(d.extensions) == 1 {
@@ -794,6 +912,16 @@ type PostCreateManyAndReturnBuilder struct {
 	*CreateManyAndReturnBuilder[Post, PostSelect, PostOmit]
 }
 
+func (b *PostCreateManyAndReturnBuilder) Select(s PostSelect) *PostCreateManyAndReturnBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *PostCreateManyAndReturnBuilder) Omit(o PostOmit) *PostCreateManyAndReturnBuilder {
+	b.omits = &o
+	return b
+}
+
 func (b *PostCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *PostConflictBuilder[PostCreateManyAndReturnBuilder] {
 	return &PostConflictBuilder[PostCreateManyAndReturnBuilder]{
 		builder:        b,
@@ -805,42 +933,50 @@ func (b *PostCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarge
 	}
 }
 
-func (d *PostDelegate) CreateMany(builders ...*PostCreateBuilder) *PostCreateManyBuilder {
+func createBuildersToPostRecordInputs(builders []*PostCreateBuilder) []RecordInput {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
+	return records
+}
+
+func (d *PostDelegate) CreateMany(builders ...*PostCreateBuilder) *PostCreateManyBuilder {
 	return &PostCreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[Post]{
-			records:  records,
+			records:  createBuildersToPostRecordInputs(builders),
 			execFunc: d.executeCreateMany,
 		},
 	}
 }
 
 func (d *PostDelegate) CreateManyAndReturn(builders ...*PostCreateBuilder) *PostCreateManyAndReturnBuilder {
-	records := make([]RecordInput, len(builders))
-	for i, b := range builders {
-		records[i] = RecordInput{Assignments: b.assignments}
-	}
 	return &PostCreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[Post, PostSelect, PostOmit]{
-			records:  records,
+			records:  createBuildersToPostRecordInputs(builders),
 			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (d *PostDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func recordsToPostCreateInputs(records []RecordInput) ([]*PostCreate, error) {
 	structs := make([]PostCreate, len(records))
 	inputs := make([]*PostCreate, len(records))
 	for i, rec := range records {
 		var err error
 		structs[i], err = assignmentsToPostCreate(rec.Assignments)
 		if err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		inputs[i] = &structs[i]
+	}
+	return inputs, nil
+}
+
+func (d *PostDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+	inputs, err := recordsToPostCreateInputs(records)
+	if err != nil {
+		return 0, err
 	}
 
 	if len(d.extensions) == 0 {
@@ -877,31 +1013,12 @@ func (d *PostDelegate) executeCreateMany(ctx context.Context, records []RecordIn
 }
 
 func (d *PostDelegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *PostSelect, omits *PostOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Post, error) {
-	structs := make([]PostCreate, len(records))
-	inputs := make([]*PostCreate, len(records))
-	for i, rec := range records {
-		var err error
-		structs[i], err = assignmentsToPostCreate(rec.Assignments)
-		if err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-		inputs[i] = &structs[i]
+	inputs, err := recordsToPostCreateInputs(records)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(d.extensions) == 0 {
-		hasRelations := selects != nil && selects.hasAnyRelation()
-		if hasRelations {
-			var res []*Post
-			err := d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Post.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Post.loadRelations(ctx, res, selects)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
 	}
 
@@ -917,19 +1034,6 @@ func (d *PostDelegate) executeCreateManyAndReturn(ctx context.Context, records [
 	}
 
 	curr := func(c context.Context, a *PostCreateManyAndReturnArgs) ([]*Post, error) {
-		hasRelations := a.Select != nil && a.Select.hasAnyRelation()
-		if hasRelations {
-			var res []*Post
-			err := d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Post.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Post.loadRelations(c, res, a.Select)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
@@ -957,36 +1061,67 @@ func (d *PostDelegate) runCreate(
 	cols []string,
 	vals []any,
 	returningCols []string,
-	pkCols []string,
+	selects *PostSelect,
 	conflictTarget UniqueConstraintTarget,
 	conflictAction *ConflictAction,
 ) (*Post, error) {
-	query, clauseArgs := buildSingleInsertSQL(d.client, "Post", cols, returningCols, pkCols, conflictTarget, conflictAction, len(vals))
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := hasRelations && !d.client.inTx()
+
+	if useTx {
+		var res *Post
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.Post.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
+			if err != nil {
+				return err
+			}
+			return txQ.Post.loadRelations(ctx, []*Post{res}, selects)
+		})
+		return res, err
+	}
+
+	query, clauseArgs := buildSingleInsertSQL(d.client, "Post", cols, returningCols, postPKCols, conflictTarget, conflictAction, len(vals))
 	if len(clauseArgs) > 0 {
 		vals = append(vals, clauseArgs...)
 	}
 
-	var res Post
 	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
 
-		if rows.Next() {
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+		if !rows.Next() {
+			err := rows.Err()
+			rows.Close()
+			if err != nil {
 				return nil, err
 			}
-			return &res, nil
+			return nil, nil
 		}
-		return nil, rows.Err()
+
+		var res Post
+		scanErr := rows.Scan(res.ScanFields(returningCols)...)
+		rows.Close()
+		if scanErr != nil {
+			return nil, scanErr
+		}
+
+		return &res, nil
 	}
 
-	return d.runCreateFallback(ctx, query, vals, cols, returningCols, pkCols)
+	return d.runCreateFallback(ctx, query, vals, cols, returningCols, postPKCols)
 }
 
-func (d *PostDelegate) runCreateFallback(ctx context.Context, query string, vals []any, cols []string, returningCols []string, pkCols []string) (*Post, error) {
+func (d *PostDelegate) runCreateFallback(
+	ctx context.Context,
+	query string,
+	vals []any,
+	cols []string,
+	returningCols []string,
+	pkCols []string,
+) (*Post, error) {
 	result, err := d.client.exec(ctx, query, vals...)
 	if err != nil {
 		return nil, err
@@ -1036,16 +1171,24 @@ func (d *PostDelegate) runCreateFallback(ctx context.Context, query string, vals
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var res Post
-	if rows.Next() {
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
 			return nil, err
 		}
-		return &res, nil
+		return nil, nil
 	}
-	return nil, rows.Err()
+
+	var res Post
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	return &res, nil
 }
 
 func (d *PostDelegate) buildBulkInsertSQL(q *Queries, batch []*PostCreate, paramStartIdx int) (cols []string, vals []any, queryStr string) {
@@ -1123,6 +1266,41 @@ func (d *PostDelegate) buildBulkInsertSQL(q *Queries, batch []*PostCreate, param
 	return cols, vals, queryStr
 }
 
+func applyPostConflictClause(dialect Dialect, queryStr string, vals []any, cols []string, pkCols []string, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (string, []any) {
+	var conflictCols []string
+	if conflictTarget != nil {
+		conflictCols = conflictTarget.UniqueColumns()
+	}
+	var nonConflictCols []string
+	if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+		nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+	}
+	clause, clauseArgs := dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+	queryStr += clause
+	if len(clauseArgs) > 0 {
+		vals = append(vals, clauseArgs...)
+	}
+	return queryStr, vals
+}
+
+func scanPostRows(rows *sql.Rows, returningCols []string) ([]*Post, error) {
+	var records []*Post
+	for rows.Next() {
+		var res Post
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		records = append(records, &res)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	return records, nil
+}
+
 func (d *PostDelegate) runCreateMany(ctx context.Context, inputs []*PostCreate, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	if len(inputs) == 0 {
 		return 0, nil
@@ -1133,18 +1311,7 @@ func (d *PostDelegate) runCreateMany(ctx context.Context, inputs []*PostCreate, 
 	var count int64
 	for _, batch := range batches {
 		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
-
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, postPKCols)
-		}
-		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
+		queryStr, vals = applyPostConflictClause(d.client.dialect, queryStr, vals, cols, postPKCols, conflictTarget, conflictAction)
 
 		result, err := d.client.exec(ctx, queryStr, vals...)
 		if err != nil {
@@ -1172,27 +1339,37 @@ func (d *PostDelegate) runCreateManyAndReturn(
 	}
 
 	batches := partitionPostInputs(d.client.dialect, inputs)
-	returningCols := selectPostCols(selects, omits)
 	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning) && !d.client.inTx()
 
+	if useTx {
+		var res []*Post
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if txQ.dialect.SupportsInsertReturning {
+				res, err = txQ.Post.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			} else {
+				res, err = txQ.Post.runCreateManyAndReturnFallback(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			}
+			if err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.Post.loadRelations(ctx, res, selects)
+			}
+			return nil
+		})
+		return res, err
+	}
+
+	returningCols := selectPostCols(selects, omits, postPKCols...)
 	recordsOut := make([]*Post, 0, len(inputs))
 
-	runBatch := func(txQ *Queries, batch []*PostCreate) error {
-		cols, vals, queryStr := d.buildBulkInsertSQL(txQ, batch, 1)
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyPostConflictClause(d.client.dialect, queryStr, vals, cols, postPKCols, conflictTarget, conflictAction)
 
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, postPKCols)
-		}
-		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
-
-		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
+		if len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -1200,40 +1377,58 @@ func (d *PostDelegate) runCreateManyAndReturn(
 				if i > 0 {
 					retSb.WriteString(", ")
 				}
-				txQ.dialect.WriteQuotedIdent(&retSb, col)
+				d.client.dialect.WriteQuotedIdent(&retSb, col)
 			}
 			queryStr += retSb.String()
-			rows, err := txQ.query(ctx, queryStr, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-
-			for rows.Next() {
-				var res Post
-				if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &res)
-			}
-			return rows.Err()
 		}
 
-		// Fallback for dialects without RETURNING (MySQL)
-		result, err := txQ.exec(ctx, queryStr, vals...)
+		rows, err := d.client.query(ctx, queryStr, vals...)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// We need to fetch the inserted records for this batch
-		// Note: MySQL bulk inserts only return the ID of the FIRST inserted row
+		scanned, err := scanPostRows(rows, returningCols)
+		if err != nil {
+			return nil, err
+		}
+		recordsOut = append(recordsOut, scanned...)
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, recordsOut, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return recordsOut, nil
+}
+
+func (d *PostDelegate) runCreateManyAndReturnFallback(
+	ctx context.Context,
+	inputs []*PostCreate,
+	selects *PostSelect,
+	omits *PostOmit,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) ([]*Post, error) {
+	batches := partitionPostInputs(d.client.dialect, inputs)
+	returningCols := selectPostCols(selects, omits, postPKCols...)
+	recordsOut := make([]*Post, 0, len(inputs))
+
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyPostConflictClause(d.client.dialect, queryStr, vals, cols, postPKCols, conflictTarget, conflictAction)
+
+		result, err := d.client.exec(ctx, queryStr, vals...)
+		if err != nil {
+			return nil, err
+		}
+
 		lastID, err := result.LastInsertId()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// Query back the rows by IDs (assuming autoincrement ID and single PK)
-		// If composite PK, it's more complex, but this is a standard fallback
 		var selectSb strings.Builder
 		selectSb.Grow(64 + len(returningCols)*15 + len("Post") + len(batch)*15)
 		selectSb.WriteString("SELECT ")
@@ -1241,55 +1436,29 @@ func (d *PostDelegate) runCreateManyAndReturn(
 			if i > 0 {
 				selectSb.WriteString(", ")
 			}
-			txQ.dialect.WriteQuotedIdent(&selectSb, col)
+			d.client.dialect.WriteQuotedIdent(&selectSb, col)
 		}
 		selectSb.WriteString(" FROM ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, "Post")
+		d.client.dialect.WriteQuotedIdent(&selectSb, "Post")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, postPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, postPKCols[0])
 		selectSb.WriteString(" >= ")
-		txQ.dialect.WritePlaceholder(&selectSb, 1)
+		d.client.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, postPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, postPKCols[0])
 		selectSb.WriteString(" < ")
-		txQ.dialect.WritePlaceholder(&selectSb, 2)
+		d.client.dialect.WritePlaceholder(&selectSb, 2)
 
-		rows, err := txQ.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var res Post
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, &res)
-		}
-		return rows.Err()
-	}
-
-	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
-		err := d.client.transaction(ctx, func(txQ *Queries) error {
-			for _, batch := range batches {
-				if err := runBatch(txQ, batch); err != nil {
-					return err
-				}
-			}
-			if hasRelations {
-				return txQ.Post.loadRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
+		rows, err := d.client.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		if err := runBatch(d.client, batches[0]); err != nil {
+
+		scanned, err := scanPostRows(rows, returningCols)
+		if err != nil {
 			return nil, err
 		}
+		recordsOut = append(recordsOut, scanned...)
 	}
 
 	return recordsOut, nil
@@ -1478,23 +1647,23 @@ func (d *PostDelegate) UpdateManyAndReturn(preds ...PredicateOf[Post]) *PostUpda
 	}
 }
 
-func (d *PostDelegate) buildUpdateSQL(preds []PredicateOf[Post], assignments []FieldAssignment, returningCols []string) (string, []any) {
-	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+func (d *PostDelegate) buildUpdateSQL(preds []PredicateOf[Post], cols []string, vals []any, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(cols)+1)
 
 	var sb strings.Builder
 	sb.WriteString("UPDATE ")
 	d.client.dialect.WriteQuotedIdent(&sb, "Post")
 	sb.WriteString(" SET ")
 
-	setVals := make([]any, 0, len(assignments)+len(predVals))
-	for i, a := range assignments {
+	setVals := make([]any, 0, len(cols)+len(predVals))
+	for i, col := range cols {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		d.client.dialect.WriteQuotedIdent(&sb, col)
 		sb.WriteString(" = ")
 		d.client.dialect.WritePlaceholder(&sb, i+1)
-		setVals = append(setVals, a.Val)
+		setVals = append(setVals, vals[i])
 	}
 
 	if whereClause != "" {
@@ -1521,21 +1690,39 @@ func (d *PostDelegate) buildUpdateSQL(preds []PredicateOf[Post], assignments []F
 // -----------------------------------------------------------------------------
 
 func (d *PostDelegate) executeUpdate(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	allWhere := make([]PredicateOf[Post], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
+	input, err := assignmentsToPostUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+		return d.runUpdate(ctx, allWhere, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullPostSelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[Post], add []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) (*Post, error) {
-		return d.runUpdate(c, w, add, a, s, o)
+	args := &PostUpdateArgs{
+		Where:  allWhere,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *PostUpdateArgs) (*Post, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdate(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.Update != nil {
-			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+			return ext.Update(ctx, args, curr)
 		}
 	}
 
@@ -1543,25 +1730,21 @@ func (d *PostDelegate) executeUpdate(ctx context.Context, where UniquePredicate[
 		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
-			curr = func(c context.Context, w UniquePredicate[Post], add []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) (*Post, error) {
-				return hook(c, w, add, a, s, o, next)
+			curr = func(c context.Context, a *PostUpdateArgs) (*Post, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, additional, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *PostDelegate) runUpdate(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error) {
-	allPreds := append([]PredicateOf[Post]{where}, additional...)
-	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, allPreds, selects, omits)
+func (d *PostDelegate) runUpdate(ctx context.Context, preds []PredicateOf[Post], cols []string, vals []any, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	if len(cols) == 0 {
+		return d.runFindUnique(ctx, preds, selects, omits)
 	}
 
-	if err := where.Validate(); err != nil {
-		return nil, err
-	}
-	for _, pr := range additional {
+	for _, pr := range preds {
 		if pr != nil {
 			if err := pr.Validate(); err != nil {
 				return nil, err
@@ -1577,9 +1760,9 @@ func (d *PostDelegate) runUpdate(ctx context.Context, where UniquePredicate[Post
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.Post.runUpdate(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.Post.runUpdate(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.Post.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.Post.runUpdateFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1587,7 +1770,7 @@ func (d *PostDelegate) runUpdate(ctx context.Context, where UniquePredicate[Post
 	}
 
 	returningCols := selectPostCols(selects, omits, postPKCols...)
-	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
@@ -1619,8 +1802,8 @@ func (d *PostDelegate) runUpdate(ctx context.Context, where UniquePredicate[Post
 	return &res, nil
 }
 
-func (d *PostDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment) (int64, error) {
-	if len(assignments) == 0 {
+func (d *PostDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[Post], cols []string, vals []any) (int64, error) {
+	if len(cols) == 0 {
 		return 0, nil
 	}
 
@@ -1632,7 +1815,7 @@ func (d *PostDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[P
 		}
 	}
 
-	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, nil)
 	result, err := d.client.exec(ctx, query, setVals...)
 	if err != nil {
 		return 0, err
@@ -1640,16 +1823,15 @@ func (d *PostDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[P
 	return result.RowsAffected()
 }
 
-func (d *PostDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[Post], additional []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) (*Post, error) {
-	allPreds := append([]PredicateOf[Post]{where}, additional...)
-	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+func (d *PostDelegate) runUpdateFallback(ctx context.Context, preds []PredicateOf[Post], cols []string, vals []any, selects *PostSelect, omits *PostOmit) (*Post, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, allPreds, selects, omits)
+	return d.runFindUnique(ctx, preds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -1657,17 +1839,30 @@ func (d *PostDelegate) runUpdateFallback(ctx context.Context, where UniquePredic
 // -----------------------------------------------------------------------------
 
 func (d *PostDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment) (int64, error) {
-	if len(d.extensions) == 0 {
-		return d.execUpdateStmt(ctx, preds, assignments)
+	input, err := assignmentsToPostUpdate(assignments)
+	if err != nil {
+		return 0, err
 	}
 
-	curr := func(c context.Context, p []PredicateOf[Post], a []FieldAssignment) (int64, error) {
-		return d.execUpdateStmt(c, p, a)
+	cols, vals := input.ToColsVals()
+
+	if len(d.extensions) == 0 {
+		return d.execUpdateStmt(ctx, preds, cols, vals)
+	}
+
+	args := &PostUpdateManyArgs{
+		Where: preds,
+		Data:  &input,
+	}
+
+	curr := func(c context.Context, a *PostUpdateManyArgs) (int64, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.execUpdateStmt(c, a.Where, extCols, extVals)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateMany != nil {
-			return ext.UpdateMany(ctx, preds, assignments, curr)
+			return ext.UpdateMany(ctx, args, curr)
 		}
 	}
 
@@ -1675,13 +1870,13 @@ func (d *PostDelegate) executeUpdateMany(ctx context.Context, preds []PredicateO
 		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
-			curr = func(c context.Context, p []PredicateOf[Post], a []FieldAssignment) (int64, error) {
-				return hook(c, p, a, next)
+			curr = func(c context.Context, a *PostUpdateManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments)
+	return curr(ctx, args)
 }
 
 // -----------------------------------------------------------------------------
@@ -1689,21 +1884,35 @@ func (d *PostDelegate) executeUpdateMany(ctx context.Context, preds []PredicateO
 // -----------------------------------------------------------------------------
 
 func (d *PostDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
+	input, err := assignmentsToPostUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+		return d.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullPostSelect()
 	}
 
-	curr := func(c context.Context, p []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) ([]*Post, error) {
-		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	args := &PostUpdateManyAndReturnArgs{
+		Where:  preds,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *PostUpdateManyAndReturnArgs) ([]*Post, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdateManyAndReturn(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
-			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+			return ext.UpdateManyAndReturn(ctx, args, curr)
 		}
 	}
 
@@ -1711,17 +1920,17 @@ func (d *PostDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []P
 		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
-			curr = func(c context.Context, p []PredicateOf[Post], a []FieldAssignment, s *PostSelect, o *PostOmit) ([]*Post, error) {
-				return hook(c, p, a, s, o, next)
+			curr = func(c context.Context, a *PostUpdateManyAndReturnArgs) ([]*Post, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *PostDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
-	if len(assignments) == 0 {
+func (d *PostDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Post], cols []string, vals []any, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
+	if len(cols) == 0 {
 		return d.runFindMany(ctx, QueryParams[Post]{Where: preds}, selects, omits)
 	}
 
@@ -1741,9 +1950,9 @@ func (d *PostDelegate) runUpdateManyAndReturn(ctx context.Context, preds []Predi
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.Post.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+				res, err = txQ.Post.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.Post.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+				res, err = txQ.Post.runUpdateManyAndReturnFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1751,39 +1960,29 @@ func (d *PostDelegate) runUpdateManyAndReturn(ctx context.Context, preds []Predi
 	}
 
 	returningCols := selectPostCols(selects, omits, postPKCols...)
-	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]*Post, 0)
-	for rows.Next() {
-		var res Post
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		results = append(results, &res)
-	}
-	rowsErr := rows.Err()
-	rows.Close()
-	if rowsErr != nil {
-		return nil, rowsErr
+	scanned, err := scanPostRows(rows, returningCols)
+	if err != nil {
+		return nil, err
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
-		if err := d.loadRelations(ctx, results, selects); err != nil {
+		if err := d.loadRelations(ctx, scanned, selects); err != nil {
 			return nil, err
 		}
 	}
 
-	return results, nil
+	return scanned, nil
 }
 
-func (d *PostDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[Post], assignments []FieldAssignment, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
-	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+func (d *PostDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[Post], cols []string, vals []any, selects *PostSelect, omits *PostOmit) ([]*Post, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}

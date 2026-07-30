@@ -62,6 +62,142 @@ func (s *CommentCreate) colMask() uint64 {
 	return mask
 }
 
+// CommentUpdate contains model input fields for Comment update operations.
+type CommentUpdate struct {
+	Id       *string          `json:"id"`
+	Textify  *int32           `json:"textify"`
+	Dummy3   *string          `json:"dummy3"`
+	Dummy1   *int32           `json:"dummy1"`
+	Dummy2   *string          `json:"dummy2"`
+	PostId   *string          `json:"postId"`
+	AuthorId *string          `json:"authorId"`
+	Meta     *json.RawMessage `json:"meta"`
+}
+
+func (u *CommentUpdate) ToColsVals() ([]string, []any) {
+	var cols []string
+	var vals []any
+	if u.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, u.Id)
+	}
+	if u.Textify != nil {
+		cols = append(cols, "textify")
+		vals = append(vals, u.Textify)
+	}
+	if u.Dummy3 != nil {
+		cols = append(cols, "dummy3")
+		vals = append(vals, u.Dummy3)
+	}
+	if u.Dummy1 != nil {
+		cols = append(cols, "dummy1")
+		vals = append(vals, u.Dummy1)
+	}
+	if u.Dummy2 != nil {
+		cols = append(cols, "dummy2")
+		vals = append(vals, u.Dummy2)
+	}
+	if u.PostId != nil {
+		cols = append(cols, "postId")
+		vals = append(vals, u.PostId)
+	}
+	if u.AuthorId != nil {
+		cols = append(cols, "authorId")
+		vals = append(vals, u.AuthorId)
+	}
+	if u.Meta != nil {
+		cols = append(cols, "meta")
+		vals = append(vals, u.Meta)
+	}
+	return cols, vals
+}
+
+func assignmentsToCommentUpdate(assignments []FieldAssignment) (CommentUpdate, error) {
+	var input CommentUpdate
+	var errs ValidationError
+
+	for _, a := range assignments {
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				input.Id = &v
+				errs.ValidateString("id", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Id = v
+			} else {
+				errs.Add("id", a.Val, "type", "field id must be of type string")
+			}
+		case "textify":
+			if v, ok := a.Val.(int32); ok {
+				input.Textify = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.Textify = v
+			} else {
+				errs.Add("textify", a.Val, "type", "field textify must be of type int32")
+			}
+		case "dummy3":
+			if v, ok := a.Val.(string); ok {
+				input.Dummy3 = &v
+				errs.ValidateString("dummy3", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Dummy3 = v
+			} else {
+				errs.Add("dummy3", a.Val, "type", "field dummy3 must be of type string")
+			}
+		case "dummy1":
+			if v, ok := a.Val.(int32); ok {
+				input.Dummy1 = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.Dummy1 = v
+			} else {
+				errs.Add("dummy1", a.Val, "type", "field dummy1 must be of type int32")
+			}
+		case "dummy2":
+			if v, ok := a.Val.(string); ok {
+				input.Dummy2 = &v
+				errs.ValidateString("dummy2", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Dummy2 = v
+			} else {
+				errs.Add("dummy2", a.Val, "type", "field dummy2 must be of type string")
+			}
+		case "postId":
+			if v, ok := a.Val.(string); ok {
+				input.PostId = &v
+				errs.ValidateString("postId", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.PostId = v
+			} else {
+				errs.Add("postId", a.Val, "type", "field postId must be of type string")
+			}
+		case "authorId":
+			if v, ok := a.Val.(string); ok {
+				input.AuthorId = &v
+				errs.ValidateString("authorId", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.AuthorId = v
+			} else {
+				errs.Add("authorId", a.Val, "type", "field authorId must be of type string")
+			}
+		case "meta":
+			if v, ok := a.Val.(json.RawMessage); ok {
+				input.Meta = &v
+			} else if v, ok := a.Val.(*json.RawMessage); ok {
+				input.Meta = v
+			} else if v, ok := a.Val.(*json.RawMessage); ok {
+				input.Meta = v
+			} else {
+				errs.Add("meta", a.Val, "type", "field meta must be of type *json.RawMessage")
+			}
+		}
+	}
+
+	if errs.HasErrors() {
+		return input, errs
+	}
+	return input, nil
+}
+
 // CommentSelect specifies which scalar and relation fields to select for Comment.
 //
 // Selectable fields:
@@ -444,6 +580,51 @@ func (a *CommentDeleteManyArgs) SetWhere(preds ...PredicateOf[Comment]) *Comment
 	return a
 }
 
+// CommentUpdateArgs is the input argument passed to Comment Update extension hooks.
+type CommentUpdateArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[Comment]
+	// Data contains the model fields to update.
+	Data *CommentUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *CommentSelect
+}
+
+func (a *CommentUpdateArgs) SetWhere(unique UniquePredicate[Comment], additional ...PredicateOf[Comment]) *CommentUpdateArgs {
+	a.Where = make([]PredicateOf[Comment], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// CommentUpdateManyArgs is the input argument passed to Comment UpdateMany extension hooks.
+type CommentUpdateManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Comment]
+	// Data contains the model fields to update.
+	Data *CommentUpdate
+}
+
+func (a *CommentUpdateManyArgs) SetWhere(preds ...PredicateOf[Comment]) *CommentUpdateManyArgs {
+	a.Where = preds
+	return a
+}
+
+// CommentUpdateManyAndReturnArgs is the input argument passed to Comment UpdateManyAndReturn extension hooks.
+type CommentUpdateManyAndReturnArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Comment]
+	// Data contains the model fields to update.
+	Data *CommentUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *CommentSelect
+}
+
+func (a *CommentUpdateManyAndReturnArgs) SetWhere(preds ...PredicateOf[Comment]) *CommentUpdateManyAndReturnArgs {
+	a.Where = preds
+	return a
+}
+
 type CommentCreateQuery = func(ctx context.Context, args *CommentCreateArgs) (*Comment, error)
 type CommentCreateManyQuery = func(ctx context.Context, args *CommentCreateManyArgs) (int64, error)
 type CommentCreateManyAndReturnQuery = func(ctx context.Context, args *CommentCreateManyAndReturnArgs) ([]*Comment, error)
@@ -453,9 +634,9 @@ type CommentFindManyQuery = func(ctx context.Context, args *CommentFindManyArgs)
 type CommentDeleteQuery = func(ctx context.Context, args *CommentDeleteArgs) (*Comment, error)
 type CommentDeleteManyQuery = func(ctx context.Context, args *CommentDeleteManyArgs) (int64, error)
 type CommentCountQuery = func(ctx context.Context, args *CommentCountArgs) (int64, error)
-type CommentUpdateQuery = func(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error)
-type CommentUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment) (int64, error)
-type CommentUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error)
+type CommentUpdateQuery = func(ctx context.Context, args *CommentUpdateArgs) (*Comment, error)
+type CommentUpdateManyQuery = func(ctx context.Context, args *CommentUpdateManyArgs) (int64, error)
+type CommentUpdateManyAndReturnQuery = func(ctx context.Context, args *CommentUpdateManyAndReturnArgs) ([]*Comment, error)
 
 type CommentExtension struct {
 	Create              func(ctx context.Context, args *CommentCreateArgs, next CommentCreateQuery) (*Comment, error)
@@ -467,9 +648,9 @@ type CommentExtension struct {
 	Delete              func(ctx context.Context, args *CommentDeleteArgs, next CommentDeleteQuery) (*Comment, error)
 	DeleteMany          func(ctx context.Context, args *CommentDeleteManyArgs, next CommentDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *CommentCountArgs, next CommentCountQuery) (int64, error)
-	Update              func(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit, next CommentUpdateQuery) (*Comment, error)
-	UpdateMany          func(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, next CommentUpdateManyQuery) (int64, error)
-	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit, next CommentUpdateManyAndReturnQuery) ([]*Comment, error)
+	Update              func(ctx context.Context, args *CommentUpdateArgs, next CommentUpdateQuery) (*Comment, error)
+	UpdateMany          func(ctx context.Context, args *CommentUpdateManyArgs, next CommentUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, args *CommentUpdateManyAndReturnArgs, next CommentUpdateManyAndReturnQuery) ([]*Comment, error)
 }
 
 type CommentDelegate struct {
@@ -563,6 +744,16 @@ func (s *CommentSelect) hasAnyRelation() bool {
 
 type CommentCreateBuilder struct {
 	*CreateBuilder[Comment, CommentSelect, CommentOmit]
+}
+
+func (b *CommentCreateBuilder) Select(s CommentSelect) *CommentCreateBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *CommentCreateBuilder) Omit(o CommentOmit) *CommentCreateBuilder {
+	b.omits = &o
+	return b
 }
 
 func (b *CommentCreateBuilder) OnConflict(target UniqueConstraintTarget) *CommentConflictBuilder[CommentCreateBuilder] {
@@ -796,23 +987,11 @@ func (d *CommentDelegate) executeCreate(ctx context.Context, assignments []Field
 		return nil, err
 	}
 
+	cols, vals := input.ToColsVals()
+	returningCols := selectCommentCols(selects, omits)
+
 	if len(d.extensions) == 0 {
-		cols, vals := input.ToColsVals()
-		returningCols := selectCommentCols(selects, omits)
-		hasRelations := selects.hasAnyRelation()
-		if hasRelations {
-			var res *Comment
-			err = d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Comment.runCreate(ctx, cols, vals, returningCols, commentPKCols, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Comment.loadRelations(ctx, []*Comment{res}, selects)
-			})
-			return res, err
-		}
-		return d.runCreate(ctx, cols, vals, returningCols, commentPKCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -827,28 +1006,9 @@ func (d *CommentDelegate) executeCreate(ctx context.Context, assignments []Field
 	}
 
 	curr := func(c context.Context, a *CommentCreateArgs) (*Comment, error) {
-		cols, vals := a.Data.ToColsVals()
-		returningCols := selectCommentCols(a.Select, omits)
-
-		hasRelations := a.Select.hasAnyRelation()
-		var res *Comment
-		var err error
-		if hasRelations {
-			err = d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Comment.runCreate(c, cols, vals, returningCols, commentPKCols, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Comment.loadRelations(c, []*Comment{res}, a.Select)
-			})
-		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, commentPKCols, a.ConflictTarget, a.ConflictAction)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return res, nil
+		cCols, cVals := a.Data.ToColsVals()
+		cReturningCols := selectCommentCols(a.Select, omits)
+		return d.runCreate(c, cCols, cVals, cReturningCols, a.Select, a.ConflictTarget, a.ConflictAction)
 	}
 
 	if len(d.extensions) == 1 {
@@ -889,6 +1049,16 @@ type CommentCreateManyAndReturnBuilder struct {
 	*CreateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit]
 }
 
+func (b *CommentCreateManyAndReturnBuilder) Select(s CommentSelect) *CommentCreateManyAndReturnBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *CommentCreateManyAndReturnBuilder) Omit(o CommentOmit) *CommentCreateManyAndReturnBuilder {
+	b.omits = &o
+	return b
+}
+
 func (b *CommentCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *CommentConflictBuilder[CommentCreateManyAndReturnBuilder] {
 	return &CommentConflictBuilder[CommentCreateManyAndReturnBuilder]{
 		builder:        b,
@@ -900,42 +1070,50 @@ func (b *CommentCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTa
 	}
 }
 
-func (d *CommentDelegate) CreateMany(builders ...*CommentCreateBuilder) *CommentCreateManyBuilder {
+func createBuildersToCommentRecordInputs(builders []*CommentCreateBuilder) []RecordInput {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
+	return records
+}
+
+func (d *CommentDelegate) CreateMany(builders ...*CommentCreateBuilder) *CommentCreateManyBuilder {
 	return &CommentCreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[Comment]{
-			records:  records,
+			records:  createBuildersToCommentRecordInputs(builders),
 			execFunc: d.executeCreateMany,
 		},
 	}
 }
 
 func (d *CommentDelegate) CreateManyAndReturn(builders ...*CommentCreateBuilder) *CommentCreateManyAndReturnBuilder {
-	records := make([]RecordInput, len(builders))
-	for i, b := range builders {
-		records[i] = RecordInput{Assignments: b.assignments}
-	}
 	return &CommentCreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[Comment, CommentSelect, CommentOmit]{
-			records:  records,
+			records:  createBuildersToCommentRecordInputs(builders),
 			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (d *CommentDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func recordsToCommentCreateInputs(records []RecordInput) ([]*CommentCreate, error) {
 	structs := make([]CommentCreate, len(records))
 	inputs := make([]*CommentCreate, len(records))
 	for i, rec := range records {
 		var err error
 		structs[i], err = assignmentsToCommentCreate(rec.Assignments)
 		if err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		inputs[i] = &structs[i]
+	}
+	return inputs, nil
+}
+
+func (d *CommentDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+	inputs, err := recordsToCommentCreateInputs(records)
+	if err != nil {
+		return 0, err
 	}
 
 	if len(d.extensions) == 0 {
@@ -972,31 +1150,12 @@ func (d *CommentDelegate) executeCreateMany(ctx context.Context, records []Recor
 }
 
 func (d *CommentDelegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CommentSelect, omits *CommentOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Comment, error) {
-	structs := make([]CommentCreate, len(records))
-	inputs := make([]*CommentCreate, len(records))
-	for i, rec := range records {
-		var err error
-		structs[i], err = assignmentsToCommentCreate(rec.Assignments)
-		if err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-		inputs[i] = &structs[i]
+	inputs, err := recordsToCommentCreateInputs(records)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(d.extensions) == 0 {
-		hasRelations := selects != nil && selects.hasAnyRelation()
-		if hasRelations {
-			var res []*Comment
-			err := d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Comment.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Comment.loadRelations(ctx, res, selects)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
 	}
 
@@ -1012,19 +1171,6 @@ func (d *CommentDelegate) executeCreateManyAndReturn(ctx context.Context, record
 	}
 
 	curr := func(c context.Context, a *CommentCreateManyAndReturnArgs) ([]*Comment, error) {
-		hasRelations := a.Select != nil && a.Select.hasAnyRelation()
-		if hasRelations {
-			var res []*Comment
-			err := d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Comment.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Comment.loadRelations(c, res, a.Select)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
@@ -1052,36 +1198,67 @@ func (d *CommentDelegate) runCreate(
 	cols []string,
 	vals []any,
 	returningCols []string,
-	pkCols []string,
+	selects *CommentSelect,
 	conflictTarget UniqueConstraintTarget,
 	conflictAction *ConflictAction,
 ) (*Comment, error) {
-	query, clauseArgs := buildSingleInsertSQL(d.client, "Comment", cols, returningCols, pkCols, conflictTarget, conflictAction, len(vals))
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := hasRelations && !d.client.inTx()
+
+	if useTx {
+		var res *Comment
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.Comment.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
+			if err != nil {
+				return err
+			}
+			return txQ.Comment.loadRelations(ctx, []*Comment{res}, selects)
+		})
+		return res, err
+	}
+
+	query, clauseArgs := buildSingleInsertSQL(d.client, "Comment", cols, returningCols, commentPKCols, conflictTarget, conflictAction, len(vals))
 	if len(clauseArgs) > 0 {
 		vals = append(vals, clauseArgs...)
 	}
 
-	var res Comment
 	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
 
-		if rows.Next() {
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+		if !rows.Next() {
+			err := rows.Err()
+			rows.Close()
+			if err != nil {
 				return nil, err
 			}
-			return &res, nil
+			return nil, nil
 		}
-		return nil, rows.Err()
+
+		var res Comment
+		scanErr := rows.Scan(res.ScanFields(returningCols)...)
+		rows.Close()
+		if scanErr != nil {
+			return nil, scanErr
+		}
+
+		return &res, nil
 	}
 
-	return d.runCreateFallback(ctx, query, vals, cols, returningCols, pkCols)
+	return d.runCreateFallback(ctx, query, vals, cols, returningCols, commentPKCols)
 }
 
-func (d *CommentDelegate) runCreateFallback(ctx context.Context, query string, vals []any, cols []string, returningCols []string, pkCols []string) (*Comment, error) {
+func (d *CommentDelegate) runCreateFallback(
+	ctx context.Context,
+	query string,
+	vals []any,
+	cols []string,
+	returningCols []string,
+	pkCols []string,
+) (*Comment, error) {
 	result, err := d.client.exec(ctx, query, vals...)
 	if err != nil {
 		return nil, err
@@ -1131,16 +1308,24 @@ func (d *CommentDelegate) runCreateFallback(ctx context.Context, query string, v
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var res Comment
-	if rows.Next() {
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
 			return nil, err
 		}
-		return &res, nil
+		return nil, nil
 	}
-	return nil, rows.Err()
+
+	var res Comment
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	return &res, nil
 }
 
 func (d *CommentDelegate) buildBulkInsertSQL(q *Queries, batch []*CommentCreate, paramStartIdx int) (cols []string, vals []any, queryStr string) {
@@ -1220,6 +1405,41 @@ func (d *CommentDelegate) buildBulkInsertSQL(q *Queries, batch []*CommentCreate,
 	return cols, vals, queryStr
 }
 
+func applyCommentConflictClause(dialect Dialect, queryStr string, vals []any, cols []string, pkCols []string, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (string, []any) {
+	var conflictCols []string
+	if conflictTarget != nil {
+		conflictCols = conflictTarget.UniqueColumns()
+	}
+	var nonConflictCols []string
+	if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+		nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+	}
+	clause, clauseArgs := dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+	queryStr += clause
+	if len(clauseArgs) > 0 {
+		vals = append(vals, clauseArgs...)
+	}
+	return queryStr, vals
+}
+
+func scanCommentRows(rows *sql.Rows, returningCols []string) ([]*Comment, error) {
+	var records []*Comment
+	for rows.Next() {
+		var res Comment
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		records = append(records, &res)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	return records, nil
+}
+
 func (d *CommentDelegate) runCreateMany(ctx context.Context, inputs []*CommentCreate, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	if len(inputs) == 0 {
 		return 0, nil
@@ -1230,18 +1450,7 @@ func (d *CommentDelegate) runCreateMany(ctx context.Context, inputs []*CommentCr
 	var count int64
 	for _, batch := range batches {
 		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
-
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, commentPKCols)
-		}
-		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
+		queryStr, vals = applyCommentConflictClause(d.client.dialect, queryStr, vals, cols, commentPKCols, conflictTarget, conflictAction)
 
 		result, err := d.client.exec(ctx, queryStr, vals...)
 		if err != nil {
@@ -1269,27 +1478,37 @@ func (d *CommentDelegate) runCreateManyAndReturn(
 	}
 
 	batches := partitionCommentInputs(d.client.dialect, inputs)
-	returningCols := selectCommentCols(selects, omits)
 	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning) && !d.client.inTx()
 
+	if useTx {
+		var res []*Comment
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if txQ.dialect.SupportsInsertReturning {
+				res, err = txQ.Comment.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			} else {
+				res, err = txQ.Comment.runCreateManyAndReturnFallback(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			}
+			if err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.Comment.loadRelations(ctx, res, selects)
+			}
+			return nil
+		})
+		return res, err
+	}
+
+	returningCols := selectCommentCols(selects, omits, commentPKCols...)
 	recordsOut := make([]*Comment, 0, len(inputs))
 
-	runBatch := func(txQ *Queries, batch []*CommentCreate) error {
-		cols, vals, queryStr := d.buildBulkInsertSQL(txQ, batch, 1)
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyCommentConflictClause(d.client.dialect, queryStr, vals, cols, commentPKCols, conflictTarget, conflictAction)
 
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, commentPKCols)
-		}
-		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
-
-		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
+		if len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -1297,40 +1516,58 @@ func (d *CommentDelegate) runCreateManyAndReturn(
 				if i > 0 {
 					retSb.WriteString(", ")
 				}
-				txQ.dialect.WriteQuotedIdent(&retSb, col)
+				d.client.dialect.WriteQuotedIdent(&retSb, col)
 			}
 			queryStr += retSb.String()
-			rows, err := txQ.query(ctx, queryStr, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-
-			for rows.Next() {
-				var res Comment
-				if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &res)
-			}
-			return rows.Err()
 		}
 
-		// Fallback for dialects without RETURNING (MySQL)
-		result, err := txQ.exec(ctx, queryStr, vals...)
+		rows, err := d.client.query(ctx, queryStr, vals...)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// We need to fetch the inserted records for this batch
-		// Note: MySQL bulk inserts only return the ID of the FIRST inserted row
+		scanned, err := scanCommentRows(rows, returningCols)
+		if err != nil {
+			return nil, err
+		}
+		recordsOut = append(recordsOut, scanned...)
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, recordsOut, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return recordsOut, nil
+}
+
+func (d *CommentDelegate) runCreateManyAndReturnFallback(
+	ctx context.Context,
+	inputs []*CommentCreate,
+	selects *CommentSelect,
+	omits *CommentOmit,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) ([]*Comment, error) {
+	batches := partitionCommentInputs(d.client.dialect, inputs)
+	returningCols := selectCommentCols(selects, omits, commentPKCols...)
+	recordsOut := make([]*Comment, 0, len(inputs))
+
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyCommentConflictClause(d.client.dialect, queryStr, vals, cols, commentPKCols, conflictTarget, conflictAction)
+
+		result, err := d.client.exec(ctx, queryStr, vals...)
+		if err != nil {
+			return nil, err
+		}
+
 		lastID, err := result.LastInsertId()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// Query back the rows by IDs (assuming autoincrement ID and single PK)
-		// If composite PK, it's more complex, but this is a standard fallback
 		var selectSb strings.Builder
 		selectSb.Grow(64 + len(returningCols)*15 + len("Comment") + len(batch)*15)
 		selectSb.WriteString("SELECT ")
@@ -1338,55 +1575,29 @@ func (d *CommentDelegate) runCreateManyAndReturn(
 			if i > 0 {
 				selectSb.WriteString(", ")
 			}
-			txQ.dialect.WriteQuotedIdent(&selectSb, col)
+			d.client.dialect.WriteQuotedIdent(&selectSb, col)
 		}
 		selectSb.WriteString(" FROM ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, "Comment")
+		d.client.dialect.WriteQuotedIdent(&selectSb, "Comment")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, commentPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, commentPKCols[0])
 		selectSb.WriteString(" >= ")
-		txQ.dialect.WritePlaceholder(&selectSb, 1)
+		d.client.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, commentPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, commentPKCols[0])
 		selectSb.WriteString(" < ")
-		txQ.dialect.WritePlaceholder(&selectSb, 2)
+		d.client.dialect.WritePlaceholder(&selectSb, 2)
 
-		rows, err := txQ.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var res Comment
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, &res)
-		}
-		return rows.Err()
-	}
-
-	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
-		err := d.client.transaction(ctx, func(txQ *Queries) error {
-			for _, batch := range batches {
-				if err := runBatch(txQ, batch); err != nil {
-					return err
-				}
-			}
-			if hasRelations {
-				return txQ.Comment.loadRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
+		rows, err := d.client.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		if err := runBatch(d.client, batches[0]); err != nil {
+
+		scanned, err := scanCommentRows(rows, returningCols)
+		if err != nil {
 			return nil, err
 		}
+		recordsOut = append(recordsOut, scanned...)
 	}
 
 	return recordsOut, nil
@@ -1629,23 +1840,23 @@ func (d *CommentDelegate) UpdateManyAndReturn(preds ...PredicateOf[Comment]) *Co
 	}
 }
 
-func (d *CommentDelegate) buildUpdateSQL(preds []PredicateOf[Comment], assignments []FieldAssignment, returningCols []string) (string, []any) {
-	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+func (d *CommentDelegate) buildUpdateSQL(preds []PredicateOf[Comment], cols []string, vals []any, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(cols)+1)
 
 	var sb strings.Builder
 	sb.WriteString("UPDATE ")
 	d.client.dialect.WriteQuotedIdent(&sb, "Comment")
 	sb.WriteString(" SET ")
 
-	setVals := make([]any, 0, len(assignments)+len(predVals))
-	for i, a := range assignments {
+	setVals := make([]any, 0, len(cols)+len(predVals))
+	for i, col := range cols {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		d.client.dialect.WriteQuotedIdent(&sb, col)
 		sb.WriteString(" = ")
 		d.client.dialect.WritePlaceholder(&sb, i+1)
-		setVals = append(setVals, a.Val)
+		setVals = append(setVals, vals[i])
 	}
 
 	if whereClause != "" {
@@ -1672,21 +1883,39 @@ func (d *CommentDelegate) buildUpdateSQL(preds []PredicateOf[Comment], assignmen
 // -----------------------------------------------------------------------------
 
 func (d *CommentDelegate) executeUpdate(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	allWhere := make([]PredicateOf[Comment], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
+	input, err := assignmentsToCommentUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+		return d.runUpdate(ctx, allWhere, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullCommentSelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[Comment], add []PredicateOf[Comment], a []FieldAssignment, s *CommentSelect, o *CommentOmit) (*Comment, error) {
-		return d.runUpdate(c, w, add, a, s, o)
+	args := &CommentUpdateArgs{
+		Where:  allWhere,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *CommentUpdateArgs) (*Comment, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdate(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.Update != nil {
-			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+			return ext.Update(ctx, args, curr)
 		}
 	}
 
@@ -1694,25 +1923,21 @@ func (d *CommentDelegate) executeUpdate(ctx context.Context, where UniquePredica
 		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
-			curr = func(c context.Context, w UniquePredicate[Comment], add []PredicateOf[Comment], a []FieldAssignment, s *CommentSelect, o *CommentOmit) (*Comment, error) {
-				return hook(c, w, add, a, s, o, next)
+			curr = func(c context.Context, a *CommentUpdateArgs) (*Comment, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, additional, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *CommentDelegate) runUpdate(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
-	allPreds := append([]PredicateOf[Comment]{where}, additional...)
-	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, allPreds, selects, omits)
+func (d *CommentDelegate) runUpdate(ctx context.Context, preds []PredicateOf[Comment], cols []string, vals []any, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	if len(cols) == 0 {
+		return d.runFindUnique(ctx, preds, selects, omits)
 	}
 
-	if err := where.Validate(); err != nil {
-		return nil, err
-	}
-	for _, pr := range additional {
+	for _, pr := range preds {
 		if pr != nil {
 			if err := pr.Validate(); err != nil {
 				return nil, err
@@ -1728,9 +1953,9 @@ func (d *CommentDelegate) runUpdate(ctx context.Context, where UniquePredicate[C
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.Comment.runUpdate(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.Comment.runUpdate(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.Comment.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.Comment.runUpdateFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1738,7 +1963,7 @@ func (d *CommentDelegate) runUpdate(ctx context.Context, where UniquePredicate[C
 	}
 
 	returningCols := selectCommentCols(selects, omits, commentPKCols...)
-	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
@@ -1770,8 +1995,8 @@ func (d *CommentDelegate) runUpdate(ctx context.Context, where UniquePredicate[C
 	return &res, nil
 }
 
-func (d *CommentDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment) (int64, error) {
-	if len(assignments) == 0 {
+func (d *CommentDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[Comment], cols []string, vals []any) (int64, error) {
+	if len(cols) == 0 {
 		return 0, nil
 	}
 
@@ -1783,7 +2008,7 @@ func (d *CommentDelegate) execUpdateStmt(ctx context.Context, preds []PredicateO
 		}
 	}
 
-	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, nil)
 	result, err := d.client.exec(ctx, query, setVals...)
 	if err != nil {
 		return 0, err
@@ -1791,16 +2016,15 @@ func (d *CommentDelegate) execUpdateStmt(ctx context.Context, preds []PredicateO
 	return result.RowsAffected()
 }
 
-func (d *CommentDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[Comment], additional []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
-	allPreds := append([]PredicateOf[Comment]{where}, additional...)
-	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+func (d *CommentDelegate) runUpdateFallback(ctx context.Context, preds []PredicateOf[Comment], cols []string, vals []any, selects *CommentSelect, omits *CommentOmit) (*Comment, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, allPreds, selects, omits)
+	return d.runFindUnique(ctx, preds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -1808,17 +2032,30 @@ func (d *CommentDelegate) runUpdateFallback(ctx context.Context, where UniquePre
 // -----------------------------------------------------------------------------
 
 func (d *CommentDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment) (int64, error) {
-	if len(d.extensions) == 0 {
-		return d.execUpdateStmt(ctx, preds, assignments)
+	input, err := assignmentsToCommentUpdate(assignments)
+	if err != nil {
+		return 0, err
 	}
 
-	curr := func(c context.Context, p []PredicateOf[Comment], a []FieldAssignment) (int64, error) {
-		return d.execUpdateStmt(c, p, a)
+	cols, vals := input.ToColsVals()
+
+	if len(d.extensions) == 0 {
+		return d.execUpdateStmt(ctx, preds, cols, vals)
+	}
+
+	args := &CommentUpdateManyArgs{
+		Where: preds,
+		Data:  &input,
+	}
+
+	curr := func(c context.Context, a *CommentUpdateManyArgs) (int64, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.execUpdateStmt(c, a.Where, extCols, extVals)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateMany != nil {
-			return ext.UpdateMany(ctx, preds, assignments, curr)
+			return ext.UpdateMany(ctx, args, curr)
 		}
 	}
 
@@ -1826,13 +2063,13 @@ func (d *CommentDelegate) executeUpdateMany(ctx context.Context, preds []Predica
 		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
-			curr = func(c context.Context, p []PredicateOf[Comment], a []FieldAssignment) (int64, error) {
-				return hook(c, p, a, next)
+			curr = func(c context.Context, a *CommentUpdateManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments)
+	return curr(ctx, args)
 }
 
 // -----------------------------------------------------------------------------
@@ -1840,21 +2077,35 @@ func (d *CommentDelegate) executeUpdateMany(ctx context.Context, preds []Predica
 // -----------------------------------------------------------------------------
 
 func (d *CommentDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
+	input, err := assignmentsToCommentUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+		return d.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullCommentSelect()
 	}
 
-	curr := func(c context.Context, p []PredicateOf[Comment], a []FieldAssignment, s *CommentSelect, o *CommentOmit) ([]*Comment, error) {
-		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	args := &CommentUpdateManyAndReturnArgs{
+		Where:  preds,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *CommentUpdateManyAndReturnArgs) ([]*Comment, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdateManyAndReturn(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
-			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+			return ext.UpdateManyAndReturn(ctx, args, curr)
 		}
 	}
 
@@ -1862,17 +2113,17 @@ func (d *CommentDelegate) executeUpdateManyAndReturn(ctx context.Context, preds 
 		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
-			curr = func(c context.Context, p []PredicateOf[Comment], a []FieldAssignment, s *CommentSelect, o *CommentOmit) ([]*Comment, error) {
-				return hook(c, p, a, s, o, next)
+			curr = func(c context.Context, a *CommentUpdateManyAndReturnArgs) ([]*Comment, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *CommentDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
-	if len(assignments) == 0 {
+func (d *CommentDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Comment], cols []string, vals []any, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
+	if len(cols) == 0 {
 		return d.runFindMany(ctx, QueryParams[Comment]{Where: preds}, selects, omits)
 	}
 
@@ -1892,9 +2143,9 @@ func (d *CommentDelegate) runUpdateManyAndReturn(ctx context.Context, preds []Pr
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.Comment.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+				res, err = txQ.Comment.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.Comment.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+				res, err = txQ.Comment.runUpdateManyAndReturnFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1902,39 +2153,29 @@ func (d *CommentDelegate) runUpdateManyAndReturn(ctx context.Context, preds []Pr
 	}
 
 	returningCols := selectCommentCols(selects, omits, commentPKCols...)
-	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]*Comment, 0)
-	for rows.Next() {
-		var res Comment
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		results = append(results, &res)
-	}
-	rowsErr := rows.Err()
-	rows.Close()
-	if rowsErr != nil {
-		return nil, rowsErr
+	scanned, err := scanCommentRows(rows, returningCols)
+	if err != nil {
+		return nil, err
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
-		if err := d.loadRelations(ctx, results, selects); err != nil {
+		if err := d.loadRelations(ctx, scanned, selects); err != nil {
 			return nil, err
 		}
 	}
 
-	return results, nil
+	return scanned, nil
 }
 
-func (d *CommentDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[Comment], assignments []FieldAssignment, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
-	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+func (d *CommentDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[Comment], cols []string, vals []any, selects *CommentSelect, omits *CommentOmit) ([]*Comment, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}
