@@ -275,6 +275,770 @@ func (s *AllFieldsSoFarCreate) colMask() uint64 {
 	return mask
 }
 
+// AllFieldsSoFarUpdate contains model input fields for AllFieldsSoFar update operations.
+type AllFieldsSoFarUpdate struct {
+	Id              *int32              `json:"id"`
+	StringReq       *string             `json:"stringReq"`
+	StringOpt       *string             `json:"stringOpt"`
+	StringDefault   *string             `json:"stringDefault"`
+	StringVarchar   *string             `json:"stringVarchar"`
+	StringChar      *string             `json:"stringChar"`
+	BitVal          *string             `json:"bitVal"`
+	VarBitVal       *string             `json:"varBitVal"`
+	InetVal         *string             `json:"inetVal"`
+	XmlVal          *string             `json:"xmlVal"`
+	CuidDefault     *string             `json:"cuidDefault"`
+	Cuid1Default    *string             `json:"cuid1Default"`
+	Cuid2Default    *string             `json:"cuid2Default"`
+	UuidDefault     *string             `json:"uuidDefault"`
+	Uuid4Default    *string             `json:"uuid4Default"`
+	Uuid7Default    *string             `json:"uuid7Default"`
+	UlidDefault     *string             `json:"ulidDefault"`
+	NanoidDefault   *string             `json:"nanoidDefault"`
+	UuidDb          *string             `json:"uuidDb"`
+	IntReq          *int32              `json:"intReq"`
+	IntOpt          *int32              `json:"intOpt"`
+	IntDefault      *int32              `json:"intDefault"`
+	IntegerVal      *int32              `json:"integerVal"`
+	SmallInt        *int32              `json:"smallInt"`
+	TinyInt         *int32              `json:"tinyInt"`
+	OidVal          *int32              `json:"oidVal"`
+	BigIntReq       *int64              `json:"bigIntReq"`
+	BigIntOpt       *int64              `json:"bigIntOpt"`
+	FloatReq        *float64            `json:"floatReq"`
+	FloatOpt        *float64            `json:"floatOpt"`
+	RealVal         *float64            `json:"realVal"`
+	DecimalReq      *string             `json:"decimalReq"`
+	DecimalOpt      *string             `json:"decimalOpt"`
+	DecimalPrecise  *string             `json:"decimalPrecise"`
+	MoneyVal        *string             `json:"moneyVal"`
+	BoolReq         *bool               `json:"boolReq"`
+	BoolOpt         *bool               `json:"boolOpt"`
+	BoolDefault     *bool               `json:"boolDefault"`
+	DateTimeReq     *time.Time          `json:"dateTimeReq"`
+	DateTimeOpt     *time.Time          `json:"dateTimeOpt"`
+	DateTimeDefault *time.Time          `json:"dateTimeDefault"`
+	UpdatedAt       *time.Time          `json:"updatedAt"`
+	DateTimeTz      *time.Time          `json:"dateTimeTz"`
+	TimestampVal    *time.Time          `json:"timestampVal"`
+	TimeVal         *time.Time          `json:"timeVal"`
+	TimetzVal       *time.Time          `json:"timetzVal"`
+	JsonReq         *json.RawMessage    `json:"jsonReq"`
+	JsonOpt         *json.RawMessage    `json:"jsonOpt"`
+	JsonVal         *json.RawMessage    `json:"jsonVal"`
+	BytesReq        *[]byte             `json:"bytesReq"`
+	BytesOpt        *[]byte             `json:"bytesOpt"`
+	HstoreField     *map[string]*string `json:"hstoreField"`
+	LtreeField      *string             `json:"ltreeField"`
+	CitextField     *string             `json:"citextField"`
+}
+
+func (u *AllFieldsSoFarUpdate) ToColsVals() ([]string, []any) {
+	var cols []string
+	var vals []any
+	if u.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, u.Id)
+	}
+	if u.StringReq != nil {
+		cols = append(cols, "stringReq")
+		vals = append(vals, u.StringReq)
+	}
+	if u.StringOpt != nil {
+		cols = append(cols, "stringOpt")
+		vals = append(vals, u.StringOpt)
+	}
+	if u.StringDefault != nil {
+		cols = append(cols, "stringDefault")
+		vals = append(vals, u.StringDefault)
+	}
+	if u.StringVarchar != nil {
+		cols = append(cols, "stringVarchar")
+		vals = append(vals, u.StringVarchar)
+	}
+	if u.StringChar != nil {
+		cols = append(cols, "stringChar")
+		vals = append(vals, u.StringChar)
+	}
+	if u.BitVal != nil {
+		cols = append(cols, "bitVal")
+		vals = append(vals, u.BitVal)
+	}
+	if u.VarBitVal != nil {
+		cols = append(cols, "varBitVal")
+		vals = append(vals, u.VarBitVal)
+	}
+	if u.InetVal != nil {
+		cols = append(cols, "inetVal")
+		vals = append(vals, u.InetVal)
+	}
+	if u.XmlVal != nil {
+		cols = append(cols, "xmlVal")
+		vals = append(vals, u.XmlVal)
+	}
+	if u.CuidDefault != nil {
+		cols = append(cols, "cuidDefault")
+		vals = append(vals, u.CuidDefault)
+	}
+	if u.Cuid1Default != nil {
+		cols = append(cols, "cuid1Default")
+		vals = append(vals, u.Cuid1Default)
+	}
+	if u.Cuid2Default != nil {
+		cols = append(cols, "cuid2Default")
+		vals = append(vals, u.Cuid2Default)
+	}
+	if u.UuidDefault != nil {
+		cols = append(cols, "uuidDefault")
+		vals = append(vals, u.UuidDefault)
+	}
+	if u.Uuid4Default != nil {
+		cols = append(cols, "uuid4Default")
+		vals = append(vals, u.Uuid4Default)
+	}
+	if u.Uuid7Default != nil {
+		cols = append(cols, "uuid7Default")
+		vals = append(vals, u.Uuid7Default)
+	}
+	if u.UlidDefault != nil {
+		cols = append(cols, "ulidDefault")
+		vals = append(vals, u.UlidDefault)
+	}
+	if u.NanoidDefault != nil {
+		cols = append(cols, "nanoidDefault")
+		vals = append(vals, u.NanoidDefault)
+	}
+	if u.UuidDb != nil {
+		cols = append(cols, "uuidDb")
+		vals = append(vals, u.UuidDb)
+	}
+	if u.IntReq != nil {
+		cols = append(cols, "intReq")
+		vals = append(vals, u.IntReq)
+	}
+	if u.IntOpt != nil {
+		cols = append(cols, "intOpt")
+		vals = append(vals, u.IntOpt)
+	}
+	if u.IntDefault != nil {
+		cols = append(cols, "intDefault")
+		vals = append(vals, u.IntDefault)
+	}
+	if u.IntegerVal != nil {
+		cols = append(cols, "integerVal")
+		vals = append(vals, u.IntegerVal)
+	}
+	if u.SmallInt != nil {
+		cols = append(cols, "smallInt")
+		vals = append(vals, u.SmallInt)
+	}
+	if u.TinyInt != nil {
+		cols = append(cols, "tinyInt")
+		vals = append(vals, u.TinyInt)
+	}
+	if u.OidVal != nil {
+		cols = append(cols, "oidVal")
+		vals = append(vals, u.OidVal)
+	}
+	if u.BigIntReq != nil {
+		cols = append(cols, "bigIntReq")
+		vals = append(vals, u.BigIntReq)
+	}
+	if u.BigIntOpt != nil {
+		cols = append(cols, "bigIntOpt")
+		vals = append(vals, u.BigIntOpt)
+	}
+	if u.FloatReq != nil {
+		cols = append(cols, "floatReq")
+		vals = append(vals, u.FloatReq)
+	}
+	if u.FloatOpt != nil {
+		cols = append(cols, "floatOpt")
+		vals = append(vals, u.FloatOpt)
+	}
+	if u.RealVal != nil {
+		cols = append(cols, "realVal")
+		vals = append(vals, u.RealVal)
+	}
+	if u.DecimalReq != nil {
+		cols = append(cols, "decimalReq")
+		vals = append(vals, u.DecimalReq)
+	}
+	if u.DecimalOpt != nil {
+		cols = append(cols, "decimalOpt")
+		vals = append(vals, u.DecimalOpt)
+	}
+	if u.DecimalPrecise != nil {
+		cols = append(cols, "decimalPrecise")
+		vals = append(vals, u.DecimalPrecise)
+	}
+	if u.MoneyVal != nil {
+		cols = append(cols, "moneyVal")
+		vals = append(vals, u.MoneyVal)
+	}
+	if u.BoolReq != nil {
+		cols = append(cols, "boolReq")
+		vals = append(vals, u.BoolReq)
+	}
+	if u.BoolOpt != nil {
+		cols = append(cols, "boolOpt")
+		vals = append(vals, u.BoolOpt)
+	}
+	if u.BoolDefault != nil {
+		cols = append(cols, "boolDefault")
+		vals = append(vals, u.BoolDefault)
+	}
+	if u.DateTimeReq != nil {
+		cols = append(cols, "dateTimeReq")
+		vals = append(vals, u.DateTimeReq)
+	}
+	if u.DateTimeOpt != nil {
+		cols = append(cols, "dateTimeOpt")
+		vals = append(vals, u.DateTimeOpt)
+	}
+	if u.DateTimeDefault != nil {
+		cols = append(cols, "dateTimeDefault")
+		vals = append(vals, u.DateTimeDefault)
+	}
+	if u.UpdatedAt != nil {
+		cols = append(cols, "updatedAt")
+		vals = append(vals, u.UpdatedAt)
+	}
+	if u.DateTimeTz != nil {
+		cols = append(cols, "dateTimeTz")
+		vals = append(vals, u.DateTimeTz)
+	}
+	if u.TimestampVal != nil {
+		cols = append(cols, "timestampVal")
+		vals = append(vals, u.TimestampVal)
+	}
+	if u.TimeVal != nil {
+		cols = append(cols, "timeVal")
+		vals = append(vals, u.TimeVal)
+	}
+	if u.TimetzVal != nil {
+		cols = append(cols, "timetzVal")
+		vals = append(vals, u.TimetzVal)
+	}
+	if u.JsonReq != nil {
+		cols = append(cols, "jsonReq")
+		vals = append(vals, u.JsonReq)
+	}
+	if u.JsonOpt != nil {
+		cols = append(cols, "jsonOpt")
+		vals = append(vals, u.JsonOpt)
+	}
+	if u.JsonVal != nil {
+		cols = append(cols, "jsonVal")
+		vals = append(vals, u.JsonVal)
+	}
+	if u.BytesReq != nil {
+		cols = append(cols, "bytesReq")
+		vals = append(vals, u.BytesReq)
+	}
+	if u.BytesOpt != nil {
+		cols = append(cols, "bytesOpt")
+		vals = append(vals, u.BytesOpt)
+	}
+	if u.HstoreField != nil {
+		cols = append(cols, "hstoreField")
+		vals = append(vals, u.HstoreField)
+	}
+	if u.LtreeField != nil {
+		cols = append(cols, "ltreeField")
+		vals = append(vals, u.LtreeField)
+	}
+	if u.CitextField != nil {
+		cols = append(cols, "citextField")
+		vals = append(vals, u.CitextField)
+	}
+	return cols, vals
+}
+
+func assignmentsToAllFieldsSoFarUpdate(assignments []FieldAssignment) (AllFieldsSoFarUpdate, error) {
+	var input AllFieldsSoFarUpdate
+	var errs ValidationError
+
+	for _, a := range assignments {
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(int32); ok {
+				input.Id = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.Id = v
+			} else {
+				errs.Add("id", a.Val, "type", "field id must be of type int32")
+			}
+		case "stringReq":
+			if v, ok := a.Val.(string); ok {
+				input.StringReq = &v
+				errs.ValidateString("stringReq", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.StringReq = v
+			} else {
+				errs.Add("stringReq", a.Val, "type", "field stringReq must be of type string")
+			}
+		case "stringOpt":
+			if v, ok := a.Val.(string); ok {
+				input.StringOpt = &v
+				errs.ValidateString("stringOpt", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.StringOpt = v
+			} else {
+				errs.Add("stringOpt", a.Val, "type", "field stringOpt must be of type string")
+			}
+		case "stringDefault":
+			if v, ok := a.Val.(string); ok {
+				input.StringDefault = &v
+				errs.ValidateString("stringDefault", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.StringDefault = v
+			} else {
+				errs.Add("stringDefault", a.Val, "type", "field stringDefault must be of type string")
+			}
+		case "stringVarchar":
+			if v, ok := a.Val.(string); ok {
+				input.StringVarchar = &v
+				errs.ValidateString("stringVarchar", v, false, 255, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.StringVarchar = v
+			} else {
+				errs.Add("stringVarchar", a.Val, "type", "field stringVarchar must be of type string")
+			}
+		case "stringChar":
+			if v, ok := a.Val.(string); ok {
+				input.StringChar = &v
+				errs.ValidateString("stringChar", v, false, 10, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.StringChar = v
+			} else {
+				errs.Add("stringChar", a.Val, "type", "field stringChar must be of type string")
+			}
+		case "bitVal":
+			if v, ok := a.Val.(string); ok {
+				input.BitVal = &v
+				errs.ValidateString("bitVal", v, false, 0, true, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.BitVal = v
+			} else {
+				errs.Add("bitVal", a.Val, "type", "field bitVal must be of type string")
+			}
+		case "varBitVal":
+			if v, ok := a.Val.(string); ok {
+				input.VarBitVal = &v
+				errs.ValidateString("varBitVal", v, false, 0, true, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.VarBitVal = v
+			} else {
+				errs.Add("varBitVal", a.Val, "type", "field varBitVal must be of type string")
+			}
+		case "inetVal":
+			if v, ok := a.Val.(string); ok {
+				input.InetVal = &v
+				errs.ValidateString("inetVal", v, false, 0, false, true)
+			} else if v, ok := a.Val.(*string); ok {
+				input.InetVal = v
+			} else {
+				errs.Add("inetVal", a.Val, "type", "field inetVal must be of type string")
+			}
+		case "xmlVal":
+			if v, ok := a.Val.(string); ok {
+				input.XmlVal = &v
+				errs.ValidateString("xmlVal", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.XmlVal = v
+			} else {
+				errs.Add("xmlVal", a.Val, "type", "field xmlVal must be of type string")
+			}
+		case "cuidDefault":
+			if v, ok := a.Val.(string); ok {
+				input.CuidDefault = &v
+				errs.ValidateString("cuidDefault", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.CuidDefault = v
+			} else {
+				errs.Add("cuidDefault", a.Val, "type", "field cuidDefault must be of type string")
+			}
+		case "cuid1Default":
+			if v, ok := a.Val.(string); ok {
+				input.Cuid1Default = &v
+				errs.ValidateString("cuid1Default", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Cuid1Default = v
+			} else {
+				errs.Add("cuid1Default", a.Val, "type", "field cuid1Default must be of type string")
+			}
+		case "cuid2Default":
+			if v, ok := a.Val.(string); ok {
+				input.Cuid2Default = &v
+				errs.ValidateString("cuid2Default", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Cuid2Default = v
+			} else {
+				errs.Add("cuid2Default", a.Val, "type", "field cuid2Default must be of type string")
+			}
+		case "uuidDefault":
+			if v, ok := a.Val.(string); ok {
+				input.UuidDefault = &v
+				errs.ValidateString("uuidDefault", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.UuidDefault = v
+			} else {
+				errs.Add("uuidDefault", a.Val, "type", "field uuidDefault must be of type string")
+			}
+		case "uuid4Default":
+			if v, ok := a.Val.(string); ok {
+				input.Uuid4Default = &v
+				errs.ValidateString("uuid4Default", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Uuid4Default = v
+			} else {
+				errs.Add("uuid4Default", a.Val, "type", "field uuid4Default must be of type string")
+			}
+		case "uuid7Default":
+			if v, ok := a.Val.(string); ok {
+				input.Uuid7Default = &v
+				errs.ValidateString("uuid7Default", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Uuid7Default = v
+			} else {
+				errs.Add("uuid7Default", a.Val, "type", "field uuid7Default must be of type string")
+			}
+		case "ulidDefault":
+			if v, ok := a.Val.(string); ok {
+				input.UlidDefault = &v
+				errs.ValidateString("ulidDefault", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.UlidDefault = v
+			} else {
+				errs.Add("ulidDefault", a.Val, "type", "field ulidDefault must be of type string")
+			}
+		case "nanoidDefault":
+			if v, ok := a.Val.(string); ok {
+				input.NanoidDefault = &v
+				errs.ValidateString("nanoidDefault", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.NanoidDefault = v
+			} else {
+				errs.Add("nanoidDefault", a.Val, "type", "field nanoidDefault must be of type string")
+			}
+		case "uuidDb":
+			if v, ok := a.Val.(string); ok {
+				input.UuidDb = &v
+				errs.ValidateString("uuidDb", v, false, 0, false, false)
+				errs.ValidateUUID("uuidDb", v)
+			} else if v, ok := a.Val.(*string); ok {
+				input.UuidDb = v
+			} else {
+				errs.Add("uuidDb", a.Val, "type", "field uuidDb must be of type string")
+			}
+		case "intReq":
+			if v, ok := a.Val.(int32); ok {
+				input.IntReq = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.IntReq = v
+			} else {
+				errs.Add("intReq", a.Val, "type", "field intReq must be of type int32")
+			}
+		case "intOpt":
+			if v, ok := a.Val.(int32); ok {
+				input.IntOpt = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.IntOpt = v
+			} else {
+				errs.Add("intOpt", a.Val, "type", "field intOpt must be of type int32")
+			}
+		case "intDefault":
+			if v, ok := a.Val.(int32); ok {
+				input.IntDefault = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.IntDefault = v
+			} else {
+				errs.Add("intDefault", a.Val, "type", "field intDefault must be of type int32")
+			}
+		case "integerVal":
+			if v, ok := a.Val.(int32); ok {
+				input.IntegerVal = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.IntegerVal = v
+			} else {
+				errs.Add("integerVal", a.Val, "type", "field integerVal must be of type int32")
+			}
+		case "smallInt":
+			if v, ok := a.Val.(int32); ok {
+				input.SmallInt = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.SmallInt = v
+			} else {
+				errs.Add("smallInt", a.Val, "type", "field smallInt must be of type int32")
+			}
+		case "tinyInt":
+			if v, ok := a.Val.(int32); ok {
+				input.TinyInt = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.TinyInt = v
+			} else {
+				errs.Add("tinyInt", a.Val, "type", "field tinyInt must be of type int32")
+			}
+		case "oidVal":
+			if v, ok := a.Val.(int32); ok {
+				input.OidVal = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.OidVal = v
+			} else {
+				errs.Add("oidVal", a.Val, "type", "field oidVal must be of type int32")
+			}
+		case "bigIntReq":
+			if v, ok := a.Val.(int64); ok {
+				input.BigIntReq = &v
+			} else if v, ok := a.Val.(*int64); ok {
+				input.BigIntReq = v
+			} else {
+				errs.Add("bigIntReq", a.Val, "type", "field bigIntReq must be of type int64")
+			}
+		case "bigIntOpt":
+			if v, ok := a.Val.(int64); ok {
+				input.BigIntOpt = &v
+			} else if v, ok := a.Val.(*int64); ok {
+				input.BigIntOpt = v
+			} else {
+				errs.Add("bigIntOpt", a.Val, "type", "field bigIntOpt must be of type int64")
+			}
+		case "floatReq":
+			if v, ok := a.Val.(float64); ok {
+				input.FloatReq = &v
+			} else if v, ok := a.Val.(*float64); ok {
+				input.FloatReq = v
+			} else {
+				errs.Add("floatReq", a.Val, "type", "field floatReq must be of type float64")
+			}
+		case "floatOpt":
+			if v, ok := a.Val.(float64); ok {
+				input.FloatOpt = &v
+			} else if v, ok := a.Val.(*float64); ok {
+				input.FloatOpt = v
+			} else {
+				errs.Add("floatOpt", a.Val, "type", "field floatOpt must be of type float64")
+			}
+		case "realVal":
+			if v, ok := a.Val.(float64); ok {
+				input.RealVal = &v
+			} else if v, ok := a.Val.(*float64); ok {
+				input.RealVal = v
+			} else {
+				errs.Add("realVal", a.Val, "type", "field realVal must be of type float64")
+			}
+		case "decimalReq":
+			if v, ok := a.Val.(string); ok {
+				input.DecimalReq = &v
+				errs.ValidateString("decimalReq", v, false, 0, false, false)
+				errs.ValidateDecimal("decimalReq", v, 0)
+			} else if v, ok := a.Val.(*string); ok {
+				input.DecimalReq = v
+			} else {
+				errs.Add("decimalReq", a.Val, "type", "field decimalReq must be of type string")
+			}
+		case "decimalOpt":
+			if v, ok := a.Val.(string); ok {
+				input.DecimalOpt = &v
+				errs.ValidateString("decimalOpt", v, false, 0, false, false)
+				errs.ValidateDecimal("decimalOpt", v, 0)
+			} else if v, ok := a.Val.(*string); ok {
+				input.DecimalOpt = v
+			} else {
+				errs.Add("decimalOpt", a.Val, "type", "field decimalOpt must be of type string")
+			}
+		case "decimalPrecise":
+			if v, ok := a.Val.(string); ok {
+				input.DecimalPrecise = &v
+				errs.ValidateString("decimalPrecise", v, false, 0, false, false)
+				errs.ValidateDecimal("decimalPrecise", v, 2)
+			} else if v, ok := a.Val.(*string); ok {
+				input.DecimalPrecise = v
+			} else {
+				errs.Add("decimalPrecise", a.Val, "type", "field decimalPrecise must be of type string")
+			}
+		case "moneyVal":
+			if v, ok := a.Val.(string); ok {
+				input.MoneyVal = &v
+				errs.ValidateString("moneyVal", v, false, 0, false, false)
+				errs.ValidateDecimal("moneyVal", v, 0)
+			} else if v, ok := a.Val.(*string); ok {
+				input.MoneyVal = v
+			} else {
+				errs.Add("moneyVal", a.Val, "type", "field moneyVal must be of type string")
+			}
+		case "boolReq":
+			if v, ok := a.Val.(bool); ok {
+				input.BoolReq = &v
+			} else if v, ok := a.Val.(*bool); ok {
+				input.BoolReq = v
+			} else {
+				errs.Add("boolReq", a.Val, "type", "field boolReq must be of type bool")
+			}
+		case "boolOpt":
+			if v, ok := a.Val.(bool); ok {
+				input.BoolOpt = &v
+			} else if v, ok := a.Val.(*bool); ok {
+				input.BoolOpt = v
+			} else {
+				errs.Add("boolOpt", a.Val, "type", "field boolOpt must be of type bool")
+			}
+		case "boolDefault":
+			if v, ok := a.Val.(bool); ok {
+				input.BoolDefault = &v
+			} else if v, ok := a.Val.(*bool); ok {
+				input.BoolDefault = v
+			} else {
+				errs.Add("boolDefault", a.Val, "type", "field boolDefault must be of type bool")
+			}
+		case "dateTimeReq":
+			if v, ok := a.Val.(time.Time); ok {
+				input.DateTimeReq = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.DateTimeReq = v
+			} else {
+				errs.Add("dateTimeReq", a.Val, "type", "field dateTimeReq must be of type time.Time")
+			}
+		case "dateTimeOpt":
+			if v, ok := a.Val.(time.Time); ok {
+				input.DateTimeOpt = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.DateTimeOpt = v
+			} else {
+				errs.Add("dateTimeOpt", a.Val, "type", "field dateTimeOpt must be of type time.Time")
+			}
+		case "dateTimeDefault":
+			if v, ok := a.Val.(time.Time); ok {
+				input.DateTimeDefault = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.DateTimeDefault = v
+			} else {
+				errs.Add("dateTimeDefault", a.Val, "type", "field dateTimeDefault must be of type time.Time")
+			}
+		case "updatedAt":
+			if v, ok := a.Val.(time.Time); ok {
+				input.UpdatedAt = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.UpdatedAt = v
+			} else {
+				errs.Add("updatedAt", a.Val, "type", "field updatedAt must be of type time.Time")
+			}
+		case "dateTimeTz":
+			if v, ok := a.Val.(time.Time); ok {
+				input.DateTimeTz = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.DateTimeTz = v
+			} else {
+				errs.Add("dateTimeTz", a.Val, "type", "field dateTimeTz must be of type time.Time")
+			}
+		case "timestampVal":
+			if v, ok := a.Val.(time.Time); ok {
+				input.TimestampVal = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.TimestampVal = v
+			} else {
+				errs.Add("timestampVal", a.Val, "type", "field timestampVal must be of type time.Time")
+			}
+		case "timeVal":
+			if v, ok := a.Val.(time.Time); ok {
+				input.TimeVal = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.TimeVal = v
+			} else {
+				errs.Add("timeVal", a.Val, "type", "field timeVal must be of type time.Time")
+			}
+		case "timetzVal":
+			if v, ok := a.Val.(time.Time); ok {
+				input.TimetzVal = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.TimetzVal = v
+			} else {
+				errs.Add("timetzVal", a.Val, "type", "field timetzVal must be of type time.Time")
+			}
+		case "jsonReq":
+			if v, ok := a.Val.(json.RawMessage); ok {
+				input.JsonReq = &v
+			} else if v, ok := a.Val.(*json.RawMessage); ok {
+				input.JsonReq = v
+			} else if v, ok := a.Val.(json.RawMessage); ok {
+				input.JsonReq = &v
+			} else {
+				errs.Add("jsonReq", a.Val, "type", "field jsonReq must be of type json.RawMessage")
+			}
+		case "jsonOpt":
+			if v, ok := a.Val.(json.RawMessage); ok {
+				input.JsonOpt = &v
+			} else if v, ok := a.Val.(*json.RawMessage); ok {
+				input.JsonOpt = v
+			} else if v, ok := a.Val.(*json.RawMessage); ok {
+				input.JsonOpt = v
+			} else {
+				errs.Add("jsonOpt", a.Val, "type", "field jsonOpt must be of type *json.RawMessage")
+			}
+		case "jsonVal":
+			if v, ok := a.Val.(json.RawMessage); ok {
+				input.JsonVal = &v
+			} else if v, ok := a.Val.(*json.RawMessage); ok {
+				input.JsonVal = v
+			} else if v, ok := a.Val.(json.RawMessage); ok {
+				input.JsonVal = &v
+			} else {
+				errs.Add("jsonVal", a.Val, "type", "field jsonVal must be of type json.RawMessage")
+			}
+		case "bytesReq":
+			if v, ok := a.Val.([]byte); ok {
+				input.BytesReq = &v
+			} else if v, ok := a.Val.(*[]byte); ok {
+				input.BytesReq = v
+			} else {
+				errs.Add("bytesReq", a.Val, "type", "field bytesReq must be of type []byte")
+			}
+		case "bytesOpt":
+			if v, ok := a.Val.([]byte); ok {
+				input.BytesOpt = &v
+			} else if v, ok := a.Val.(*[]byte); ok {
+				input.BytesOpt = v
+			} else {
+				errs.Add("bytesOpt", a.Val, "type", "field bytesOpt must be of type []byte")
+			}
+		case "hstoreField":
+			if v, ok := a.Val.(map[string]*string); ok {
+				input.HstoreField = &v
+			} else if v, ok := a.Val.(*map[string]*string); ok {
+				input.HstoreField = v
+			} else if v, ok := a.Val.(*map[string]*string); ok {
+				input.HstoreField = v
+			} else {
+				errs.Add("hstoreField", a.Val, "type", "field hstoreField must be of type *map[string]*string")
+			}
+		case "ltreeField":
+			if v, ok := a.Val.(string); ok {
+				input.LtreeField = &v
+				errs.ValidateString("ltreeField", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.LtreeField = v
+			} else {
+				errs.Add("ltreeField", a.Val, "type", "field ltreeField must be of type string")
+			}
+		case "citextField":
+			if v, ok := a.Val.(string); ok {
+				input.CitextField = &v
+				errs.ValidateString("citextField", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.CitextField = v
+			} else {
+				errs.Add("citextField", a.Val, "type", "field citextField must be of type string")
+			}
+		}
+	}
+
+	if errs.HasErrors() {
+		return input, errs
+	}
+	return input, nil
+}
+
 // AllFieldsSoFarSelect specifies which scalar and relation fields to select for AllFieldsSoFar.
 //
 // Selectable fields:
@@ -964,6 +1728,51 @@ func (a *AllFieldsSoFarDeleteManyArgs) SetWhere(preds ...PredicateOf[AllFieldsSo
 	return a
 }
 
+// AllFieldsSoFarUpdateArgs is the input argument passed to AllFieldsSoFar Update extension hooks.
+type AllFieldsSoFarUpdateArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[AllFieldsSoFar]
+	// Data contains the model fields to update.
+	Data *AllFieldsSoFarUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *AllFieldsSoFarSelect
+}
+
+func (a *AllFieldsSoFarUpdateArgs) SetWhere(unique UniquePredicate[AllFieldsSoFar], additional ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateArgs {
+	a.Where = make([]PredicateOf[AllFieldsSoFar], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// AllFieldsSoFarUpdateManyArgs is the input argument passed to AllFieldsSoFar UpdateMany extension hooks.
+type AllFieldsSoFarUpdateManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[AllFieldsSoFar]
+	// Data contains the model fields to update.
+	Data *AllFieldsSoFarUpdate
+}
+
+func (a *AllFieldsSoFarUpdateManyArgs) SetWhere(preds ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateManyArgs {
+	a.Where = preds
+	return a
+}
+
+// AllFieldsSoFarUpdateManyAndReturnArgs is the input argument passed to AllFieldsSoFar UpdateManyAndReturn extension hooks.
+type AllFieldsSoFarUpdateManyAndReturnArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[AllFieldsSoFar]
+	// Data contains the model fields to update.
+	Data *AllFieldsSoFarUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *AllFieldsSoFarSelect
+}
+
+func (a *AllFieldsSoFarUpdateManyAndReturnArgs) SetWhere(preds ...PredicateOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateManyAndReturnArgs {
+	a.Where = preds
+	return a
+}
+
 type AllFieldsSoFarCreateQuery = func(ctx context.Context, args *AllFieldsSoFarCreateArgs) (*AllFieldsSoFar, error)
 type AllFieldsSoFarCreateManyQuery = func(ctx context.Context, args *AllFieldsSoFarCreateManyArgs) (int64, error)
 type AllFieldsSoFarCreateManyAndReturnQuery = func(ctx context.Context, args *AllFieldsSoFarCreateManyAndReturnArgs) ([]*AllFieldsSoFar, error)
@@ -973,9 +1782,9 @@ type AllFieldsSoFarFindManyQuery = func(ctx context.Context, args *AllFieldsSoFa
 type AllFieldsSoFarDeleteQuery = func(ctx context.Context, args *AllFieldsSoFarDeleteArgs) (*AllFieldsSoFar, error)
 type AllFieldsSoFarDeleteManyQuery = func(ctx context.Context, args *AllFieldsSoFarDeleteManyArgs) (int64, error)
 type AllFieldsSoFarCountQuery = func(ctx context.Context, args *AllFieldsSoFarCountArgs) (int64, error)
-type AllFieldsSoFarUpdateQuery = func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error)
-type AllFieldsSoFarUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment) (int64, error)
-type AllFieldsSoFarUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error)
+type AllFieldsSoFarUpdateQuery = func(ctx context.Context, args *AllFieldsSoFarUpdateArgs) (*AllFieldsSoFar, error)
+type AllFieldsSoFarUpdateManyQuery = func(ctx context.Context, args *AllFieldsSoFarUpdateManyArgs) (int64, error)
+type AllFieldsSoFarUpdateManyAndReturnQuery = func(ctx context.Context, args *AllFieldsSoFarUpdateManyAndReturnArgs) ([]*AllFieldsSoFar, error)
 
 type AllFieldsSoFarExtension struct {
 	Create              func(ctx context.Context, args *AllFieldsSoFarCreateArgs, next AllFieldsSoFarCreateQuery) (*AllFieldsSoFar, error)
@@ -987,9 +1796,9 @@ type AllFieldsSoFarExtension struct {
 	Delete              func(ctx context.Context, args *AllFieldsSoFarDeleteArgs, next AllFieldsSoFarDeleteQuery) (*AllFieldsSoFar, error)
 	DeleteMany          func(ctx context.Context, args *AllFieldsSoFarDeleteManyArgs, next AllFieldsSoFarDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *AllFieldsSoFarCountArgs, next AllFieldsSoFarCountQuery) (int64, error)
-	Update              func(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarUpdateQuery) (*AllFieldsSoFar, error)
-	UpdateMany          func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, next AllFieldsSoFarUpdateManyQuery) (int64, error)
-	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, next AllFieldsSoFarUpdateManyAndReturnQuery) ([]*AllFieldsSoFar, error)
+	Update              func(ctx context.Context, args *AllFieldsSoFarUpdateArgs, next AllFieldsSoFarUpdateQuery) (*AllFieldsSoFar, error)
+	UpdateMany          func(ctx context.Context, args *AllFieldsSoFarUpdateManyArgs, next AllFieldsSoFarUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, args *AllFieldsSoFarUpdateManyAndReturnArgs, next AllFieldsSoFarUpdateManyAndReturnQuery) ([]*AllFieldsSoFar, error)
 }
 
 type AllFieldsSoFarDelegate struct {
@@ -1267,6 +2076,16 @@ func (s *AllFieldsSoFarSelect) hasAnyRelation() bool {
 
 type AllFieldsSoFarCreateBuilder struct {
 	*CreateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]
+}
+
+func (b *AllFieldsSoFarCreateBuilder) Select(s AllFieldsSoFarSelect) *AllFieldsSoFarCreateBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *AllFieldsSoFarCreateBuilder) Omit(o AllFieldsSoFarOmit) *AllFieldsSoFarCreateBuilder {
+	b.omits = &o
+	return b
 }
 
 func (b *AllFieldsSoFarCreateBuilder) OnConflict(target UniqueConstraintTarget) *AllFieldsSoFarConflictBuilder[AllFieldsSoFarCreateBuilder] {
@@ -2312,23 +3131,11 @@ func (d *AllFieldsSoFarDelegate) executeCreate(ctx context.Context, assignments 
 		return nil, err
 	}
 
+	cols, vals := input.ToColsVals()
+	returningCols := selectAllFieldsSoFarCols(selects, omits)
+
 	if len(d.extensions) == 0 {
-		cols, vals := input.ToColsVals()
-		returningCols := selectAllFieldsSoFarCols(selects, omits)
-		hasRelations := selects.hasAnyRelation()
-		if hasRelations {
-			var res *AllFieldsSoFar
-			err = d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.AllFieldsSoFar.runCreate(ctx, cols, vals, returningCols, allFieldsSoFarPKCols, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.AllFieldsSoFar.loadRelations(ctx, []*AllFieldsSoFar{res}, selects)
-			})
-			return res, err
-		}
-		return d.runCreate(ctx, cols, vals, returningCols, allFieldsSoFarPKCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -2343,28 +3150,9 @@ func (d *AllFieldsSoFarDelegate) executeCreate(ctx context.Context, assignments 
 	}
 
 	curr := func(c context.Context, a *AllFieldsSoFarCreateArgs) (*AllFieldsSoFar, error) {
-		cols, vals := a.Data.ToColsVals()
-		returningCols := selectAllFieldsSoFarCols(a.Select, omits)
-
-		hasRelations := a.Select.hasAnyRelation()
-		var res *AllFieldsSoFar
-		var err error
-		if hasRelations {
-			err = d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.AllFieldsSoFar.runCreate(c, cols, vals, returningCols, allFieldsSoFarPKCols, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.AllFieldsSoFar.loadRelations(c, []*AllFieldsSoFar{res}, a.Select)
-			})
-		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, allFieldsSoFarPKCols, a.ConflictTarget, a.ConflictAction)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return res, nil
+		cCols, cVals := a.Data.ToColsVals()
+		cReturningCols := selectAllFieldsSoFarCols(a.Select, omits)
+		return d.runCreate(c, cCols, cVals, cReturningCols, a.Select, a.ConflictTarget, a.ConflictAction)
 	}
 
 	if len(d.extensions) == 1 {
@@ -2405,6 +3193,16 @@ type AllFieldsSoFarCreateManyAndReturnBuilder struct {
 	*CreateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]
 }
 
+func (b *AllFieldsSoFarCreateManyAndReturnBuilder) Select(s AllFieldsSoFarSelect) *AllFieldsSoFarCreateManyAndReturnBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *AllFieldsSoFarCreateManyAndReturnBuilder) Omit(o AllFieldsSoFarOmit) *AllFieldsSoFarCreateManyAndReturnBuilder {
+	b.omits = &o
+	return b
+}
+
 func (b *AllFieldsSoFarCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *AllFieldsSoFarConflictBuilder[AllFieldsSoFarCreateManyAndReturnBuilder] {
 	return &AllFieldsSoFarConflictBuilder[AllFieldsSoFarCreateManyAndReturnBuilder]{
 		builder:        b,
@@ -2416,42 +3214,50 @@ func (b *AllFieldsSoFarCreateManyAndReturnBuilder) OnConflict(target UniqueConst
 	}
 }
 
-func (d *AllFieldsSoFarDelegate) CreateMany(builders ...*AllFieldsSoFarCreateBuilder) *AllFieldsSoFarCreateManyBuilder {
+func createBuildersToAllFieldsSoFarRecordInputs(builders []*AllFieldsSoFarCreateBuilder) []RecordInput {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
+	return records
+}
+
+func (d *AllFieldsSoFarDelegate) CreateMany(builders ...*AllFieldsSoFarCreateBuilder) *AllFieldsSoFarCreateManyBuilder {
 	return &AllFieldsSoFarCreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[AllFieldsSoFar]{
-			records:  records,
+			records:  createBuildersToAllFieldsSoFarRecordInputs(builders),
 			execFunc: d.executeCreateMany,
 		},
 	}
 }
 
 func (d *AllFieldsSoFarDelegate) CreateManyAndReturn(builders ...*AllFieldsSoFarCreateBuilder) *AllFieldsSoFarCreateManyAndReturnBuilder {
-	records := make([]RecordInput, len(builders))
-	for i, b := range builders {
-		records[i] = RecordInput{Assignments: b.assignments}
-	}
 	return &AllFieldsSoFarCreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]{
-			records:  records,
+			records:  createBuildersToAllFieldsSoFarRecordInputs(builders),
 			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (d *AllFieldsSoFarDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func recordsToAllFieldsSoFarCreateInputs(records []RecordInput) ([]*AllFieldsSoFarCreate, error) {
 	structs := make([]AllFieldsSoFarCreate, len(records))
 	inputs := make([]*AllFieldsSoFarCreate, len(records))
 	for i, rec := range records {
 		var err error
 		structs[i], err = assignmentsToAllFieldsSoFarCreate(rec.Assignments)
 		if err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		inputs[i] = &structs[i]
+	}
+	return inputs, nil
+}
+
+func (d *AllFieldsSoFarDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+	inputs, err := recordsToAllFieldsSoFarCreateInputs(records)
+	if err != nil {
+		return 0, err
 	}
 
 	if len(d.extensions) == 0 {
@@ -2488,31 +3294,12 @@ func (d *AllFieldsSoFarDelegate) executeCreateMany(ctx context.Context, records 
 }
 
 func (d *AllFieldsSoFarDelegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*AllFieldsSoFar, error) {
-	structs := make([]AllFieldsSoFarCreate, len(records))
-	inputs := make([]*AllFieldsSoFarCreate, len(records))
-	for i, rec := range records {
-		var err error
-		structs[i], err = assignmentsToAllFieldsSoFarCreate(rec.Assignments)
-		if err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-		inputs[i] = &structs[i]
+	inputs, err := recordsToAllFieldsSoFarCreateInputs(records)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(d.extensions) == 0 {
-		hasRelations := selects != nil && selects.hasAnyRelation()
-		if hasRelations {
-			var res []*AllFieldsSoFar
-			err := d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.AllFieldsSoFar.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.AllFieldsSoFar.loadRelations(ctx, res, selects)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
 	}
 
@@ -2528,19 +3315,6 @@ func (d *AllFieldsSoFarDelegate) executeCreateManyAndReturn(ctx context.Context,
 	}
 
 	curr := func(c context.Context, a *AllFieldsSoFarCreateManyAndReturnArgs) ([]*AllFieldsSoFar, error) {
-		hasRelations := a.Select != nil && a.Select.hasAnyRelation()
-		if hasRelations {
-			var res []*AllFieldsSoFar
-			err := d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.AllFieldsSoFar.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.AllFieldsSoFar.loadRelations(c, res, a.Select)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
@@ -2568,36 +3342,67 @@ func (d *AllFieldsSoFarDelegate) runCreate(
 	cols []string,
 	vals []any,
 	returningCols []string,
-	pkCols []string,
+	selects *AllFieldsSoFarSelect,
 	conflictTarget UniqueConstraintTarget,
 	conflictAction *ConflictAction,
 ) (*AllFieldsSoFar, error) {
-	query, clauseArgs := buildSingleInsertSQL(d.client, "AllFieldsSoFar", cols, returningCols, pkCols, conflictTarget, conflictAction, len(vals))
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := hasRelations && !d.client.inTx()
+
+	if useTx {
+		var res *AllFieldsSoFar
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.AllFieldsSoFar.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
+			if err != nil {
+				return err
+			}
+			return txQ.AllFieldsSoFar.loadRelations(ctx, []*AllFieldsSoFar{res}, selects)
+		})
+		return res, err
+	}
+
+	query, clauseArgs := buildSingleInsertSQL(d.client, "AllFieldsSoFar", cols, returningCols, allFieldsSoFarPKCols, conflictTarget, conflictAction, len(vals))
 	if len(clauseArgs) > 0 {
 		vals = append(vals, clauseArgs...)
 	}
 
-	var res AllFieldsSoFar
 	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
 
-		if rows.Next() {
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+		if !rows.Next() {
+			err := rows.Err()
+			rows.Close()
+			if err != nil {
 				return nil, err
 			}
-			return &res, nil
+			return nil, nil
 		}
-		return nil, rows.Err()
+
+		var res AllFieldsSoFar
+		scanErr := rows.Scan(res.ScanFields(returningCols)...)
+		rows.Close()
+		if scanErr != nil {
+			return nil, scanErr
+		}
+
+		return &res, nil
 	}
 
-	return d.runCreateFallback(ctx, query, vals, cols, returningCols, pkCols)
+	return d.runCreateFallback(ctx, query, vals, cols, returningCols, allFieldsSoFarPKCols)
 }
 
-func (d *AllFieldsSoFarDelegate) runCreateFallback(ctx context.Context, query string, vals []any, cols []string, returningCols []string, pkCols []string) (*AllFieldsSoFar, error) {
+func (d *AllFieldsSoFarDelegate) runCreateFallback(
+	ctx context.Context,
+	query string,
+	vals []any,
+	cols []string,
+	returningCols []string,
+	pkCols []string,
+) (*AllFieldsSoFar, error) {
 	result, err := d.client.exec(ctx, query, vals...)
 	if err != nil {
 		return nil, err
@@ -2647,16 +3452,24 @@ func (d *AllFieldsSoFarDelegate) runCreateFallback(ctx context.Context, query st
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var res AllFieldsSoFar
-	if rows.Next() {
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
 			return nil, err
 		}
-		return &res, nil
+		return nil, nil
 	}
-	return nil, rows.Err()
+
+	var res AllFieldsSoFar
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	return &res, nil
 }
 
 func (d *AllFieldsSoFarDelegate) buildBulkInsertSQL(q *Queries, batch []*AllFieldsSoFarCreate, paramStartIdx int) (cols []string, vals []any, queryStr string) {
@@ -2920,6 +3733,41 @@ func (d *AllFieldsSoFarDelegate) buildBulkInsertSQL(q *Queries, batch []*AllFiel
 	return cols, vals, queryStr
 }
 
+func applyAllFieldsSoFarConflictClause(dialect Dialect, queryStr string, vals []any, cols []string, pkCols []string, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (string, []any) {
+	var conflictCols []string
+	if conflictTarget != nil {
+		conflictCols = conflictTarget.UniqueColumns()
+	}
+	var nonConflictCols []string
+	if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+		nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+	}
+	clause, clauseArgs := dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+	queryStr += clause
+	if len(clauseArgs) > 0 {
+		vals = append(vals, clauseArgs...)
+	}
+	return queryStr, vals
+}
+
+func scanAllFieldsSoFarRows(rows *sql.Rows, returningCols []string) ([]*AllFieldsSoFar, error) {
+	var records []*AllFieldsSoFar
+	for rows.Next() {
+		var res AllFieldsSoFar
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		records = append(records, &res)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	return records, nil
+}
+
 func (d *AllFieldsSoFarDelegate) runCreateMany(ctx context.Context, inputs []*AllFieldsSoFarCreate, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	if len(inputs) == 0 {
 		return 0, nil
@@ -2930,18 +3778,7 @@ func (d *AllFieldsSoFarDelegate) runCreateMany(ctx context.Context, inputs []*Al
 	var count int64
 	for _, batch := range batches {
 		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
-
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, allFieldsSoFarPKCols)
-		}
-		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
+		queryStr, vals = applyAllFieldsSoFarConflictClause(d.client.dialect, queryStr, vals, cols, allFieldsSoFarPKCols, conflictTarget, conflictAction)
 
 		result, err := d.client.exec(ctx, queryStr, vals...)
 		if err != nil {
@@ -2969,27 +3806,37 @@ func (d *AllFieldsSoFarDelegate) runCreateManyAndReturn(
 	}
 
 	batches := partitionAllFieldsSoFarInputs(d.client.dialect, inputs)
-	returningCols := selectAllFieldsSoFarCols(selects, omits)
 	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning) && !d.client.inTx()
 
+	if useTx {
+		var res []*AllFieldsSoFar
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if txQ.dialect.SupportsInsertReturning {
+				res, err = txQ.AllFieldsSoFar.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			} else {
+				res, err = txQ.AllFieldsSoFar.runCreateManyAndReturnFallback(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			}
+			if err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.AllFieldsSoFar.loadRelations(ctx, res, selects)
+			}
+			return nil
+		})
+		return res, err
+	}
+
+	returningCols := selectAllFieldsSoFarCols(selects, omits, allFieldsSoFarPKCols...)
 	recordsOut := make([]*AllFieldsSoFar, 0, len(inputs))
 
-	runBatch := func(txQ *Queries, batch []*AllFieldsSoFarCreate) error {
-		cols, vals, queryStr := d.buildBulkInsertSQL(txQ, batch, 1)
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyAllFieldsSoFarConflictClause(d.client.dialect, queryStr, vals, cols, allFieldsSoFarPKCols, conflictTarget, conflictAction)
 
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, allFieldsSoFarPKCols)
-		}
-		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
-
-		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
+		if len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -2997,40 +3844,58 @@ func (d *AllFieldsSoFarDelegate) runCreateManyAndReturn(
 				if i > 0 {
 					retSb.WriteString(", ")
 				}
-				txQ.dialect.WriteQuotedIdent(&retSb, col)
+				d.client.dialect.WriteQuotedIdent(&retSb, col)
 			}
 			queryStr += retSb.String()
-			rows, err := txQ.query(ctx, queryStr, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-
-			for rows.Next() {
-				var res AllFieldsSoFar
-				if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &res)
-			}
-			return rows.Err()
 		}
 
-		// Fallback for dialects without RETURNING (MySQL)
-		result, err := txQ.exec(ctx, queryStr, vals...)
+		rows, err := d.client.query(ctx, queryStr, vals...)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// We need to fetch the inserted records for this batch
-		// Note: MySQL bulk inserts only return the ID of the FIRST inserted row
+		scanned, err := scanAllFieldsSoFarRows(rows, returningCols)
+		if err != nil {
+			return nil, err
+		}
+		recordsOut = append(recordsOut, scanned...)
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, recordsOut, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return recordsOut, nil
+}
+
+func (d *AllFieldsSoFarDelegate) runCreateManyAndReturnFallback(
+	ctx context.Context,
+	inputs []*AllFieldsSoFarCreate,
+	selects *AllFieldsSoFarSelect,
+	omits *AllFieldsSoFarOmit,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) ([]*AllFieldsSoFar, error) {
+	batches := partitionAllFieldsSoFarInputs(d.client.dialect, inputs)
+	returningCols := selectAllFieldsSoFarCols(selects, omits, allFieldsSoFarPKCols...)
+	recordsOut := make([]*AllFieldsSoFar, 0, len(inputs))
+
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyAllFieldsSoFarConflictClause(d.client.dialect, queryStr, vals, cols, allFieldsSoFarPKCols, conflictTarget, conflictAction)
+
+		result, err := d.client.exec(ctx, queryStr, vals...)
+		if err != nil {
+			return nil, err
+		}
+
 		lastID, err := result.LastInsertId()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// Query back the rows by IDs (assuming autoincrement ID and single PK)
-		// If composite PK, it's more complex, but this is a standard fallback
 		var selectSb strings.Builder
 		selectSb.Grow(64 + len(returningCols)*15 + len("AllFieldsSoFar") + len(batch)*15)
 		selectSb.WriteString("SELECT ")
@@ -3038,55 +3903,29 @@ func (d *AllFieldsSoFarDelegate) runCreateManyAndReturn(
 			if i > 0 {
 				selectSb.WriteString(", ")
 			}
-			txQ.dialect.WriteQuotedIdent(&selectSb, col)
+			d.client.dialect.WriteQuotedIdent(&selectSb, col)
 		}
 		selectSb.WriteString(" FROM ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, "AllFieldsSoFar")
+		d.client.dialect.WriteQuotedIdent(&selectSb, "AllFieldsSoFar")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, allFieldsSoFarPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, allFieldsSoFarPKCols[0])
 		selectSb.WriteString(" >= ")
-		txQ.dialect.WritePlaceholder(&selectSb, 1)
+		d.client.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, allFieldsSoFarPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, allFieldsSoFarPKCols[0])
 		selectSb.WriteString(" < ")
-		txQ.dialect.WritePlaceholder(&selectSb, 2)
+		d.client.dialect.WritePlaceholder(&selectSb, 2)
 
-		rows, err := txQ.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var res AllFieldsSoFar
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, &res)
-		}
-		return rows.Err()
-	}
-
-	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
-		err := d.client.transaction(ctx, func(txQ *Queries) error {
-			for _, batch := range batches {
-				if err := runBatch(txQ, batch); err != nil {
-					return err
-				}
-			}
-			if hasRelations {
-				return txQ.AllFieldsSoFar.loadRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
+		rows, err := d.client.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		if err := runBatch(d.client, batches[0]); err != nil {
+
+		scanned, err := scanAllFieldsSoFarRows(rows, returningCols)
+		if err != nil {
 			return nil, err
 		}
+		recordsOut = append(recordsOut, scanned...)
 	}
 
 	return recordsOut, nil
@@ -4110,23 +4949,23 @@ func (d *AllFieldsSoFarDelegate) UpdateManyAndReturn(preds ...PredicateOf[AllFie
 	}
 }
 
-func (d *AllFieldsSoFarDelegate) buildUpdateSQL(preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, returningCols []string) (string, []any) {
-	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+func (d *AllFieldsSoFarDelegate) buildUpdateSQL(preds []PredicateOf[AllFieldsSoFar], cols []string, vals []any, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(cols)+1)
 
 	var sb strings.Builder
 	sb.WriteString("UPDATE ")
 	d.client.dialect.WriteQuotedIdent(&sb, "AllFieldsSoFar")
 	sb.WriteString(" SET ")
 
-	setVals := make([]any, 0, len(assignments)+len(predVals))
-	for i, a := range assignments {
+	setVals := make([]any, 0, len(cols)+len(predVals))
+	for i, col := range cols {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		d.client.dialect.WriteQuotedIdent(&sb, col)
 		sb.WriteString(" = ")
 		d.client.dialect.WritePlaceholder(&sb, i+1)
-		setVals = append(setVals, a.Val)
+		setVals = append(setVals, vals[i])
 	}
 
 	if whereClause != "" {
@@ -4153,21 +4992,39 @@ func (d *AllFieldsSoFarDelegate) buildUpdateSQL(preds []PredicateOf[AllFieldsSoF
 // -----------------------------------------------------------------------------
 
 func (d *AllFieldsSoFarDelegate) executeUpdate(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	allWhere := make([]PredicateOf[AllFieldsSoFar], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
+	input, err := assignmentsToAllFieldsSoFarUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+		return d.runUpdate(ctx, allWhere, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullAllFieldsSoFarSelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[AllFieldsSoFar], add []PredicateOf[AllFieldsSoFar], a []FieldAssignment, s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-		return d.runUpdate(c, w, add, a, s, o)
+	args := &AllFieldsSoFarUpdateArgs{
+		Where:  allWhere,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *AllFieldsSoFarUpdateArgs) (*AllFieldsSoFar, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdate(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.Update != nil {
-			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+			return ext.Update(ctx, args, curr)
 		}
 	}
 
@@ -4175,25 +5032,21 @@ func (d *AllFieldsSoFarDelegate) executeUpdate(ctx context.Context, where Unique
 		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
-			curr = func(c context.Context, w UniquePredicate[AllFieldsSoFar], add []PredicateOf[AllFieldsSoFar], a []FieldAssignment, s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-				return hook(c, w, add, a, s, o, next)
+			curr = func(c context.Context, a *AllFieldsSoFarUpdateArgs) (*AllFieldsSoFar, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, additional, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *AllFieldsSoFarDelegate) runUpdate(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-	allPreds := append([]PredicateOf[AllFieldsSoFar]{where}, additional...)
-	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, allPreds, selects, omits)
+func (d *AllFieldsSoFarDelegate) runUpdate(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], cols []string, vals []any, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	if len(cols) == 0 {
+		return d.runFindUnique(ctx, preds, selects, omits)
 	}
 
-	if err := where.Validate(); err != nil {
-		return nil, err
-	}
-	for _, pr := range additional {
+	for _, pr := range preds {
 		if pr != nil {
 			if err := pr.Validate(); err != nil {
 				return nil, err
@@ -4209,9 +5062,9 @@ func (d *AllFieldsSoFarDelegate) runUpdate(ctx context.Context, where UniquePred
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.AllFieldsSoFar.runUpdate(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.AllFieldsSoFar.runUpdate(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.AllFieldsSoFar.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.AllFieldsSoFar.runUpdateFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -4219,7 +5072,7 @@ func (d *AllFieldsSoFarDelegate) runUpdate(ctx context.Context, where UniquePred
 	}
 
 	returningCols := selectAllFieldsSoFarCols(selects, omits, allFieldsSoFarPKCols...)
-	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
@@ -4251,8 +5104,8 @@ func (d *AllFieldsSoFarDelegate) runUpdate(ctx context.Context, where UniquePred
 	return &res, nil
 }
 
-func (d *AllFieldsSoFarDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment) (int64, error) {
-	if len(assignments) == 0 {
+func (d *AllFieldsSoFarDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], cols []string, vals []any) (int64, error) {
+	if len(cols) == 0 {
 		return 0, nil
 	}
 
@@ -4264,7 +5117,7 @@ func (d *AllFieldsSoFarDelegate) execUpdateStmt(ctx context.Context, preds []Pre
 		}
 	}
 
-	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, nil)
 	result, err := d.client.exec(ctx, query, setVals...)
 	if err != nil {
 		return 0, err
@@ -4272,16 +5125,15 @@ func (d *AllFieldsSoFarDelegate) execUpdateStmt(ctx context.Context, preds []Pre
 	return result.RowsAffected()
 }
 
-func (d *AllFieldsSoFarDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[AllFieldsSoFar], additional []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
-	allPreds := append([]PredicateOf[AllFieldsSoFar]{where}, additional...)
-	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+func (d *AllFieldsSoFarDelegate) runUpdateFallback(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], cols []string, vals []any, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) (*AllFieldsSoFar, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, allPreds, selects, omits)
+	return d.runFindUnique(ctx, preds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -4289,17 +5141,30 @@ func (d *AllFieldsSoFarDelegate) runUpdateFallback(ctx context.Context, where Un
 // -----------------------------------------------------------------------------
 
 func (d *AllFieldsSoFarDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment) (int64, error) {
-	if len(d.extensions) == 0 {
-		return d.execUpdateStmt(ctx, preds, assignments)
+	input, err := assignmentsToAllFieldsSoFarUpdate(assignments)
+	if err != nil {
+		return 0, err
 	}
 
-	curr := func(c context.Context, p []PredicateOf[AllFieldsSoFar], a []FieldAssignment) (int64, error) {
-		return d.execUpdateStmt(c, p, a)
+	cols, vals := input.ToColsVals()
+
+	if len(d.extensions) == 0 {
+		return d.execUpdateStmt(ctx, preds, cols, vals)
+	}
+
+	args := &AllFieldsSoFarUpdateManyArgs{
+		Where: preds,
+		Data:  &input,
+	}
+
+	curr := func(c context.Context, a *AllFieldsSoFarUpdateManyArgs) (int64, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.execUpdateStmt(c, a.Where, extCols, extVals)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateMany != nil {
-			return ext.UpdateMany(ctx, preds, assignments, curr)
+			return ext.UpdateMany(ctx, args, curr)
 		}
 	}
 
@@ -4307,13 +5172,13 @@ func (d *AllFieldsSoFarDelegate) executeUpdateMany(ctx context.Context, preds []
 		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
-			curr = func(c context.Context, p []PredicateOf[AllFieldsSoFar], a []FieldAssignment) (int64, error) {
-				return hook(c, p, a, next)
+			curr = func(c context.Context, a *AllFieldsSoFarUpdateManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments)
+	return curr(ctx, args)
 }
 
 // -----------------------------------------------------------------------------
@@ -4321,21 +5186,35 @@ func (d *AllFieldsSoFarDelegate) executeUpdateMany(ctx context.Context, preds []
 // -----------------------------------------------------------------------------
 
 func (d *AllFieldsSoFarDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
+	input, err := assignmentsToAllFieldsSoFarUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+		return d.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullAllFieldsSoFarSelect()
 	}
 
-	curr := func(c context.Context, p []PredicateOf[AllFieldsSoFar], a []FieldAssignment, s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
-		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	args := &AllFieldsSoFarUpdateManyAndReturnArgs{
+		Where:  preds,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *AllFieldsSoFarUpdateManyAndReturnArgs) ([]*AllFieldsSoFar, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdateManyAndReturn(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
-			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+			return ext.UpdateManyAndReturn(ctx, args, curr)
 		}
 	}
 
@@ -4343,17 +5222,17 @@ func (d *AllFieldsSoFarDelegate) executeUpdateManyAndReturn(ctx context.Context,
 		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
-			curr = func(c context.Context, p []PredicateOf[AllFieldsSoFar], a []FieldAssignment, s *AllFieldsSoFarSelect, o *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
-				return hook(c, p, a, s, o, next)
+			curr = func(c context.Context, a *AllFieldsSoFarUpdateManyAndReturnArgs) ([]*AllFieldsSoFar, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *AllFieldsSoFarDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
-	if len(assignments) == 0 {
+func (d *AllFieldsSoFarDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], cols []string, vals []any, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
+	if len(cols) == 0 {
 		return d.runFindMany(ctx, QueryParams[AllFieldsSoFar]{Where: preds}, selects, omits)
 	}
 
@@ -4373,9 +5252,9 @@ func (d *AllFieldsSoFarDelegate) runUpdateManyAndReturn(ctx context.Context, pre
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.AllFieldsSoFar.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+				res, err = txQ.AllFieldsSoFar.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.AllFieldsSoFar.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+				res, err = txQ.AllFieldsSoFar.runUpdateManyAndReturnFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -4383,39 +5262,29 @@ func (d *AllFieldsSoFarDelegate) runUpdateManyAndReturn(ctx context.Context, pre
 	}
 
 	returningCols := selectAllFieldsSoFarCols(selects, omits, allFieldsSoFarPKCols...)
-	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]*AllFieldsSoFar, 0)
-	for rows.Next() {
-		var res AllFieldsSoFar
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		results = append(results, &res)
-	}
-	rowsErr := rows.Err()
-	rows.Close()
-	if rowsErr != nil {
-		return nil, rowsErr
+	scanned, err := scanAllFieldsSoFarRows(rows, returningCols)
+	if err != nil {
+		return nil, err
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
-		if err := d.loadRelations(ctx, results, selects); err != nil {
+		if err := d.loadRelations(ctx, scanned, selects); err != nil {
 			return nil, err
 		}
 	}
 
-	return results, nil
+	return scanned, nil
 }
 
-func (d *AllFieldsSoFarDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], assignments []FieldAssignment, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
-	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+func (d *AllFieldsSoFarDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[AllFieldsSoFar], cols []string, vals []any, selects *AllFieldsSoFarSelect, omits *AllFieldsSoFarOmit) ([]*AllFieldsSoFar, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}

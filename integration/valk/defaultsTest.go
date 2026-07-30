@@ -62,6 +62,156 @@ func (s *DefaultsTestCreate) colMask() uint64 {
 	return mask
 }
 
+// DefaultsTestUpdate contains model input fields for DefaultsTest update operations.
+type DefaultsTestUpdate struct {
+	Uuid4      *string    `json:"uuid4"`
+	Uuid7      *string    `json:"uuid7"`
+	UuidNoArgs *string    `json:"uuidNoArgs"`
+	Cuid1      *string    `json:"cuid1"`
+	Cuid2      *string    `json:"cuid2"`
+	CuidNoArgs *string    `json:"cuidNoArgs"`
+	Ulid       *string    `json:"ulid"`
+	Nanoid     *string    `json:"nanoid"`
+	Now        *time.Time `json:"now"`
+}
+
+func (u *DefaultsTestUpdate) ToColsVals() ([]string, []any) {
+	var cols []string
+	var vals []any
+	if u.Uuid4 != nil {
+		cols = append(cols, "uuid4")
+		vals = append(vals, u.Uuid4)
+	}
+	if u.Uuid7 != nil {
+		cols = append(cols, "uuid7")
+		vals = append(vals, u.Uuid7)
+	}
+	if u.UuidNoArgs != nil {
+		cols = append(cols, "uuidNoArgs")
+		vals = append(vals, u.UuidNoArgs)
+	}
+	if u.Cuid1 != nil {
+		cols = append(cols, "cuid1")
+		vals = append(vals, u.Cuid1)
+	}
+	if u.Cuid2 != nil {
+		cols = append(cols, "cuid2")
+		vals = append(vals, u.Cuid2)
+	}
+	if u.CuidNoArgs != nil {
+		cols = append(cols, "cuidNoArgs")
+		vals = append(vals, u.CuidNoArgs)
+	}
+	if u.Ulid != nil {
+		cols = append(cols, "ulid")
+		vals = append(vals, u.Ulid)
+	}
+	if u.Nanoid != nil {
+		cols = append(cols, "nanoid")
+		vals = append(vals, u.Nanoid)
+	}
+	if u.Now != nil {
+		cols = append(cols, "now")
+		vals = append(vals, u.Now)
+	}
+	return cols, vals
+}
+
+func assignmentsToDefaultsTestUpdate(assignments []FieldAssignment) (DefaultsTestUpdate, error) {
+	var input DefaultsTestUpdate
+	var errs ValidationError
+
+	for _, a := range assignments {
+		switch a.Col {
+		case "uuid4":
+			if v, ok := a.Val.(string); ok {
+				input.Uuid4 = &v
+				errs.ValidateString("uuid4", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Uuid4 = v
+			} else {
+				errs.Add("uuid4", a.Val, "type", "field uuid4 must be of type string")
+			}
+		case "uuid7":
+			if v, ok := a.Val.(string); ok {
+				input.Uuid7 = &v
+				errs.ValidateString("uuid7", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Uuid7 = v
+			} else {
+				errs.Add("uuid7", a.Val, "type", "field uuid7 must be of type string")
+			}
+		case "uuidNoArgs":
+			if v, ok := a.Val.(string); ok {
+				input.UuidNoArgs = &v
+				errs.ValidateString("uuidNoArgs", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.UuidNoArgs = v
+			} else {
+				errs.Add("uuidNoArgs", a.Val, "type", "field uuidNoArgs must be of type string")
+			}
+		case "cuid1":
+			if v, ok := a.Val.(string); ok {
+				input.Cuid1 = &v
+				errs.ValidateString("cuid1", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Cuid1 = v
+			} else {
+				errs.Add("cuid1", a.Val, "type", "field cuid1 must be of type string")
+			}
+		case "cuid2":
+			if v, ok := a.Val.(string); ok {
+				input.Cuid2 = &v
+				errs.ValidateString("cuid2", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Cuid2 = v
+			} else {
+				errs.Add("cuid2", a.Val, "type", "field cuid2 must be of type string")
+			}
+		case "cuidNoArgs":
+			if v, ok := a.Val.(string); ok {
+				input.CuidNoArgs = &v
+				errs.ValidateString("cuidNoArgs", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.CuidNoArgs = v
+			} else {
+				errs.Add("cuidNoArgs", a.Val, "type", "field cuidNoArgs must be of type string")
+			}
+		case "ulid":
+			if v, ok := a.Val.(string); ok {
+				input.Ulid = &v
+				errs.ValidateString("ulid", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Ulid = v
+			} else {
+				errs.Add("ulid", a.Val, "type", "field ulid must be of type string")
+			}
+		case "nanoid":
+			if v, ok := a.Val.(string); ok {
+				input.Nanoid = &v
+				errs.ValidateString("nanoid", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Nanoid = v
+			} else {
+				errs.Add("nanoid", a.Val, "type", "field nanoid must be of type string")
+			}
+		case "now":
+			if v, ok := a.Val.(time.Time); ok {
+				input.Now = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.Now = v
+			} else {
+				errs.Add("now", a.Val, "type", "field now must be of type time.Time")
+			}
+		}
+	}
+
+	if errs.HasErrors() {
+		return input, errs
+	}
+	return input, nil
+}
+
 // DefaultsTestSelect specifies which scalar and relation fields to select for DefaultsTest.
 //
 // Selectable fields:
@@ -436,6 +586,51 @@ func (a *DefaultsTestDeleteManyArgs) SetWhere(preds ...PredicateOf[DefaultsTest]
 	return a
 }
 
+// DefaultsTestUpdateArgs is the input argument passed to DefaultsTest Update extension hooks.
+type DefaultsTestUpdateArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[DefaultsTest]
+	// Data contains the model fields to update.
+	Data *DefaultsTestUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *DefaultsTestSelect
+}
+
+func (a *DefaultsTestUpdateArgs) SetWhere(unique UniquePredicate[DefaultsTest], additional ...PredicateOf[DefaultsTest]) *DefaultsTestUpdateArgs {
+	a.Where = make([]PredicateOf[DefaultsTest], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// DefaultsTestUpdateManyArgs is the input argument passed to DefaultsTest UpdateMany extension hooks.
+type DefaultsTestUpdateManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[DefaultsTest]
+	// Data contains the model fields to update.
+	Data *DefaultsTestUpdate
+}
+
+func (a *DefaultsTestUpdateManyArgs) SetWhere(preds ...PredicateOf[DefaultsTest]) *DefaultsTestUpdateManyArgs {
+	a.Where = preds
+	return a
+}
+
+// DefaultsTestUpdateManyAndReturnArgs is the input argument passed to DefaultsTest UpdateManyAndReturn extension hooks.
+type DefaultsTestUpdateManyAndReturnArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[DefaultsTest]
+	// Data contains the model fields to update.
+	Data *DefaultsTestUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *DefaultsTestSelect
+}
+
+func (a *DefaultsTestUpdateManyAndReturnArgs) SetWhere(preds ...PredicateOf[DefaultsTest]) *DefaultsTestUpdateManyAndReturnArgs {
+	a.Where = preds
+	return a
+}
+
 type DefaultsTestCreateQuery = func(ctx context.Context, args *DefaultsTestCreateArgs) (*DefaultsTest, error)
 type DefaultsTestCreateManyQuery = func(ctx context.Context, args *DefaultsTestCreateManyArgs) (int64, error)
 type DefaultsTestCreateManyAndReturnQuery = func(ctx context.Context, args *DefaultsTestCreateManyAndReturnArgs) ([]*DefaultsTest, error)
@@ -445,9 +640,9 @@ type DefaultsTestFindManyQuery = func(ctx context.Context, args *DefaultsTestFin
 type DefaultsTestDeleteQuery = func(ctx context.Context, args *DefaultsTestDeleteArgs) (*DefaultsTest, error)
 type DefaultsTestDeleteManyQuery = func(ctx context.Context, args *DefaultsTestDeleteManyArgs) (int64, error)
 type DefaultsTestCountQuery = func(ctx context.Context, args *DefaultsTestCountArgs) (int64, error)
-type DefaultsTestUpdateQuery = func(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error)
-type DefaultsTestUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment) (int64, error)
-type DefaultsTestUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error)
+type DefaultsTestUpdateQuery = func(ctx context.Context, args *DefaultsTestUpdateArgs) (*DefaultsTest, error)
+type DefaultsTestUpdateManyQuery = func(ctx context.Context, args *DefaultsTestUpdateManyArgs) (int64, error)
+type DefaultsTestUpdateManyAndReturnQuery = func(ctx context.Context, args *DefaultsTestUpdateManyAndReturnArgs) ([]*DefaultsTest, error)
 
 type DefaultsTestExtension struct {
 	Create              func(ctx context.Context, args *DefaultsTestCreateArgs, next DefaultsTestCreateQuery) (*DefaultsTest, error)
@@ -459,9 +654,9 @@ type DefaultsTestExtension struct {
 	Delete              func(ctx context.Context, args *DefaultsTestDeleteArgs, next DefaultsTestDeleteQuery) (*DefaultsTest, error)
 	DeleteMany          func(ctx context.Context, args *DefaultsTestDeleteManyArgs, next DefaultsTestDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *DefaultsTestCountArgs, next DefaultsTestCountQuery) (int64, error)
-	Update              func(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestUpdateQuery) (*DefaultsTest, error)
-	UpdateMany          func(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, next DefaultsTestUpdateManyQuery) (int64, error)
-	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit, next DefaultsTestUpdateManyAndReturnQuery) ([]*DefaultsTest, error)
+	Update              func(ctx context.Context, args *DefaultsTestUpdateArgs, next DefaultsTestUpdateQuery) (*DefaultsTest, error)
+	UpdateMany          func(ctx context.Context, args *DefaultsTestUpdateManyArgs, next DefaultsTestUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, args *DefaultsTestUpdateManyAndReturnArgs, next DefaultsTestUpdateManyAndReturnQuery) ([]*DefaultsTest, error)
 }
 
 type DefaultsTestDelegate struct {
@@ -559,6 +754,16 @@ func (s *DefaultsTestSelect) hasAnyRelation() bool {
 
 type DefaultsTestCreateBuilder struct {
 	*CreateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]
+}
+
+func (b *DefaultsTestCreateBuilder) Select(s DefaultsTestSelect) *DefaultsTestCreateBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *DefaultsTestCreateBuilder) Omit(o DefaultsTestOmit) *DefaultsTestCreateBuilder {
+	b.omits = &o
+	return b
 }
 
 func (b *DefaultsTestCreateBuilder) OnConflict(target UniqueConstraintTarget) *DefaultsTestConflictBuilder[DefaultsTestCreateBuilder] {
@@ -818,23 +1023,11 @@ func (d *DefaultsTestDelegate) executeCreate(ctx context.Context, assignments []
 		return nil, err
 	}
 
+	cols, vals := input.ToColsVals()
+	returningCols := selectDefaultsTestCols(selects, omits)
+
 	if len(d.extensions) == 0 {
-		cols, vals := input.ToColsVals()
-		returningCols := selectDefaultsTestCols(selects, omits)
-		hasRelations := selects.hasAnyRelation()
-		if hasRelations {
-			var res *DefaultsTest
-			err = d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.DefaultsTest.runCreate(ctx, cols, vals, returningCols, defaultsTestPKCols, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.DefaultsTest.loadRelations(ctx, []*DefaultsTest{res}, selects)
-			})
-			return res, err
-		}
-		return d.runCreate(ctx, cols, vals, returningCols, defaultsTestPKCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -849,28 +1042,9 @@ func (d *DefaultsTestDelegate) executeCreate(ctx context.Context, assignments []
 	}
 
 	curr := func(c context.Context, a *DefaultsTestCreateArgs) (*DefaultsTest, error) {
-		cols, vals := a.Data.ToColsVals()
-		returningCols := selectDefaultsTestCols(a.Select, omits)
-
-		hasRelations := a.Select.hasAnyRelation()
-		var res *DefaultsTest
-		var err error
-		if hasRelations {
-			err = d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.DefaultsTest.runCreate(c, cols, vals, returningCols, defaultsTestPKCols, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.DefaultsTest.loadRelations(c, []*DefaultsTest{res}, a.Select)
-			})
-		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, defaultsTestPKCols, a.ConflictTarget, a.ConflictAction)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return res, nil
+		cCols, cVals := a.Data.ToColsVals()
+		cReturningCols := selectDefaultsTestCols(a.Select, omits)
+		return d.runCreate(c, cCols, cVals, cReturningCols, a.Select, a.ConflictTarget, a.ConflictAction)
 	}
 
 	if len(d.extensions) == 1 {
@@ -911,6 +1085,16 @@ type DefaultsTestCreateManyAndReturnBuilder struct {
 	*CreateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]
 }
 
+func (b *DefaultsTestCreateManyAndReturnBuilder) Select(s DefaultsTestSelect) *DefaultsTestCreateManyAndReturnBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *DefaultsTestCreateManyAndReturnBuilder) Omit(o DefaultsTestOmit) *DefaultsTestCreateManyAndReturnBuilder {
+	b.omits = &o
+	return b
+}
+
 func (b *DefaultsTestCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *DefaultsTestConflictBuilder[DefaultsTestCreateManyAndReturnBuilder] {
 	return &DefaultsTestConflictBuilder[DefaultsTestCreateManyAndReturnBuilder]{
 		builder:        b,
@@ -922,42 +1106,50 @@ func (b *DefaultsTestCreateManyAndReturnBuilder) OnConflict(target UniqueConstra
 	}
 }
 
-func (d *DefaultsTestDelegate) CreateMany(builders ...*DefaultsTestCreateBuilder) *DefaultsTestCreateManyBuilder {
+func createBuildersToDefaultsTestRecordInputs(builders []*DefaultsTestCreateBuilder) []RecordInput {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
+	return records
+}
+
+func (d *DefaultsTestDelegate) CreateMany(builders ...*DefaultsTestCreateBuilder) *DefaultsTestCreateManyBuilder {
 	return &DefaultsTestCreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[DefaultsTest]{
-			records:  records,
+			records:  createBuildersToDefaultsTestRecordInputs(builders),
 			execFunc: d.executeCreateMany,
 		},
 	}
 }
 
 func (d *DefaultsTestDelegate) CreateManyAndReturn(builders ...*DefaultsTestCreateBuilder) *DefaultsTestCreateManyAndReturnBuilder {
-	records := make([]RecordInput, len(builders))
-	for i, b := range builders {
-		records[i] = RecordInput{Assignments: b.assignments}
-	}
 	return &DefaultsTestCreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]{
-			records:  records,
+			records:  createBuildersToDefaultsTestRecordInputs(builders),
 			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (d *DefaultsTestDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func recordsToDefaultsTestCreateInputs(records []RecordInput) ([]*DefaultsTestCreate, error) {
 	structs := make([]DefaultsTestCreate, len(records))
 	inputs := make([]*DefaultsTestCreate, len(records))
 	for i, rec := range records {
 		var err error
 		structs[i], err = assignmentsToDefaultsTestCreate(rec.Assignments)
 		if err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		inputs[i] = &structs[i]
+	}
+	return inputs, nil
+}
+
+func (d *DefaultsTestDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+	inputs, err := recordsToDefaultsTestCreateInputs(records)
+	if err != nil {
+		return 0, err
 	}
 
 	if len(d.extensions) == 0 {
@@ -994,31 +1186,12 @@ func (d *DefaultsTestDelegate) executeCreateMany(ctx context.Context, records []
 }
 
 func (d *DefaultsTestDelegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *DefaultsTestSelect, omits *DefaultsTestOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*DefaultsTest, error) {
-	structs := make([]DefaultsTestCreate, len(records))
-	inputs := make([]*DefaultsTestCreate, len(records))
-	for i, rec := range records {
-		var err error
-		structs[i], err = assignmentsToDefaultsTestCreate(rec.Assignments)
-		if err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-		inputs[i] = &structs[i]
+	inputs, err := recordsToDefaultsTestCreateInputs(records)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(d.extensions) == 0 {
-		hasRelations := selects != nil && selects.hasAnyRelation()
-		if hasRelations {
-			var res []*DefaultsTest
-			err := d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.DefaultsTest.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.DefaultsTest.loadRelations(ctx, res, selects)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
 	}
 
@@ -1034,19 +1207,6 @@ func (d *DefaultsTestDelegate) executeCreateManyAndReturn(ctx context.Context, r
 	}
 
 	curr := func(c context.Context, a *DefaultsTestCreateManyAndReturnArgs) ([]*DefaultsTest, error) {
-		hasRelations := a.Select != nil && a.Select.hasAnyRelation()
-		if hasRelations {
-			var res []*DefaultsTest
-			err := d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.DefaultsTest.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.DefaultsTest.loadRelations(c, res, a.Select)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
@@ -1074,36 +1234,67 @@ func (d *DefaultsTestDelegate) runCreate(
 	cols []string,
 	vals []any,
 	returningCols []string,
-	pkCols []string,
+	selects *DefaultsTestSelect,
 	conflictTarget UniqueConstraintTarget,
 	conflictAction *ConflictAction,
 ) (*DefaultsTest, error) {
-	query, clauseArgs := buildSingleInsertSQL(d.client, "DefaultsTest", cols, returningCols, pkCols, conflictTarget, conflictAction, len(vals))
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := hasRelations && !d.client.inTx()
+
+	if useTx {
+		var res *DefaultsTest
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.DefaultsTest.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
+			if err != nil {
+				return err
+			}
+			return txQ.DefaultsTest.loadRelations(ctx, []*DefaultsTest{res}, selects)
+		})
+		return res, err
+	}
+
+	query, clauseArgs := buildSingleInsertSQL(d.client, "DefaultsTest", cols, returningCols, defaultsTestPKCols, conflictTarget, conflictAction, len(vals))
 	if len(clauseArgs) > 0 {
 		vals = append(vals, clauseArgs...)
 	}
 
-	var res DefaultsTest
 	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
 
-		if rows.Next() {
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+		if !rows.Next() {
+			err := rows.Err()
+			rows.Close()
+			if err != nil {
 				return nil, err
 			}
-			return &res, nil
+			return nil, nil
 		}
-		return nil, rows.Err()
+
+		var res DefaultsTest
+		scanErr := rows.Scan(res.ScanFields(returningCols)...)
+		rows.Close()
+		if scanErr != nil {
+			return nil, scanErr
+		}
+
+		return &res, nil
 	}
 
-	return d.runCreateFallback(ctx, query, vals, cols, returningCols, pkCols)
+	return d.runCreateFallback(ctx, query, vals, cols, returningCols, defaultsTestPKCols)
 }
 
-func (d *DefaultsTestDelegate) runCreateFallback(ctx context.Context, query string, vals []any, cols []string, returningCols []string, pkCols []string) (*DefaultsTest, error) {
+func (d *DefaultsTestDelegate) runCreateFallback(
+	ctx context.Context,
+	query string,
+	vals []any,
+	cols []string,
+	returningCols []string,
+	pkCols []string,
+) (*DefaultsTest, error) {
 	result, err := d.client.exec(ctx, query, vals...)
 	if err != nil {
 		return nil, err
@@ -1153,16 +1344,24 @@ func (d *DefaultsTestDelegate) runCreateFallback(ctx context.Context, query stri
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var res DefaultsTest
-	if rows.Next() {
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
 			return nil, err
 		}
-		return &res, nil
+		return nil, nil
 	}
-	return nil, rows.Err()
+
+	var res DefaultsTest
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	return &res, nil
 }
 
 func (d *DefaultsTestDelegate) buildBulkInsertSQL(q *Queries, batch []*DefaultsTestCreate, paramStartIdx int) (cols []string, vals []any, queryStr string) {
@@ -1272,6 +1471,41 @@ func (d *DefaultsTestDelegate) buildBulkInsertSQL(q *Queries, batch []*DefaultsT
 	return cols, vals, queryStr
 }
 
+func applyDefaultsTestConflictClause(dialect Dialect, queryStr string, vals []any, cols []string, pkCols []string, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (string, []any) {
+	var conflictCols []string
+	if conflictTarget != nil {
+		conflictCols = conflictTarget.UniqueColumns()
+	}
+	var nonConflictCols []string
+	if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+		nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+	}
+	clause, clauseArgs := dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+	queryStr += clause
+	if len(clauseArgs) > 0 {
+		vals = append(vals, clauseArgs...)
+	}
+	return queryStr, vals
+}
+
+func scanDefaultsTestRows(rows *sql.Rows, returningCols []string) ([]*DefaultsTest, error) {
+	var records []*DefaultsTest
+	for rows.Next() {
+		var res DefaultsTest
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		records = append(records, &res)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	return records, nil
+}
+
 func (d *DefaultsTestDelegate) runCreateMany(ctx context.Context, inputs []*DefaultsTestCreate, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	if len(inputs) == 0 {
 		return 0, nil
@@ -1282,18 +1516,7 @@ func (d *DefaultsTestDelegate) runCreateMany(ctx context.Context, inputs []*Defa
 	var count int64
 	for _, batch := range batches {
 		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
-
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, defaultsTestPKCols)
-		}
-		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
+		queryStr, vals = applyDefaultsTestConflictClause(d.client.dialect, queryStr, vals, cols, defaultsTestPKCols, conflictTarget, conflictAction)
 
 		result, err := d.client.exec(ctx, queryStr, vals...)
 		if err != nil {
@@ -1321,27 +1544,37 @@ func (d *DefaultsTestDelegate) runCreateManyAndReturn(
 	}
 
 	batches := partitionDefaultsTestInputs(d.client.dialect, inputs)
-	returningCols := selectDefaultsTestCols(selects, omits)
 	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning) && !d.client.inTx()
 
+	if useTx {
+		var res []*DefaultsTest
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if txQ.dialect.SupportsInsertReturning {
+				res, err = txQ.DefaultsTest.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			} else {
+				res, err = txQ.DefaultsTest.runCreateManyAndReturnFallback(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			}
+			if err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.DefaultsTest.loadRelations(ctx, res, selects)
+			}
+			return nil
+		})
+		return res, err
+	}
+
+	returningCols := selectDefaultsTestCols(selects, omits, defaultsTestPKCols...)
 	recordsOut := make([]*DefaultsTest, 0, len(inputs))
 
-	runBatch := func(txQ *Queries, batch []*DefaultsTestCreate) error {
-		cols, vals, queryStr := d.buildBulkInsertSQL(txQ, batch, 1)
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyDefaultsTestConflictClause(d.client.dialect, queryStr, vals, cols, defaultsTestPKCols, conflictTarget, conflictAction)
 
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, defaultsTestPKCols)
-		}
-		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
-
-		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
+		if len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -1349,40 +1582,58 @@ func (d *DefaultsTestDelegate) runCreateManyAndReturn(
 				if i > 0 {
 					retSb.WriteString(", ")
 				}
-				txQ.dialect.WriteQuotedIdent(&retSb, col)
+				d.client.dialect.WriteQuotedIdent(&retSb, col)
 			}
 			queryStr += retSb.String()
-			rows, err := txQ.query(ctx, queryStr, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-
-			for rows.Next() {
-				var res DefaultsTest
-				if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &res)
-			}
-			return rows.Err()
 		}
 
-		// Fallback for dialects without RETURNING (MySQL)
-		result, err := txQ.exec(ctx, queryStr, vals...)
+		rows, err := d.client.query(ctx, queryStr, vals...)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// We need to fetch the inserted records for this batch
-		// Note: MySQL bulk inserts only return the ID of the FIRST inserted row
+		scanned, err := scanDefaultsTestRows(rows, returningCols)
+		if err != nil {
+			return nil, err
+		}
+		recordsOut = append(recordsOut, scanned...)
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, recordsOut, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return recordsOut, nil
+}
+
+func (d *DefaultsTestDelegate) runCreateManyAndReturnFallback(
+	ctx context.Context,
+	inputs []*DefaultsTestCreate,
+	selects *DefaultsTestSelect,
+	omits *DefaultsTestOmit,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) ([]*DefaultsTest, error) {
+	batches := partitionDefaultsTestInputs(d.client.dialect, inputs)
+	returningCols := selectDefaultsTestCols(selects, omits, defaultsTestPKCols...)
+	recordsOut := make([]*DefaultsTest, 0, len(inputs))
+
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyDefaultsTestConflictClause(d.client.dialect, queryStr, vals, cols, defaultsTestPKCols, conflictTarget, conflictAction)
+
+		result, err := d.client.exec(ctx, queryStr, vals...)
+		if err != nil {
+			return nil, err
+		}
+
 		lastID, err := result.LastInsertId()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// Query back the rows by IDs (assuming autoincrement ID and single PK)
-		// If composite PK, it's more complex, but this is a standard fallback
 		var selectSb strings.Builder
 		selectSb.Grow(64 + len(returningCols)*15 + len("DefaultsTest") + len(batch)*15)
 		selectSb.WriteString("SELECT ")
@@ -1390,55 +1641,29 @@ func (d *DefaultsTestDelegate) runCreateManyAndReturn(
 			if i > 0 {
 				selectSb.WriteString(", ")
 			}
-			txQ.dialect.WriteQuotedIdent(&selectSb, col)
+			d.client.dialect.WriteQuotedIdent(&selectSb, col)
 		}
 		selectSb.WriteString(" FROM ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, "DefaultsTest")
+		d.client.dialect.WriteQuotedIdent(&selectSb, "DefaultsTest")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, defaultsTestPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, defaultsTestPKCols[0])
 		selectSb.WriteString(" >= ")
-		txQ.dialect.WritePlaceholder(&selectSb, 1)
+		d.client.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, defaultsTestPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, defaultsTestPKCols[0])
 		selectSb.WriteString(" < ")
-		txQ.dialect.WritePlaceholder(&selectSb, 2)
+		d.client.dialect.WritePlaceholder(&selectSb, 2)
 
-		rows, err := txQ.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var res DefaultsTest
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, &res)
-		}
-		return rows.Err()
-	}
-
-	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
-		err := d.client.transaction(ctx, func(txQ *Queries) error {
-			for _, batch := range batches {
-				if err := runBatch(txQ, batch); err != nil {
-					return err
-				}
-			}
-			if hasRelations {
-				return txQ.DefaultsTest.loadRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
+		rows, err := d.client.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		if err := runBatch(d.client, batches[0]); err != nil {
+
+		scanned, err := scanDefaultsTestRows(rows, returningCols)
+		if err != nil {
 			return nil, err
 		}
+		recordsOut = append(recordsOut, scanned...)
 	}
 
 	return recordsOut, nil
@@ -1691,23 +1916,23 @@ func (d *DefaultsTestDelegate) UpdateManyAndReturn(preds ...PredicateOf[Defaults
 	}
 }
 
-func (d *DefaultsTestDelegate) buildUpdateSQL(preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, returningCols []string) (string, []any) {
-	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+func (d *DefaultsTestDelegate) buildUpdateSQL(preds []PredicateOf[DefaultsTest], cols []string, vals []any, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(cols)+1)
 
 	var sb strings.Builder
 	sb.WriteString("UPDATE ")
 	d.client.dialect.WriteQuotedIdent(&sb, "DefaultsTest")
 	sb.WriteString(" SET ")
 
-	setVals := make([]any, 0, len(assignments)+len(predVals))
-	for i, a := range assignments {
+	setVals := make([]any, 0, len(cols)+len(predVals))
+	for i, col := range cols {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		d.client.dialect.WriteQuotedIdent(&sb, col)
 		sb.WriteString(" = ")
 		d.client.dialect.WritePlaceholder(&sb, i+1)
-		setVals = append(setVals, a.Val)
+		setVals = append(setVals, vals[i])
 	}
 
 	if whereClause != "" {
@@ -1734,21 +1959,39 @@ func (d *DefaultsTestDelegate) buildUpdateSQL(preds []PredicateOf[DefaultsTest],
 // -----------------------------------------------------------------------------
 
 func (d *DefaultsTestDelegate) executeUpdate(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+	allWhere := make([]PredicateOf[DefaultsTest], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
+	input, err := assignmentsToDefaultsTestUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+		return d.runUpdate(ctx, allWhere, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullDefaultsTestSelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[DefaultsTest], add []PredicateOf[DefaultsTest], a []FieldAssignment, s *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
-		return d.runUpdate(c, w, add, a, s, o)
+	args := &DefaultsTestUpdateArgs{
+		Where:  allWhere,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *DefaultsTestUpdateArgs) (*DefaultsTest, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdate(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.Update != nil {
-			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+			return ext.Update(ctx, args, curr)
 		}
 	}
 
@@ -1756,25 +1999,21 @@ func (d *DefaultsTestDelegate) executeUpdate(ctx context.Context, where UniquePr
 		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
-			curr = func(c context.Context, w UniquePredicate[DefaultsTest], add []PredicateOf[DefaultsTest], a []FieldAssignment, s *DefaultsTestSelect, o *DefaultsTestOmit) (*DefaultsTest, error) {
-				return hook(c, w, add, a, s, o, next)
+			curr = func(c context.Context, a *DefaultsTestUpdateArgs) (*DefaultsTest, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, additional, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *DefaultsTestDelegate) runUpdate(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
-	allPreds := append([]PredicateOf[DefaultsTest]{where}, additional...)
-	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, allPreds, selects, omits)
+func (d *DefaultsTestDelegate) runUpdate(ctx context.Context, preds []PredicateOf[DefaultsTest], cols []string, vals []any, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+	if len(cols) == 0 {
+		return d.runFindUnique(ctx, preds, selects, omits)
 	}
 
-	if err := where.Validate(); err != nil {
-		return nil, err
-	}
-	for _, pr := range additional {
+	for _, pr := range preds {
 		if pr != nil {
 			if err := pr.Validate(); err != nil {
 				return nil, err
@@ -1790,9 +2029,9 @@ func (d *DefaultsTestDelegate) runUpdate(ctx context.Context, where UniquePredic
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.DefaultsTest.runUpdate(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.DefaultsTest.runUpdate(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.DefaultsTest.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.DefaultsTest.runUpdateFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1800,7 +2039,7 @@ func (d *DefaultsTestDelegate) runUpdate(ctx context.Context, where UniquePredic
 	}
 
 	returningCols := selectDefaultsTestCols(selects, omits, defaultsTestPKCols...)
-	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
@@ -1832,8 +2071,8 @@ func (d *DefaultsTestDelegate) runUpdate(ctx context.Context, where UniquePredic
 	return &res, nil
 }
 
-func (d *DefaultsTestDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment) (int64, error) {
-	if len(assignments) == 0 {
+func (d *DefaultsTestDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[DefaultsTest], cols []string, vals []any) (int64, error) {
+	if len(cols) == 0 {
 		return 0, nil
 	}
 
@@ -1845,7 +2084,7 @@ func (d *DefaultsTestDelegate) execUpdateStmt(ctx context.Context, preds []Predi
 		}
 	}
 
-	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, nil)
 	result, err := d.client.exec(ctx, query, setVals...)
 	if err != nil {
 		return 0, err
@@ -1853,16 +2092,15 @@ func (d *DefaultsTestDelegate) execUpdateStmt(ctx context.Context, preds []Predi
 	return result.RowsAffected()
 }
 
-func (d *DefaultsTestDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[DefaultsTest], additional []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
-	allPreds := append([]PredicateOf[DefaultsTest]{where}, additional...)
-	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+func (d *DefaultsTestDelegate) runUpdateFallback(ctx context.Context, preds []PredicateOf[DefaultsTest], cols []string, vals []any, selects *DefaultsTestSelect, omits *DefaultsTestOmit) (*DefaultsTest, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, allPreds, selects, omits)
+	return d.runFindUnique(ctx, preds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -1870,17 +2108,30 @@ func (d *DefaultsTestDelegate) runUpdateFallback(ctx context.Context, where Uniq
 // -----------------------------------------------------------------------------
 
 func (d *DefaultsTestDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment) (int64, error) {
-	if len(d.extensions) == 0 {
-		return d.execUpdateStmt(ctx, preds, assignments)
+	input, err := assignmentsToDefaultsTestUpdate(assignments)
+	if err != nil {
+		return 0, err
 	}
 
-	curr := func(c context.Context, p []PredicateOf[DefaultsTest], a []FieldAssignment) (int64, error) {
-		return d.execUpdateStmt(c, p, a)
+	cols, vals := input.ToColsVals()
+
+	if len(d.extensions) == 0 {
+		return d.execUpdateStmt(ctx, preds, cols, vals)
+	}
+
+	args := &DefaultsTestUpdateManyArgs{
+		Where: preds,
+		Data:  &input,
+	}
+
+	curr := func(c context.Context, a *DefaultsTestUpdateManyArgs) (int64, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.execUpdateStmt(c, a.Where, extCols, extVals)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateMany != nil {
-			return ext.UpdateMany(ctx, preds, assignments, curr)
+			return ext.UpdateMany(ctx, args, curr)
 		}
 	}
 
@@ -1888,13 +2139,13 @@ func (d *DefaultsTestDelegate) executeUpdateMany(ctx context.Context, preds []Pr
 		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
-			curr = func(c context.Context, p []PredicateOf[DefaultsTest], a []FieldAssignment) (int64, error) {
-				return hook(c, p, a, next)
+			curr = func(c context.Context, a *DefaultsTestUpdateManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments)
+	return curr(ctx, args)
 }
 
 // -----------------------------------------------------------------------------
@@ -1902,21 +2153,35 @@ func (d *DefaultsTestDelegate) executeUpdateMany(ctx context.Context, preds []Pr
 // -----------------------------------------------------------------------------
 
 func (d *DefaultsTestDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error) {
+	input, err := assignmentsToDefaultsTestUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+		return d.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullDefaultsTestSelect()
 	}
 
-	curr := func(c context.Context, p []PredicateOf[DefaultsTest], a []FieldAssignment, s *DefaultsTestSelect, o *DefaultsTestOmit) ([]*DefaultsTest, error) {
-		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	args := &DefaultsTestUpdateManyAndReturnArgs{
+		Where:  preds,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *DefaultsTestUpdateManyAndReturnArgs) ([]*DefaultsTest, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdateManyAndReturn(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
-			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+			return ext.UpdateManyAndReturn(ctx, args, curr)
 		}
 	}
 
@@ -1924,17 +2189,17 @@ func (d *DefaultsTestDelegate) executeUpdateManyAndReturn(ctx context.Context, p
 		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
-			curr = func(c context.Context, p []PredicateOf[DefaultsTest], a []FieldAssignment, s *DefaultsTestSelect, o *DefaultsTestOmit) ([]*DefaultsTest, error) {
-				return hook(c, p, a, s, o, next)
+			curr = func(c context.Context, a *DefaultsTestUpdateManyAndReturnArgs) ([]*DefaultsTest, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *DefaultsTestDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error) {
-	if len(assignments) == 0 {
+func (d *DefaultsTestDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[DefaultsTest], cols []string, vals []any, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error) {
+	if len(cols) == 0 {
 		return d.runFindMany(ctx, QueryParams[DefaultsTest]{Where: preds}, selects, omits)
 	}
 
@@ -1954,9 +2219,9 @@ func (d *DefaultsTestDelegate) runUpdateManyAndReturn(ctx context.Context, preds
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.DefaultsTest.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+				res, err = txQ.DefaultsTest.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.DefaultsTest.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+				res, err = txQ.DefaultsTest.runUpdateManyAndReturnFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1964,39 +2229,29 @@ func (d *DefaultsTestDelegate) runUpdateManyAndReturn(ctx context.Context, preds
 	}
 
 	returningCols := selectDefaultsTestCols(selects, omits, defaultsTestPKCols...)
-	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]*DefaultsTest, 0)
-	for rows.Next() {
-		var res DefaultsTest
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		results = append(results, &res)
-	}
-	rowsErr := rows.Err()
-	rows.Close()
-	if rowsErr != nil {
-		return nil, rowsErr
+	scanned, err := scanDefaultsTestRows(rows, returningCols)
+	if err != nil {
+		return nil, err
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
-		if err := d.loadRelations(ctx, results, selects); err != nil {
+		if err := d.loadRelations(ctx, scanned, selects); err != nil {
 			return nil, err
 		}
 	}
 
-	return results, nil
+	return scanned, nil
 }
 
-func (d *DefaultsTestDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[DefaultsTest], assignments []FieldAssignment, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error) {
-	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+func (d *DefaultsTestDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[DefaultsTest], cols []string, vals []any, selects *DefaultsTestSelect, omits *DefaultsTestOmit) ([]*DefaultsTest, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}

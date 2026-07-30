@@ -36,6 +36,58 @@ func (s *CategoryCreate) colMask() uint64 {
 	return mask
 }
 
+// CategoryUpdate contains model input fields for Category update operations.
+type CategoryUpdate struct {
+	Id   *int32  `json:"id"`
+	Name *string `json:"name"`
+}
+
+func (u *CategoryUpdate) ToColsVals() ([]string, []any) {
+	var cols []string
+	var vals []any
+	if u.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, u.Id)
+	}
+	if u.Name != nil {
+		cols = append(cols, "name")
+		vals = append(vals, u.Name)
+	}
+	return cols, vals
+}
+
+func assignmentsToCategoryUpdate(assignments []FieldAssignment) (CategoryUpdate, error) {
+	var input CategoryUpdate
+	var errs ValidationError
+
+	for _, a := range assignments {
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(int32); ok {
+				input.Id = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.Id = v
+			} else {
+				errs.Add("id", a.Val, "type", "field id must be of type int32")
+			}
+		case "name":
+			if v, ok := a.Val.(string); ok {
+				input.Name = &v
+				errs.ValidateString("name", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Name = v
+			} else {
+				errs.Add("name", a.Val, "type", "field name must be of type string")
+			}
+		}
+	}
+
+	if errs.HasErrors() {
+		return input, errs
+	}
+	return input, nil
+}
+
 // CategorySelect specifies which scalar and relation fields to select for Category.
 //
 // Selectable fields:
@@ -372,6 +424,51 @@ func (a *CategoryDeleteManyArgs) SetWhere(preds ...PredicateOf[Category]) *Categ
 	return a
 }
 
+// CategoryUpdateArgs is the input argument passed to Category Update extension hooks.
+type CategoryUpdateArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[Category]
+	// Data contains the model fields to update.
+	Data *CategoryUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *CategorySelect
+}
+
+func (a *CategoryUpdateArgs) SetWhere(unique UniquePredicate[Category], additional ...PredicateOf[Category]) *CategoryUpdateArgs {
+	a.Where = make([]PredicateOf[Category], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// CategoryUpdateManyArgs is the input argument passed to Category UpdateMany extension hooks.
+type CategoryUpdateManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Category]
+	// Data contains the model fields to update.
+	Data *CategoryUpdate
+}
+
+func (a *CategoryUpdateManyArgs) SetWhere(preds ...PredicateOf[Category]) *CategoryUpdateManyArgs {
+	a.Where = preds
+	return a
+}
+
+// CategoryUpdateManyAndReturnArgs is the input argument passed to Category UpdateManyAndReturn extension hooks.
+type CategoryUpdateManyAndReturnArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[Category]
+	// Data contains the model fields to update.
+	Data *CategoryUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *CategorySelect
+}
+
+func (a *CategoryUpdateManyAndReturnArgs) SetWhere(preds ...PredicateOf[Category]) *CategoryUpdateManyAndReturnArgs {
+	a.Where = preds
+	return a
+}
+
 type CategoryCreateQuery = func(ctx context.Context, args *CategoryCreateArgs) (*Category, error)
 type CategoryCreateManyQuery = func(ctx context.Context, args *CategoryCreateManyArgs) (int64, error)
 type CategoryCreateManyAndReturnQuery = func(ctx context.Context, args *CategoryCreateManyAndReturnArgs) ([]*Category, error)
@@ -381,9 +478,9 @@ type CategoryFindManyQuery = func(ctx context.Context, args *CategoryFindManyArg
 type CategoryDeleteQuery = func(ctx context.Context, args *CategoryDeleteArgs) (*Category, error)
 type CategoryDeleteManyQuery = func(ctx context.Context, args *CategoryDeleteManyArgs) (int64, error)
 type CategoryCountQuery = func(ctx context.Context, args *CategoryCountArgs) (int64, error)
-type CategoryUpdateQuery = func(ctx context.Context, where UniquePredicate[Category], additional []PredicateOf[Category], assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit) (*Category, error)
-type CategoryUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[Category], assignments []FieldAssignment) (int64, error)
-type CategoryUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[Category], assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error)
+type CategoryUpdateQuery = func(ctx context.Context, args *CategoryUpdateArgs) (*Category, error)
+type CategoryUpdateManyQuery = func(ctx context.Context, args *CategoryUpdateManyArgs) (int64, error)
+type CategoryUpdateManyAndReturnQuery = func(ctx context.Context, args *CategoryUpdateManyAndReturnArgs) ([]*Category, error)
 
 type CategoryExtension struct {
 	Create              func(ctx context.Context, args *CategoryCreateArgs, next CategoryCreateQuery) (*Category, error)
@@ -395,9 +492,9 @@ type CategoryExtension struct {
 	Delete              func(ctx context.Context, args *CategoryDeleteArgs, next CategoryDeleteQuery) (*Category, error)
 	DeleteMany          func(ctx context.Context, args *CategoryDeleteManyArgs, next CategoryDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *CategoryCountArgs, next CategoryCountQuery) (int64, error)
-	Update              func(ctx context.Context, where UniquePredicate[Category], additional []PredicateOf[Category], assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit, next CategoryUpdateQuery) (*Category, error)
-	UpdateMany          func(ctx context.Context, preds []PredicateOf[Category], assignments []FieldAssignment, next CategoryUpdateManyQuery) (int64, error)
-	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[Category], assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit, next CategoryUpdateManyAndReturnQuery) ([]*Category, error)
+	Update              func(ctx context.Context, args *CategoryUpdateArgs, next CategoryUpdateQuery) (*Category, error)
+	UpdateMany          func(ctx context.Context, args *CategoryUpdateManyArgs, next CategoryUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, args *CategoryUpdateManyAndReturnArgs, next CategoryUpdateManyAndReturnQuery) ([]*Category, error)
 }
 
 type CategoryDelegate struct {
@@ -468,6 +565,16 @@ func (s *CategorySelect) hasAnyRelation() bool {
 
 type CategoryCreateBuilder struct {
 	*CreateBuilder[Category, CategorySelect, CategoryOmit]
+}
+
+func (b *CategoryCreateBuilder) Select(s CategorySelect) *CategoryCreateBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *CategoryCreateBuilder) Omit(o CategoryOmit) *CategoryCreateBuilder {
+	b.omits = &o
+	return b
 }
 
 func (b *CategoryCreateBuilder) OnConflict(target UniqueConstraintTarget) *CategoryConflictBuilder[CategoryCreateBuilder] {
@@ -592,23 +699,11 @@ func (d *CategoryDelegate) executeCreate(ctx context.Context, assignments []Fiel
 		return nil, err
 	}
 
+	cols, vals := input.ToColsVals()
+	returningCols := selectCategoryCols(selects, omits)
+
 	if len(d.extensions) == 0 {
-		cols, vals := input.ToColsVals()
-		returningCols := selectCategoryCols(selects, omits)
-		hasRelations := selects.hasAnyRelation()
-		if hasRelations {
-			var res *Category
-			err = d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Category.runCreate(ctx, cols, vals, returningCols, categoryPKCols, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Category.loadRelations(ctx, []*Category{res}, selects)
-			})
-			return res, err
-		}
-		return d.runCreate(ctx, cols, vals, returningCols, categoryPKCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -623,28 +718,9 @@ func (d *CategoryDelegate) executeCreate(ctx context.Context, assignments []Fiel
 	}
 
 	curr := func(c context.Context, a *CategoryCreateArgs) (*Category, error) {
-		cols, vals := a.Data.ToColsVals()
-		returningCols := selectCategoryCols(a.Select, omits)
-
-		hasRelations := a.Select.hasAnyRelation()
-		var res *Category
-		var err error
-		if hasRelations {
-			err = d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Category.runCreate(c, cols, vals, returningCols, categoryPKCols, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Category.loadRelations(c, []*Category{res}, a.Select)
-			})
-		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, categoryPKCols, a.ConflictTarget, a.ConflictAction)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return res, nil
+		cCols, cVals := a.Data.ToColsVals()
+		cReturningCols := selectCategoryCols(a.Select, omits)
+		return d.runCreate(c, cCols, cVals, cReturningCols, a.Select, a.ConflictTarget, a.ConflictAction)
 	}
 
 	if len(d.extensions) == 1 {
@@ -685,6 +761,16 @@ type CategoryCreateManyAndReturnBuilder struct {
 	*CreateManyAndReturnBuilder[Category, CategorySelect, CategoryOmit]
 }
 
+func (b *CategoryCreateManyAndReturnBuilder) Select(s CategorySelect) *CategoryCreateManyAndReturnBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *CategoryCreateManyAndReturnBuilder) Omit(o CategoryOmit) *CategoryCreateManyAndReturnBuilder {
+	b.omits = &o
+	return b
+}
+
 func (b *CategoryCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *CategoryConflictBuilder[CategoryCreateManyAndReturnBuilder] {
 	return &CategoryConflictBuilder[CategoryCreateManyAndReturnBuilder]{
 		builder:        b,
@@ -696,42 +782,50 @@ func (b *CategoryCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintT
 	}
 }
 
-func (d *CategoryDelegate) CreateMany(builders ...*CategoryCreateBuilder) *CategoryCreateManyBuilder {
+func createBuildersToCategoryRecordInputs(builders []*CategoryCreateBuilder) []RecordInput {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
+	return records
+}
+
+func (d *CategoryDelegate) CreateMany(builders ...*CategoryCreateBuilder) *CategoryCreateManyBuilder {
 	return &CategoryCreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[Category]{
-			records:  records,
+			records:  createBuildersToCategoryRecordInputs(builders),
 			execFunc: d.executeCreateMany,
 		},
 	}
 }
 
 func (d *CategoryDelegate) CreateManyAndReturn(builders ...*CategoryCreateBuilder) *CategoryCreateManyAndReturnBuilder {
-	records := make([]RecordInput, len(builders))
-	for i, b := range builders {
-		records[i] = RecordInput{Assignments: b.assignments}
-	}
 	return &CategoryCreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[Category, CategorySelect, CategoryOmit]{
-			records:  records,
+			records:  createBuildersToCategoryRecordInputs(builders),
 			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (d *CategoryDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func recordsToCategoryCreateInputs(records []RecordInput) ([]*CategoryCreate, error) {
 	structs := make([]CategoryCreate, len(records))
 	inputs := make([]*CategoryCreate, len(records))
 	for i, rec := range records {
 		var err error
 		structs[i], err = assignmentsToCategoryCreate(rec.Assignments)
 		if err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		inputs[i] = &structs[i]
+	}
+	return inputs, nil
+}
+
+func (d *CategoryDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+	inputs, err := recordsToCategoryCreateInputs(records)
+	if err != nil {
+		return 0, err
 	}
 
 	if len(d.extensions) == 0 {
@@ -768,31 +862,12 @@ func (d *CategoryDelegate) executeCreateMany(ctx context.Context, records []Reco
 }
 
 func (d *CategoryDelegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *CategorySelect, omits *CategoryOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*Category, error) {
-	structs := make([]CategoryCreate, len(records))
-	inputs := make([]*CategoryCreate, len(records))
-	for i, rec := range records {
-		var err error
-		structs[i], err = assignmentsToCategoryCreate(rec.Assignments)
-		if err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-		inputs[i] = &structs[i]
+	inputs, err := recordsToCategoryCreateInputs(records)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(d.extensions) == 0 {
-		hasRelations := selects != nil && selects.hasAnyRelation()
-		if hasRelations {
-			var res []*Category
-			err := d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Category.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Category.loadRelations(ctx, res, selects)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
 	}
 
@@ -808,19 +883,6 @@ func (d *CategoryDelegate) executeCreateManyAndReturn(ctx context.Context, recor
 	}
 
 	curr := func(c context.Context, a *CategoryCreateManyAndReturnArgs) ([]*Category, error) {
-		hasRelations := a.Select != nil && a.Select.hasAnyRelation()
-		if hasRelations {
-			var res []*Category
-			err := d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.Category.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.Category.loadRelations(c, res, a.Select)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
@@ -848,36 +910,67 @@ func (d *CategoryDelegate) runCreate(
 	cols []string,
 	vals []any,
 	returningCols []string,
-	pkCols []string,
+	selects *CategorySelect,
 	conflictTarget UniqueConstraintTarget,
 	conflictAction *ConflictAction,
 ) (*Category, error) {
-	query, clauseArgs := buildSingleInsertSQL(d.client, "Category", cols, returningCols, pkCols, conflictTarget, conflictAction, len(vals))
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := hasRelations && !d.client.inTx()
+
+	if useTx {
+		var res *Category
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.Category.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
+			if err != nil {
+				return err
+			}
+			return txQ.Category.loadRelations(ctx, []*Category{res}, selects)
+		})
+		return res, err
+	}
+
+	query, clauseArgs := buildSingleInsertSQL(d.client, "Category", cols, returningCols, categoryPKCols, conflictTarget, conflictAction, len(vals))
 	if len(clauseArgs) > 0 {
 		vals = append(vals, clauseArgs...)
 	}
 
-	var res Category
 	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
 
-		if rows.Next() {
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+		if !rows.Next() {
+			err := rows.Err()
+			rows.Close()
+			if err != nil {
 				return nil, err
 			}
-			return &res, nil
+			return nil, nil
 		}
-		return nil, rows.Err()
+
+		var res Category
+		scanErr := rows.Scan(res.ScanFields(returningCols)...)
+		rows.Close()
+		if scanErr != nil {
+			return nil, scanErr
+		}
+
+		return &res, nil
 	}
 
-	return d.runCreateFallback(ctx, query, vals, cols, returningCols, pkCols)
+	return d.runCreateFallback(ctx, query, vals, cols, returningCols, categoryPKCols)
 }
 
-func (d *CategoryDelegate) runCreateFallback(ctx context.Context, query string, vals []any, cols []string, returningCols []string, pkCols []string) (*Category, error) {
+func (d *CategoryDelegate) runCreateFallback(
+	ctx context.Context,
+	query string,
+	vals []any,
+	cols []string,
+	returningCols []string,
+	pkCols []string,
+) (*Category, error) {
 	result, err := d.client.exec(ctx, query, vals...)
 	if err != nil {
 		return nil, err
@@ -927,16 +1020,24 @@ func (d *CategoryDelegate) runCreateFallback(ctx context.Context, query string, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var res Category
-	if rows.Next() {
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
 			return nil, err
 		}
-		return &res, nil
+		return nil, nil
 	}
-	return nil, rows.Err()
+
+	var res Category
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	return &res, nil
 }
 
 func (d *CategoryDelegate) buildBulkInsertSQL(q *Queries, batch []*CategoryCreate, paramStartIdx int) (cols []string, vals []any, queryStr string) {
@@ -1000,6 +1101,41 @@ func (d *CategoryDelegate) buildBulkInsertSQL(q *Queries, batch []*CategoryCreat
 	return cols, vals, queryStr
 }
 
+func applyCategoryConflictClause(dialect Dialect, queryStr string, vals []any, cols []string, pkCols []string, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (string, []any) {
+	var conflictCols []string
+	if conflictTarget != nil {
+		conflictCols = conflictTarget.UniqueColumns()
+	}
+	var nonConflictCols []string
+	if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+		nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+	}
+	clause, clauseArgs := dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+	queryStr += clause
+	if len(clauseArgs) > 0 {
+		vals = append(vals, clauseArgs...)
+	}
+	return queryStr, vals
+}
+
+func scanCategoryRows(rows *sql.Rows, returningCols []string) ([]*Category, error) {
+	var records []*Category
+	for rows.Next() {
+		var res Category
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		records = append(records, &res)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	return records, nil
+}
+
 func (d *CategoryDelegate) runCreateMany(ctx context.Context, inputs []*CategoryCreate, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	if len(inputs) == 0 {
 		return 0, nil
@@ -1010,18 +1146,7 @@ func (d *CategoryDelegate) runCreateMany(ctx context.Context, inputs []*Category
 	var count int64
 	for _, batch := range batches {
 		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
-
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, categoryPKCols)
-		}
-		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
+		queryStr, vals = applyCategoryConflictClause(d.client.dialect, queryStr, vals, cols, categoryPKCols, conflictTarget, conflictAction)
 
 		result, err := d.client.exec(ctx, queryStr, vals...)
 		if err != nil {
@@ -1049,27 +1174,37 @@ func (d *CategoryDelegate) runCreateManyAndReturn(
 	}
 
 	batches := partitionCategoryInputs(d.client.dialect, inputs)
-	returningCols := selectCategoryCols(selects, omits)
 	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning) && !d.client.inTx()
 
+	if useTx {
+		var res []*Category
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if txQ.dialect.SupportsInsertReturning {
+				res, err = txQ.Category.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			} else {
+				res, err = txQ.Category.runCreateManyAndReturnFallback(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			}
+			if err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.Category.loadRelations(ctx, res, selects)
+			}
+			return nil
+		})
+		return res, err
+	}
+
+	returningCols := selectCategoryCols(selects, omits, categoryPKCols...)
 	recordsOut := make([]*Category, 0, len(inputs))
 
-	runBatch := func(txQ *Queries, batch []*CategoryCreate) error {
-		cols, vals, queryStr := d.buildBulkInsertSQL(txQ, batch, 1)
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyCategoryConflictClause(d.client.dialect, queryStr, vals, cols, categoryPKCols, conflictTarget, conflictAction)
 
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, categoryPKCols)
-		}
-		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
-
-		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
+		if len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -1077,40 +1212,58 @@ func (d *CategoryDelegate) runCreateManyAndReturn(
 				if i > 0 {
 					retSb.WriteString(", ")
 				}
-				txQ.dialect.WriteQuotedIdent(&retSb, col)
+				d.client.dialect.WriteQuotedIdent(&retSb, col)
 			}
 			queryStr += retSb.String()
-			rows, err := txQ.query(ctx, queryStr, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-
-			for rows.Next() {
-				var res Category
-				if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &res)
-			}
-			return rows.Err()
 		}
 
-		// Fallback for dialects without RETURNING (MySQL)
-		result, err := txQ.exec(ctx, queryStr, vals...)
+		rows, err := d.client.query(ctx, queryStr, vals...)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// We need to fetch the inserted records for this batch
-		// Note: MySQL bulk inserts only return the ID of the FIRST inserted row
+		scanned, err := scanCategoryRows(rows, returningCols)
+		if err != nil {
+			return nil, err
+		}
+		recordsOut = append(recordsOut, scanned...)
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, recordsOut, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return recordsOut, nil
+}
+
+func (d *CategoryDelegate) runCreateManyAndReturnFallback(
+	ctx context.Context,
+	inputs []*CategoryCreate,
+	selects *CategorySelect,
+	omits *CategoryOmit,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) ([]*Category, error) {
+	batches := partitionCategoryInputs(d.client.dialect, inputs)
+	returningCols := selectCategoryCols(selects, omits, categoryPKCols...)
+	recordsOut := make([]*Category, 0, len(inputs))
+
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyCategoryConflictClause(d.client.dialect, queryStr, vals, cols, categoryPKCols, conflictTarget, conflictAction)
+
+		result, err := d.client.exec(ctx, queryStr, vals...)
+		if err != nil {
+			return nil, err
+		}
+
 		lastID, err := result.LastInsertId()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// Query back the rows by IDs (assuming autoincrement ID and single PK)
-		// If composite PK, it's more complex, but this is a standard fallback
 		var selectSb strings.Builder
 		selectSb.Grow(64 + len(returningCols)*15 + len("Category") + len(batch)*15)
 		selectSb.WriteString("SELECT ")
@@ -1118,55 +1271,29 @@ func (d *CategoryDelegate) runCreateManyAndReturn(
 			if i > 0 {
 				selectSb.WriteString(", ")
 			}
-			txQ.dialect.WriteQuotedIdent(&selectSb, col)
+			d.client.dialect.WriteQuotedIdent(&selectSb, col)
 		}
 		selectSb.WriteString(" FROM ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, "Category")
+		d.client.dialect.WriteQuotedIdent(&selectSb, "Category")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, categoryPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, categoryPKCols[0])
 		selectSb.WriteString(" >= ")
-		txQ.dialect.WritePlaceholder(&selectSb, 1)
+		d.client.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, categoryPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, categoryPKCols[0])
 		selectSb.WriteString(" < ")
-		txQ.dialect.WritePlaceholder(&selectSb, 2)
+		d.client.dialect.WritePlaceholder(&selectSb, 2)
 
-		rows, err := txQ.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var res Category
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, &res)
-		}
-		return rows.Err()
-	}
-
-	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
-		err := d.client.transaction(ctx, func(txQ *Queries) error {
-			for _, batch := range batches {
-				if err := runBatch(txQ, batch); err != nil {
-					return err
-				}
-			}
-			if hasRelations {
-				return txQ.Category.loadRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
+		rows, err := d.client.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		if err := runBatch(d.client, batches[0]); err != nil {
+
+		scanned, err := scanCategoryRows(rows, returningCols)
+		if err != nil {
 			return nil, err
 		}
+		recordsOut = append(recordsOut, scanned...)
 	}
 
 	return recordsOut, nil
@@ -1310,23 +1437,23 @@ func (d *CategoryDelegate) UpdateManyAndReturn(preds ...PredicateOf[Category]) *
 	}
 }
 
-func (d *CategoryDelegate) buildUpdateSQL(preds []PredicateOf[Category], assignments []FieldAssignment, returningCols []string) (string, []any) {
-	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+func (d *CategoryDelegate) buildUpdateSQL(preds []PredicateOf[Category], cols []string, vals []any, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(cols)+1)
 
 	var sb strings.Builder
 	sb.WriteString("UPDATE ")
 	d.client.dialect.WriteQuotedIdent(&sb, "Category")
 	sb.WriteString(" SET ")
 
-	setVals := make([]any, 0, len(assignments)+len(predVals))
-	for i, a := range assignments {
+	setVals := make([]any, 0, len(cols)+len(predVals))
+	for i, col := range cols {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		d.client.dialect.WriteQuotedIdent(&sb, col)
 		sb.WriteString(" = ")
 		d.client.dialect.WritePlaceholder(&sb, i+1)
-		setVals = append(setVals, a.Val)
+		setVals = append(setVals, vals[i])
 	}
 
 	if whereClause != "" {
@@ -1353,21 +1480,39 @@ func (d *CategoryDelegate) buildUpdateSQL(preds []PredicateOf[Category], assignm
 // -----------------------------------------------------------------------------
 
 func (d *CategoryDelegate) executeUpdate(ctx context.Context, where UniquePredicate[Category], additional []PredicateOf[Category], assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+	allWhere := make([]PredicateOf[Category], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
+	input, err := assignmentsToCategoryUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+		return d.runUpdate(ctx, allWhere, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullCategorySelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[Category], add []PredicateOf[Category], a []FieldAssignment, s *CategorySelect, o *CategoryOmit) (*Category, error) {
-		return d.runUpdate(c, w, add, a, s, o)
+	args := &CategoryUpdateArgs{
+		Where:  allWhere,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *CategoryUpdateArgs) (*Category, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdate(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.Update != nil {
-			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+			return ext.Update(ctx, args, curr)
 		}
 	}
 
@@ -1375,25 +1520,21 @@ func (d *CategoryDelegate) executeUpdate(ctx context.Context, where UniquePredic
 		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
-			curr = func(c context.Context, w UniquePredicate[Category], add []PredicateOf[Category], a []FieldAssignment, s *CategorySelect, o *CategoryOmit) (*Category, error) {
-				return hook(c, w, add, a, s, o, next)
+			curr = func(c context.Context, a *CategoryUpdateArgs) (*Category, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, additional, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *CategoryDelegate) runUpdate(ctx context.Context, where UniquePredicate[Category], additional []PredicateOf[Category], assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
-	allPreds := append([]PredicateOf[Category]{where}, additional...)
-	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, allPreds, selects, omits)
+func (d *CategoryDelegate) runUpdate(ctx context.Context, preds []PredicateOf[Category], cols []string, vals []any, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+	if len(cols) == 0 {
+		return d.runFindUnique(ctx, preds, selects, omits)
 	}
 
-	if err := where.Validate(); err != nil {
-		return nil, err
-	}
-	for _, pr := range additional {
+	for _, pr := range preds {
 		if pr != nil {
 			if err := pr.Validate(); err != nil {
 				return nil, err
@@ -1409,9 +1550,9 @@ func (d *CategoryDelegate) runUpdate(ctx context.Context, where UniquePredicate[
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.Category.runUpdate(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.Category.runUpdate(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.Category.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.Category.runUpdateFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1419,7 +1560,7 @@ func (d *CategoryDelegate) runUpdate(ctx context.Context, where UniquePredicate[
 	}
 
 	returningCols := selectCategoryCols(selects, omits, categoryPKCols...)
-	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
@@ -1451,8 +1592,8 @@ func (d *CategoryDelegate) runUpdate(ctx context.Context, where UniquePredicate[
 	return &res, nil
 }
 
-func (d *CategoryDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[Category], assignments []FieldAssignment) (int64, error) {
-	if len(assignments) == 0 {
+func (d *CategoryDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[Category], cols []string, vals []any) (int64, error) {
+	if len(cols) == 0 {
 		return 0, nil
 	}
 
@@ -1464,7 +1605,7 @@ func (d *CategoryDelegate) execUpdateStmt(ctx context.Context, preds []Predicate
 		}
 	}
 
-	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, nil)
 	result, err := d.client.exec(ctx, query, setVals...)
 	if err != nil {
 		return 0, err
@@ -1472,16 +1613,15 @@ func (d *CategoryDelegate) execUpdateStmt(ctx context.Context, preds []Predicate
 	return result.RowsAffected()
 }
 
-func (d *CategoryDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[Category], additional []PredicateOf[Category], assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
-	allPreds := append([]PredicateOf[Category]{where}, additional...)
-	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+func (d *CategoryDelegate) runUpdateFallback(ctx context.Context, preds []PredicateOf[Category], cols []string, vals []any, selects *CategorySelect, omits *CategoryOmit) (*Category, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, allPreds, selects, omits)
+	return d.runFindUnique(ctx, preds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -1489,17 +1629,30 @@ func (d *CategoryDelegate) runUpdateFallback(ctx context.Context, where UniquePr
 // -----------------------------------------------------------------------------
 
 func (d *CategoryDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[Category], assignments []FieldAssignment) (int64, error) {
-	if len(d.extensions) == 0 {
-		return d.execUpdateStmt(ctx, preds, assignments)
+	input, err := assignmentsToCategoryUpdate(assignments)
+	if err != nil {
+		return 0, err
 	}
 
-	curr := func(c context.Context, p []PredicateOf[Category], a []FieldAssignment) (int64, error) {
-		return d.execUpdateStmt(c, p, a)
+	cols, vals := input.ToColsVals()
+
+	if len(d.extensions) == 0 {
+		return d.execUpdateStmt(ctx, preds, cols, vals)
+	}
+
+	args := &CategoryUpdateManyArgs{
+		Where: preds,
+		Data:  &input,
+	}
+
+	curr := func(c context.Context, a *CategoryUpdateManyArgs) (int64, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.execUpdateStmt(c, a.Where, extCols, extVals)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateMany != nil {
-			return ext.UpdateMany(ctx, preds, assignments, curr)
+			return ext.UpdateMany(ctx, args, curr)
 		}
 	}
 
@@ -1507,13 +1660,13 @@ func (d *CategoryDelegate) executeUpdateMany(ctx context.Context, preds []Predic
 		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
-			curr = func(c context.Context, p []PredicateOf[Category], a []FieldAssignment) (int64, error) {
-				return hook(c, p, a, next)
+			curr = func(c context.Context, a *CategoryUpdateManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments)
+	return curr(ctx, args)
 }
 
 // -----------------------------------------------------------------------------
@@ -1521,21 +1674,35 @@ func (d *CategoryDelegate) executeUpdateMany(ctx context.Context, preds []Predic
 // -----------------------------------------------------------------------------
 
 func (d *CategoryDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Category], assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
+	input, err := assignmentsToCategoryUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+		return d.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullCategorySelect()
 	}
 
-	curr := func(c context.Context, p []PredicateOf[Category], a []FieldAssignment, s *CategorySelect, o *CategoryOmit) ([]*Category, error) {
-		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	args := &CategoryUpdateManyAndReturnArgs{
+		Where:  preds,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *CategoryUpdateManyAndReturnArgs) ([]*Category, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdateManyAndReturn(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
-			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+			return ext.UpdateManyAndReturn(ctx, args, curr)
 		}
 	}
 
@@ -1543,17 +1710,17 @@ func (d *CategoryDelegate) executeUpdateManyAndReturn(ctx context.Context, preds
 		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
-			curr = func(c context.Context, p []PredicateOf[Category], a []FieldAssignment, s *CategorySelect, o *CategoryOmit) ([]*Category, error) {
-				return hook(c, p, a, s, o, next)
+			curr = func(c context.Context, a *CategoryUpdateManyAndReturnArgs) ([]*Category, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *CategoryDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Category], assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
-	if len(assignments) == 0 {
+func (d *CategoryDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[Category], cols []string, vals []any, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
+	if len(cols) == 0 {
 		return d.runFindMany(ctx, QueryParams[Category]{Where: preds}, selects, omits)
 	}
 
@@ -1573,9 +1740,9 @@ func (d *CategoryDelegate) runUpdateManyAndReturn(ctx context.Context, preds []P
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.Category.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+				res, err = txQ.Category.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.Category.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+				res, err = txQ.Category.runUpdateManyAndReturnFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1583,39 +1750,29 @@ func (d *CategoryDelegate) runUpdateManyAndReturn(ctx context.Context, preds []P
 	}
 
 	returningCols := selectCategoryCols(selects, omits, categoryPKCols...)
-	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]*Category, 0)
-	for rows.Next() {
-		var res Category
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		results = append(results, &res)
-	}
-	rowsErr := rows.Err()
-	rows.Close()
-	if rowsErr != nil {
-		return nil, rowsErr
+	scanned, err := scanCategoryRows(rows, returningCols)
+	if err != nil {
+		return nil, err
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
-		if err := d.loadRelations(ctx, results, selects); err != nil {
+		if err := d.loadRelations(ctx, scanned, selects); err != nil {
 			return nil, err
 		}
 	}
 
-	return results, nil
+	return scanned, nil
 }
 
-func (d *CategoryDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[Category], assignments []FieldAssignment, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
-	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+func (d *CategoryDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[Category], cols []string, vals []any, selects *CategorySelect, omits *CategoryOmit) ([]*Category, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}

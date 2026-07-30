@@ -72,6 +72,152 @@ func (s *UserCreate) colMask() uint64 {
 	return mask
 }
 
+// UserUpdate contains model input fields for User update operations.
+type UserUpdate struct {
+	Id           *string       `json:"id"`
+	Email        *string       `json:"email"`
+	PhoneNum     *string       `json:"phoneNum"`
+	Password     *string       `json:"password"`
+	Role         *UserRoleType `json:"role"`
+	RoleOptional *UserRoleType `json:"roleOptional"`
+	LoginCount   *int32        `json:"loginCount"`
+	ReferredById *string       `json:"referredById"`
+}
+
+func (u *UserUpdate) ToColsVals() ([]string, []any) {
+	var cols []string
+	var vals []any
+	if u.Id != nil {
+		cols = append(cols, "id")
+		vals = append(vals, u.Id)
+	}
+	if u.Email != nil {
+		cols = append(cols, "email")
+		vals = append(vals, u.Email)
+	}
+	if u.PhoneNum != nil {
+		cols = append(cols, "phoneNum")
+		vals = append(vals, u.PhoneNum)
+	}
+	if u.Password != nil {
+		cols = append(cols, "password")
+		vals = append(vals, u.Password)
+	}
+	if u.Role != nil {
+		cols = append(cols, "role")
+		vals = append(vals, u.Role)
+	}
+	if u.RoleOptional != nil {
+		cols = append(cols, "roleOptional")
+		vals = append(vals, u.RoleOptional)
+	}
+	if u.LoginCount != nil {
+		cols = append(cols, "loginCount")
+		vals = append(vals, u.LoginCount)
+	}
+	if u.ReferredById != nil {
+		cols = append(cols, "referredById")
+		vals = append(vals, u.ReferredById)
+	}
+	return cols, vals
+}
+
+func assignmentsToUserUpdate(assignments []FieldAssignment) (UserUpdate, error) {
+	var input UserUpdate
+	var errs ValidationError
+
+	for _, a := range assignments {
+		switch a.Col {
+		case "id":
+			if v, ok := a.Val.(string); ok {
+				input.Id = &v
+				errs.ValidateString("id", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Id = v
+			} else {
+				errs.Add("id", a.Val, "type", "field id must be of type string")
+			}
+		case "email":
+			if v, ok := a.Val.(string); ok {
+				input.Email = &v
+				errs.ValidateString("email", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Email = v
+			} else {
+				errs.Add("email", a.Val, "type", "field email must be of type string")
+			}
+		case "phoneNum":
+			if v, ok := a.Val.(string); ok {
+				input.PhoneNum = &v
+				errs.ValidateString("phoneNum", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.PhoneNum = v
+			} else {
+				errs.Add("phoneNum", a.Val, "type", "field phoneNum must be of type string")
+			}
+		case "password":
+			if v, ok := a.Val.(string); ok {
+				input.Password = &v
+				errs.ValidateString("password", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.Password = v
+			} else {
+				errs.Add("password", a.Val, "type", "field password must be of type string")
+			}
+		case "role":
+			if v, ok := a.Val.(UserRoleType); ok {
+				input.Role = &v
+				if !v.IsValid() {
+					errs.Add("role", v, "enum", fmt.Sprintf("invalid enum value %q for field role", v))
+				}
+			} else if v, ok := a.Val.(*UserRoleType); ok {
+				input.Role = v
+				if v != nil && !v.IsValid() {
+					errs.Add("role", *v, "enum", fmt.Sprintf("invalid enum value %q for field role", *v))
+				}
+			} else {
+				errs.Add("role", a.Val, "type", "field role must be of type UserRoleType")
+			}
+		case "roleOptional":
+			if v, ok := a.Val.(UserRoleType); ok {
+				input.RoleOptional = &v
+				if !v.IsValid() {
+					errs.Add("roleOptional", v, "enum", fmt.Sprintf("invalid enum value %q for field roleOptional", v))
+				}
+			} else if v, ok := a.Val.(*UserRoleType); ok {
+				input.RoleOptional = v
+				if v != nil && !v.IsValid() {
+					errs.Add("roleOptional", *v, "enum", fmt.Sprintf("invalid enum value %q for field roleOptional", *v))
+				}
+			} else {
+				errs.Add("roleOptional", a.Val, "type", "field roleOptional must be of type UserRoleType")
+			}
+		case "loginCount":
+			if v, ok := a.Val.(int32); ok {
+				input.LoginCount = &v
+			} else if v, ok := a.Val.(*int32); ok {
+				input.LoginCount = v
+			} else {
+				errs.Add("loginCount", a.Val, "type", "field loginCount must be of type int32")
+			}
+		case "referredById":
+			if v, ok := a.Val.(string); ok {
+				input.ReferredById = &v
+				errs.ValidateString("referredById", v, false, 0, false, false)
+			} else if v, ok := a.Val.(*string); ok {
+				input.ReferredById = v
+			} else {
+				errs.Add("referredById", a.Val, "type", "field referredById must be of type string")
+			}
+		}
+	}
+
+	if errs.HasErrors() {
+		return input, errs
+	}
+	return input, nil
+}
+
 // UserSelect specifies which scalar and relation fields to select for User.
 //
 // Selectable fields:
@@ -466,6 +612,51 @@ func (a *UserDeleteManyArgs) SetWhere(preds ...PredicateOf[User]) *UserDeleteMan
 	return a
 }
 
+// UserUpdateArgs is the input argument passed to User Update extension hooks.
+type UserUpdateArgs struct {
+	// Where contains all query filter predicates (merged primary unique constraint and additional predicates).
+	Where []PredicateOf[User]
+	// Data contains the model fields to update.
+	Data *UserUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *UserSelect
+}
+
+func (a *UserUpdateArgs) SetWhere(unique UniquePredicate[User], additional ...PredicateOf[User]) *UserUpdateArgs {
+	a.Where = make([]PredicateOf[User], 0, 1+len(additional))
+	a.Where = append(a.Where, unique)
+	a.Where = append(a.Where, additional...)
+	return a
+}
+
+// UserUpdateManyArgs is the input argument passed to User UpdateMany extension hooks.
+type UserUpdateManyArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[User]
+	// Data contains the model fields to update.
+	Data *UserUpdate
+}
+
+func (a *UserUpdateManyArgs) SetWhere(preds ...PredicateOf[User]) *UserUpdateManyArgs {
+	a.Where = preds
+	return a
+}
+
+// UserUpdateManyAndReturnArgs is the input argument passed to User UpdateManyAndReturn extension hooks.
+type UserUpdateManyAndReturnArgs struct {
+	// Where contains all query filter predicates.
+	Where []PredicateOf[User]
+	// Data contains the model fields to update.
+	Data *UserUpdate
+	// Select specifies which scalar and relation fields to select and return upon update.
+	Select *UserSelect
+}
+
+func (a *UserUpdateManyAndReturnArgs) SetWhere(preds ...PredicateOf[User]) *UserUpdateManyAndReturnArgs {
+	a.Where = preds
+	return a
+}
+
 type UserCreateQuery = func(ctx context.Context, args *UserCreateArgs) (*User, error)
 type UserCreateManyQuery = func(ctx context.Context, args *UserCreateManyArgs) (int64, error)
 type UserCreateManyAndReturnQuery = func(ctx context.Context, args *UserCreateManyAndReturnArgs) ([]*User, error)
@@ -475,9 +666,9 @@ type UserFindManyQuery = func(ctx context.Context, args *UserFindManyArgs) ([]*U
 type UserDeleteQuery = func(ctx context.Context, args *UserDeleteArgs) (*User, error)
 type UserDeleteManyQuery = func(ctx context.Context, args *UserDeleteManyArgs) (int64, error)
 type UserCountQuery = func(ctx context.Context, args *UserCountArgs) (int64, error)
-type UserUpdateQuery = func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error)
-type UserUpdateManyQuery = func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment) (int64, error)
-type UserUpdateManyAndReturnQuery = func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) ([]*User, error)
+type UserUpdateQuery = func(ctx context.Context, args *UserUpdateArgs) (*User, error)
+type UserUpdateManyQuery = func(ctx context.Context, args *UserUpdateManyArgs) (int64, error)
+type UserUpdateManyAndReturnQuery = func(ctx context.Context, args *UserUpdateManyAndReturnArgs) ([]*User, error)
 
 type UserExtension struct {
 	Create              func(ctx context.Context, args *UserCreateArgs, next UserCreateQuery) (*User, error)
@@ -489,9 +680,9 @@ type UserExtension struct {
 	Delete              func(ctx context.Context, args *UserDeleteArgs, next UserDeleteQuery) (*User, error)
 	DeleteMany          func(ctx context.Context, args *UserDeleteManyArgs, next UserDeleteManyQuery) (int64, error)
 	Count               func(ctx context.Context, args *UserCountArgs, next UserCountQuery) (int64, error)
-	Update              func(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit, next UserUpdateQuery) (*User, error)
-	UpdateMany          func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, next UserUpdateManyQuery) (int64, error)
-	UpdateManyAndReturn func(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit, next UserUpdateManyAndReturnQuery) ([]*User, error)
+	Update              func(ctx context.Context, args *UserUpdateArgs, next UserUpdateQuery) (*User, error)
+	UpdateMany          func(ctx context.Context, args *UserUpdateManyArgs, next UserUpdateManyQuery) (int64, error)
+	UpdateManyAndReturn func(ctx context.Context, args *UserUpdateManyAndReturnArgs, next UserUpdateManyAndReturnQuery) ([]*User, error)
 }
 
 type UserDelegate struct {
@@ -587,6 +778,16 @@ func (s *UserSelect) hasAnyRelation() bool {
 
 type UserCreateBuilder struct {
 	*CreateBuilder[User, UserSelect, UserOmit]
+}
+
+func (b *UserCreateBuilder) Select(s UserSelect) *UserCreateBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *UserCreateBuilder) Omit(o UserOmit) *UserCreateBuilder {
+	b.omits = &o
+	return b
 }
 
 func (b *UserCreateBuilder) OnConflict(target UniqueConstraintTarget) *UserConflictBuilder[UserCreateBuilder] {
@@ -820,23 +1021,11 @@ func (d *UserDelegate) executeCreate(ctx context.Context, assignments []FieldAss
 		return nil, err
 	}
 
+	cols, vals := input.ToColsVals()
+	returningCols := selectUserCols(selects, omits)
+
 	if len(d.extensions) == 0 {
-		cols, vals := input.ToColsVals()
-		returningCols := selectUserCols(selects, omits)
-		hasRelations := selects.hasAnyRelation()
-		if hasRelations {
-			var res *User
-			err = d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.User.runCreate(ctx, cols, vals, returningCols, userPKCols, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.User.loadRelations(ctx, []*User{res}, selects)
-			})
-			return res, err
-		}
-		return d.runCreate(ctx, cols, vals, returningCols, userPKCols, conflictTarget, conflictAction)
+		return d.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
@@ -851,28 +1040,9 @@ func (d *UserDelegate) executeCreate(ctx context.Context, assignments []FieldAss
 	}
 
 	curr := func(c context.Context, a *UserCreateArgs) (*User, error) {
-		cols, vals := a.Data.ToColsVals()
-		returningCols := selectUserCols(a.Select, omits)
-
-		hasRelations := a.Select.hasAnyRelation()
-		var res *User
-		var err error
-		if hasRelations {
-			err = d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.User.runCreate(c, cols, vals, returningCols, userPKCols, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.User.loadRelations(c, []*User{res}, a.Select)
-			})
-		} else {
-			res, err = d.runCreate(c, cols, vals, returningCols, userPKCols, a.ConflictTarget, a.ConflictAction)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return res, nil
+		cCols, cVals := a.Data.ToColsVals()
+		cReturningCols := selectUserCols(a.Select, omits)
+		return d.runCreate(c, cCols, cVals, cReturningCols, a.Select, a.ConflictTarget, a.ConflictAction)
 	}
 
 	if len(d.extensions) == 1 {
@@ -913,6 +1083,16 @@ type UserCreateManyAndReturnBuilder struct {
 	*CreateManyAndReturnBuilder[User, UserSelect, UserOmit]
 }
 
+func (b *UserCreateManyAndReturnBuilder) Select(s UserSelect) *UserCreateManyAndReturnBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *UserCreateManyAndReturnBuilder) Omit(o UserOmit) *UserCreateManyAndReturnBuilder {
+	b.omits = &o
+	return b
+}
+
 func (b *UserCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarget) *UserConflictBuilder[UserCreateManyAndReturnBuilder] {
 	return &UserConflictBuilder[UserCreateManyAndReturnBuilder]{
 		builder:        b,
@@ -924,42 +1104,50 @@ func (b *UserCreateManyAndReturnBuilder) OnConflict(target UniqueConstraintTarge
 	}
 }
 
-func (d *UserDelegate) CreateMany(builders ...*UserCreateBuilder) *UserCreateManyBuilder {
+func createBuildersToUserRecordInputs(builders []*UserCreateBuilder) []RecordInput {
 	records := make([]RecordInput, len(builders))
 	for i, b := range builders {
 		records[i] = RecordInput{Assignments: b.assignments}
 	}
+	return records
+}
+
+func (d *UserDelegate) CreateMany(builders ...*UserCreateBuilder) *UserCreateManyBuilder {
 	return &UserCreateManyBuilder{
 		CreateManyBuilder: &CreateManyBuilder[User]{
-			records:  records,
+			records:  createBuildersToUserRecordInputs(builders),
 			execFunc: d.executeCreateMany,
 		},
 	}
 }
 
 func (d *UserDelegate) CreateManyAndReturn(builders ...*UserCreateBuilder) *UserCreateManyAndReturnBuilder {
-	records := make([]RecordInput, len(builders))
-	for i, b := range builders {
-		records[i] = RecordInput{Assignments: b.assignments}
-	}
 	return &UserCreateManyAndReturnBuilder{
 		CreateManyAndReturnBuilder: &CreateManyAndReturnBuilder[User, UserSelect, UserOmit]{
-			records:  records,
+			records:  createBuildersToUserRecordInputs(builders),
 			execFunc: d.executeCreateManyAndReturn,
 		},
 	}
 }
 
-func (d *UserDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+func recordsToUserCreateInputs(records []RecordInput) ([]*UserCreate, error) {
 	structs := make([]UserCreate, len(records))
 	inputs := make([]*UserCreate, len(records))
 	for i, rec := range records {
 		var err error
 		structs[i], err = assignmentsToUserCreate(rec.Assignments)
 		if err != nil {
-			return 0, fmt.Errorf("validation failed at index %d: %w", i, err)
+			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
 		}
 		inputs[i] = &structs[i]
+	}
+	return inputs, nil
+}
+
+func (d *UserDelegate) executeCreateMany(ctx context.Context, records []RecordInput, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
+	inputs, err := recordsToUserCreateInputs(records)
+	if err != nil {
+		return 0, err
 	}
 
 	if len(d.extensions) == 0 {
@@ -996,31 +1184,12 @@ func (d *UserDelegate) executeCreateMany(ctx context.Context, records []RecordIn
 }
 
 func (d *UserDelegate) executeCreateManyAndReturn(ctx context.Context, records []RecordInput, selects *UserSelect, omits *UserOmit, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*User, error) {
-	structs := make([]UserCreate, len(records))
-	inputs := make([]*UserCreate, len(records))
-	for i, rec := range records {
-		var err error
-		structs[i], err = assignmentsToUserCreate(rec.Assignments)
-		if err != nil {
-			return nil, fmt.Errorf("validation failed at index %d: %w", i, err)
-		}
-		inputs[i] = &structs[i]
+	inputs, err := recordsToUserCreateInputs(records)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(d.extensions) == 0 {
-		hasRelations := selects != nil && selects.hasAnyRelation()
-		if hasRelations {
-			var res []*User
-			err := d.client.transaction(ctx, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.User.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.User.loadRelations(ctx, res, selects)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
 	}
 
@@ -1036,19 +1205,6 @@ func (d *UserDelegate) executeCreateManyAndReturn(ctx context.Context, records [
 	}
 
 	curr := func(c context.Context, a *UserCreateManyAndReturnArgs) ([]*User, error) {
-		hasRelations := a.Select != nil && a.Select.hasAnyRelation()
-		if hasRelations {
-			var res []*User
-			err := d.client.transaction(c, func(txQ *Queries) error {
-				var err error
-				res, err = txQ.User.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
-				if err != nil {
-					return err
-				}
-				return txQ.User.loadRelations(c, res, a.Select)
-			})
-			return res, err
-		}
 		return d.runCreateManyAndReturn(c, a.Data, a.Select, omits, a.ConflictTarget, a.ConflictAction)
 	}
 
@@ -1076,36 +1232,67 @@ func (d *UserDelegate) runCreate(
 	cols []string,
 	vals []any,
 	returningCols []string,
-	pkCols []string,
+	selects *UserSelect,
 	conflictTarget UniqueConstraintTarget,
 	conflictAction *ConflictAction,
 ) (*User, error) {
-	query, clauseArgs := buildSingleInsertSQL(d.client, "User", cols, returningCols, pkCols, conflictTarget, conflictAction, len(vals))
+	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := hasRelations && !d.client.inTx()
+
+	if useTx {
+		var res *User
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			res, err = txQ.User.runCreate(ctx, cols, vals, returningCols, selects, conflictTarget, conflictAction)
+			if err != nil {
+				return err
+			}
+			return txQ.User.loadRelations(ctx, []*User{res}, selects)
+		})
+		return res, err
+	}
+
+	query, clauseArgs := buildSingleInsertSQL(d.client, "User", cols, returningCols, userPKCols, conflictTarget, conflictAction, len(vals))
 	if len(clauseArgs) > 0 {
 		vals = append(vals, clauseArgs...)
 	}
 
-	var res User
 	if d.client.dialect.SupportsInsertReturning {
 		rows, err := d.client.query(ctx, query, vals...)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
 
-		if rows.Next() {
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+		if !rows.Next() {
+			err := rows.Err()
+			rows.Close()
+			if err != nil {
 				return nil, err
 			}
-			return &res, nil
+			return nil, nil
 		}
-		return nil, rows.Err()
+
+		var res User
+		scanErr := rows.Scan(res.ScanFields(returningCols)...)
+		rows.Close()
+		if scanErr != nil {
+			return nil, scanErr
+		}
+
+		return &res, nil
 	}
 
-	return d.runCreateFallback(ctx, query, vals, cols, returningCols, pkCols)
+	return d.runCreateFallback(ctx, query, vals, cols, returningCols, userPKCols)
 }
 
-func (d *UserDelegate) runCreateFallback(ctx context.Context, query string, vals []any, cols []string, returningCols []string, pkCols []string) (*User, error) {
+func (d *UserDelegate) runCreateFallback(
+	ctx context.Context,
+	query string,
+	vals []any,
+	cols []string,
+	returningCols []string,
+	pkCols []string,
+) (*User, error) {
 	result, err := d.client.exec(ctx, query, vals...)
 	if err != nil {
 		return nil, err
@@ -1155,16 +1342,24 @@ func (d *UserDelegate) runCreateFallback(ctx context.Context, query string, vals
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var res User
-	if rows.Next() {
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+	if !rows.Next() {
+		err := rows.Err()
+		rows.Close()
+		if err != nil {
 			return nil, err
 		}
-		return &res, nil
+		return nil, nil
 	}
-	return nil, rows.Err()
+
+	var res User
+	scanErr := rows.Scan(res.ScanFields(returningCols)...)
+	rows.Close()
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	return &res, nil
 }
 
 func (d *UserDelegate) buildBulkInsertSQL(q *Queries, batch []*UserCreate, paramStartIdx int) (cols []string, vals []any, queryStr string) {
@@ -1260,6 +1455,41 @@ func (d *UserDelegate) buildBulkInsertSQL(q *Queries, batch []*UserCreate, param
 	return cols, vals, queryStr
 }
 
+func applyUserConflictClause(dialect Dialect, queryStr string, vals []any, cols []string, pkCols []string, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (string, []any) {
+	var conflictCols []string
+	if conflictTarget != nil {
+		conflictCols = conflictTarget.UniqueColumns()
+	}
+	var nonConflictCols []string
+	if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
+		nonConflictCols = computeNonConflictCols(cols, conflictCols, pkCols)
+	}
+	clause, clauseArgs := dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
+	queryStr += clause
+	if len(clauseArgs) > 0 {
+		vals = append(vals, clauseArgs...)
+	}
+	return queryStr, vals
+}
+
+func scanUserRows(rows *sql.Rows, returningCols []string) ([]*User, error) {
+	var records []*User
+	for rows.Next() {
+		var res User
+		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		records = append(records, &res)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	return records, nil
+}
+
 func (d *UserDelegate) runCreateMany(ctx context.Context, inputs []*UserCreate, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (int64, error) {
 	if len(inputs) == 0 {
 		return 0, nil
@@ -1270,18 +1500,7 @@ func (d *UserDelegate) runCreateMany(ctx context.Context, inputs []*UserCreate, 
 	var count int64
 	for _, batch := range batches {
 		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
-
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, userPKCols)
-		}
-		clause, clauseArgs := d.client.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
+		queryStr, vals = applyUserConflictClause(d.client.dialect, queryStr, vals, cols, userPKCols, conflictTarget, conflictAction)
 
 		result, err := d.client.exec(ctx, queryStr, vals...)
 		if err != nil {
@@ -1309,27 +1528,37 @@ func (d *UserDelegate) runCreateManyAndReturn(
 	}
 
 	batches := partitionUserInputs(d.client.dialect, inputs)
-	returningCols := selectUserCols(selects, omits)
 	hasRelations := selects != nil && selects.hasAnyRelation()
+	useTx := (len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning) && !d.client.inTx()
 
+	if useTx {
+		var res []*User
+		err := d.client.transaction(ctx, func(txQ *Queries) error {
+			var err error
+			if txQ.dialect.SupportsInsertReturning {
+				res, err = txQ.User.runCreateManyAndReturn(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			} else {
+				res, err = txQ.User.runCreateManyAndReturnFallback(ctx, inputs, selects, omits, conflictTarget, conflictAction)
+			}
+			if err != nil {
+				return err
+			}
+			if hasRelations {
+				return txQ.User.loadRelations(ctx, res, selects)
+			}
+			return nil
+		})
+		return res, err
+	}
+
+	returningCols := selectUserCols(selects, omits, userPKCols...)
 	recordsOut := make([]*User, 0, len(inputs))
 
-	runBatch := func(txQ *Queries, batch []*UserCreate) error {
-		cols, vals, queryStr := d.buildBulkInsertSQL(txQ, batch, 1)
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyUserConflictClause(d.client.dialect, queryStr, vals, cols, userPKCols, conflictTarget, conflictAction)
 
-		var conflictCols []string
-		if conflictTarget != nil {
-			conflictCols = conflictTarget.UniqueColumns()
-		}
-		var nonConflictCols []string
-		if conflictAction != nil && conflictAction.Type == ConflictActionUpdateNewValues {
-			nonConflictCols = computeNonConflictCols(cols, conflictCols, userPKCols)
-		}
-		clause, clauseArgs := txQ.dialect.BuildConflictClause(conflictCols, conflictAction, nonConflictCols, len(vals)+1)
-		queryStr += clause
-		vals = append(vals, clauseArgs...)
-
-		if txQ.dialect.SupportsInsertReturning && len(returningCols) > 0 {
+		if len(returningCols) > 0 {
 			var retSb strings.Builder
 			retSb.Grow(12 + len(returningCols)*15)
 			retSb.WriteString(" RETURNING ")
@@ -1337,40 +1566,58 @@ func (d *UserDelegate) runCreateManyAndReturn(
 				if i > 0 {
 					retSb.WriteString(", ")
 				}
-				txQ.dialect.WriteQuotedIdent(&retSb, col)
+				d.client.dialect.WriteQuotedIdent(&retSb, col)
 			}
 			queryStr += retSb.String()
-			rows, err := txQ.query(ctx, queryStr, vals...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-
-			for rows.Next() {
-				var res User
-				if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-					return err
-				}
-				recordsOut = append(recordsOut, &res)
-			}
-			return rows.Err()
 		}
 
-		// Fallback for dialects without RETURNING (MySQL)
-		result, err := txQ.exec(ctx, queryStr, vals...)
+		rows, err := d.client.query(ctx, queryStr, vals...)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// We need to fetch the inserted records for this batch
-		// Note: MySQL bulk inserts only return the ID of the FIRST inserted row
+		scanned, err := scanUserRows(rows, returningCols)
+		if err != nil {
+			return nil, err
+		}
+		recordsOut = append(recordsOut, scanned...)
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, recordsOut, selects); err != nil {
+			return nil, err
+		}
+	}
+
+	return recordsOut, nil
+}
+
+func (d *UserDelegate) runCreateManyAndReturnFallback(
+	ctx context.Context,
+	inputs []*UserCreate,
+	selects *UserSelect,
+	omits *UserOmit,
+	conflictTarget UniqueConstraintTarget,
+	conflictAction *ConflictAction,
+) ([]*User, error) {
+	batches := partitionUserInputs(d.client.dialect, inputs)
+	returningCols := selectUserCols(selects, omits, userPKCols...)
+	recordsOut := make([]*User, 0, len(inputs))
+
+	for _, batch := range batches {
+		cols, vals, queryStr := d.buildBulkInsertSQL(d.client, batch, 1)
+		queryStr, vals = applyUserConflictClause(d.client.dialect, queryStr, vals, cols, userPKCols, conflictTarget, conflictAction)
+
+		result, err := d.client.exec(ctx, queryStr, vals...)
+		if err != nil {
+			return nil, err
+		}
+
 		lastID, err := result.LastInsertId()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// Query back the rows by IDs (assuming autoincrement ID and single PK)
-		// If composite PK, it's more complex, but this is a standard fallback
 		var selectSb strings.Builder
 		selectSb.Grow(64 + len(returningCols)*15 + len("User") + len(batch)*15)
 		selectSb.WriteString("SELECT ")
@@ -1378,55 +1625,29 @@ func (d *UserDelegate) runCreateManyAndReturn(
 			if i > 0 {
 				selectSb.WriteString(", ")
 			}
-			txQ.dialect.WriteQuotedIdent(&selectSb, col)
+			d.client.dialect.WriteQuotedIdent(&selectSb, col)
 		}
 		selectSb.WriteString(" FROM ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, "User")
+		d.client.dialect.WriteQuotedIdent(&selectSb, "User")
 		selectSb.WriteString(" WHERE ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, userPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, userPKCols[0])
 		selectSb.WriteString(" >= ")
-		txQ.dialect.WritePlaceholder(&selectSb, 1)
+		d.client.dialect.WritePlaceholder(&selectSb, 1)
 		selectSb.WriteString(" AND ")
-		txQ.dialect.WriteQuotedIdent(&selectSb, userPKCols[0])
+		d.client.dialect.WriteQuotedIdent(&selectSb, userPKCols[0])
 		selectSb.WriteString(" < ")
-		txQ.dialect.WritePlaceholder(&selectSb, 2)
+		d.client.dialect.WritePlaceholder(&selectSb, 2)
 
-		rows, err := txQ.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var res User
-			if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-				return err
-			}
-			recordsOut = append(recordsOut, &res)
-		}
-		return rows.Err()
-	}
-
-	// Always wrap in transaction if we have multiple batches OR if we need to load relations
-	if len(batches) > 1 || hasRelations || !d.client.dialect.SupportsInsertReturning {
-		err := d.client.transaction(ctx, func(txQ *Queries) error {
-			for _, batch := range batches {
-				if err := runBatch(txQ, batch); err != nil {
-					return err
-				}
-			}
-			if hasRelations {
-				return txQ.User.loadRelations(ctx, recordsOut, selects)
-			}
-			return nil
-		})
+		rows, err := d.client.query(ctx, selectSb.String(), lastID, lastID+int64(len(batch)))
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		if err := runBatch(d.client, batches[0]); err != nil {
+
+		scanned, err := scanUserRows(rows, returningCols)
+		if err != nil {
 			return nil, err
 		}
+		recordsOut = append(recordsOut, scanned...)
 	}
 
 	return recordsOut, nil
@@ -1666,23 +1887,23 @@ func (d *UserDelegate) UpdateManyAndReturn(preds ...PredicateOf[User]) *UserUpda
 	}
 }
 
-func (d *UserDelegate) buildUpdateSQL(preds []PredicateOf[User], assignments []FieldAssignment, returningCols []string) (string, []any) {
-	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(assignments)+1)
+func (d *UserDelegate) buildUpdateSQL(preds []PredicateOf[User], cols []string, vals []any, returningCols []string) (string, []any) {
+	whereClause, predVals, _ := CompilePredicates(d.client.dialect, preds, len(cols)+1)
 
 	var sb strings.Builder
 	sb.WriteString("UPDATE ")
 	d.client.dialect.WriteQuotedIdent(&sb, "User")
 	sb.WriteString(" SET ")
 
-	setVals := make([]any, 0, len(assignments)+len(predVals))
-	for i, a := range assignments {
+	setVals := make([]any, 0, len(cols)+len(predVals))
+	for i, col := range cols {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		d.client.dialect.WriteQuotedIdent(&sb, a.Col)
+		d.client.dialect.WriteQuotedIdent(&sb, col)
 		sb.WriteString(" = ")
 		d.client.dialect.WritePlaceholder(&sb, i+1)
-		setVals = append(setVals, a.Val)
+		setVals = append(setVals, vals[i])
 	}
 
 	if whereClause != "" {
@@ -1709,21 +1930,39 @@ func (d *UserDelegate) buildUpdateSQL(preds []PredicateOf[User], assignments []F
 // -----------------------------------------------------------------------------
 
 func (d *UserDelegate) executeUpdate(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error) {
+	allWhere := make([]PredicateOf[User], 0, 1+len(additional))
+	allWhere = append(allWhere, where)
+	allWhere = append(allWhere, additional...)
+
+	input, err := assignmentsToUserUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdate(ctx, where, additional, assignments, selects, omits)
+		return d.runUpdate(ctx, allWhere, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullUserSelect()
 	}
 
-	curr := func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) (*User, error) {
-		return d.runUpdate(c, w, add, a, s, o)
+	args := &UserUpdateArgs{
+		Where:  allWhere,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *UserUpdateArgs) (*User, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdate(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.Update != nil {
-			return ext.Update(ctx, where, additional, assignments, selects, omits, curr)
+			return ext.Update(ctx, args, curr)
 		}
 	}
 
@@ -1731,25 +1970,21 @@ func (d *UserDelegate) executeUpdate(ctx context.Context, where UniquePredicate[
 		ext := d.extensions[i]
 		if ext.Update != nil {
 			next, hook := curr, ext.Update
-			curr = func(c context.Context, w UniquePredicate[User], add []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) (*User, error) {
-				return hook(c, w, add, a, s, o, next)
+			curr = func(c context.Context, a *UserUpdateArgs) (*User, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, where, additional, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *UserDelegate) runUpdate(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error) {
-	allPreds := append([]PredicateOf[User]{where}, additional...)
-	if len(assignments) == 0 {
-		return d.runFindUnique(ctx, allPreds, selects, omits)
+func (d *UserDelegate) runUpdate(ctx context.Context, preds []PredicateOf[User], cols []string, vals []any, selects *UserSelect, omits *UserOmit) (*User, error) {
+	if len(cols) == 0 {
+		return d.runFindUnique(ctx, preds, selects, omits)
 	}
 
-	if err := where.Validate(); err != nil {
-		return nil, err
-	}
-	for _, pr := range additional {
+	for _, pr := range preds {
 		if pr != nil {
 			if err := pr.Validate(); err != nil {
 				return nil, err
@@ -1765,9 +2000,9 @@ func (d *UserDelegate) runUpdate(ctx context.Context, where UniquePredicate[User
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.User.runUpdate(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.User.runUpdate(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.User.runUpdateFallback(ctx, where, additional, assignments, selects, omits)
+				res, err = txQ.User.runUpdateFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1775,7 +2010,7 @@ func (d *UserDelegate) runUpdate(ctx context.Context, where UniquePredicate[User
 	}
 
 	returningCols := selectUserCols(selects, omits, userPKCols...)
-	query, setVals := d.buildUpdateSQL(allPreds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
@@ -1807,8 +2042,8 @@ func (d *UserDelegate) runUpdate(ctx context.Context, where UniquePredicate[User
 	return &res, nil
 }
 
-func (d *UserDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment) (int64, error) {
-	if len(assignments) == 0 {
+func (d *UserDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[User], cols []string, vals []any) (int64, error) {
+	if len(cols) == 0 {
 		return 0, nil
 	}
 
@@ -1820,7 +2055,7 @@ func (d *UserDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[U
 		}
 	}
 
-	query, setVals := d.buildUpdateSQL(preds, assignments, nil)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, nil)
 	result, err := d.client.exec(ctx, query, setVals...)
 	if err != nil {
 		return 0, err
@@ -1828,16 +2063,15 @@ func (d *UserDelegate) execUpdateStmt(ctx context.Context, preds []PredicateOf[U
 	return result.RowsAffected()
 }
 
-func (d *UserDelegate) runUpdateFallback(ctx context.Context, where UniquePredicate[User], additional []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) (*User, error) {
-	allPreds := append([]PredicateOf[User]{where}, additional...)
-	affected, err := d.execUpdateStmt(ctx, allPreds, assignments)
+func (d *UserDelegate) runUpdateFallback(ctx context.Context, preds []PredicateOf[User], cols []string, vals []any, selects *UserSelect, omits *UserOmit) (*User, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}
 	if affected == 0 {
 		return nil, sql.ErrNoRows
 	}
-	return d.runFindUnique(ctx, allPreds, selects, omits)
+	return d.runFindUnique(ctx, preds, selects, omits)
 }
 
 // -----------------------------------------------------------------------------
@@ -1845,17 +2079,30 @@ func (d *UserDelegate) runUpdateFallback(ctx context.Context, where UniquePredic
 // -----------------------------------------------------------------------------
 
 func (d *UserDelegate) executeUpdateMany(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment) (int64, error) {
-	if len(d.extensions) == 0 {
-		return d.execUpdateStmt(ctx, preds, assignments)
+	input, err := assignmentsToUserUpdate(assignments)
+	if err != nil {
+		return 0, err
 	}
 
-	curr := func(c context.Context, p []PredicateOf[User], a []FieldAssignment) (int64, error) {
-		return d.execUpdateStmt(c, p, a)
+	cols, vals := input.ToColsVals()
+
+	if len(d.extensions) == 0 {
+		return d.execUpdateStmt(ctx, preds, cols, vals)
+	}
+
+	args := &UserUpdateManyArgs{
+		Where: preds,
+		Data:  &input,
+	}
+
+	curr := func(c context.Context, a *UserUpdateManyArgs) (int64, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.execUpdateStmt(c, a.Where, extCols, extVals)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateMany != nil {
-			return ext.UpdateMany(ctx, preds, assignments, curr)
+			return ext.UpdateMany(ctx, args, curr)
 		}
 	}
 
@@ -1863,13 +2110,13 @@ func (d *UserDelegate) executeUpdateMany(ctx context.Context, preds []PredicateO
 		ext := d.extensions[i]
 		if ext.UpdateMany != nil {
 			next, hook := curr, ext.UpdateMany
-			curr = func(c context.Context, p []PredicateOf[User], a []FieldAssignment) (int64, error) {
-				return hook(c, p, a, next)
+			curr = func(c context.Context, a *UserUpdateManyArgs) (int64, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments)
+	return curr(ctx, args)
 }
 
 // -----------------------------------------------------------------------------
@@ -1877,21 +2124,35 @@ func (d *UserDelegate) executeUpdateMany(ctx context.Context, preds []PredicateO
 // -----------------------------------------------------------------------------
 
 func (d *UserDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) ([]*User, error) {
+	input, err := assignmentsToUserUpdate(assignments)
+	if err != nil {
+		return nil, err
+	}
+
+	cols, vals := input.ToColsVals()
+
 	if len(d.extensions) == 0 {
-		return d.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+		return d.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 	}
 
 	if selects == nil || !selects.hasAnySelected() {
 		selects = fullUserSelect()
 	}
 
-	curr := func(c context.Context, p []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) ([]*User, error) {
-		return d.runUpdateManyAndReturn(c, p, a, s, o)
+	args := &UserUpdateManyAndReturnArgs{
+		Where:  preds,
+		Data:   &input,
+		Select: selects,
+	}
+
+	curr := func(c context.Context, a *UserUpdateManyAndReturnArgs) ([]*User, error) {
+		extCols, extVals := a.Data.ToColsVals()
+		return d.runUpdateManyAndReturn(c, a.Where, extCols, extVals, a.Select, omits)
 	}
 
 	if len(d.extensions) == 1 {
 		if ext := d.extensions[0]; ext.UpdateManyAndReturn != nil {
-			return ext.UpdateManyAndReturn(ctx, preds, assignments, selects, omits, curr)
+			return ext.UpdateManyAndReturn(ctx, args, curr)
 		}
 	}
 
@@ -1899,17 +2160,17 @@ func (d *UserDelegate) executeUpdateManyAndReturn(ctx context.Context, preds []P
 		ext := d.extensions[i]
 		if ext.UpdateManyAndReturn != nil {
 			next, hook := curr, ext.UpdateManyAndReturn
-			curr = func(c context.Context, p []PredicateOf[User], a []FieldAssignment, s *UserSelect, o *UserOmit) ([]*User, error) {
-				return hook(c, p, a, s, o, next)
+			curr = func(c context.Context, a *UserUpdateManyAndReturnArgs) ([]*User, error) {
+				return hook(c, a, next)
 			}
 		}
 	}
 
-	return curr(ctx, preds, assignments, selects, omits)
+	return curr(ctx, args)
 }
 
-func (d *UserDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) ([]*User, error) {
-	if len(assignments) == 0 {
+func (d *UserDelegate) runUpdateManyAndReturn(ctx context.Context, preds []PredicateOf[User], cols []string, vals []any, selects *UserSelect, omits *UserOmit) ([]*User, error) {
+	if len(cols) == 0 {
 		return d.runFindMany(ctx, QueryParams[User]{Where: preds}, selects, omits)
 	}
 
@@ -1929,9 +2190,9 @@ func (d *UserDelegate) runUpdateManyAndReturn(ctx context.Context, preds []Predi
 		err := d.client.transaction(ctx, func(txQ *Queries) error {
 			var err error
 			if d.client.dialect.SupportsUpdateReturning {
-				res, err = txQ.User.runUpdateManyAndReturn(ctx, preds, assignments, selects, omits)
+				res, err = txQ.User.runUpdateManyAndReturn(ctx, preds, cols, vals, selects, omits)
 			} else {
-				res, err = txQ.User.runUpdateManyAndReturnFallback(ctx, preds, assignments, selects, omits)
+				res, err = txQ.User.runUpdateManyAndReturnFallback(ctx, preds, cols, vals, selects, omits)
 			}
 			return err
 		})
@@ -1939,39 +2200,29 @@ func (d *UserDelegate) runUpdateManyAndReturn(ctx context.Context, preds []Predi
 	}
 
 	returningCols := selectUserCols(selects, omits, userPKCols...)
-	query, setVals := d.buildUpdateSQL(preds, assignments, returningCols)
+	query, setVals := d.buildUpdateSQL(preds, cols, vals, returningCols)
 
 	rows, err := d.client.query(ctx, query, setVals...)
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]*User, 0)
-	for rows.Next() {
-		var res User
-		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		results = append(results, &res)
-	}
-	rowsErr := rows.Err()
-	rows.Close()
-	if rowsErr != nil {
-		return nil, rowsErr
+	scanned, err := scanUserRows(rows, returningCols)
+	if err != nil {
+		return nil, err
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
-		if err := d.loadRelations(ctx, results, selects); err != nil {
+		if err := d.loadRelations(ctx, scanned, selects); err != nil {
 			return nil, err
 		}
 	}
 
-	return results, nil
+	return scanned, nil
 }
 
-func (d *UserDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[User], assignments []FieldAssignment, selects *UserSelect, omits *UserOmit) ([]*User, error) {
-	affected, err := d.execUpdateStmt(ctx, preds, assignments)
+func (d *UserDelegate) runUpdateManyAndReturnFallback(ctx context.Context, preds []PredicateOf[User], cols []string, vals []any, selects *UserSelect, omits *UserOmit) ([]*User, error) {
+	affected, err := d.execUpdateStmt(ctx, preds, cols, vals)
 	if err != nil {
 		return nil, err
 	}

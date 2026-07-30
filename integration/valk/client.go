@@ -7,9 +7,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/lib/pq/hstore"
-	"github.com/pressly/goose/v3"
 	"math"
 	"net"
 	"regexp"
@@ -19,6 +16,10 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/google/uuid"
+	"github.com/lib/pq/hstore"
+	"github.com/pressly/goose/v3"
 )
 
 var _ = time.Time{}
@@ -1536,6 +1537,17 @@ func (f StringUniqueField[M]) In(vals []string) Predicate[M] {
 	}
 }
 
+func (f StringUniqueField[M]) NotIn(vals []string) Predicate[M] {
+
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "NOT IN",
+			Value:    vals,
+		},
+	}
+}
+
 func (f StringUniqueField[M]) Like(val string) Predicate[M] {
 	return Predicate[M]{
 		Data: PredicateData{
@@ -1823,39 +1835,25 @@ func (db *DB) Transaction(ctx context.Context, fn func(tx *Tx) error) error {
 
 type CreateBuilder[M any, S any, O any] struct {
 	assignments    []FieldAssignment
+	selects        *S
+	omits          *O
 	execFunc       func(ctx context.Context, assignments []FieldAssignment, s *S, o *O, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) (*M, error)
 	conflictAction *ConflictAction
 	conflictTarget UniqueConstraintTarget
 }
 
-func (b *CreateBuilder[M, S, O]) Select(s S) *CreateSelectBuilder[M, S, O] {
-	return &CreateSelectBuilder[M, S, O]{builder: b, selects: s}
+func (b *CreateBuilder[M, S, O]) Select(s S) *CreateBuilder[M, S, O] {
+	b.selects = &s
+	return b
 }
 
-func (b *CreateBuilder[M, S, O]) Omit(o O) *CreateOmitBuilder[M, S, O] {
-	return &CreateOmitBuilder[M, S, O]{builder: b, omits: o}
+func (b *CreateBuilder[M, S, O]) Omit(o O) *CreateBuilder[M, S, O] {
+	b.omits = &o
+	return b
 }
 
 func (b *CreateBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.execFunc(ctx, b.assignments, nil, nil, b.conflictTarget, b.conflictAction)
-}
-
-type CreateSelectBuilder[M any, S any, O any] struct {
-	builder *CreateBuilder[M, S, O]
-	selects S
-}
-
-func (b *CreateSelectBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.assignments, &b.selects, nil, b.builder.conflictTarget, b.builder.conflictAction)
-}
-
-type CreateOmitBuilder[M any, S any, O any] struct {
-	builder *CreateBuilder[M, S, O]
-	omits   O
-}
-
-func (b *CreateOmitBuilder[M, S, O]) Exec(ctx context.Context) (*M, error) {
-	return b.builder.execFunc(ctx, b.builder.assignments, nil, &b.omits, b.builder.conflictTarget, b.builder.conflictAction)
+	return b.execFunc(ctx, b.assignments, b.selects, b.omits, b.conflictTarget, b.conflictAction)
 }
 
 type CreateManyBuilder[M any] struct {
@@ -1876,6 +1874,8 @@ func (b *CreateManyBuilder[M]) Exec(ctx context.Context) (int64, error) {
 
 type CreateManyAndReturnBuilder[M any, S any, O any] struct {
 	records        []RecordInput
+	selects        *S
+	omits          *O
 	execFunc       func(ctx context.Context, records []RecordInput, s *S, o *O, conflictTarget UniqueConstraintTarget, conflictAction *ConflictAction) ([]*M, error)
 	conflictAction *ConflictAction
 	conflictTarget UniqueConstraintTarget
@@ -1886,214 +1886,18 @@ func (b *CreateManyAndReturnBuilder[M, S, O]) SkipDuplicates() *CreateManyAndRet
 	return b
 }
 
-func (b *CreateManyAndReturnBuilder[M, S, O]) Select(s S) *CreateManyAndReturnSelectBuilder[M, S, O] {
-	return &CreateManyAndReturnSelectBuilder[M, S, O]{builder: b, selects: s}
+func (b *CreateManyAndReturnBuilder[M, S, O]) Select(s S) *CreateManyAndReturnBuilder[M, S, O] {
+	b.selects = &s
+	return b
 }
 
-func (b *CreateManyAndReturnBuilder[M, S, O]) Omit(o O) *CreateManyAndReturnOmitBuilder[M, S, O] {
-	return &CreateManyAndReturnOmitBuilder[M, S, O]{builder: b, omits: o}
+func (b *CreateManyAndReturnBuilder[M, S, O]) Omit(o O) *CreateManyAndReturnBuilder[M, S, O] {
+	b.omits = &o
+	return b
 }
 
 func (b *CreateManyAndReturnBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.execFunc(ctx, b.records, nil, nil, b.conflictTarget, b.conflictAction)
-}
-
-type CreateManyAndReturnSelectBuilder[M any, S any, O any] struct {
-	builder *CreateManyAndReturnBuilder[M, S, O]
-	selects S
-}
-
-func (b *CreateManyAndReturnSelectBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.builder.execFunc(ctx, b.builder.records, &b.selects, nil, b.builder.conflictTarget, b.builder.conflictAction)
-}
-
-type CreateManyAndReturnOmitBuilder[M any, S any, O any] struct {
-	builder *CreateManyAndReturnBuilder[M, S, O]
-	omits   O
-}
-
-func (b *CreateManyAndReturnOmitBuilder[M, S, O]) Exec(ctx context.Context) ([]*M, error) {
-	return b.builder.execFunc(ctx, b.builder.records, nil, &b.omits, b.builder.conflictTarget, b.builder.conflictAction)
-}
-
-func loadRelation[P any, C any](
-	ctx context.Context,
-	q *Queries,
-	parents []*P,
-	parentKey func(*P) (string, bool),
-	table string,
-	fkCol string,
-	returningCols []string,
-	scan func(*sql.Rows, *C) error,
-	childKey func(*C) (string, bool),
-	assign func(*P, []*C),
-	params QueryParams[C],
-) ([]*C, error) {
-	var parentKeys []any
-	for _, p := range parents {
-		if p == nil {
-			continue
-		}
-		if key, ok := parentKey(p); ok {
-			parentKeys = append(parentKeys, key)
-		}
-	}
-	if len(parentKeys) == 0 {
-		return nil, nil
-	}
-
-	// Prepend parent ID checks to filters using Predicate[C]
-	allPreds := append([]PredicateOf[C]{
-		Predicate[C]{
-			Data: PredicateData{
-				Column:    fkCol,
-				Operator:  "IN",
-				Value:     parentKeys,
-				IsLogical: false,
-			},
-		},
-	}, params.Where...)
-
-	whereClause, vals, nextIdx := CompilePredicates(q.dialect, allPreds)
-	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
-	if isCursorQuery {
-		cClause, cVals, err := compileCursorClause(q.dialect, params.Cursor, params.OrderBy, []string{"id"}, nil, table, nextIdx, params.Take)
-		if err != nil {
-			return nil, err
-		}
-		if cClause != "" {
-			if whereClause == "" {
-				whereClause = cClause
-			} else {
-				whereClause = "(" + whereClause + ") AND " + cClause
-			}
-			vals = append(vals, cVals...)
-		}
-	}
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
-	}
-
-	query := compileRelationSQL(q.dialect, table, fkCol, returningCols, whereClause, params)
-
-	rows, err := q.query(ctx, query, vals...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	childMap := make(map[string][]*C, len(parents))
-	allChildren := make([]*C, 0, len(parents))
-
-	for rows.Next() {
-		var child C
-		if err := scan(rows, &child); err != nil {
-			return nil, err
-		}
-		if key, ok := childKey(&child); ok {
-			childMap[key] = append(childMap[key], &child)
-		}
-		allChildren = append(allChildren, &child)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	for _, p := range parents {
-		if p == nil {
-			continue
-		}
-		if key, ok := parentKey(p); ok {
-			assign(p, childMap[key])
-		}
-	}
-
-	return allChildren, nil
-}
-
-func compileRelationSQL[M any](dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams[M]) string {
-	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
-	if params.Take != nil || params.Skip != nil || isCursorQuery {
-		return compilePartitionedRelationSQL(dialect, table, fkCol, cols, where, params)
-	}
-	return compileSimpleRelationSQL(dialect, table, cols, where, params)
-}
-
-func compilePartitionedRelationSQL[M any](dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams[M]) string {
-	var innerSb strings.Builder
-	innerSb.WriteString("SELECT ")
-	for i, col := range cols {
-		if i > 0 {
-			innerSb.WriteString(", ")
-		}
-		innerSb.WriteString(dialect.Quote(col))
-	}
-	innerSb.WriteString(", ROW_NUMBER() OVER (PARTITION BY ")
-	innerSb.WriteString(dialect.Quote(fkCol))
-	innerSb.WriteString(" ORDER BY ")
-	if len(params.OrderBy) > 0 {
-		for i, ord := range params.OrderBy {
-			if i > 0 {
-				innerSb.WriteString(", ")
-			}
-			innerSb.WriteString(dialect.Quote(ord.Field))
-			innerSb.WriteString(" ")
-			innerSb.WriteString(string(ord.Direction))
-		}
-	} else {
-		innerSb.WriteString(dialect.Quote("id"))
-		innerSb.WriteString(" ASC")
-	}
-	innerSb.WriteString(") as row_num FROM ")
-	innerSb.WriteString(dialect.Quote(table))
-	innerSb.WriteString(where)
-
-	var outerSb strings.Builder
-	outerSb.WriteString("SELECT ")
-	for i, col := range cols {
-		if i > 0 {
-			outerSb.WriteString(", ")
-		}
-		outerSb.WriteString(dialect.Quote(col))
-	}
-	outerSb.WriteString(" FROM (")
-	outerSb.WriteString(innerSb.String())
-	outerSb.WriteString(") t WHERE ")
-
-	if params.Take != nil && params.Skip != nil {
-		outerSb.WriteString(fmt.Sprintf("row_num > %d AND row_num <= %d", *params.Skip, *params.Skip+*params.Take))
-	} else if params.Take != nil {
-		outerSb.WriteString(fmt.Sprintf("row_num <= %d", *params.Take))
-	} else if params.Skip != nil {
-		outerSb.WriteString(fmt.Sprintf("row_num > %d", *params.Skip))
-	}
-	return outerSb.String()
-}
-
-func compileSimpleRelationSQL[M any](dialect Dialect, table string, cols []string, where string, params QueryParams[M]) string {
-	var sb strings.Builder
-	sb.WriteString("SELECT ")
-	for i, col := range cols {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		sb.WriteString(dialect.Quote(col))
-	}
-	sb.WriteString(" FROM ")
-	sb.WriteString(dialect.Quote(table))
-	sb.WriteString(where)
-	if len(params.OrderBy) > 0 {
-		sb.WriteString(" ORDER BY ")
-		for i, ord := range params.OrderBy {
-			if i > 0 {
-				sb.WriteString(", ")
-			}
-			sb.WriteString(dialect.Quote(ord.Field))
-			sb.WriteString(" ")
-			sb.WriteString(string(ord.Direction))
-		}
-	}
-	return sb.String()
+	return b.execFunc(ctx, b.records, b.selects, b.omits, b.conflictTarget, b.conflictAction)
 }
 
 type UpdateBuilder[M any, S any, O any] struct {
@@ -2659,4 +2463,184 @@ func buildSingleInsertSQL(
 	}
 
 	return sb.String(), clauseArgs
+}
+
+func loadRelation[P any, C any](
+	ctx context.Context,
+	q *Queries,
+	parents []*P,
+	parentKey func(*P) (string, bool),
+	table string,
+	fkCol string,
+	returningCols []string,
+	scan func(*sql.Rows, *C) error,
+	childKey func(*C) (string, bool),
+	assign func(*P, []*C),
+	params QueryParams[C],
+) ([]*C, error) {
+	var parentKeys []any
+	for _, p := range parents {
+		if p == nil {
+			continue
+		}
+		if key, ok := parentKey(p); ok {
+			parentKeys = append(parentKeys, key)
+		}
+	}
+	if len(parentKeys) == 0 {
+		return nil, nil
+	}
+
+	// Prepend parent ID checks to filters using Predicate[C]
+	allPreds := append([]PredicateOf[C]{
+		Predicate[C]{
+			Data: PredicateData{
+				Column:    fkCol,
+				Operator:  "IN",
+				Value:     parentKeys,
+				IsLogical: false,
+			},
+		},
+	}, params.Where...)
+
+	whereClause, vals, nextIdx := CompilePredicates(q.dialect, allPreds)
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if isCursorQuery {
+		cClause, cVals, err := compileCursorClause(q.dialect, params.Cursor, params.OrderBy, []string{"id"}, nil, table, nextIdx, params.Take)
+		if err != nil {
+			return nil, err
+		}
+		if cClause != "" {
+			if whereClause == "" {
+				whereClause = cClause
+			} else {
+				whereClause = "(" + whereClause + ") AND " + cClause
+			}
+			vals = append(vals, cVals...)
+		}
+	}
+	if whereClause != "" {
+		whereClause = " WHERE " + whereClause
+	}
+
+	query := compileRelationSQL(q.dialect, table, fkCol, returningCols, whereClause, params)
+
+	rows, err := q.query(ctx, query, vals...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	childMap := make(map[string][]*C, len(parents))
+	allChildren := make([]*C, 0, len(parents))
+
+	for rows.Next() {
+		var child C
+		if err := scan(rows, &child); err != nil {
+			return nil, err
+		}
+		if key, ok := childKey(&child); ok {
+			childMap[key] = append(childMap[key], &child)
+		}
+		allChildren = append(allChildren, &child)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for _, p := range parents {
+		if p == nil {
+			continue
+		}
+		if key, ok := parentKey(p); ok {
+			assign(p, childMap[key])
+		}
+	}
+
+	return allChildren, nil
+}
+
+func compileRelationSQL[M any](dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams[M]) string {
+	isCursorQuery := (params.Cursor.Data.Column != "" || len(params.Cursor.Data.Children) > 0)
+	if params.Take != nil || params.Skip != nil || isCursorQuery {
+		return compilePartitionedRelationSQL(dialect, table, fkCol, cols, where, params)
+	}
+	return compileSimpleRelationSQL(dialect, table, cols, where, params)
+}
+
+func compilePartitionedRelationSQL[M any](dialect Dialect, table, fkCol string, cols []string, where string, params QueryParams[M]) string {
+	var innerSb strings.Builder
+	innerSb.WriteString("SELECT ")
+	for i, col := range cols {
+		if i > 0 {
+			innerSb.WriteString(", ")
+		}
+		innerSb.WriteString(dialect.Quote(col))
+	}
+	innerSb.WriteString(", ROW_NUMBER() OVER (PARTITION BY ")
+	innerSb.WriteString(dialect.Quote(fkCol))
+	innerSb.WriteString(" ORDER BY ")
+	if len(params.OrderBy) > 0 {
+		for i, ord := range params.OrderBy {
+			if i > 0 {
+				innerSb.WriteString(", ")
+			}
+			innerSb.WriteString(dialect.Quote(ord.Field))
+			innerSb.WriteString(" ")
+			innerSb.WriteString(string(ord.Direction))
+		}
+	} else {
+		innerSb.WriteString(dialect.Quote("id"))
+		innerSb.WriteString(" ASC")
+	}
+	innerSb.WriteString(") as row_num FROM ")
+	innerSb.WriteString(dialect.Quote(table))
+	innerSb.WriteString(where)
+
+	var outerSb strings.Builder
+	outerSb.WriteString("SELECT ")
+	for i, col := range cols {
+		if i > 0 {
+			outerSb.WriteString(", ")
+		}
+		outerSb.WriteString(dialect.Quote(col))
+	}
+	outerSb.WriteString(" FROM (")
+	outerSb.WriteString(innerSb.String())
+	outerSb.WriteString(") t WHERE ")
+
+	if params.Take != nil && params.Skip != nil {
+		outerSb.WriteString(fmt.Sprintf("row_num > %d AND row_num <= %d", *params.Skip, *params.Skip+*params.Take))
+	} else if params.Take != nil {
+		outerSb.WriteString(fmt.Sprintf("row_num <= %d", *params.Take))
+	} else if params.Skip != nil {
+		outerSb.WriteString(fmt.Sprintf("row_num > %d", *params.Skip))
+	}
+	return outerSb.String()
+}
+
+func compileSimpleRelationSQL[M any](dialect Dialect, table string, cols []string, where string, params QueryParams[M]) string {
+	var sb strings.Builder
+	sb.WriteString("SELECT ")
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(dialect.Quote(col))
+	}
+	sb.WriteString(" FROM ")
+	sb.WriteString(dialect.Quote(table))
+	sb.WriteString(where)
+	if len(params.OrderBy) > 0 {
+		sb.WriteString(" ORDER BY ")
+		for i, ord := range params.OrderBy {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(dialect.Quote(ord.Field))
+			sb.WriteString(" ")
+			sb.WriteString(string(ord.Direction))
+		}
+	}
+	return sb.String()
 }
