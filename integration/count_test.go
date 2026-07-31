@@ -23,9 +23,9 @@ func TestCountBasic(t *testing.T) {
 
 	// Seed some users
 	_, err = db.User.CreateMany(
-		db.User.Create().SetEmail("student1@example.com").SetPhoneNum("+111").SetRole(valk.UserRole.Student),
-		db.User.Create().SetEmail("student2@example.com").SetPhoneNum("+222").SetRole(valk.UserRole.Student),
-		db.User.Create().SetEmail("teacher1@example.com").SetPhoneNum("+333").SetRole(valk.UserRole.Teacher),
+		db.User.Create().SetEmail("student1@example.com").SetPhoneNum("+111").SetRole(valk.UserRole_STUDENT),
+		db.User.Create().SetEmail("student2@example.com").SetPhoneNum("+222").SetRole(valk.UserRole_STUDENT),
+		db.User.Create().SetEmail("teacher1@example.com").SetPhoneNum("+333").SetRole(valk.UserRole_TEACHER),
 	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed users: %v", err)
@@ -41,7 +41,7 @@ func TestCountBasic(t *testing.T) {
 	}
 
 	// Count with filters
-	studentsCount, err := db.User.Count(user.Role.EQ(valk.UserRole.Student)).Exec(ctx)
+	studentsCount, err := db.User.Count(user.Role.EQ(valk.UserRole_STUDENT)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to count students: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestCountBasic(t *testing.T) {
 		t.Errorf("expected 2 student users, got %d", studentsCount)
 	}
 
-	teachersCount, err := db.User.Count(user.Role.EQ(valk.UserRole.Teacher)).Exec(ctx)
+	teachersCount, err := db.User.Count(user.Role.EQ(valk.UserRole_TEACHER)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to count teachers: %v", err)
 	}

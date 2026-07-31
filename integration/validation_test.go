@@ -184,7 +184,7 @@ func TestCreate_DefaultEnumAppliedWhenNil(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create: %v", err)
 	}
-	if u.Role != valk.UserRole.Student {
+	if u.Role != valk.UserRole_STUDENT {
 		t.Errorf("expected default role Student when Role is nil, got %q", u.Role)
 	}
 }

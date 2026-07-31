@@ -195,7 +195,7 @@ func inconsistency() {
 					w = user.EmailPhone.EQ("", "")
 				}
 			}
-			args.SetWhere(user.Email.EQ("unique@example.com"), user.Role.EQ(valk.UserRole.Admin))
+			args.SetWhere(user.Email.EQ("unique@example.com"), user.Role.EQ(valk.UserRole_ADMIN))
 			args.Select.Email = true
 			args.Select.Posts = post.Query().Where(post.Title.Contains("News")).OrderBy(post.Title.Desc())
 			return next(ctx, args)
@@ -262,7 +262,7 @@ func inconsistency() {
 
 			if args.ConflictAction != nil && args.ConflictAction.IsUpdateNewValues() {
 				args.ConflictAction = user.ConflictUpdate(func(u *valk.UserUpsert) {
-					u.Role.Set(valk.UserRole.Student)
+					u.Role.Set(valk.UserRole_STUDENT)
 					u.LoginCount.Increment(1)
 				})
 			}
@@ -270,9 +270,11 @@ func inconsistency() {
 		},
 
 		CreateManyAndReturn: func(ctx context.Context, args *valk.UserCreateManyAndReturnArgs, next valk.UserCreateManyAndReturnQuery) ([]*valk.User, error) {
+
+			adminRole := valk.UserRole_ADMIN
 			args.Data = append(args.Data, &valk.UserCreate{
 				Email: "create_many@example",
-				Role:  &valk.UserRole.Admin,
+				Role:  &adminRole,
 			})
 
 			for i, r := range args.Data {
@@ -298,7 +300,7 @@ func inconsistency() {
 	})
 
 	// Top-level builder equivalents for comparison
-	db.User.FindUnique(user.Email.EQ("test@example.com"), user.Role.EQ(valk.UserRole.Admin)).
+	db.User.FindUnique(user.Email.EQ("test@example.com"), user.Role.EQ(valk.UserRole_ADMIN)).
 		Select(user.Select{
 			Email: true,
 			Posts: post.Query().Where(post.Title.Contains("News")).OrderBy(post.Title.Desc()),
@@ -427,7 +429,7 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 	).Exec(ctx); err != nil {
 		log.Fatalf("failed to CreateMany: %v", err)
 	}
-	referrer, err := db.User.Create().SetEmail("referrer@example.com").SetPhoneNum("555-0001").SetPassword("pass123").SetRole(valk.UserRole.Student).Select(user.Select{
+	referrer, err := db.User.Create().SetEmail("referrer@example.com").SetPhoneNum("555-0001").SetPassword("pass123").SetRole(valk.UserRole_STUDENT).Select(user.Select{
 		Id:    true,
 		Email: true,
 	}).
@@ -436,7 +438,7 @@ func seed(db *valk.DB, ctx context.Context) *SeedData {
 		log.Fatalf("failed to create referrer: %v", err)
 	}
 
-	referred, err := db.User.Create().SetEmail("referred@example.com").SetPhoneNum("555-0002").SetPassword("pass456").SetRole(valk.UserRole.Student).SetReferredById(referrer.Id).Exec(ctx)
+	referred, err := db.User.Create().SetEmail("referred@example.com").SetPhoneNum("555-0002").SetPassword("pass456").SetRole(valk.UserRole_STUDENT).SetReferredById(referrer.Id).Exec(ctx)
 	if err != nil {
 		log.Fatalf("failed to create referred: %v", err)
 	}

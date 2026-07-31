@@ -359,9 +359,9 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 	t.Run("CreateMany mixed defaults grouping fallback works", func(t *testing.T) {
 		count, err := client.User.CreateMany(
 
-			client.User.Create().SetEmail("admin@example.com").SetPhoneNum("+100").SetRole(valk.UserRole.Admin),
+			client.User.Create().SetEmail("admin@example.com").SetPhoneNum("+100").SetRole(valk.UserRole_ADMIN),
 			client.User.Create().SetEmail("student@example.com").SetPhoneNum("+200"),
-			client.User.Create().SetEmail("teacher@example.com").SetPhoneNum("+300").SetRole(valk.UserRole.Teacher),
+			client.User.Create().SetEmail("teacher@example.com").SetPhoneNum("+300").SetRole(valk.UserRole_TEACHER),
 			client.User.Create().SetEmail("student2@example.com").SetPhoneNum("+400"),
 		).Exec(ctx)
 
@@ -376,7 +376,7 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to find admin: %v", err)
 		}
-		if admin.Role != valk.UserRole.Admin {
+		if admin.Role != valk.UserRole_ADMIN {
 			t.Errorf("expected admin role ADMIN, got %v", admin.Role)
 		}
 
@@ -384,7 +384,7 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to find student: %v", err)
 		}
-		if student.Role != valk.UserRole.Student {
+		if student.Role != valk.UserRole_STUDENT {
 			t.Errorf("expected student role STUDENT, got %v", student.Role)
 		}
 
@@ -392,7 +392,7 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to find teacher: %v", err)
 		}
-		if teacher.Role != valk.UserRole.Teacher {
+		if teacher.Role != valk.UserRole_TEACHER {
 			t.Errorf("expected teacher role TEACHER, got %v", teacher.Role)
 		}
 
@@ -400,16 +400,16 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to find student2: %v", err)
 		}
-		if student2.Role != valk.UserRole.Student {
+		if student2.Role != valk.UserRole_STUDENT {
 			t.Errorf("expected student2 role STUDENT, got %v", student2.Role)
 		}
 	})
 
 	t.Run("CreateManyAndReturn mixed defaults grouping fallback works", func(t *testing.T) {
 		users, err := client.User.CreateManyAndReturn(
-			client.User.Create().SetEmail("admin-ret@example.com").SetPhoneNum("+100-ret").SetRole(valk.UserRole.Admin),
+			client.User.Create().SetEmail("admin-ret@example.com").SetPhoneNum("+100-ret").SetRole(valk.UserRole_ADMIN),
 			client.User.Create().SetEmail("student-ret@example.com").SetPhoneNum("+200-ret"),
-			client.User.Create().SetEmail("teacher-ret@example.com").SetPhoneNum("+300-ret").SetRole(valk.UserRole.Teacher),
+			client.User.Create().SetEmail("teacher-ret@example.com").SetPhoneNum("+300-ret").SetRole(valk.UserRole_TEACHER),
 			client.User.Create().SetEmail("student2-ret@example.com").SetPhoneNum("+400-ret"),
 		).Exec(ctx)
 
@@ -423,19 +423,19 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 		for _, u := range users {
 			switch u.Email {
 			case "admin-ret@example.com":
-				if u.Role != valk.UserRole.Admin {
+				if u.Role != valk.UserRole_ADMIN {
 					t.Errorf("returned admin expected ADMIN, got %v", u.Role)
 				}
 			case "student-ret@example.com":
-				if u.Role != valk.UserRole.Student {
+				if u.Role != valk.UserRole_STUDENT {
 					t.Errorf("returned student expected STUDENT, got %v", u.Role)
 				}
 			case "teacher-ret@example.com":
-				if u.Role != valk.UserRole.Teacher {
+				if u.Role != valk.UserRole_TEACHER {
 					t.Errorf("returned teacher expected TEACHER, got %v", u.Role)
 				}
 			case "student2-ret@example.com":
-				if u.Role != valk.UserRole.Student {
+				if u.Role != valk.UserRole_STUDENT {
 					t.Errorf("returned student2 expected STUDENT, got %v", u.Role)
 				}
 			}
