@@ -219,7 +219,7 @@ func (r *Resolver) buildScalarField(fd astFieldDecl, goType, sqlType string, enu
 		sf.GoType = "[]" + sf.GoType
 	}
 
-	if fd.DocComment != "" {
+	if fd.DocComment != "" && sf.Type == "Json" {
 		if elemType := extractDocCommentElementType(fd.DocComment); elemType != "" {
 			if goType, ok := docCommentElementTypeMap[elemType]; ok {
 				sf.IsArray = true
