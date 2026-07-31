@@ -4,9 +4,14 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"database/sql/driver"
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/lib/pq"
+	"github.com/lib/pq/hstore"
+	"github.com/pressly/goose/v3"
 	"math"
 	"net"
 	"regexp"
@@ -16,14 +21,11 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
-
-	"github.com/google/uuid"
-	"github.com/lib/pq/hstore"
-	"github.com/pressly/goose/v3"
 )
 
 var _ = time.Time{}
 var _ = hstore.Hstore{}
+var _ = pq.Array
 var _ = net.ParseIP
 var _ = json.RawMessage{}
 var _ = strings.Join
@@ -113,11 +115,11 @@ type UserRoleType string
 
 const (
 	// Admin maps to "ADMIN"
-	UserRoleTypeAdmin UserRoleType = "ADMIN"
+	userRoleTypeAdmin UserRoleType = "ADMIN"
 	// Student maps to "student"
-	UserRoleTypeStudent UserRoleType = "student"
+	userRoleTypeStudent UserRoleType = "student"
 	// Teacher maps to "TEACHER"
-	UserRoleTypeTeacher UserRoleType = "TEACHER"
+	userRoleTypeTeacher UserRoleType = "TEACHER"
 )
 
 type userRoleNamespace struct {
@@ -135,14 +137,14 @@ type userRoleNamespace struct {
 //	STUDENT student
 //	TEACHER TEACHER
 var UserRole = userRoleNamespace{
-	Admin:   UserRoleTypeAdmin,
-	Student: UserRoleTypeStudent,
-	Teacher: UserRoleTypeTeacher,
+	Admin:   userRoleTypeAdmin,
+	Student: userRoleTypeStudent,
+	Teacher: userRoleTypeTeacher,
 }
 
 func (e UserRoleType) IsValid() bool {
 	switch e {
-	case UserRoleTypeAdmin, UserRoleTypeStudent, UserRoleTypeTeacher:
+	case userRoleTypeAdmin, userRoleTypeStudent, userRoleTypeTeacher:
 		return true
 	}
 	return false
@@ -254,11 +256,17 @@ type Dialect struct {
 	SupportsLimitMinusOne   bool
 	SupportsBulkInsert      bool
 	SupportsDefaultKeyword  bool
+	RequiresConflictTarget  bool
 	ConflictKeyword         string // "ON CONFLICT" (Pg/SQLite) or "ON DUPLICATE KEY" (MySQL)
 	ConflictIgnore          string // "DO NOTHING" or ""
 	ConflictUpdate          string // "DO UPDATE SET" or "UPDATE"
 	ConflictExcluded        string // "EXCLUDED." or "VALUES("
 	ConflictExcludedEnd     string // "" or ")"
+	ILikeFmt                string // "{col} ILIKE {val}" or "LOWER({col}) LIKE LOWER({val})"
+	ArrayHasFmt             string // "{val} = ANY({col})" or "JSON_CONTAINS({col}, {val})"
+	ArrayHasEveryFmt        string // "{col} @> ARRAY[{vals}]" (empty = compose from ArrayHasFmt)
+	ArrayHasSomeFmt         string // "{col} && ARRAY[{vals}]" (empty = compose from ArrayHasFmt)
+	ArrayIsEmptyFmt         string // "(cardinality({col}) = 0 OR {col} IS NULL)" or "({col} IS NULL OR json_array_length({col}) = 0)"
 }
 
 func (d Dialect) WriteQuotedIdent(sb *strings.Builder, ident string) {
@@ -308,6 +316,94 @@ func (d Dialect) FormatLimitOffset(take *int, skip *int) string {
 		return fmt.Sprintf(" OFFSET %d", *skip)
 	}
 	return ""
+}
+
+func (d Dialect) FormatILike(col string, placeholder string) string {
+	r := strings.NewReplacer("{col}", d.Quote(col), "{val}", placeholder)
+	return r.Replace(d.ILikeFmt)
+}
+
+func (d Dialect) FormatArrayHas(col string, placeholder string) string {
+	r := strings.NewReplacer("{col}", d.Quote(col), "{val}", placeholder)
+	return r.Replace(d.ArrayHasFmt)
+}
+
+func (d Dialect) FormatArrayHasEvery(col string, placeholders []string) string {
+	if d.ArrayHasEveryFmt != "" {
+		r := strings.NewReplacer("{col}", d.Quote(col), "{vals}", strings.Join(placeholders, ", "))
+		return r.Replace(d.ArrayHasEveryFmt)
+	}
+	var parts []string
+	for _, p := range placeholders {
+		parts = append(parts, d.FormatArrayHas(col, p))
+	}
+	if len(parts) == 0 {
+		return "1=1"
+	}
+	return "(" + strings.Join(parts, " AND ") + ")"
+}
+
+func (d Dialect) FormatArrayHasSome(col string, placeholders []string) string {
+	if d.ArrayHasSomeFmt != "" {
+		r := strings.NewReplacer("{col}", d.Quote(col), "{vals}", strings.Join(placeholders, ", "))
+		return r.Replace(d.ArrayHasSomeFmt)
+	}
+	var parts []string
+	for _, p := range placeholders {
+		parts = append(parts, d.FormatArrayHas(col, p))
+	}
+	if len(parts) == 0 {
+		return "1=0"
+	}
+	return "(" + strings.Join(parts, " OR ") + ")"
+}
+
+func (d Dialect) FormatArrayIsEmpty(col string) string {
+	r := strings.NewReplacer("{col}", d.Quote(col))
+	return r.Replace(d.ArrayIsEmptyFmt)
+}
+func ArrayVal[T any](v []T) any {
+	return ArrayValWrapper[T]{V: v}
+}
+
+type ArrayValWrapper[T any] struct {
+	V []T
+}
+
+func (a ArrayValWrapper[T]) Value() (driver.Value, error) {
+	if a.V == nil {
+		return nil, nil
+	}
+	return pq.Array(a.V).Value()
+}
+
+func ArrayScan[T any](p *[]T) any {
+	return ArrayScanWrapper[T]{P: p}
+}
+
+type ArrayScanWrapper[T any] struct {
+	P *[]T
+}
+
+func (a ArrayScanWrapper[T]) Scan(src any) error {
+	if src == nil {
+		*a.P = nil
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		if len(v) > 0 && v[0] == '{' {
+			return pq.Array(a.P).Scan(v)
+		}
+		return json.Unmarshal(v, a.P)
+	case string:
+		if len(v) > 0 && v[0] == '{' {
+			return pq.Array(a.P).Scan(v)
+		}
+		return json.Unmarshal([]byte(v), a.P)
+	default:
+		return pq.Array(a.P).Scan(src)
+	}
 }
 
 type rawDefault struct{}
@@ -568,7 +664,7 @@ func (d Dialect) BuildConflictClause(conflictCols []string, action *ConflictActi
 		return "", nil
 	}
 	var colsStr string
-	if len(conflictCols) > 0 && d.ConflictKeyword == "ON CONFLICT" {
+	if len(conflictCols) > 0 && d.RequiresConflictTarget {
 		var quoted []string
 		for _, col := range conflictCols {
 			quoted = append(quoted, d.Quote(col))
@@ -634,11 +730,17 @@ func newDialect() Dialect {
 		SupportsLimitMinusOne:   false,
 		SupportsBulkInsert:      true,
 		SupportsDefaultKeyword:  true,
+		RequiresConflictTarget:  true,
 		ConflictKeyword:         "ON CONFLICT",
 		ConflictIgnore:          "DO NOTHING",
 		ConflictUpdate:          "DO UPDATE SET",
 		ConflictExcluded:        "EXCLUDED.",
 		ConflictExcludedEnd:     "",
+		ILikeFmt:                "{col} ILIKE {val}",
+		ArrayHasFmt:             "{val} = ANY({col})",
+		ArrayHasEveryFmt:        "{col} @> ARRAY[{vals}]",
+		ArrayHasSomeFmt:         "{col} && ARRAY[{vals}]",
+		ArrayIsEmptyFmt:         "(cardinality({col}) = 0 OR {col} IS NULL)",
 	}
 }
 
@@ -651,14 +753,19 @@ type Queries struct {
 	mu        *sync.RWMutex
 	// User provides CRUD operations for User.
 	//
-	//   id           string   default: cuid()
-	//   email        string   required
-	//   phoneNum     string   required
-	//   password     string   optional
-	//   role         UserRole default: STUDENT
-	//   roleOptional UserRole optional
-	//   loginCount   int32    default: 0
-	//   referredById string   optional
+	//   id                   string    default: cuid()
+	//   email                string    required
+	//   phoneNum             string    required
+	//   password             string    optional
+	//   role                 UserRole  default: STUDENT
+	//   roleOptional         UserRole  optional
+	//   loginCount           int32     default: 0
+	//   referredById         string    optional
+	//   createdAt            time.Time default: now()
+	//   updatedAt            time.Time default: now()
+	//   updatedAtNoDefualt   time.Time default: now()
+	//   updatedAtnoDecorator time.Time default: now()
+	//   updatedAtOptional    time.Time optional
 	User *UserDelegate
 	// Profile provides CRUD operations for Profile.
 	//
@@ -669,11 +776,12 @@ type Queries struct {
 	Profile *ProfileDelegate
 	// Post provides CRUD operations for Post.
 	//
-	//   id        string default: cuid()
-	//   title     string required
-	//   content   string optional
-	//   published bool   default: false
-	//   authorId  string required
+	//   id        string   default: cuid()
+	//   title     string   required
+	//   content   string   optional
+	//   published bool     default: false
+	//   authorId  string   required
+	//   tags      []string default: []
 	Post *PostDelegate
 	// Comment provides CRUD operations for Comment.
 	//
@@ -1197,7 +1305,31 @@ func (f Field[M, T]) In(vals []T) Predicate[M] {
 	}
 }
 
-func (f Field[M, T]) IsNull() Predicate[M] {
+func (f Field[M, T]) NotIn(vals []T) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "NOT IN",
+			Value:    vals,
+		},
+	}
+}
+
+func (f Field[M, T]) Between(min T, max T) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "BETWEEN",
+			Value:    []any{min, max},
+		},
+	}
+}
+
+type OptionalField[M any, T any] struct {
+	Field[M, T]
+}
+
+func (f OptionalField[M, T]) IsNull() Predicate[M] {
 	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
@@ -1206,7 +1338,7 @@ func (f Field[M, T]) IsNull() Predicate[M] {
 	}
 }
 
-func (f Field[M, T]) IsNotNull() Predicate[M] {
+func (f OptionalField[M, T]) IsNotNull() Predicate[M] {
 	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
@@ -1305,7 +1437,31 @@ func (f UniqueField[M, T]) In(vals []T) Predicate[M] {
 	}
 }
 
-func (f UniqueField[M, T]) IsNull() Predicate[M] {
+func (f UniqueField[M, T]) NotIn(vals []T) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "NOT IN",
+			Value:    vals,
+		},
+	}
+}
+
+func (f UniqueField[M, T]) Between(min T, max T) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "BETWEEN",
+			Value:    []any{min, max},
+		},
+	}
+}
+
+type OptionalUniqueField[M any, T any] struct {
+	UniqueField[M, T]
+}
+
+func (f OptionalUniqueField[M, T]) IsNull() Predicate[M] {
 	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
@@ -1314,7 +1470,7 @@ func (f UniqueField[M, T]) IsNull() Predicate[M] {
 	}
 }
 
-func (f UniqueField[M, T]) IsNotNull() Predicate[M] {
+func (f OptionalUniqueField[M, T]) IsNotNull() Predicate[M] {
 	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
@@ -1409,12 +1565,62 @@ func (f StringField[M]) In(vals []string) Predicate[M] {
 	}
 }
 
+func (f StringField[M]) NotIn(vals []string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "NOT IN",
+			Value:    vals,
+		},
+	}
+}
+
+func (f StringField[M]) Between(min string, max string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "BETWEEN",
+			Value:    []any{min, max},
+		},
+	}
+}
+
 func (f StringField[M]) Like(val string) Predicate[M] {
 	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "LIKE",
 			Value:    val,
+		},
+	}
+}
+
+func (f StringField[M]) ILike(val string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "ILIKE",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringField[M]) HasPrefix(prefix string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "LIKE",
+			Value:    prefix + "%",
+		},
+	}
+}
+
+func (f StringField[M]) HasSuffix(suffix string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "LIKE",
+			Value:    "%" + suffix,
 		},
 	}
 }
@@ -1429,7 +1635,11 @@ func (f StringField[M]) Contains(val string) Predicate[M] {
 	}
 }
 
-func (f StringField[M]) IsNull() Predicate[M] {
+type OptionalStringField[M any] struct {
+	StringField[M]
+}
+
+func (f OptionalStringField[M]) IsNull() Predicate[M] {
 	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
@@ -1438,7 +1648,7 @@ func (f StringField[M]) IsNull() Predicate[M] {
 	}
 }
 
-func (f StringField[M]) IsNotNull() Predicate[M] {
+func (f OptionalStringField[M]) IsNotNull() Predicate[M] {
 	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
@@ -1538,12 +1748,21 @@ func (f StringUniqueField[M]) In(vals []string) Predicate[M] {
 }
 
 func (f StringUniqueField[M]) NotIn(vals []string) Predicate[M] {
-
 	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
 			Operator: "NOT IN",
 			Value:    vals,
+		},
+	}
+}
+
+func (f StringUniqueField[M]) Between(min string, max string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "BETWEEN",
+			Value:    []any{min, max},
 		},
 	}
 }
@@ -1558,6 +1777,36 @@ func (f StringUniqueField[M]) Like(val string) Predicate[M] {
 	}
 }
 
+func (f StringUniqueField[M]) ILike(val string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "ILIKE",
+			Value:    val,
+		},
+	}
+}
+
+func (f StringUniqueField[M]) HasPrefix(prefix string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "LIKE",
+			Value:    prefix + "%",
+		},
+	}
+}
+
+func (f StringUniqueField[M]) HasSuffix(suffix string) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "LIKE",
+			Value:    "%" + suffix,
+		},
+	}
+}
+
 func (f StringUniqueField[M]) Contains(val string) Predicate[M] {
 	return Predicate[M]{
 		Data: PredicateData{
@@ -1568,7 +1817,11 @@ func (f StringUniqueField[M]) Contains(val string) Predicate[M] {
 	}
 }
 
-func (f StringUniqueField[M]) IsNull() Predicate[M] {
+type OptionalStringUniqueField[M any] struct {
+	StringUniqueField[M]
+}
+
+func (f OptionalStringUniqueField[M]) IsNull() Predicate[M] {
 	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
@@ -1577,7 +1830,7 @@ func (f StringUniqueField[M]) IsNull() Predicate[M] {
 	}
 }
 
-func (f StringUniqueField[M]) IsNotNull() Predicate[M] {
+func (f OptionalStringUniqueField[M]) IsNotNull() Predicate[M] {
 	return Predicate[M]{
 		Data: PredicateData{
 			Column:   f.Column,
@@ -1592,6 +1845,53 @@ func (f StringUniqueField[M]) Asc() OrderBy[M] {
 
 func (f StringUniqueField[M]) Desc() OrderBy[M] {
 	return OrderBy[M]{Field: f.Column, Direction: Desc}
+}
+
+type ArrayField[M any, T any] struct {
+	Column string
+}
+
+func (f ArrayField[M, T]) Set(vals []T) FieldAssignmentOf[M] {
+	return FieldAssignmentOf[M]{Col: f.Column, Val: vals}
+}
+
+func (f ArrayField[M, T]) Has(val T) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "ARRAY_HAS",
+			Value:    val,
+		},
+	}
+}
+
+func (f ArrayField[M, T]) HasEvery(vals []T) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "ARRAY_HAS_EVERY",
+			Value:    vals,
+		},
+	}
+}
+
+func (f ArrayField[M, T]) HasSome(vals []T) Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "ARRAY_HAS_SOME",
+			Value:    vals,
+		},
+	}
+}
+
+func (f ArrayField[M, T]) IsEmpty() Predicate[M] {
+	return Predicate[M]{
+		Data: PredicateData{
+			Column:   f.Column,
+			Operator: "ARRAY_IS_EMPTY",
+		},
+	}
 }
 
 func CompilePredicates[M any](dialect Dialect, preds []PredicateOf[M], startBindIdx ...int) (string, []any, int) {
@@ -1668,6 +1968,71 @@ func CompilePredicateData(dialect Dialect, data []PredicateData, startBindIdx ..
 				args = append(args, val)
 			}
 			return fmt.Sprintf("%s IN (%s)", dialect.Quote(p.Column), strings.Join(placeHolders, ", "))
+		case "NOT IN":
+			valSlice := unpackSlice(p.Value)
+			if len(valSlice) == 0 {
+				return "1=1"
+			}
+			var placeHolders []string
+			for range valSlice {
+				placeHolders = append(placeHolders, dialect.BindVar(bindIdx))
+				bindIdx++
+			}
+			for _, val := range valSlice {
+				args = append(args, val)
+			}
+			return fmt.Sprintf("%s NOT IN (%s)", dialect.Quote(p.Column), strings.Join(placeHolders, ", "))
+		case "BETWEEN":
+			valSlice := unpackSlice(p.Value)
+			if len(valSlice) < 2 {
+				return ""
+			}
+			p1 := dialect.BindVar(bindIdx)
+			bindIdx++
+			p2 := dialect.BindVar(bindIdx)
+			bindIdx++
+			args = append(args, valSlice[0], valSlice[1])
+			return fmt.Sprintf("%s BETWEEN %s AND %s", dialect.Quote(p.Column), p1, p2)
+		case "ILIKE":
+			placeholder := dialect.BindVar(bindIdx)
+			bindIdx++
+			args = append(args, p.Value)
+			return dialect.FormatILike(p.Column, placeholder)
+		case "ARRAY_HAS":
+			placeholder := dialect.BindVar(bindIdx)
+			bindIdx++
+			args = append(args, p.Value)
+			return dialect.FormatArrayHas(p.Column, placeholder)
+		case "ARRAY_HAS_EVERY":
+			valSlice := unpackSlice(p.Value)
+			if len(valSlice) == 0 {
+				return "1=1"
+			}
+			var placeHolders []string
+			for range valSlice {
+				placeHolders = append(placeHolders, dialect.BindVar(bindIdx))
+				bindIdx++
+			}
+			for _, val := range valSlice {
+				args = append(args, val)
+			}
+			return dialect.FormatArrayHasEvery(p.Column, placeHolders)
+		case "ARRAY_HAS_SOME":
+			valSlice := unpackSlice(p.Value)
+			if len(valSlice) == 0 {
+				return "1=0"
+			}
+			var placeHolders []string
+			for range valSlice {
+				placeHolders = append(placeHolders, dialect.BindVar(bindIdx))
+				bindIdx++
+			}
+			for _, val := range valSlice {
+				args = append(args, val)
+			}
+			return dialect.FormatArrayHasSome(p.Column, placeHolders)
+		case "ARRAY_IS_EMPTY":
+			return dialect.FormatArrayIsEmpty(p.Column)
 		default:
 			placeholder := dialect.BindVar(bindIdx)
 			bindIdx++

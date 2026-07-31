@@ -40,11 +40,13 @@ var Id = valk.StringUniqueField[valk.Post]{Column: "id"}
 
 var Title = valk.StringField[valk.Post]{Column: "title"}
 
-var Content = valk.StringField[valk.Post]{Column: "content"}
+var Content = valk.OptionalStringField[valk.Post]{StringField: valk.StringField[valk.Post]{Column: "content"}}
 
 var Published = valk.Field[valk.Post, bool]{Column: "published"}
 
 var AuthorId = valk.StringField[valk.Post]{Column: "authorId"}
+
+var Tags = valk.ArrayField[valk.Post, string]{Column: "tags"}
 
 type CreateInput = valk.PostCreate
 type Create = valk.PostCreate
