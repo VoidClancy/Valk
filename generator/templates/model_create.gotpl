@@ -80,7 +80,7 @@ func assignmentsTo{{ .Model.Name }}Create(assignments []FieldAssignment) ({{ .Mo
 		{{- range $field := .Model.ScalarFields }}
 		{{- $col := $field.EffectiveColName }}
 		{{- $coreType := trimPrefix $field.GoType "*" }}
-		{{- $isPointer := or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType) }}
+		{{- $isPointer := and (or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType)) (not $field.IsArray) }}
 		case "{{ $col }}":
 			provided |= provided{{ $.Model.Name }}{{ capitalize $field.Name }}
 			{{- if $field.EnumRef }}
@@ -208,12 +208,24 @@ func assignmentsTo{{ .Model.Name }}Create(assignments []FieldAssignment) ({{ .Mo
 
 	{{- range $field := .Model.ScalarFields }}
 	{{- $fieldName := capitalize $field.Name }}
-	{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) }}
+	{{- $coreType := trimPrefix $field.GoType "*" }}
+	{{- $isPointer := and (or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType)) (not $field.IsArray) }}
+	{{- if and (eq $field.Default nil) (not $field.Optional) (not $field.IsArray) (not $field.IsUpdatedAt) }}
 	if provided&provided{{ $.Model.Name }}{{ $fieldName }} == 0 {
 		{{- if or $field.EnumRef (ne $field.GoType "string") }}
 		errs.Add("{{ $field.EffectiveColName }}", nil, "required", "field {{ $fieldName }} is required")
 		{{- else }}
 		errs.Add("{{ $field.EffectiveColName }}", "", "required", "field {{ $fieldName }} is required")
+		{{- end }}
+	}
+	{{- end }}
+	{{- if $field.IsUpdatedAt }}
+	if provided&provided{{ $.Model.Name }}{{ $fieldName }} == 0 {
+		{{- if $isPointer }}
+		now := time.Now().Truncate(time.Microsecond)
+		input.{{ $fieldName }} = &now
+		{{- else }}
+		input.{{ $fieldName }} = time.Now().Truncate(time.Microsecond)
 		{{- end }}
 	}
 	{{- end }}
@@ -232,12 +244,12 @@ func (s *{{ .Model.Name }}Create) ToColsVals() (cols []string, vals []any) {
 	{{- $col := $field.EffectiveColName }}
 	{{- $fieldName := capitalize $field.Name }}
 	{{- $coreType := trimPrefix $field.GoType "*" }}
-	{{- $isPointer := or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType) }}
+	{{- $isPointer := and (or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType)) (not $field.IsArray) }}
 	{{- if $field.EnumRef }}
 		{{- if $field.IsArray }}
 	if s.{{ $fieldName }} != nil {
 		cols = append(cols, "{{ $col }}")
-		vals = append(vals, s.{{ $fieldName }})
+		vals = append(vals, ArrayVal(s.{{ $fieldName }}))
 	}
 		{{- else }}
 	if s.{{ $fieldName }} != nil {
@@ -248,7 +260,7 @@ func (s *{{ .Model.Name }}Create) ToColsVals() (cols []string, vals []any) {
 	{{- else if $field.IsArray }}
 	if s.{{ $fieldName }} != nil {
 		cols = append(cols, "{{ $col }}")
-		vals = append(vals, s.{{ $fieldName }})
+		vals = append(vals, ArrayVal(s.{{ $fieldName }}))
 	}
 	{{- else }}
 		{{- if and $field.Default (eq $field.Default.Kind.String "Func") }}
@@ -274,6 +286,13 @@ func (s *{{ .Model.Name }}Create) ToColsVals() (cols []string, vals []any) {
 	if s.{{ $fieldName }} != nil {
 		cols = append(cols, "{{ $col }}")
 		vals = append(vals, {{ hstoreExpr $field.GoType (printf "*s.%s" $fieldName) }})
+	}
+		{{- else if $field.IsUpdatedAt }}
+	cols = append(cols, "{{ $col }}")
+	if !s.{{ $fieldName }}.IsZero() {
+		vals = append(vals, {{ hstoreExpr $field.GoType (printf "s.%s" $fieldName) }})
+	} else {
+		vals = append(vals, time.Now().Truncate(time.Microsecond))
 	}
 		{{- else if $field.Optional }}
 	if s.{{ $fieldName }} != nil {
@@ -720,7 +739,7 @@ func (d *{{ .Model.Name }}Delegate) buildBulkInsertSQL(q *Queries, batch []*{{ .
 			switch col {
 			{{- range $field := .Model.ScalarFields }}
 			{{- $coreType := trimPrefix $field.GoType "*" }}
-			{{- $isPointer := or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType) }}
+			{{- $isPointer := and (or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType)) (not $field.IsArray) }}
 			case "{{ $field.EffectiveColName }}":
 				{{- if and $field.IsID (eq $field.GoType "string") }}
 					{{- if $isPointer }}
@@ -742,10 +761,16 @@ func (d *{{ .Model.Name }}Delegate) buildBulkInsertSQL(q *Queries, batch []*{{ .
 				} else {
 					vals = append(vals, {{ defaultFuncCall $field.Default.FuncName }})
 				}
+				{{- else if $field.IsUpdatedAt }}
+				if !input.{{ capitalize $field.Name }}.IsZero() {
+					vals = append(vals, {{ hstoreExpr $field.GoType (printf "input.%s" (capitalize $field.Name)) }})
+				} else {
+					vals = append(vals, time.Now().Truncate(time.Microsecond))
+				}
 				{{- else if $field.EnumRef }}
 					{{- if $field.IsArray }}
 				if input.{{ capitalize $field.Name }} != nil {
-					vals = append(vals, input.{{ capitalize $field.Name }})
+					vals = append(vals, ArrayVal(input.{{ capitalize $field.Name }}))
 				} else {
 					writeDefault = true
 				}
@@ -760,7 +785,7 @@ func (d *{{ .Model.Name }}Delegate) buildBulkInsertSQL(q *Queries, batch []*{{ .
 					{{- end }}
 				{{- else if $field.IsArray }}
 				if input.{{ capitalize $field.Name }} != nil {
-					vals = append(vals, input.{{ capitalize $field.Name }})
+					vals = append(vals, ArrayVal(input.{{ capitalize $field.Name }}))
 				} else {
 					writeDefault = true
 				}

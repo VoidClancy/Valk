@@ -184,8 +184,6 @@ func assignmentsToCommentUpdate(assignments []FieldAssignment) (CommentUpdate, e
 				input.Meta = &v
 			} else if v, ok := a.Val.(*json.RawMessage); ok {
 				input.Meta = v
-			} else if v, ok := a.Val.(*json.RawMessage); ok {
-				input.Meta = v
 			} else {
 				errs.Add("meta", a.Val, "type", "field meta must be of type *json.RawMessage")
 			}

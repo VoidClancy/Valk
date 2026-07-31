@@ -6,46 +6,62 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 )
 
 // User represents the database model
 type User struct {
-	Id           string        `db:"id" json:"id"`
-	Email        string        `db:"email" json:"email"`
-	PhoneNum     string        `db:"phoneNum" json:"phoneNum"`
-	Password     *string       `db:"password" json:"password,omitempty"`
-	Role         UserRoleType  `db:"role" json:"role"`
-	RoleOptional *UserRoleType `db:"roleOptional" json:"roleOptional,omitempty"`
-	LoginCount   int32         `db:"loginCount" json:"loginCount"`
-	ReferredById *string       `db:"referredById" json:"referredById,omitempty"`
-	Profile      *Profile      `json:"profile,omitempty"`
-	Posts        []*Post       `json:"posts,omitempty"`
-	Comments     []*Comment    `json:"comments,omitempty"`
-	ReferredBy   *User         `json:"referredBy,omitempty"`
-	Referrals    []*User       `json:"referrals,omitempty"`
+	Id                   string        `db:"id" json:"id"`
+	Email                string        `db:"email" json:"email"`
+	PhoneNum             string        `db:"phoneNum" json:"phoneNum"`
+	Password             *string       `db:"password" json:"password,omitempty"`
+	Role                 UserRoleType  `db:"role" json:"role"`
+	RoleOptional         *UserRoleType `db:"roleOptional" json:"roleOptional,omitempty"`
+	LoginCount           int32         `db:"loginCount" json:"loginCount"`
+	ReferredById         *string       `db:"referredById" json:"referredById,omitempty"`
+	CreatedAt            time.Time     `db:"createdAt" json:"createdAt"`
+	UpdatedAt            time.Time     `db:"updatedAt" json:"updatedAt"`
+	UpdatedAtNoDefualt   time.Time     `db:"updatedAtNoDefualt" json:"updatedAtNoDefualt"`
+	UpdatedAtnoDecorator time.Time     `db:"updatedAtnoDecorator" json:"updatedAtnoDecorator"`
+	UpdatedAtOptional    *time.Time    `db:"updatedAtOptional" json:"updatedAtOptional,omitempty"`
+	Profile              *Profile      `json:"profile,omitempty"`
+	Posts                []*Post       `json:"posts,omitempty"`
+	Comments             []*Comment    `json:"comments,omitempty"`
+	ReferredBy           *User         `json:"referredBy,omitempty"`
+	Referrals            []*User       `json:"referrals,omitempty"`
 }
 
 // UserCreate contains model input fields for User creation operations.
 //
 // Fields for User:
 //
-//	id           string   default: cuid()
-//	email        string   required
-//	phoneNum     string   required
-//	password     string   optional
-//	role         UserRole default: STUDENT
-//	roleOptional UserRole optional
-//	loginCount   int32    default: 0
-//	referredById string   optional
+//	id                   string    default: cuid()
+//	email                string    required
+//	phoneNum             string    required
+//	password             string    optional
+//	role                 UserRole  default: STUDENT
+//	roleOptional         UserRole  optional
+//	loginCount           int32     default: 0
+//	referredById         string    optional
+//	createdAt            time.Time default: now()
+//	updatedAt            time.Time default: now()
+//	updatedAtNoDefualt   time.Time default: now()
+//	updatedAtnoDecorator time.Time default: now()
+//	updatedAtOptional    time.Time optional
 type UserCreate struct {
-	Id           *string       `json:"id"`
-	Email        string        `json:"email"`
-	PhoneNum     string        `json:"phoneNum"`
-	Password     *string       `json:"password"`
-	Role         *UserRoleType `json:"role"`
-	RoleOptional *UserRoleType `json:"roleOptional"`
-	LoginCount   *int32        `json:"loginCount"`
-	ReferredById *string       `json:"referredById"`
+	Id                   *string       `json:"id"`
+	Email                string        `json:"email"`
+	PhoneNum             string        `json:"phoneNum"`
+	Password             *string       `json:"password"`
+	Role                 *UserRoleType `json:"role"`
+	RoleOptional         *UserRoleType `json:"roleOptional"`
+	LoginCount           *int32        `json:"loginCount"`
+	ReferredById         *string       `json:"referredById"`
+	CreatedAt            *time.Time    `json:"createdAt"`
+	UpdatedAt            *time.Time    `json:"updatedAt"`
+	UpdatedAtNoDefualt   *time.Time    `json:"updatedAtNoDefualt"`
+	UpdatedAtnoDecorator *time.Time    `json:"updatedAtnoDecorator"`
+	UpdatedAtOptional    *time.Time    `json:"updatedAtOptional"`
 }
 
 // colMask returns a bit mask of columns that are set
@@ -69,19 +85,31 @@ func (s *UserCreate) colMask() uint64 {
 	if s.ReferredById != nil {
 		mask |= 1 << 7
 	}
+	mask |= 1 << 8
+	mask |= 1 << 9
+	mask |= 1 << 10
+	mask |= 1 << 11
+	if s.UpdatedAtOptional != nil {
+		mask |= 1 << 12
+	}
 	return mask
 }
 
 // UserUpdate contains model input fields for User update operations.
 type UserUpdate struct {
-	Id           *string       `json:"id"`
-	Email        *string       `json:"email"`
-	PhoneNum     *string       `json:"phoneNum"`
-	Password     *string       `json:"password"`
-	Role         *UserRoleType `json:"role"`
-	RoleOptional *UserRoleType `json:"roleOptional"`
-	LoginCount   *int32        `json:"loginCount"`
-	ReferredById *string       `json:"referredById"`
+	Id                   *string       `json:"id"`
+	Email                *string       `json:"email"`
+	PhoneNum             *string       `json:"phoneNum"`
+	Password             *string       `json:"password"`
+	Role                 *UserRoleType `json:"role"`
+	RoleOptional         *UserRoleType `json:"roleOptional"`
+	LoginCount           *int32        `json:"loginCount"`
+	ReferredById         *string       `json:"referredById"`
+	CreatedAt            *time.Time    `json:"createdAt"`
+	UpdatedAt            *time.Time    `json:"updatedAt"`
+	UpdatedAtNoDefualt   *time.Time    `json:"updatedAtNoDefualt"`
+	UpdatedAtnoDecorator *time.Time    `json:"updatedAtnoDecorator"`
+	UpdatedAtOptional    *time.Time    `json:"updatedAtOptional"`
 }
 
 func (u *UserUpdate) ToColsVals() ([]string, []any) {
@@ -118,6 +146,26 @@ func (u *UserUpdate) ToColsVals() ([]string, []any) {
 	if u.ReferredById != nil {
 		cols = append(cols, "referredById")
 		vals = append(vals, u.ReferredById)
+	}
+	if u.CreatedAt != nil {
+		cols = append(cols, "createdAt")
+		vals = append(vals, u.CreatedAt)
+	}
+	if u.UpdatedAt != nil {
+		cols = append(cols, "updatedAt")
+		vals = append(vals, u.UpdatedAt)
+	}
+	if u.UpdatedAtNoDefualt != nil {
+		cols = append(cols, "updatedAtNoDefualt")
+		vals = append(vals, u.UpdatedAtNoDefualt)
+	}
+	if u.UpdatedAtnoDecorator != nil {
+		cols = append(cols, "updatedAtnoDecorator")
+		vals = append(vals, u.UpdatedAtnoDecorator)
+	}
+	if u.UpdatedAtOptional != nil {
+		cols = append(cols, "updatedAtOptional")
+		vals = append(vals, u.UpdatedAtOptional)
 	}
 	return cols, vals
 }
@@ -209,7 +257,51 @@ func assignmentsToUserUpdate(assignments []FieldAssignment) (UserUpdate, error) 
 			} else {
 				errs.Add("referredById", a.Val, "type", "field referredById must be of type string")
 			}
+		case "createdAt":
+			if v, ok := a.Val.(time.Time); ok {
+				input.CreatedAt = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.CreatedAt = v
+			} else {
+				errs.Add("createdAt", a.Val, "type", "field createdAt must be of type time.Time")
+			}
+		case "updatedAt":
+			if v, ok := a.Val.(time.Time); ok {
+				input.UpdatedAt = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.UpdatedAt = v
+			} else {
+				errs.Add("updatedAt", a.Val, "type", "field updatedAt must be of type time.Time")
+			}
+		case "updatedAtNoDefualt":
+			if v, ok := a.Val.(time.Time); ok {
+				input.UpdatedAtNoDefualt = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.UpdatedAtNoDefualt = v
+			} else {
+				errs.Add("updatedAtNoDefualt", a.Val, "type", "field updatedAtNoDefualt must be of type time.Time")
+			}
+		case "updatedAtnoDecorator":
+			if v, ok := a.Val.(time.Time); ok {
+				input.UpdatedAtnoDecorator = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.UpdatedAtnoDecorator = v
+			} else {
+				errs.Add("updatedAtnoDecorator", a.Val, "type", "field updatedAtnoDecorator must be of type time.Time")
+			}
+		case "updatedAtOptional":
+			if v, ok := a.Val.(time.Time); ok {
+				input.UpdatedAtOptional = &v
+			} else if v, ok := a.Val.(*time.Time); ok {
+				input.UpdatedAtOptional = v
+			} else {
+				errs.Add("updatedAtOptional", a.Val, "type", "field updatedAtOptional must be of type time.Time")
+			}
 		}
+	}
+	if input.UpdatedAt == nil {
+		now := time.Now().Truncate(time.Microsecond)
+		input.UpdatedAt = &now
 	}
 
 	if errs.HasErrors() {
@@ -223,45 +315,60 @@ func assignmentsToUserUpdate(assignments []FieldAssignment) (UserUpdate, error) 
 // Selectable fields:
 //
 //	-- Scalars --
-//	id           (bool)
-//	email        (bool)
-//	phoneNum     (bool)
-//	password     (bool)
-//	role         (bool)
-//	roleOptional (bool)
-//	loginCount   (bool)
-//	referredById (bool)
+//	id                   (bool)
+//	email                (bool)
+//	phoneNum             (bool)
+//	password             (bool)
+//	role                 (bool)
+//	roleOptional         (bool)
+//	loginCount           (bool)
+//	referredById         (bool)
+//	createdAt            (bool)
+//	updatedAt            (bool)
+//	updatedAtNoDefualt   (bool)
+//	updatedAtnoDecorator (bool)
+//	updatedAtOptional    (bool)
 //	-- Relations --
-//	profile      (Profile)
-//	posts        ([]Post)
-//	comments     ([]Comment)
-//	referredBy   (User)
-//	referrals    ([]User)
+//	profile              (Profile)
+//	posts                ([]Post)
+//	comments             ([]Comment)
+//	referredBy           (User)
+//	referrals            ([]User)
 type UserSelect struct {
-	Id           bool               `json:"id"`
-	Email        bool               `json:"email"`
-	PhoneNum     bool               `json:"phoneNum"`
-	Password     bool               `json:"password"`
-	Role         bool               `json:"role"`
-	RoleOptional bool               `json:"roleOptional"`
-	LoginCount   bool               `json:"loginCount"`
-	ReferredById bool               `json:"referredById"`
-	Profile      *ProfileSelect     `json:"profile,omitempty"`
-	Posts        PostSelectQuery    `json:"posts,omitempty"`
-	Comments     CommentSelectQuery `json:"comments,omitempty"`
-	ReferredBy   *UserSelect        `json:"referredBy,omitempty"`
-	Referrals    UserSelectQuery    `json:"referrals,omitempty"`
+	Id                   bool               `json:"id"`
+	Email                bool               `json:"email"`
+	PhoneNum             bool               `json:"phoneNum"`
+	Password             bool               `json:"password"`
+	Role                 bool               `json:"role"`
+	RoleOptional         bool               `json:"roleOptional"`
+	LoginCount           bool               `json:"loginCount"`
+	ReferredById         bool               `json:"referredById"`
+	CreatedAt            bool               `json:"createdAt"`
+	UpdatedAt            bool               `json:"updatedAt"`
+	UpdatedAtNoDefualt   bool               `json:"updatedAtNoDefualt"`
+	UpdatedAtnoDecorator bool               `json:"updatedAtnoDecorator"`
+	UpdatedAtOptional    bool               `json:"updatedAtOptional"`
+	Profile              *ProfileSelect     `json:"profile,omitempty"`
+	Posts                PostSelectQuery    `json:"posts,omitempty"`
+	Comments             CommentSelectQuery `json:"comments,omitempty"`
+	ReferredBy           *UserSelect        `json:"referredBy,omitempty"`
+	Referrals            UserSelectQuery    `json:"referrals,omitempty"`
 }
 
 var fullUserSelectVal = &UserSelect{
-	Id:           true,
-	Email:        true,
-	PhoneNum:     true,
-	Password:     true,
-	Role:         true,
-	RoleOptional: true,
-	LoginCount:   true,
-	ReferredById: true,
+	Id:                   true,
+	Email:                true,
+	PhoneNum:             true,
+	Password:             true,
+	Role:                 true,
+	RoleOptional:         true,
+	LoginCount:           true,
+	ReferredById:         true,
+	CreatedAt:            true,
+	UpdatedAt:            true,
+	UpdatedAtNoDefualt:   true,
+	UpdatedAtnoDecorator: true,
+	UpdatedAtOptional:    true,
 }
 
 func fullUserSelect() *UserSelect {
@@ -272,7 +379,7 @@ func (s *UserSelect) hasAnyScalar() bool {
 	if s == nil {
 		return false
 	}
-	return s.Id || s.Email || s.PhoneNum || s.Password || s.Role || s.RoleOptional || s.LoginCount || s.ReferredById
+	return s.Id || s.Email || s.PhoneNum || s.Password || s.Role || s.RoleOptional || s.LoginCount || s.ReferredById || s.CreatedAt || s.UpdatedAt || s.UpdatedAtNoDefualt || s.UpdatedAtnoDecorator || s.UpdatedAtOptional
 }
 
 func (s *UserSelect) hasAnySelected() bool {
@@ -283,14 +390,19 @@ func (s *UserSelect) hasAnySelected() bool {
 }
 
 type UserOmit struct {
-	Id           bool `json:"id"`
-	Email        bool `json:"email"`
-	PhoneNum     bool `json:"phoneNum"`
-	Password     bool `json:"password"`
-	Role         bool `json:"role"`
-	RoleOptional bool `json:"roleOptional"`
-	LoginCount   bool `json:"loginCount"`
-	ReferredById bool `json:"referredById"`
+	Id                   bool `json:"id"`
+	Email                bool `json:"email"`
+	PhoneNum             bool `json:"phoneNum"`
+	Password             bool `json:"password"`
+	Role                 bool `json:"role"`
+	RoleOptional         bool `json:"roleOptional"`
+	LoginCount           bool `json:"loginCount"`
+	ReferredById         bool `json:"referredById"`
+	CreatedAt            bool `json:"createdAt"`
+	UpdatedAt            bool `json:"updatedAt"`
+	UpdatedAtNoDefualt   bool `json:"updatedAtNoDefualt"`
+	UpdatedAtnoDecorator bool `json:"updatedAtnoDecorator"`
+	UpdatedAtOptional    bool `json:"updatedAtOptional"`
 }
 
 type UserSelectQuery interface {
@@ -363,22 +475,27 @@ func (b *UserQueryBuilder) GetRelationParams() (*UserSelect, *UserOmit, QueryPar
 //
 // Fields for User:
 //
-//	id           string   default: cuid()
-//	email        string   required
-//	phoneNum     string   required
-//	password     string   optional
-//	role         UserRole default: STUDENT
-//	roleOptional UserRole optional
-//	loginCount   int32    default: 0
-//	referredById string   optional
+//	id                   string    default: cuid()
+//	email                string    required
+//	phoneNum             string    required
+//	password             string    optional
+//	role                 UserRole  default: STUDENT
+//	roleOptional         UserRole  optional
+//	loginCount           int32     default: 0
+//	referredById         string    optional
+//	createdAt            time.Time default: now()
+//	updatedAt            time.Time default: now()
+//	updatedAtNoDefualt   time.Time default: now()
+//	updatedAtnoDecorator time.Time default: now()
+//	updatedAtOptional    time.Time optional
 //
 // Relations for User:
 //
-//	profile      (Profile)
-//	posts        ([]Post)
-//	comments     ([]Comment)
-//	referredBy   (User)
-//	referrals    ([]User)
+//	profile              (Profile)
+//	posts                ([]Post)
+//	comments             ([]Comment)
+//	referredBy           (User)
+//	referrals            ([]User)
 type UserCreateArgs struct {
 	// Data contains the model fields to insert.
 	Data *UserCreate
@@ -394,14 +511,19 @@ type UserCreateArgs struct {
 //
 // Fields for User:
 //
-//	id           string   default: cuid()
-//	email        string   required
-//	phoneNum     string   required
-//	password     string   optional
-//	role         UserRole default: STUDENT
-//	roleOptional UserRole optional
-//	loginCount   int32    default: 0
-//	referredById string   optional
+//	id                   string    default: cuid()
+//	email                string    required
+//	phoneNum             string    required
+//	password             string    optional
+//	role                 UserRole  default: STUDENT
+//	roleOptional         UserRole  optional
+//	loginCount           int32     default: 0
+//	referredById         string    optional
+//	createdAt            time.Time default: now()
+//	updatedAt            time.Time default: now()
+//	updatedAtNoDefualt   time.Time default: now()
+//	updatedAtnoDecorator time.Time default: now()
+//	updatedAtOptional    time.Time optional
 type UserCreateManyArgs struct {
 	// Data is the slice of model inputs to bulk insert.
 	Data []*UserCreate
@@ -426,22 +548,27 @@ func (a *UserCreateManyArgs) AppendData(builders ...*UserCreateBuilder) *UserCre
 //
 // Fields for User:
 //
-//	id           string   default: cuid()
-//	email        string   required
-//	phoneNum     string   required
-//	password     string   optional
-//	role         UserRole default: STUDENT
-//	roleOptional UserRole optional
-//	loginCount   int32    default: 0
-//	referredById string   optional
+//	id                   string    default: cuid()
+//	email                string    required
+//	phoneNum             string    required
+//	password             string    optional
+//	role                 UserRole  default: STUDENT
+//	roleOptional         UserRole  optional
+//	loginCount           int32     default: 0
+//	referredById         string    optional
+//	createdAt            time.Time default: now()
+//	updatedAt            time.Time default: now()
+//	updatedAtNoDefualt   time.Time default: now()
+//	updatedAtnoDecorator time.Time default: now()
+//	updatedAtOptional    time.Time optional
 //
 // Relations for User:
 //
-//	profile      (Profile)
-//	posts        ([]Post)
-//	comments     ([]Comment)
-//	referredBy   (User)
-//	referrals    ([]User)
+//	profile              (Profile)
+//	posts                ([]Post)
+//	comments             ([]Comment)
+//	referredBy           (User)
+//	referrals            ([]User)
 type UserCreateManyAndReturnArgs struct {
 	// Data is the slice of model inputs to bulk insert.
 	Data []*UserCreate
@@ -714,6 +841,16 @@ func (m *User) ScanFields(cols []string) []any {
 			targets[i] = &m.LoginCount
 		case "referredById":
 			targets[i] = &m.ReferredById
+		case "createdAt":
+			targets[i] = &m.CreatedAt
+		case "updatedAt":
+			targets[i] = &m.UpdatedAt
+		case "updatedAtNoDefualt":
+			targets[i] = &m.UpdatedAtNoDefualt
+		case "updatedAtnoDecorator":
+			targets[i] = &m.UpdatedAtnoDecorator
+		case "updatedAtOptional":
+			targets[i] = &m.UpdatedAtOptional
 		}
 	}
 	return targets
@@ -728,6 +865,11 @@ var userDefaultCols = []string{
 	"roleOptional",
 	"loginCount",
 	"referredById",
+	"createdAt",
+	"updatedAt",
+	"updatedAtNoDefualt",
+	"updatedAtnoDecorator",
+	"updatedAtOptional",
 }
 
 var userPKCols = []string{
@@ -745,7 +887,7 @@ func selectUserCols(selects *UserSelect, omits *UserOmit, forceCols ...string) [
 		return userDefaultCols
 	}
 
-	anySelected := selects != nil && (selects.Id || selects.Email || selects.PhoneNum || selects.Password || selects.Role || selects.RoleOptional || selects.LoginCount || selects.ReferredById || selects.Profile != nil || selects.Posts != nil || selects.Comments != nil || selects.ReferredBy != nil || selects.Referrals != nil)
+	anySelected := selects != nil && (selects.Id || selects.Email || selects.PhoneNum || selects.Password || selects.Role || selects.RoleOptional || selects.LoginCount || selects.ReferredById || selects.CreatedAt || selects.UpdatedAt || selects.UpdatedAtNoDefualt || selects.UpdatedAtnoDecorator || selects.UpdatedAtOptional || selects.Profile != nil || selects.Posts != nil || selects.Comments != nil || selects.ReferredBy != nil || selects.Referrals != nil)
 
 	specs := []colSpec{
 		{"id", selects != nil && selects.Id, omits != nil && omits.Id, selects != nil && selects.hasAnyRelation()},
@@ -756,6 +898,11 @@ func selectUserCols(selects *UserSelect, omits *UserOmit, forceCols ...string) [
 		{"roleOptional", selects != nil && selects.RoleOptional, omits != nil && omits.RoleOptional, false},
 		{"loginCount", selects != nil && selects.LoginCount, omits != nil && omits.LoginCount, false},
 		{"referredById", selects != nil && selects.ReferredById, omits != nil && omits.ReferredById, selects != nil && selects.ReferredBy != nil},
+		{"createdAt", selects != nil && selects.CreatedAt, omits != nil && omits.CreatedAt, false},
+		{"updatedAt", selects != nil && selects.UpdatedAt, omits != nil && omits.UpdatedAt, false},
+		{"updatedAtNoDefualt", selects != nil && selects.UpdatedAtNoDefualt, omits != nil && omits.UpdatedAtNoDefualt, false},
+		{"updatedAtnoDecorator", selects != nil && selects.UpdatedAtnoDecorator, omits != nil && omits.UpdatedAtnoDecorator, false},
+		{"updatedAtOptional", selects != nil && selects.UpdatedAtOptional, omits != nil && omits.UpdatedAtOptional, false},
 	}
 
 	cols := computeCols(specs, selects != nil, anySelected)
@@ -833,6 +980,26 @@ func (b *UserCreateBuilder) SetReferredById(v string) *UserCreateBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "referredById", Val: v})
 	return b
 }
+func (b *UserCreateBuilder) SetCreatedAt(v time.Time) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "createdAt", Val: v})
+	return b
+}
+func (b *UserCreateBuilder) SetUpdatedAt(v time.Time) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAt", Val: v})
+	return b
+}
+func (b *UserCreateBuilder) SetUpdatedAtNoDefualt(v time.Time) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtNoDefualt", Val: v})
+	return b
+}
+func (b *UserCreateBuilder) SetUpdatedAtnoDecorator(v time.Time) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtnoDecorator", Val: v})
+	return b
+}
+func (b *UserCreateBuilder) SetUpdatedAtOptional(v time.Time) *UserCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtOptional", Val: v})
+	return b
+}
 
 func (b *UserCreateBuilder) Assignments(assignments ...FieldAssignmentOf[User]) *UserCreateBuilder {
 	for _, a := range assignments {
@@ -850,14 +1017,19 @@ func (d *UserDelegate) Create() *UserCreateBuilder {
 }
 
 const (
-	providedUserId           uint64 = 1 << 0
-	providedUserEmail        uint64 = 1 << 1
-	providedUserPhoneNum     uint64 = 1 << 2
-	providedUserPassword     uint64 = 1 << 3
-	providedUserRole         uint64 = 1 << 4
-	providedUserRoleOptional uint64 = 1 << 5
-	providedUserLoginCount   uint64 = 1 << 6
-	providedUserReferredById uint64 = 1 << 7
+	providedUserId                   uint64 = 1 << 0
+	providedUserEmail                uint64 = 1 << 1
+	providedUserPhoneNum             uint64 = 1 << 2
+	providedUserPassword             uint64 = 1 << 3
+	providedUserRole                 uint64 = 1 << 4
+	providedUserRoleOptional         uint64 = 1 << 5
+	providedUserLoginCount           uint64 = 1 << 6
+	providedUserReferredById         uint64 = 1 << 7
+	providedUserCreatedAt            uint64 = 1 << 8
+	providedUserUpdatedAt            uint64 = 1 << 9
+	providedUserUpdatedAtNoDefualt   uint64 = 1 << 10
+	providedUserUpdatedAtnoDecorator uint64 = 1 << 11
+	providedUserUpdatedAtOptional    uint64 = 1 << 12
 )
 
 func assignmentsToUserCreate(assignments []FieldAssignment) (UserCreate, error) {
@@ -935,6 +1107,41 @@ func assignmentsToUserCreate(assignments []FieldAssignment) (UserCreate, error) 
 			} else {
 				errs.Add("referredById", a.Val, "type", "field referredById must be of type string")
 			}
+		case "createdAt":
+			provided |= providedUserCreatedAt
+			if v, ok := a.Val.(time.Time); ok {
+				input.CreatedAt = &v
+			} else {
+				errs.Add("createdAt", a.Val, "type", "field createdAt must be of type time.Time")
+			}
+		case "updatedAt":
+			provided |= providedUserUpdatedAt
+			if v, ok := a.Val.(time.Time); ok {
+				input.UpdatedAt = &v
+			} else {
+				errs.Add("updatedAt", a.Val, "type", "field updatedAt must be of type time.Time")
+			}
+		case "updatedAtNoDefualt":
+			provided |= providedUserUpdatedAtNoDefualt
+			if v, ok := a.Val.(time.Time); ok {
+				input.UpdatedAtNoDefualt = &v
+			} else {
+				errs.Add("updatedAtNoDefualt", a.Val, "type", "field updatedAtNoDefualt must be of type time.Time")
+			}
+		case "updatedAtnoDecorator":
+			provided |= providedUserUpdatedAtnoDecorator
+			if v, ok := a.Val.(time.Time); ok {
+				input.UpdatedAtnoDecorator = &v
+			} else {
+				errs.Add("updatedAtnoDecorator", a.Val, "type", "field updatedAtnoDecorator must be of type time.Time")
+			}
+		case "updatedAtOptional":
+			provided |= providedUserUpdatedAtOptional
+			if v, ok := a.Val.(time.Time); ok {
+				input.UpdatedAtOptional = &v
+			} else {
+				errs.Add("updatedAtOptional", a.Val, "type", "field updatedAtOptional must be of type time.Time")
+			}
 		}
 	}
 	if provided&providedUserEmail == 0 {
@@ -942,6 +1149,10 @@ func assignmentsToUserCreate(assignments []FieldAssignment) (UserCreate, error) 
 	}
 	if provided&providedUserPhoneNum == 0 {
 		errs.Add("phoneNum", "", "required", "field PhoneNum is required")
+	}
+	if provided&providedUserUpdatedAt == 0 {
+		now := time.Now().Truncate(time.Microsecond)
+		input.UpdatedAt = &now
 	}
 
 	if errs.HasErrors() {
@@ -951,8 +1162,8 @@ func assignmentsToUserCreate(assignments []FieldAssignment) (UserCreate, error) 
 }
 
 func (s *UserCreate) ToColsVals() (cols []string, vals []any) {
-	cols = make([]string, 0, 8)
-	vals = make([]any, 0, 8)
+	cols = make([]string, 0, 13)
+	vals = make([]any, 0, 13)
 	cols = append(cols, "id")
 	if s.Id != nil {
 		vals = append(vals, *s.Id)
@@ -982,6 +1193,34 @@ func (s *UserCreate) ToColsVals() (cols []string, vals []any) {
 	if s.ReferredById != nil {
 		cols = append(cols, "referredById")
 		vals = append(vals, *s.ReferredById)
+	}
+	cols = append(cols, "createdAt")
+	if s.CreatedAt != nil {
+		vals = append(vals, *s.CreatedAt)
+	} else {
+		vals = append(vals, time.Now())
+	}
+	cols = append(cols, "updatedAt")
+	if s.UpdatedAt != nil {
+		vals = append(vals, *s.UpdatedAt)
+	} else {
+		vals = append(vals, time.Now())
+	}
+	cols = append(cols, "updatedAtNoDefualt")
+	if s.UpdatedAtNoDefualt != nil {
+		vals = append(vals, *s.UpdatedAtNoDefualt)
+	} else {
+		vals = append(vals, time.Now())
+	}
+	cols = append(cols, "updatedAtnoDecorator")
+	if s.UpdatedAtnoDecorator != nil {
+		vals = append(vals, *s.UpdatedAtnoDecorator)
+	} else {
+		vals = append(vals, time.Now())
+	}
+	if s.UpdatedAtOptional != nil {
+		cols = append(cols, "updatedAtOptional")
+		vals = append(vals, *s.UpdatedAtOptional)
 	}
 	return
 }
@@ -1368,7 +1607,7 @@ func (d *UserDelegate) buildBulkInsertSQL(q *Queries, batch []*UserCreate, param
 		colMask |= input.colMask()
 	}
 
-	cols = make([]string, 0, 8)
+	cols = make([]string, 0, 13)
 	for i, c := range userDefaultCols {
 		if colMask&(1<<i) != 0 {
 			cols = append(cols, c)
@@ -1438,6 +1677,36 @@ func (d *UserDelegate) buildBulkInsertSQL(q *Queries, batch []*UserCreate, param
 			case "referredById":
 				if input.ReferredById != nil {
 					vals = append(vals, *input.ReferredById)
+				} else {
+					writeDefault = true
+				}
+			case "createdAt":
+				if input.CreatedAt != nil {
+					vals = append(vals, *input.CreatedAt)
+				} else {
+					vals = append(vals, time.Now())
+				}
+			case "updatedAt":
+				if input.UpdatedAt != nil {
+					vals = append(vals, *input.UpdatedAt)
+				} else {
+					vals = append(vals, time.Now())
+				}
+			case "updatedAtNoDefualt":
+				if input.UpdatedAtNoDefualt != nil {
+					vals = append(vals, *input.UpdatedAtNoDefualt)
+				} else {
+					vals = append(vals, time.Now())
+				}
+			case "updatedAtnoDecorator":
+				if input.UpdatedAtnoDecorator != nil {
+					vals = append(vals, *input.UpdatedAtnoDecorator)
+				} else {
+					vals = append(vals, time.Now())
+				}
+			case "updatedAtOptional":
+				if input.UpdatedAtOptional != nil {
+					vals = append(vals, *input.UpdatedAtOptional)
 				} else {
 					writeDefault = true
 				}
@@ -1687,14 +1956,19 @@ func UserConflictUpdate(fn func(u *UserUpsert)) *ConflictAction {
 }
 
 type UserUpsert struct {
-	Id           fieldUpsert[string]
-	Email        fieldUpsert[string]
-	PhoneNum     fieldUpsert[string]
-	Password     fieldUpsert[*string]
-	Role         fieldUpsert[UserRoleType]
-	RoleOptional fieldUpsert[*UserRoleType]
-	LoginCount   numericFieldUpsert[int32]
-	ReferredById fieldUpsert[*string]
+	Id                   fieldUpsert[string]
+	Email                fieldUpsert[string]
+	PhoneNum             fieldUpsert[string]
+	Password             fieldUpsert[*string]
+	Role                 fieldUpsert[UserRoleType]
+	RoleOptional         fieldUpsert[*UserRoleType]
+	LoginCount           numericFieldUpsert[int32]
+	ReferredById         fieldUpsert[*string]
+	CreatedAt            fieldUpsert[time.Time]
+	UpdatedAt            fieldUpsert[time.Time]
+	UpdatedAtNoDefualt   fieldUpsert[time.Time]
+	UpdatedAtnoDecorator fieldUpsert[time.Time]
+	UpdatedAtOptional    fieldUpsert[*time.Time]
 }
 
 func newUserUpsert(up *ConflictUpdate) *UserUpsert {
@@ -1709,7 +1983,12 @@ func newUserUpsert(up *ConflictUpdate) *UserUpsert {
 			fieldUpsert: fieldUpsert[int32]{column: "loginCount", update: up},
 			tableName:   "User",
 		},
-		ReferredById: fieldUpsert[*string]{column: "referredById", update: up},
+		ReferredById:         fieldUpsert[*string]{column: "referredById", update: up},
+		CreatedAt:            fieldUpsert[time.Time]{column: "createdAt", update: up},
+		UpdatedAt:            fieldUpsert[time.Time]{column: "updatedAt", update: up},
+		UpdatedAtNoDefualt:   fieldUpsert[time.Time]{column: "updatedAtNoDefualt", update: up},
+		UpdatedAtnoDecorator: fieldUpsert[time.Time]{column: "updatedAtnoDecorator", update: up},
+		UpdatedAtOptional:    fieldUpsert[*time.Time]{column: "updatedAtOptional", update: up},
 	}
 }
 
@@ -1835,6 +2114,76 @@ func (b *UserUpdateManyBuilder) SetReferredById(v string) *UserUpdateManyBuilder
 
 func (b *UserUpdateManyAndReturnBuilder) SetReferredById(v string) *UserUpdateManyAndReturnBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "referredById", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetCreatedAt(v time.Time) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "createdAt", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetCreatedAt(v time.Time) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "createdAt", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetCreatedAt(v time.Time) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "createdAt", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetUpdatedAt(v time.Time) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAt", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetUpdatedAt(v time.Time) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAt", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetUpdatedAt(v time.Time) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAt", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetUpdatedAtNoDefualt(v time.Time) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtNoDefualt", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetUpdatedAtNoDefualt(v time.Time) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtNoDefualt", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetUpdatedAtNoDefualt(v time.Time) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtNoDefualt", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetUpdatedAtnoDecorator(v time.Time) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtnoDecorator", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetUpdatedAtnoDecorator(v time.Time) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtnoDecorator", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetUpdatedAtnoDecorator(v time.Time) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtnoDecorator", Val: v})
+	return b
+}
+func (b *UserUpdateBuilder) SetUpdatedAtOptional(v time.Time) *UserUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtOptional", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyBuilder) SetUpdatedAtOptional(v time.Time) *UserUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtOptional", Val: v})
+	return b
+}
+
+func (b *UserUpdateManyAndReturnBuilder) SetUpdatedAtOptional(v time.Time) *UserUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "updatedAtOptional", Val: v})
 	return b
 }
 

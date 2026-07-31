@@ -2,13 +2,16 @@ package {{ .PackageName }}
 
 import (
 	"context"
-	{{- if hasFloatAnywhere .Schema }}
+	{{- if hasType .Schema "Float" }}
 	"math"
 	{{- end }}
-	{{- if or .NeedCUID .NeedCUID2 .NeedULID .NeedNanoID }}
+	{{- if hasDefaultFunc .Schema "cuid" "cuid(1)" "cuid(2)" "ulid" "nanoid" }}
 	"crypto/rand"
 	{{- end }}
 	"database/sql"
+	{{- if hasType .Schema "Array" }}
+	"database/sql/driver"
+	{{- end }}
 	"encoding/json"
 	{{- if .EmbedPath }}
 	"embed"
@@ -17,50 +20,56 @@ import (
 	{{- if hasAnyLog }}
 	"log"
 	{{- end }}
-	{{- if hasNetAnywhere .Schema }}
+	{{- if hasType .Schema "Inet" }}
 	"net"
 	{{- end }}
-	{{- if or (hasUuidAnywhere .Schema) (hasDecimalAnywhere .Schema) }}
+	{{- if hasType .Schema "Uuid" "Decimal" }}
 	"regexp"
 	{{- end }}
 	"strconv"
 	"slices"
 	"strings"
 	"sync"
-	{{- if or (hasTimeAnywhere .Schema) .NeedCUID .NeedCUID2 .NeedULID }}
+	{{- if or (hasType .Schema "DateTime") (hasDefaultFunc .Schema "cuid" "cuid(1)" "cuid(2)" "ulid") }}
 	"time"
 	{{- end }}
 	"unicode/utf8"
 
-	{{- if hasHstoreAnywhere .Schema }}
+	{{- if hasType .Schema "Hstore" }}
 	"github.com/lib/pq/hstore"
+	{{- end }}
+	{{- if needsPQImport .Schema }}
+	"github.com/lib/pq"
 	{{- end }}
 	"github.com/pressly/goose/v3"
 
-	{{- if or .NeedUUID .NeedUUID7 }}
+	{{- if hasDefaultFunc .Schema "uuid" "uuid(4)" "uuid(7)" }}
 	"github.com/google/uuid"
 	{{- end }}
 )
 
-{{- if or (hasTimeAnywhere .Schema) .NeedCUID .NeedCUID2 .NeedULID }}
+{{- if or (hasType .Schema "DateTime") (hasDefaultFunc .Schema "cuid" "cuid(1)" "cuid(2)" "ulid") }}
 var _ = time.Time{}
 {{- end }}
-{{- if hasHstoreAnywhere .Schema }}
+{{- if hasType .Schema "Hstore" }}
 var _ = hstore.Hstore{}
 {{- end }}
-{{- if hasNetAnywhere .Schema }}
+{{- if needsPQImport .Schema }}
+var _ = pq.Array
+{{- end }}
+{{- if hasType .Schema "Inet" }}
 var _ = net.ParseIP
 {{- end }}
 var _ = json.RawMessage{}
 var _ = strings.Join
 var _ = slices.Clone[[]any]
-{{- if or .NeedUUID .NeedUUID7 }}
+{{- if hasDefaultFunc .Schema "uuid" "uuid(4)" "uuid(7)" }}
 var _ = uuid.New
 {{- end }}
-{{- if or .NeedCUID .NeedCUID2 .NeedULID .NeedNanoID }}
+{{- if hasDefaultFunc .Schema "cuid" "cuid(1)" "cuid(2)" "ulid" "nanoid" }}
 var _ = rand.Read
 {{- end }}
-{{- if or .NeedCUID .NeedCUID2 .NeedULID }}
+{{- if hasDefaultFunc .Schema "cuid" "cuid(1)" "cuid(2)" "ulid" }}
 var _ = strconv.AppendUint
 {{- end }}
 
@@ -69,7 +78,7 @@ var _ = strconv.AppendUint
 var migrationsFS embed.FS
 {{- end }}
 
-{{- if .NeedCUID }}
+{{- if hasDefaultFunc .Schema "cuid" "cuid(1)" }}
 func generateCUID() string {
 	now := uint64(time.Now().UnixMilli())
 	b := make([]byte, 8)
@@ -86,13 +95,13 @@ func generateCUID() string {
 }
 {{- end }}
 
-{{- if .NeedUUID }}
+{{- if hasDefaultFunc .Schema "uuid" "uuid(4)" }}
 func generateUUID() string {
 	return uuid.New().String()
 }
 {{- end }}
 
-{{- if .NeedUUID7 }}
+{{- if hasDefaultFunc .Schema "uuid(7)" }}
 func generateUUID7() string {
 	id, err := uuid.NewV7()
 	if err != nil {
@@ -102,7 +111,7 @@ func generateUUID7() string {
 }
 {{- end }}
 
-{{- if .NeedCUID2 }}
+{{- if hasDefaultFunc .Schema "cuid(2)" }}
 func generateCUID2() string {
 	now := uint64(time.Now().UnixMilli())
 	b := make([]byte, 12)
@@ -118,7 +127,7 @@ func generateCUID2() string {
 }
 {{- end }}
 
-{{- if .NeedULID }}
+{{- if hasDefaultFunc .Schema "ulid" }}
 func generateULID() string {
 	now := uint64(time.Now().UnixMilli())
 	b := make([]byte, 10)
@@ -148,7 +157,7 @@ func generateULID() string {
 }
 {{- end }}
 
-{{- if .NeedNanoID }}
+{{- if hasDefaultFunc .Schema "nanoid" }}
 func generateNanoID() string {
 	const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-"
 	b := make([]byte, 21)

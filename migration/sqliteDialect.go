@@ -2,6 +2,7 @@ package migration
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -18,6 +19,9 @@ func (SqliteDialect) QuoteIdent(name string) string {
 }
 
 func (SqliteDialect) GetSQLType(sf *schema.ScalarField) string {
+	if sf.IsArray {
+		return "TEXT"
+	}
 	sqlType := strings.ToUpper(sf.SQLType)
 	switch sqlType {
 	case "VARCHAR", "TEXT", "UUID":
@@ -37,6 +41,13 @@ func (SqliteDialect) GetSQLType(sf *schema.ScalarField) string {
 
 func (SqliteDialect) GetSQLDefault(dv *schema.DefaultValue, pslType string) string {
 	switch dv.Kind {
+	case schema.DefaultArray:
+		if len(dv.ArrayValues) == 0 {
+			return "'[]'"
+		}
+		bytes, _ := json.Marshal(dv.ArrayValues)
+		return fmt.Sprintf("'%s'", string(bytes))
+
 	case schema.DefaultLiteral:
 		if pslType == schema.TypeBoolean {
 			return strings.ToUpper(dv.Literal)

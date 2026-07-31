@@ -42,7 +42,7 @@ var Id = valk.UniqueField[valk.AllFieldsSoFar, int32]{Column: "id"}
 
 var StringReq = valk.StringField[valk.AllFieldsSoFar]{Column: "stringReq"}
 
-var StringOpt = valk.StringField[valk.AllFieldsSoFar]{Column: "stringOpt"}
+var StringOpt = valk.OptionalStringField[valk.AllFieldsSoFar]{StringField: valk.StringField[valk.AllFieldsSoFar]{Column: "stringOpt"}}
 
 var StringDefault = valk.StringField[valk.AllFieldsSoFar]{Column: "stringDefault"}
 
@@ -78,7 +78,7 @@ var UuidDb = valk.StringField[valk.AllFieldsSoFar]{Column: "uuidDb"}
 
 var IntReq = valk.Field[valk.AllFieldsSoFar, int32]{Column: "intReq"}
 
-var IntOpt = valk.Field[valk.AllFieldsSoFar, int32]{Column: "intOpt"}
+var IntOpt = valk.OptionalField[valk.AllFieldsSoFar, int32]{Field: valk.Field[valk.AllFieldsSoFar, int32]{Column: "intOpt"}}
 
 var IntDefault = valk.Field[valk.AllFieldsSoFar, int32]{Column: "intDefault"}
 
@@ -92,17 +92,17 @@ var OidVal = valk.Field[valk.AllFieldsSoFar, int32]{Column: "oidVal"}
 
 var BigIntReq = valk.Field[valk.AllFieldsSoFar, int64]{Column: "bigIntReq"}
 
-var BigIntOpt = valk.Field[valk.AllFieldsSoFar, int64]{Column: "bigIntOpt"}
+var BigIntOpt = valk.OptionalField[valk.AllFieldsSoFar, int64]{Field: valk.Field[valk.AllFieldsSoFar, int64]{Column: "bigIntOpt"}}
 
 var FloatReq = valk.Field[valk.AllFieldsSoFar, float64]{Column: "floatReq"}
 
-var FloatOpt = valk.Field[valk.AllFieldsSoFar, float64]{Column: "floatOpt"}
+var FloatOpt = valk.OptionalField[valk.AllFieldsSoFar, float64]{Field: valk.Field[valk.AllFieldsSoFar, float64]{Column: "floatOpt"}}
 
 var RealVal = valk.Field[valk.AllFieldsSoFar, float64]{Column: "realVal"}
 
 var DecimalReq = valk.Field[valk.AllFieldsSoFar, string]{Column: "decimalReq"}
 
-var DecimalOpt = valk.Field[valk.AllFieldsSoFar, string]{Column: "decimalOpt"}
+var DecimalOpt = valk.OptionalField[valk.AllFieldsSoFar, string]{Field: valk.Field[valk.AllFieldsSoFar, string]{Column: "decimalOpt"}}
 
 var DecimalPrecise = valk.Field[valk.AllFieldsSoFar, string]{Column: "decimalPrecise"}
 
@@ -110,13 +110,13 @@ var MoneyVal = valk.Field[valk.AllFieldsSoFar, string]{Column: "moneyVal"}
 
 var BoolReq = valk.Field[valk.AllFieldsSoFar, bool]{Column: "boolReq"}
 
-var BoolOpt = valk.Field[valk.AllFieldsSoFar, bool]{Column: "boolOpt"}
+var BoolOpt = valk.OptionalField[valk.AllFieldsSoFar, bool]{Field: valk.Field[valk.AllFieldsSoFar, bool]{Column: "boolOpt"}}
 
 var BoolDefault = valk.Field[valk.AllFieldsSoFar, bool]{Column: "boolDefault"}
 
 var DateTimeReq = valk.Field[valk.AllFieldsSoFar, time.Time]{Column: "dateTimeReq"}
 
-var DateTimeOpt = valk.Field[valk.AllFieldsSoFar, time.Time]{Column: "dateTimeOpt"}
+var DateTimeOpt = valk.OptionalField[valk.AllFieldsSoFar, time.Time]{Field: valk.Field[valk.AllFieldsSoFar, time.Time]{Column: "dateTimeOpt"}}
 
 var DateTimeDefault = valk.Field[valk.AllFieldsSoFar, time.Time]{Column: "dateTimeDefault"}
 
@@ -132,19 +132,19 @@ var TimetzVal = valk.Field[valk.AllFieldsSoFar, time.Time]{Column: "timetzVal"}
 
 var JsonReq = valk.Field[valk.AllFieldsSoFar, json.RawMessage]{Column: "jsonReq"}
 
-var JsonOpt = valk.Field[valk.AllFieldsSoFar, json.RawMessage]{Column: "jsonOpt"}
+var JsonOpt = valk.OptionalField[valk.AllFieldsSoFar, json.RawMessage]{Field: valk.Field[valk.AllFieldsSoFar, json.RawMessage]{Column: "jsonOpt"}}
 
 var JsonVal = valk.Field[valk.AllFieldsSoFar, json.RawMessage]{Column: "jsonVal"}
 
 var BytesReq = valk.Field[valk.AllFieldsSoFar, []byte]{Column: "bytesReq"}
 
-var BytesOpt = valk.Field[valk.AllFieldsSoFar, []byte]{Column: "bytesOpt"}
+var BytesOpt = valk.OptionalField[valk.AllFieldsSoFar, []byte]{Field: valk.Field[valk.AllFieldsSoFar, []byte]{Column: "bytesOpt"}}
 
-var HstoreField = valk.Field[valk.AllFieldsSoFar, map[string]*string]{Column: "hstoreField"}
+var HstoreField = valk.OptionalField[valk.AllFieldsSoFar, map[string]*string]{Field: valk.Field[valk.AllFieldsSoFar, map[string]*string]{Column: "hstoreField"}}
 
-var LtreeField = valk.Field[valk.AllFieldsSoFar, string]{Column: "ltreeField"}
+var LtreeField = valk.OptionalField[valk.AllFieldsSoFar, string]{Field: valk.Field[valk.AllFieldsSoFar, string]{Column: "ltreeField"}}
 
-var CitextField = valk.Field[valk.AllFieldsSoFar, string]{Column: "citextField"}
+var CitextField = valk.OptionalField[valk.AllFieldsSoFar, string]{Field: valk.Field[valk.AllFieldsSoFar, string]{Column: "citextField"}}
 
 type CreateInput = valk.AllFieldsSoFarCreate
 type Create = valk.AllFieldsSoFarCreate

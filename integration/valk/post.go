@@ -4,9 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/lib/pq"
 	"slices"
 	"strings"
 )
+
+var _ = pq.Array
 
 // Post represents the database model
 type Post struct {
@@ -15,6 +18,7 @@ type Post struct {
 	Content    *string           `db:"content" json:"content,omitempty"`
 	Published  bool              `db:"published" json:"published"`
 	AuthorId   string            `db:"authorId" json:"authorId"`
+	Tags       []string          `db:"tags" json:"tags"`
 	Author     *User             `json:"author,omitempty"`
 	Comments   []*Comment        `json:"comments,omitempty"`
 	Categories []*CategoryToPost `json:"categories,omitempty"`
@@ -24,17 +28,19 @@ type Post struct {
 //
 // Fields for Post:
 //
-//	id        string default: cuid()
-//	title     string required
-//	content   string optional
-//	published bool   default: false
-//	authorId  string required
+//	id        string   default: cuid()
+//	title     string   required
+//	content   string   optional
+//	published bool     default: false
+//	authorId  string   required
+//	tags      []string default: []
 type PostCreate struct {
-	Id        *string `json:"id"`
-	Title     string  `json:"title"`
-	Content   *string `json:"content"`
-	Published *bool   `json:"published"`
-	AuthorId  string  `json:"authorId"`
+	Id        *string  `json:"id"`
+	Title     string   `json:"title"`
+	Content   *string  `json:"content"`
+	Published *bool    `json:"published"`
+	AuthorId  string   `json:"authorId"`
+	Tags      []string `json:"tags"`
 }
 
 // colMask returns a bit mask of columns that are set
@@ -49,16 +55,20 @@ func (s *PostCreate) colMask() uint64 {
 		mask |= 1 << 3
 	}
 	mask |= 1 << 4
+	if s.Tags != nil {
+		mask |= 1 << 5
+	}
 	return mask
 }
 
 // PostUpdate contains model input fields for Post update operations.
 type PostUpdate struct {
-	Id        *string `json:"id"`
-	Title     *string `json:"title"`
-	Content   *string `json:"content"`
-	Published *bool   `json:"published"`
-	AuthorId  *string `json:"authorId"`
+	Id        *string  `json:"id"`
+	Title     *string  `json:"title"`
+	Content   *string  `json:"content"`
+	Published *bool    `json:"published"`
+	AuthorId  *string  `json:"authorId"`
+	Tags      []string `json:"tags"`
 }
 
 func (u *PostUpdate) ToColsVals() ([]string, []any) {
@@ -83,6 +93,10 @@ func (u *PostUpdate) ToColsVals() ([]string, []any) {
 	if u.AuthorId != nil {
 		cols = append(cols, "authorId")
 		vals = append(vals, u.AuthorId)
+	}
+	if u.Tags != nil {
+		cols = append(cols, "tags")
+		vals = append(vals, u.Tags)
 	}
 	return cols, vals
 }
@@ -137,6 +151,16 @@ func assignmentsToPostUpdate(assignments []FieldAssignment) (PostUpdate, error) 
 			} else {
 				errs.Add("authorId", a.Val, "type", "field authorId must be of type string")
 			}
+		case "tags":
+			if v, ok := a.Val.([]string); ok {
+				input.Tags = v
+			} else if v, ok := a.Val.(*[]string); ok {
+				if v != nil {
+					input.Tags = *v
+				}
+			} else {
+				errs.Add("tags", a.Val, "type", "field tags must be of type []string")
+			}
 		}
 	}
 
@@ -156,6 +180,7 @@ func assignmentsToPostUpdate(assignments []FieldAssignment) (PostUpdate, error) 
 //	content   (bool)
 //	published (bool)
 //	authorId  (bool)
+//	tags      (bool)
 //	-- Relations --
 //	author    (User)
 //	comments  ([]Comment)
@@ -166,6 +191,7 @@ type PostSelect struct {
 	Content    bool                      `json:"content"`
 	Published  bool                      `json:"published"`
 	AuthorId   bool                      `json:"authorId"`
+	Tags       bool                      `json:"tags"`
 	Author     *UserSelect               `json:"author,omitempty"`
 	Comments   CommentSelectQuery        `json:"comments,omitempty"`
 	Categories CategoryToPostSelectQuery `json:"categories,omitempty"`
@@ -177,6 +203,7 @@ var fullPostSelectVal = &PostSelect{
 	Content:   true,
 	Published: true,
 	AuthorId:  true,
+	Tags:      true,
 }
 
 func fullPostSelect() *PostSelect {
@@ -187,7 +214,7 @@ func (s *PostSelect) hasAnyScalar() bool {
 	if s == nil {
 		return false
 	}
-	return s.Id || s.Title || s.Content || s.Published || s.AuthorId
+	return s.Id || s.Title || s.Content || s.Published || s.AuthorId || s.Tags
 }
 
 func (s *PostSelect) hasAnySelected() bool {
@@ -203,6 +230,7 @@ type PostOmit struct {
 	Content   bool `json:"content"`
 	Published bool `json:"published"`
 	AuthorId  bool `json:"authorId"`
+	Tags      bool `json:"tags"`
 }
 
 type PostSelectQuery interface {
@@ -275,11 +303,12 @@ func (b *PostQueryBuilder) GetRelationParams() (*PostSelect, *PostOmit, QueryPar
 //
 // Fields for Post:
 //
-//	id        string default: cuid()
-//	title     string required
-//	content   string optional
-//	published bool   default: false
-//	authorId  string required
+//	id        string   default: cuid()
+//	title     string   required
+//	content   string   optional
+//	published bool     default: false
+//	authorId  string   required
+//	tags      []string default: []
 //
 // Relations for Post:
 //
@@ -301,11 +330,12 @@ type PostCreateArgs struct {
 //
 // Fields for Post:
 //
-//	id        string default: cuid()
-//	title     string required
-//	content   string optional
-//	published bool   default: false
-//	authorId  string required
+//	id        string   default: cuid()
+//	title     string   required
+//	content   string   optional
+//	published bool     default: false
+//	authorId  string   required
+//	tags      []string default: []
 type PostCreateManyArgs struct {
 	// Data is the slice of model inputs to bulk insert.
 	Data []*PostCreate
@@ -330,11 +360,12 @@ func (a *PostCreateManyArgs) AppendData(builders ...*PostCreateBuilder) *PostCre
 //
 // Fields for Post:
 //
-//	id        string default: cuid()
-//	title     string required
-//	content   string optional
-//	published bool   default: false
-//	authorId  string required
+//	id        string   default: cuid()
+//	title     string   required
+//	content   string   optional
+//	published bool     default: false
+//	authorId  string   required
+//	tags      []string default: []
 //
 // Relations for Post:
 //
@@ -607,6 +638,8 @@ func (m *Post) ScanFields(cols []string) []any {
 			targets[i] = &m.Published
 		case "authorId":
 			targets[i] = &m.AuthorId
+		case "tags":
+			targets[i] = ArrayScan(&m.Tags)
 		}
 	}
 	return targets
@@ -618,6 +651,7 @@ var postDefaultCols = []string{
 	"content",
 	"published",
 	"authorId",
+	"tags",
 }
 
 var postPKCols = []string{
@@ -633,7 +667,7 @@ func selectPostCols(selects *PostSelect, omits *PostOmit, forceCols ...string) [
 		return postDefaultCols
 	}
 
-	anySelected := selects != nil && (selects.Id || selects.Title || selects.Content || selects.Published || selects.AuthorId || selects.Author != nil || selects.Comments != nil || selects.Categories != nil)
+	anySelected := selects != nil && (selects.Id || selects.Title || selects.Content || selects.Published || selects.AuthorId || selects.Tags || selects.Author != nil || selects.Comments != nil || selects.Categories != nil)
 
 	specs := []colSpec{
 		{"id", selects != nil && selects.Id, omits != nil && omits.Id, selects != nil && selects.hasAnyRelation()},
@@ -641,6 +675,7 @@ func selectPostCols(selects *PostSelect, omits *PostOmit, forceCols ...string) [
 		{"content", selects != nil && selects.Content, omits != nil && omits.Content, false},
 		{"published", selects != nil && selects.Published, omits != nil && omits.Published, false},
 		{"authorId", selects != nil && selects.AuthorId, omits != nil && omits.AuthorId, selects != nil && selects.Author != nil},
+		{"tags", selects != nil && selects.Tags, omits != nil && omits.Tags, false},
 	}
 
 	cols := computeCols(specs, selects != nil, anySelected)
@@ -706,6 +741,10 @@ func (b *PostCreateBuilder) SetAuthorId(v string) *PostCreateBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "authorId", Val: v})
 	return b
 }
+func (b *PostCreateBuilder) SetTags(v []string) *PostCreateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "tags", Val: v})
+	return b
+}
 
 func (b *PostCreateBuilder) Assignments(assignments ...FieldAssignmentOf[Post]) *PostCreateBuilder {
 	for _, a := range assignments {
@@ -728,6 +767,7 @@ const (
 	providedPostContent   uint64 = 1 << 2
 	providedPostPublished uint64 = 1 << 3
 	providedPostAuthorId  uint64 = 1 << 4
+	providedPostTags      uint64 = 1 << 5
 )
 
 func assignmentsToPostCreate(assignments []FieldAssignment) (PostCreate, error) {
@@ -776,6 +816,13 @@ func assignmentsToPostCreate(assignments []FieldAssignment) (PostCreate, error) 
 			} else {
 				errs.Add("authorId", a.Val, "type", "field authorId must be of type string")
 			}
+		case "tags":
+			provided |= providedPostTags
+			if v, ok := a.Val.([]string); ok {
+				input.Tags = v
+			} else {
+				errs.Add("tags", a.Val, "type", "field tags must be of type []string")
+			}
 		}
 	}
 	if provided&providedPostTitle == 0 {
@@ -792,8 +839,8 @@ func assignmentsToPostCreate(assignments []FieldAssignment) (PostCreate, error) 
 }
 
 func (s *PostCreate) ToColsVals() (cols []string, vals []any) {
-	cols = make([]string, 0, 5)
-	vals = make([]any, 0, 5)
+	cols = make([]string, 0, 6)
+	vals = make([]any, 0, 6)
 	cols = append(cols, "id")
 	if s.Id != nil {
 		vals = append(vals, *s.Id)
@@ -812,6 +859,10 @@ func (s *PostCreate) ToColsVals() (cols []string, vals []any) {
 	}
 	cols = append(cols, "authorId")
 	vals = append(vals, s.AuthorId)
+	if s.Tags != nil {
+		cols = append(cols, "tags")
+		vals = append(vals, ArrayVal(s.Tags))
+	}
 	return
 }
 
@@ -1197,7 +1248,7 @@ func (d *PostDelegate) buildBulkInsertSQL(q *Queries, batch []*PostCreate, param
 		colMask |= input.colMask()
 	}
 
-	cols = make([]string, 0, 5)
+	cols = make([]string, 0, 6)
 	for i, c := range postDefaultCols {
 		if colMask&(1<<i) != 0 {
 			cols = append(cols, c)
@@ -1252,6 +1303,12 @@ func (d *PostDelegate) buildBulkInsertSQL(q *Queries, batch []*PostCreate, param
 				}
 			case "authorId":
 				vals = append(vals, input.AuthorId)
+			case "tags":
+				if input.Tags != nil {
+					vals = append(vals, ArrayVal(input.Tags))
+				} else {
+					writeDefault = true
+				}
 			}
 			if writeDefault {
 				sb.WriteString("DEFAULT")
@@ -1503,6 +1560,7 @@ type PostUpsert struct {
 	Content   fieldUpsert[*string]
 	Published fieldUpsert[bool]
 	AuthorId  fieldUpsert[string]
+	Tags      fieldUpsert[[]string]
 }
 
 func newPostUpsert(up *ConflictUpdate) *PostUpsert {
@@ -1512,6 +1570,7 @@ func newPostUpsert(up *ConflictUpdate) *PostUpsert {
 		Content:   fieldUpsert[*string]{column: "content", update: up},
 		Published: fieldUpsert[bool]{column: "published", update: up},
 		AuthorId:  fieldUpsert[string]{column: "authorId", update: up},
+		Tags:      fieldUpsert[[]string]{column: "tags", update: up},
 	}
 }
 
@@ -1595,6 +1654,20 @@ func (b *PostUpdateManyBuilder) SetAuthorId(v string) *PostUpdateManyBuilder {
 
 func (b *PostUpdateManyAndReturnBuilder) SetAuthorId(v string) *PostUpdateManyAndReturnBuilder {
 	b.assignments = append(b.assignments, FieldAssignment{Col: "authorId", Val: v})
+	return b
+}
+func (b *PostUpdateBuilder) SetTags(v []string) *PostUpdateBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "tags", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyBuilder) SetTags(v []string) *PostUpdateManyBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "tags", Val: v})
+	return b
+}
+
+func (b *PostUpdateManyAndReturnBuilder) SetTags(v []string) *PostUpdateManyAndReturnBuilder {
+	b.assignments = append(b.assignments, FieldAssignment{Col: "tags", Val: v})
 	return b
 }
 

@@ -95,6 +95,7 @@ func (b *atlasSchemaBuilder) buildTablesMap() error {
 		b.buildUniqueConstraints(model, table)
 		b.buildIndexes(model, table)
 		b.buildEnumCheckConstraints(model, table)
+		b.buildJsonArrayCheckConstraints(model, table)
 
 		b.targetSchema.Tables = append(b.targetSchema.Tables, table)
 		b.tablesMap[tableName] = table
@@ -171,7 +172,11 @@ func (b *atlasSchemaBuilder) buildColumns(model *vs.Model, table *schema.Table) 
 				defaultVal = getSQLDefault(sf.Default, sf.Type, b.provider)
 			}
 			if defaultVal != "" {
-				column.Default = &schema.RawExpr{X: defaultVal}
+				if b.provider == providers.Sqlite && strings.HasPrefix(defaultVal, "'") {
+					column.Default = &schema.Literal{V: defaultVal}
+				} else {
+					column.Default = &schema.RawExpr{X: defaultVal}
+				}
 			}
 		}
 
@@ -293,6 +298,22 @@ func (b *atlasSchemaBuilder) buildEnumCheckConstraints(model *vs.Model, table *s
 				}
 				table.Attrs = append(table.Attrs, checkConstraint)
 			}
+		}
+	}
+}
+
+func (b *atlasSchemaBuilder) buildJsonArrayCheckConstraints(model *vs.Model, table *schema.Table) {
+	if b.provider != providers.Sqlite || b.dialect == nil {
+		return
+	}
+	for _, sf := range model.ScalarFields {
+		if sf.IsArray {
+			colName := sf.EffectiveColName()
+			checkConstraint := &schema.Check{
+				Name: table.Name + "_" + colName + "_check",
+				Expr: "json_valid(" + b.dialect.QuoteIdent(colName) + ")",
+			}
+			table.Attrs = append(table.Attrs, checkConstraint)
 		}
 	}
 }

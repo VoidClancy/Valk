@@ -39,7 +39,7 @@ func Not(pred valk.PredicateOf[valk.Profile]) valk.PredicateOf[valk.Profile] {
 
 var Id = valk.StringUniqueField[valk.Profile]{Column: "id"}
 
-var Bio = valk.StringField[valk.Profile]{Column: "bio"}
+var Bio = valk.OptionalStringField[valk.Profile]{StringField: valk.StringField[valk.Profile]{Column: "bio"}}
 
 var UserId = valk.StringUniqueField[valk.Profile]{Column: "userId"}
 

@@ -3,17 +3,24 @@ package {{ .PackageName }}
 import (
 	"context"
 	"database/sql"
-	{{- if hasJsonField .Model }}
+	{{- if hasModelType .Model "Json" }}
 	"encoding/json"
 	{{- end }}
 	"fmt"
 	"slices"
 	"strings"
-	{{- if hasTimeField .Model }}
+	{{- if hasModelType .Model "DateTime" }}
 	"time"
+	{{- end }}
+	{{- if and (hasModelType .Model "Array") (isPostgresProvider .Schema) }}
+	"github.com/lib/pq"
 	{{- end }}
 	{{- if ne .PackageName .ParentPackageName }}
 	"{{ .ParentImportPath }}"
 	{{- end }}
 )
+
+{{- if and (hasModelType .Model "Array") (isPostgresProvider .Schema) }}
+var _ = pq.Array
+{{- end }}
 

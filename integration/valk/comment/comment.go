@@ -51,7 +51,7 @@ var PostId = valk.StringField[valk.Comment]{Column: "postId"}
 
 var AuthorId = valk.StringField[valk.Comment]{Column: "authorId"}
 
-var Meta = valk.Field[valk.Comment, json.RawMessage]{Column: "meta"}
+var Meta = valk.OptionalField[valk.Comment, json.RawMessage]{Field: valk.Field[valk.Comment, json.RawMessage]{Column: "meta"}}
 
 type CreateInput = valk.CommentCreate
 type Create = valk.CommentCreate

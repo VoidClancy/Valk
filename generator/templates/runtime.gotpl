@@ -104,11 +104,17 @@ type Dialect struct {
 	SupportsLimitMinusOne  bool
 	SupportsBulkInsert     bool
 	SupportsDefaultKeyword bool
+	RequiresConflictTarget bool
 	ConflictKeyword        string // "ON CONFLICT" (Pg/SQLite) or "ON DUPLICATE KEY" (MySQL)
 	ConflictIgnore         string // "DO NOTHING" or ""
 	ConflictUpdate         string // "DO UPDATE SET" or "UPDATE"
 	ConflictExcluded       string // "EXCLUDED." or "VALUES("
 	ConflictExcludedEnd    string // "" or ")"
+	ILikeFmt               string // "{col} ILIKE {val}" or "LOWER({col}) LIKE LOWER({val})"
+	ArrayHasFmt            string // "{val} = ANY({col})" or "JSON_CONTAINS({col}, {val})"
+	ArrayHasEveryFmt       string // "{col} @> ARRAY[{vals}]" (empty = compose from ArrayHasFmt)
+	ArrayHasSomeFmt        string // "{col} && ARRAY[{vals}]" (empty = compose from ArrayHasFmt)
+	ArrayIsEmptyFmt        string // "(cardinality({col}) = 0 OR {col} IS NULL)" or "({col} IS NULL OR json_array_length({col}) = 0)"
 }
 
 func (d Dialect) WriteQuotedIdent(sb *strings.Builder, ident string) {
@@ -159,6 +165,116 @@ func (d Dialect) FormatLimitOffset(take *int, skip *int) string {
 	}
 	return ""
 }
+
+func (d Dialect) FormatILike(col string, placeholder string) string {
+	r := strings.NewReplacer("{col}", d.Quote(col), "{val}", placeholder)
+	return r.Replace(d.ILikeFmt)
+}
+
+func (d Dialect) FormatArrayHas(col string, placeholder string) string {
+	r := strings.NewReplacer("{col}", d.Quote(col), "{val}", placeholder)
+	return r.Replace(d.ArrayHasFmt)
+}
+
+func (d Dialect) FormatArrayHasEvery(col string, placeholders []string) string {
+	if d.ArrayHasEveryFmt != "" {
+		r := strings.NewReplacer("{col}", d.Quote(col), "{vals}", strings.Join(placeholders, ", "))
+		return r.Replace(d.ArrayHasEveryFmt)
+	}
+	var parts []string
+	for _, p := range placeholders {
+		parts = append(parts, d.FormatArrayHas(col, p))
+	}
+	if len(parts) == 0 {
+		return "1=1"
+	}
+	return "(" + strings.Join(parts, " AND ") + ")"
+}
+
+func (d Dialect) FormatArrayHasSome(col string, placeholders []string) string {
+	if d.ArrayHasSomeFmt != "" {
+		r := strings.NewReplacer("{col}", d.Quote(col), "{vals}", strings.Join(placeholders, ", "))
+		return r.Replace(d.ArrayHasSomeFmt)
+	}
+	var parts []string
+	for _, p := range placeholders {
+		parts = append(parts, d.FormatArrayHas(col, p))
+	}
+	if len(parts) == 0 {
+		return "1=0"
+	}
+	return "(" + strings.Join(parts, " OR ") + ")"
+}
+
+func (d Dialect) FormatArrayIsEmpty(col string) string {
+	r := strings.NewReplacer("{col}", d.Quote(col))
+	return r.Replace(d.ArrayIsEmptyFmt)
+}
+
+{{- if hasType .Schema "Array" }}
+func ArrayVal[T any](v []T) any {
+	return ArrayValWrapper[T]{V: v}
+}
+
+type ArrayValWrapper[T any] struct {
+	V []T
+}
+
+func (a ArrayValWrapper[T]) Value() (driver.Value, error) {
+	if a.V == nil {
+		return nil, nil
+	}
+	{{- if isPostgresProvider .Schema }}
+	return pq.Array(a.V).Value()
+	{{- else }}
+	b, err := json.Marshal(a.V)
+	if err != nil {
+		return nil, err
+	}
+	return string(b), nil
+	{{- end }}
+}
+
+func ArrayScan[T any](p *[]T) any {
+	return ArrayScanWrapper[T]{P: p}
+}
+
+type ArrayScanWrapper[T any] struct {
+	P *[]T
+}
+
+func (a ArrayScanWrapper[T]) Scan(src any) error {
+	if src == nil {
+		*a.P = nil
+		return nil
+	}
+	{{- if isPostgresProvider .Schema }}
+	switch v := src.(type) {
+	case []byte:
+		if len(v) > 0 && v[0] == '{' {
+			return pq.Array(a.P).Scan(v)
+		}
+		return json.Unmarshal(v, a.P)
+	case string:
+		if len(v) > 0 && v[0] == '{' {
+			return pq.Array(a.P).Scan(v)
+		}
+		return json.Unmarshal([]byte(v), a.P)
+	default:
+		return pq.Array(a.P).Scan(src)
+	}
+	{{- else }}
+	switch v := src.(type) {
+	case []byte:
+		return json.Unmarshal(v, a.P)
+	case string:
+		return json.Unmarshal([]byte(v), a.P)
+	default:
+		return fmt.Errorf("cannot scan %T into array", src)
+	}
+	{{- end }}
+}
+{{- end }}
 
 type rawDefault struct{}
 
@@ -221,7 +337,7 @@ type RecordInput struct {
 	Assignments []FieldAssignment
 }
 
-{{- if hasHstoreAnywhere .Schema }}
+{{- if hasType .Schema "Hstore" }}
 func ToHstore(m map[string]*string) hstore.Hstore {
 	result := hstore.Hstore{Map: make(map[string]sql.NullString, len(m))}
 	for k, v := range m {
@@ -279,7 +395,7 @@ func (errs *ValidationError) ValidateString(fieldName string, val string, isRequ
 			errs.Add(fieldName, val, "format", "bit string must contain only '0' and '1'")
 		}
 	}
-	{{- if hasNetAnywhere .Schema }}
+	{{- if hasType .Schema "Inet" }}
 	if isInet {
 		if net.ParseIP(val) == nil {
 			if _, _, err := net.ParseCIDR(val); err != nil {
@@ -341,7 +457,7 @@ func (errs *ValidationError) ValidateInt(fieldName string, val int, rule string)
 	}
 }
 
-{{- if hasUuidAnywhere .Schema }}
+{{- if hasType .Schema "Uuid" }}
 var uuidRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 func (errs *ValidationError) ValidateUUID(fieldName string, val string) {
@@ -351,14 +467,14 @@ func (errs *ValidationError) ValidateUUID(fieldName string, val string) {
 }
 {{- end }}
 
-{{- if hasFloatAnywhere .Schema }}
+{{- if hasType .Schema "Float" }}
 func (errs *ValidationError) ValidateFloat(fieldName string, val float64) {
 	if math.IsInf(val, 0) || math.IsNaN(val) {
 		errs.Add(fieldName, val, "range", "field must be a finite number")
 	}
 }
 {{- end }}
-{{- if hasDecimalAnywhere .Schema }}
+{{- if hasType .Schema "Decimal" }}
 var decimalRegex = regexp.MustCompile(`^[-+]?(\d+(\.\d*)?|\.\d+)$`)
 
 func (errs *ValidationError) ValidateDecimal(fieldName string, val string, scale int) {
@@ -377,7 +493,7 @@ func (errs *ValidationError) ValidateDecimal(fieldName string, val string, scale
 	}
 }
 {{- end }}
-{{- if hasJsonAnywhere .Schema }}
+{{- if hasType .Schema "Json" }}
 func (errs *ValidationError) ValidateJson(fieldName string, val json.RawMessage) {
 	if val == nil {
 		return
@@ -430,7 +546,7 @@ func (d Dialect) BuildConflictClause(conflictCols []string, action *ConflictActi
 		return "", nil
 	}
 	var colsStr string
-	if len(conflictCols) > 0 && d.ConflictKeyword == "ON CONFLICT" {
+	if len(conflictCols) > 0 && d.RequiresConflictTarget {
 		var quoted []string
 		for _, col := range conflictCols {
 			quoted = append(quoted, d.Quote(col))

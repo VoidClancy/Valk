@@ -45,6 +45,16 @@ function prepare(mode) {
         // Strip any @db.something attributes
         currentLine = currentLine.replace(/@db\.[A-Za-z0-9_]+(?:\([^)]*\))?/g, '');
 
+        // Convert scalar array types to Json for SQLite with doc comment preserving element type
+        const arrayMatch = currentLine.match(/^(\s*)([a-zA-Z_]\w*)\s+(String|Int|BigInt|Float|Decimal|Boolean|DateTime|Bytes)\[\]/);
+        if (arrayMatch) {
+            const indent = arrayMatch[1];
+            const elemType = arrayMatch[3];
+            out.push(indent + '/// @elementType ' + elemType);
+            currentLine = currentLine.replace(/\b(String|Int|BigInt|Float|Decimal|Boolean|DateTime|Bytes)\[\]/g, 'Json');
+            currentLine = currentLine.replace(/@default\(\[\]\)/g, '@default("[]")');
+        }
+
         out.push(currentLine);
     }
 

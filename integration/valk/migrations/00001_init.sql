@@ -13,6 +13,11 @@ CREATE TABLE "public"."User" (
   "roleOptional" "public"."user_roles" NULL,
   "loginCount" integer NOT NULL DEFAULT 0,
   "referredById" text NULL,
+  "createdAt" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAtNoDefualt" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAtnoDecorator" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAtOptional" timestamp NULL,
   PRIMARY KEY ("id"),
   CONSTRAINT "User_referredById_fkey" FOREIGN KEY ("referredById") REFERENCES "public"."User" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION
 );
@@ -91,6 +96,7 @@ CREATE TABLE "public"."Post" (
   "content" text NULL,
   "published" boolean NOT NULL DEFAULT FALSE,
   "authorId" text NOT NULL,
+  "tags" text[] NOT NULL DEFAULT '{}',
   PRIMARY KEY ("id"),
   CONSTRAINT "Post_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "public"."User" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION
 );

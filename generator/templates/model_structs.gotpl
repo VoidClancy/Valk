@@ -25,7 +25,7 @@ type {{ .Model.Name }} struct {
 type {{ .Model.Name }}Create struct {
 	{{- range $field := .Model.ScalarFields }}
 	{{- $coreType := trimPrefix $field.GoType "*" }}
-	{{- $isPointer := or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType) }}
+	{{- $isPointer := and (or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType)) (not $field.IsArray) }}
 	{{ capitalize $field.Name }} {{ if $field.EnumRef }}{{ if $field.IsArray }}[]{{ $field.EnumRef.Name }}Type{{ else }}{{ if $isPointer }}*{{ end }}{{ $field.EnumRef.Name }}Type{{ end }}{{ else }}{{ if $field.IsArray }}{{ $field.GoType }}{{ else }}{{ if $isPointer }}*{{ end }}{{ $coreType }}{{ end }}{{ end }} `json:"{{ $field.Name }}"`
 	{{- end }}
 }
@@ -34,7 +34,7 @@ func (s *{{ .Model.Name }}Create) colMask() uint64 {
 	var mask uint64
 	{{- range $i, $field := .Model.ScalarFields }}
 		{{- $coreType := trimPrefix $field.GoType "*" }}
-		{{- $isClientDefault := or (and $field.IsID (eq $field.GoType "string")) (and $field.Default (eq $field.Default.Kind.String "Func") ($field.Default.FuncName | isKnownDefaultFunc)) }}
+		{{- $isClientDefault := or (and $field.IsID (eq $field.GoType "string")) (and $field.Default (eq $field.Default.Kind.String "Func") ($field.Default.FuncName | isKnownDefaultFunc)) $field.IsUpdatedAt }}
 		{{- $isPointer := and (or (ne $field.Default nil) $field.Optional (ne $coreType $field.GoType)) (not $isClientDefault) }}
 		{{- if $isClientDefault }}
 	mask |= 1 << {{ $i }}
@@ -196,12 +196,16 @@ func assignmentsTo{{ .Model.Name }}Update(assignments []FieldAssignment) ({{ .Mo
 			}
 			{{- else }}
 			if v, ok := a.Val.({{ $coreType }}); ok {
-				input.{{ capitalize $field.Name }} = &v
-			} else if v, ok := a.Val.(*{{ $coreType }}); ok {
+				{{- if $field.IsArray }}
 				input.{{ capitalize $field.Name }} = v
-			} else if v, ok := a.Val.({{ $field.GoType }}); ok {
-				{{- if eq (trimPrefix $field.GoType "*") $field.GoType }}
+				{{- else }}
 				input.{{ capitalize $field.Name }} = &v
+				{{- end }}
+			} else if v, ok := a.Val.(*{{ $coreType }}); ok {
+				{{- if $field.IsArray }}
+				if v != nil {
+					input.{{ capitalize $field.Name }} = *v
+				}
 				{{- else }}
 				input.{{ capitalize $field.Name }} = v
 				{{- end }}
@@ -212,6 +216,15 @@ func assignmentsTo{{ .Model.Name }}Update(assignments []FieldAssignment) ({{ .Mo
 		{{- end }}
 		}
 	}
+
+	{{- range $field := .Model.ScalarFields }}
+	{{- if $field.IsUpdatedAt }}
+	if input.{{ capitalize $field.Name }} == nil {
+		now := time.Now().Truncate(time.Microsecond)
+		input.{{ capitalize $field.Name }} = &now
+	}
+	{{- end }}
+	{{- end }}
 
 	if errs.HasErrors() {
 		return input, errs
@@ -668,6 +681,8 @@ func (m *{{ .Model.Name }}) ScanFields(cols []string) []any {
 		case "{{ $field.EffectiveColName }}":
 			{{- if eq (trimPrefix $field.GoType "*") "map[string]*string" }}
 			targets[i] = HstoreScan{P: &m.{{ capitalize $field.Name }}}
+			{{- else if $field.IsArray }}
+			targets[i] = ArrayScan(&m.{{ capitalize $field.Name }})
 			{{- else }}
 			targets[i] = &m.{{ capitalize $field.Name }}
 			{{- end }}

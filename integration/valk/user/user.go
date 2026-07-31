@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"integration/valk"
+	"time"
 )
 
 type Select = valk.UserSelect
@@ -42,15 +43,25 @@ var Email = valk.StringUniqueField[valk.User]{Column: "email"}
 
 var PhoneNum = valk.StringUniqueField[valk.User]{Column: "phoneNum"}
 
-var Password = valk.StringField[valk.User]{Column: "password"}
+var Password = valk.OptionalStringField[valk.User]{StringField: valk.StringField[valk.User]{Column: "password"}}
 
 var Role = valk.Field[valk.User, valk.UserRoleType]{Column: "role"}
 
-var RoleOptional = valk.Field[valk.User, valk.UserRoleType]{Column: "roleOptional"}
+var RoleOptional = valk.OptionalField[valk.User, valk.UserRoleType]{Field: valk.Field[valk.User, valk.UserRoleType]{Column: "roleOptional"}}
 
 var LoginCount = valk.Field[valk.User, int32]{Column: "loginCount"}
 
-var ReferredById = valk.StringField[valk.User]{Column: "referredById"}
+var ReferredById = valk.OptionalStringField[valk.User]{StringField: valk.StringField[valk.User]{Column: "referredById"}}
+
+var CreatedAt = valk.Field[valk.User, time.Time]{Column: "createdAt"}
+
+var UpdatedAt = valk.Field[valk.User, time.Time]{Column: "updatedAt"}
+
+var UpdatedAtNoDefualt = valk.Field[valk.User, time.Time]{Column: "updatedAtNoDefualt"}
+
+var UpdatedAtnoDecorator = valk.Field[valk.User, time.Time]{Column: "updatedAtnoDecorator"}
+
+var UpdatedAtOptional = valk.OptionalField[valk.User, time.Time]{Field: valk.Field[valk.User, time.Time]{Column: "updatedAtOptional"}}
 
 type emailPhone struct {
 	valk.CompositeUniqueConstraint[valk.User]
