@@ -17,22 +17,36 @@ func (d PostgresDialect) QuoteIdent(name string) string {
 }
 
 func (d PostgresDialect) GetSQLType(sf *schema.ScalarField) string {
-	// If its a custom PG enum, return the quoted enum name
+	var baseType string
 	if sf.EnumRef != nil {
 		enumName := sf.EnumRef.Name
 		if sf.EnumRef.TableMapName != "" {
 			enumName = sf.EnumRef.TableMapName
 		}
-		return d.QuoteIdent(enumName)
+		baseType = d.QuoteIdent(enumName)
+	} else if sf.NativeType != nil && len(sf.NativeType.Args) > 0 {
+		baseType = fmt.Sprintf("%s(%s)", strings.ToLower(sf.SQLType), strings.Join(sf.NativeType.Args, ", "))
+	} else {
+		baseType = strings.ToLower(sf.SQLType)
 	}
-	if sf.NativeType != nil && len(sf.NativeType.Args) > 0 {
-		return fmt.Sprintf("%s(%s)", strings.ToLower(sf.SQLType), strings.Join(sf.NativeType.Args, ", "))
+	if sf.IsArray {
+		return baseType + "[]"
 	}
-	return strings.ToLower(sf.SQLType)
+	return baseType
 }
 
 func (d PostgresDialect) GetSQLDefault(dv *schema.DefaultValue, pslType string) string {
 	switch dv.Kind {
+	case schema.DefaultArray:
+		if len(dv.ArrayValues) == 0 {
+			return "'{}'"
+		}
+		var escaped []string
+		for _, val := range dv.ArrayValues {
+			escaped = append(escaped, fmt.Sprintf("%q", val))
+		}
+		return fmt.Sprintf("'{%s}'", strings.Join(escaped, ","))
+
 	case schema.DefaultLiteral:
 		if pslType == schema.TypeBoolean {
 			return strings.ToUpper(dv.Literal)
