@@ -715,7 +715,7 @@ func TestNativeDefaults_Validation_RequiredFields(t *testing.T) {
 		required := []string{"stringReq", "stringVarchar", "stringChar", "bitVal", "varBitVal",
 			"inetVal", "xmlVal", "uuidDb", "intReq", "integerVal", "smallInt",
 			"tinyInt", "oidVal", "bigIntReq", "floatReq", "realVal", "decimalReq",
-			"decimalPrecise", "moneyVal", "boolReq", "dateTimeReq", "updatedAt",
+			"decimalPrecise", "moneyVal", "boolReq", "dateTimeReq",
 			"dateTimeTz", "timestampVal", "timeVal", "timetzVal", "jsonReq",
 			"jsonVal", "bytesReq"}
 

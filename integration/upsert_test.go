@@ -237,7 +237,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 			t.Fatalf("failed to insert initial: %v", err)
 		}
 
-		newRole := valk.UserRoleTypeTeacher
+		newRole := valk.UserRole.Teacher
 		res, err := client.User.Create().
 			SetEmail("multi@example.com").
 			SetPhoneNum("+200").
@@ -265,7 +265,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 		if res.Password != nil {
 			t.Errorf("expected password to be NULL (nil), got %v", res.Password)
 		}
-		if res.RoleOptional == nil || *res.RoleOptional != valk.UserRoleTypeTeacher {
+		if res.RoleOptional == nil || *res.RoleOptional != valk.UserRole.Teacher {
 			t.Errorf("expected roleOptional to be TEACHER, got %v", res.RoleOptional)
 		}
 	})

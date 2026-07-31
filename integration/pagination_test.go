@@ -244,16 +244,28 @@ func TestPagination_NestedRelation_CursorAndOrderBy(t *testing.T) {
 	t.Cleanup(func() { _, _ = db.User.Delete(user.Id.EQ(usr.Id)).Exec(ctx) })
 
 	// Seed 4 posts for this user
-	p1, _ := db.Post.Create().SetTitle("Post 1").SetAuthorId(usr.Id).Exec(ctx)
+	p1, err := db.Post.Create().SetTitle("Post 1").SetAuthorId(usr.Id).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create p1: %v", err)
+	}
 	t.Cleanup(func() { _, _ = db.Post.Delete(post.Id.EQ(p1.Id)).Exec(ctx) })
 
-	p2, _ := db.Post.Create().SetTitle("Post 2").SetAuthorId(usr.Id).Exec(ctx)
+	p2, err := db.Post.Create().SetTitle("Post 2").SetAuthorId(usr.Id).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create p2: %v", err)
+	}
 	t.Cleanup(func() { _, _ = db.Post.Delete(post.Id.EQ(p2.Id)).Exec(ctx) })
 
-	p3, _ := db.Post.Create().SetTitle("Post 3").SetAuthorId(usr.Id).Exec(ctx)
+	p3, err := db.Post.Create().SetTitle("Post 3").SetAuthorId(usr.Id).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create p3: %v", err)
+	}
 	t.Cleanup(func() { _, _ = db.Post.Delete(post.Id.EQ(p3.Id)).Exec(ctx) })
 
-	p4, _ := db.Post.Create().SetTitle("Post 4").SetAuthorId(usr.Id).Exec(ctx)
+	p4, err := db.Post.Create().SetTitle("Post 4").SetAuthorId(usr.Id).Exec(ctx)
+	if err != nil {
+		t.Fatalf("failed to create p4: %v", err)
+	}
 	t.Cleanup(func() { _, _ = db.Post.Delete(post.Id.EQ(p4.Id)).Exec(ctx) })
 
 	// Query user with Posts query builder using OrderBy, Cursor, and Take
