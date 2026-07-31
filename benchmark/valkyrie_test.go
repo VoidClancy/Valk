@@ -40,7 +40,7 @@ func benchValkyrieCreate(b *testing.B) {
 			SetId(fmt.Sprintf("valk-create-%d", i)).
 			SetEmail(fmt.Sprintf("valk-create-%d@example.com", i)).
 			SetPhoneNum(fmt.Sprintf("valk-create-phone-%d", i)).
-			SetRole(valk.UserRoleTypeStudent).
+			SetRole(valk.UserRole.Student).
 			Exec(ctx)
 		if err != nil {
 			b.Fatal(err)
@@ -62,7 +62,7 @@ func benchValkyrieCreateMany(b *testing.B) {
 				SetId(fmt.Sprintf("valk-cmany-%d", n)).
 				SetEmail(fmt.Sprintf("valk-cmany-%d@example.com", n)).
 				SetPhoneNum(fmt.Sprintf("valk-cmany-phone-%d", n)).
-				SetRole(valk.UserRoleTypeStudent).
+				SetRole(valk.UserRole.Student).
 				SetLoginCount(0)
 		}
 		_, err := db.User.CreateMany(builders...).Exec(ctx)
@@ -86,7 +86,7 @@ func benchValkyrieCreateManyAndReturn(b *testing.B) {
 				SetId(fmt.Sprintf("valk-cmar-%d", n)).
 				SetEmail(fmt.Sprintf("valk-cmar-%d@example.com", n)).
 				SetPhoneNum(fmt.Sprintf("valk-cmar-phone-%d", n)).
-				SetRole(valk.UserRoleTypeStudent).
+				SetRole(valk.UserRole.Student).
 				SetLoginCount(0)
 		}
 		users, err := db.User.CreateManyAndReturn(builders...).Exec(ctx)
@@ -108,7 +108,7 @@ func benchValkyrieFindUnique(b *testing.B) {
 			SetId(fmt.Sprintf("valk-fu-id-%d", i)).
 			SetEmail(fmt.Sprintf("valk-fu-%d@example.com", i)).
 			SetPhoneNum(fmt.Sprintf("valk-fu-phone-%d", i)).
-			SetRole(valk.UserRoleTypeStudent).
+			SetRole(valk.UserRole.Student).
 			Exec(ctx)
 		if err != nil {
 			b.Fatal(err)
@@ -135,7 +135,7 @@ func benchValkyrieFindFirst(b *testing.B) {
 			SetId(fmt.Sprintf("valk-ff-id-%d", i)).
 			SetEmail(fmt.Sprintf("valk-ff-%d@example.com", i)).
 			SetPhoneNum(fmt.Sprintf("valk-ff-phone-%d", i)).
-			SetRole(valk.UserRoleTypeStudent).
+			SetRole(valk.UserRole.Student).
 			Exec(ctx)
 		if err != nil {
 			b.Fatal(err)
@@ -162,7 +162,7 @@ func benchValkyrieFindMany(b *testing.B) {
 			SetId(fmt.Sprintf("valk-fm-id-%d", i)).
 			SetEmail(fmt.Sprintf("valk-fm-%d@example.com", i)).
 			SetPhoneNum(fmt.Sprintf("valk-fm-phone-%d", i)).
-			SetRole(valk.UserRoleTypeStudent).
+			SetRole(valk.UserRole.Student).
 			Exec(ctx)
 		if err != nil {
 			b.Fatal(err)
@@ -190,7 +190,7 @@ func benchValkyrieUpsert(b *testing.B) {
 			SetId(fmt.Sprintf("valk-ups-id-%d", i)).
 			SetEmail(fmt.Sprintf("valk-ups-%d@example.com", i)).
 			SetPhoneNum(fmt.Sprintf("valk-ups-phone-%d", i)).
-			SetRole(valk.UserRoleTypeStudent).
+			SetRole(valk.UserRole.Student).
 			Exec(ctx)
 		if err != nil {
 			b.Fatal(err)
@@ -204,7 +204,7 @@ func benchValkyrieUpsert(b *testing.B) {
 			SetId(fmt.Sprintf("valk-ups-id-new-%d", i)).
 			SetEmail(email).
 			SetPhoneNum(fmt.Sprintf("valk-ups-phone-new-%d", i)).
-			SetRole(valk.UserRoleTypeStudent).
+			SetRole(valk.UserRole.Student).
 			SetLoginCount(int32(i)).
 			OnConflict(user.Email).
 			UpdateNewValues().
@@ -250,7 +250,7 @@ func benchValkyrieCreateWithDeepSelect(b *testing.B) {
 			SetId(fmt.Sprintf("valk-cwds-new-id-%d", i)).
 			SetEmail(fmt.Sprintf("valk-cwds-new-%d@example.com", i)).
 			SetPhoneNum(fmt.Sprintf("valk-cwds-new-phone-%d", i)).
-			SetRole(valk.UserRoleTypeStudent).
+			SetRole(valk.UserRole.Student).
 			SetReferredById(parentID).
 			Select(valk.UserSelect{
 				ReferredBy: &valk.UserSelect{
@@ -278,7 +278,7 @@ func benchValkyrieCreateManyAndReturnWithDeepSelect(b *testing.B) {
 				SetId(fmt.Sprintf("valk-cmwds-new-id-%d-%d", i, j)).
 				SetEmail(fmt.Sprintf("valk-cmwds-new-%d-%d@example.com", i, j)).
 				SetPhoneNum(fmt.Sprintf("valk-cmwds-new-phone-%d-%d", i, j)).
-				SetRole(valk.UserRoleTypeStudent).
+				SetRole(valk.UserRole.Student).
 				SetReferredById(parentID)
 		}
 		_, err := db.User.CreateManyAndReturn(inputs...).Select(valk.UserSelect{
@@ -303,7 +303,7 @@ func benchValkyrieUpsertWithDeepSelect(b *testing.B) {
 			SetId(fmt.Sprintf("valk-uwds-id-%d", i)).
 			SetEmail(fmt.Sprintf("valk-uwds-%d@example.com", i)).
 			SetPhoneNum(fmt.Sprintf("valk-uwds-phone-%d", i)).
-			SetRole(valk.UserRoleTypeStudent).
+			SetRole(valk.UserRole.Student).
 			Exec(ctx)
 		if err != nil {
 			b.Fatal(err)
@@ -318,7 +318,7 @@ func benchValkyrieUpsertWithDeepSelect(b *testing.B) {
 			SetId(fmt.Sprintf("valk-uwds-id-new-%d", i)).
 			SetEmail(email).
 			SetPhoneNum(fmt.Sprintf("valk-uwds-phone-new-%d", i)).
-			SetRole(valk.UserRoleTypeStudent).
+			SetRole(valk.UserRole.Student).
 			SetLoginCount(int32(i)).
 			SetReferredById(parentID).
 			OnConflict(user.Email).
