@@ -2,10 +2,10 @@ package {{ .PackageName }}
 
 import (
 	"context"
-	{{- if hasJsonField .Model }}
+	{{- if hasModelType .Model "Json" }}
 	"encoding/json"
 	{{- end }}
-	{{- if hasTimeField .Model }}
+	{{- if hasModelType .Model "DateTime" }}
 	"time"
 	{{- end }}
 	"{{ .ParentImportPath }}"
@@ -46,17 +46,36 @@ func Not(pred {{ .ParentPackageName }}.PredicateOf[{{ .ParentPackageName }}.{{ .
 {{- $isUnique := or $field.IsID $field.IsUnique -}}
 {{- $fieldType := fieldPredType $field $.ParentPackageName -}}
 {{- $col := $field.EffectiveColName -}}
-{{- if eq $field.Type "String" }}
-	{{- if $isUnique }}
-var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.StringUniqueField[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{Column: "{{ $col }}"}
+{{- if $field.IsArray }}
+	{{- $elemType := trimPrefix $fieldType "[]" }}
+var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.ArrayField[{{ $.ParentPackageName }}.{{ $.Model.Name }}, {{ $elemType }}]{Column: "{{ $col }}"}
+{{- else if eq $field.Type "String" }}
+	{{- if $field.Optional }}
+		{{- if $isUnique }}
+var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.OptionalStringUniqueField[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{StringUniqueField: {{ $.ParentPackageName }}.StringUniqueField[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{Column: "{{ $col }}"}}
+		{{- else }}
+var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.OptionalStringField[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{StringField: {{ $.ParentPackageName }}.StringField[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{Column: "{{ $col }}"}}
+		{{- end }}
 	{{- else }}
+		{{- if $isUnique }}
+var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.StringUniqueField[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{Column: "{{ $col }}"}
+		{{- else }}
 var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.StringField[{{ $.ParentPackageName }}.{{ $.Model.Name }}]{Column: "{{ $col }}"}
+		{{- end }}
 	{{- end }}
 {{- else }}
-	{{- if $isUnique }}
-var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.UniqueField[{{ $.ParentPackageName }}.{{ $.Model.Name }}, {{ $fieldType }}]{Column: "{{ $col }}"}
+	{{- if $field.Optional }}
+		{{- if $isUnique }}
+var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.OptionalUniqueField[{{ $.ParentPackageName }}.{{ $.Model.Name }}, {{ $fieldType }}]{UniqueField: {{ $.ParentPackageName }}.UniqueField[{{ $.ParentPackageName }}.{{ $.Model.Name }}, {{ $fieldType }}]{Column: "{{ $col }}"}}
+		{{- else }}
+var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.OptionalField[{{ $.ParentPackageName }}.{{ $.Model.Name }}, {{ $fieldType }}]{Field: {{ $.ParentPackageName }}.Field[{{ $.ParentPackageName }}.{{ $.Model.Name }}, {{ $fieldType }}]{Column: "{{ $col }}"}}
+		{{- end }}
 	{{- else }}
+		{{- if $isUnique }}
+var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.UniqueField[{{ $.ParentPackageName }}.{{ $.Model.Name }}, {{ $fieldType }}]{Column: "{{ $col }}"}
+		{{- else }}
 var {{ capitalize $field.Name }} = {{ $.ParentPackageName }}.Field[{{ $.ParentPackageName }}.{{ $.Model.Name }}, {{ $fieldType }}]{Column: "{{ $col }}"}
+		{{- end }}
 	{{- end }}
 {{- end }}
 {{ end }}
