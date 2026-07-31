@@ -94,9 +94,6 @@ type Queries struct {
 	{{- end }}
 	{{ $model.Name }} *{{ $model.Name }}Delegate
 	{{- end }}
-	{{- range $enum := .Schema.Enums }}
-	{{ $enum.Name }} {{ lowercase $enum.Name }}Namespace
-	{{- end }}
 }
 
 type DB struct {
@@ -117,9 +114,6 @@ func Open(provider, dataSourceName string) (*DB, error) {
 		dialect:   newDialect(),
 		stmtCache: make(map[string]*sql.Stmt),
 		mu:        &sync.RWMutex{},
-		{{- range $enum := .Schema.Enums }}
-		{{ $enum.Name }}: {{ $enum.Name }},
-		{{- end }}
 	}
 	q.initDelegates()
 	return &DB{
@@ -328,9 +322,6 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 		dialect:   q.dialect,
 		stmtCache: q.stmtCache,
 		mu:        q.mu,
-		{{- range $enum := .Schema.Enums }}
-		{{ $enum.Name }}: q.{{ $enum.Name }},
-		{{- end }}
 	}
 	txQueries.initDelegates()
 	txQueries.copyHooksFrom(q)

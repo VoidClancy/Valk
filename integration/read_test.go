@@ -376,7 +376,7 @@ func TestOptionalEnumNullVsValueFilter(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	adminRole := valk.UserRole.Admin
+	adminRole := valk.UserRole_ADMIN
 	_, err := db.User.Create().SetEmail("role_set@example.com").SetPhoneNum("700").SetRoleOptional(adminRole).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
@@ -816,8 +816,8 @@ func TestFindUniqueExtended(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	adminRole := valk.UserRole.Admin
-	studentRole := valk.UserRole.Student
+	adminRole := valk.UserRole_ADMIN
+	studentRole := valk.UserRole_STUDENT
 
 	_, err := db.User.Create().SetEmail("ext_admin@example.com").SetPhoneNum("1111").SetRoleOptional(adminRole).Exec(ctx)
 	if err != nil {

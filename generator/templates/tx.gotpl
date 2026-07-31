@@ -18,9 +18,6 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 		dialect:   db.dialect,
 		stmtCache: db.Queries.stmtCache,
 		mu:        db.Queries.mu,
-		{{- range $enum := .Schema.Enums }}
-		{{ $enum.Name }}: db.{{ $enum.Name }},
-		{{- end }}
 	}
 	q.initDelegates()
 	q.copyHooksFrom(db.Queries)

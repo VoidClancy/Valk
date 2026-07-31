@@ -102,6 +102,7 @@ func GenerateClient(sch schema.Schema, pkgName string, parentImportPath string, 
 	tmpl := template.New("").Funcs(template.FuncMap{
 		"capitalize":         capitalize,
 		"lowercase":          lowercase,
+		"uppercase":          strings.ToUpper,
 		"fkForRelation":      fkForRelation,
 		"fieldPredType":      fieldPredType,
 		"hasLog":             hasLog,

@@ -111,40 +111,28 @@ func generateNanoID() string {
 	return string(b)
 }
 
+// UserRoleType represents the "UserRole" enum in the schema.
+//
+// Values:
+//
+//	UserRole_ADMIN   -> "ADMIN"
+//	UserRole_STUDENT -> "student"
+//	UserRole_TEACHER -> "TEACHER"
 type UserRoleType string
 
 const (
-	// Admin maps to "ADMIN"
-	userRoleTypeAdmin UserRoleType = "ADMIN"
-	// Student maps to "student"
-	userRoleTypeStudent UserRoleType = "student"
-	// Teacher maps to "TEACHER"
-	userRoleTypeTeacher UserRoleType = "TEACHER"
+	// UserRole_ADMIN maps to "ADMIN" in the database.
+	UserRole_ADMIN UserRoleType = "ADMIN"
+	// UserRole_STUDENT maps to "student" in the database.
+	UserRole_STUDENT UserRoleType = "student"
+	// UserRole_TEACHER maps to "TEACHER" in the database.
+	UserRole_TEACHER UserRoleType = "TEACHER"
 )
 
-type userRoleNamespace struct {
-	// Admin maps to "ADMIN"
-	Admin UserRoleType
-	// Student maps to "student"
-	Student UserRoleType
-	// Teacher maps to "TEACHER"
-	Teacher UserRoleType
-}
-
-// UserRole enum values:
-//
-//	ADMIN   ADMIN
-//	STUDENT student
-//	TEACHER TEACHER
-var UserRole = userRoleNamespace{
-	Admin:   userRoleTypeAdmin,
-	Student: userRoleTypeStudent,
-	Teacher: userRoleTypeTeacher,
-}
-
+// IsValid reports whether e is a valid UserRoleType enum value.
 func (e UserRoleType) IsValid() bool {
 	switch e {
-	case userRoleTypeAdmin, userRoleTypeStudent, userRoleTypeTeacher:
+	case UserRole_ADMIN, UserRole_STUDENT, UserRole_TEACHER:
 		return true
 	}
 	return false
@@ -873,7 +861,6 @@ type Queries struct {
 	//   ltreeField      string             optional
 	//   citextField     string             optional
 	AllFieldsSoFar *AllFieldsSoFarDelegate
-	UserRole       userRoleNamespace
 }
 
 type DB struct {
@@ -894,7 +881,6 @@ func Open(provider, dataSourceName string) (*DB, error) {
 		dialect:   newDialect(),
 		stmtCache: make(map[string]*sql.Stmt),
 		mu:        &sync.RWMutex{},
-		UserRole:  UserRole,
 	}
 	q.initDelegates()
 	return &DB{
@@ -1061,7 +1047,6 @@ func (q *Queries) transaction(ctx context.Context, fn func(txQ *Queries) error) 
 		dialect:   q.dialect,
 		stmtCache: q.stmtCache,
 		mu:        q.mu,
-		UserRole:  q.UserRole,
 	}
 	txQueries.initDelegates()
 	txQueries.copyHooksFrom(q)
@@ -2149,7 +2134,6 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 		dialect:   db.dialect,
 		stmtCache: db.Queries.stmtCache,
 		mu:        db.Queries.mu,
-		UserRole:  db.UserRole,
 	}
 	q.initDelegates()
 	q.copyHooksFrom(db.Queries)

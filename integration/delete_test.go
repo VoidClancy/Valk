@@ -13,15 +13,15 @@ func TestDeleteMany(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := db.User.CreateMany(
-		db.User.Create().SetEmail("delete1@example.com").SetPhoneNum("+111").SetRole(valk.UserRole.Student),
-		db.User.Create().SetEmail("delete2@example.com").SetPhoneNum("+222").SetRole(valk.UserRole.Student),
-		db.User.Create().SetEmail("keep1@example.com").SetPhoneNum("+333").SetRole(valk.UserRole.Admin),
+		db.User.Create().SetEmail("delete1@example.com").SetPhoneNum("+111").SetRole(valk.UserRole_STUDENT),
+		db.User.Create().SetEmail("delete2@example.com").SetPhoneNum("+222").SetRole(valk.UserRole_STUDENT),
+		db.User.Create().SetEmail("keep1@example.com").SetPhoneNum("+333").SetRole(valk.UserRole_ADMIN),
 	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed users: %v", err)
 	}
 
-	count, err := db.User.DeleteMany(user.Role.EQ(valk.UserRole.Student)).Exec(ctx)
+	count, err := db.User.DeleteMany(user.Role.EQ(valk.UserRole_STUDENT)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to delete students: %v", err)
 	}
@@ -63,13 +63,13 @@ func TestDeleteMany_NoMatches(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := db.User.CreateMany(
-		db.User.Create().SetEmail("keep1@example.com").SetPhoneNum("+333").SetRole(valk.UserRole.Admin),
+		db.User.Create().SetEmail("keep1@example.com").SetPhoneNum("+333").SetRole(valk.UserRole_ADMIN),
 	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed users: %v", err)
 	}
 
-	count, err := db.User.DeleteMany(user.Role.EQ(valk.UserRole.Student)).Exec(ctx)
+	count, err := db.User.DeleteMany(user.Role.EQ(valk.UserRole_STUDENT)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to delete students: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestDeleteBasic(t *testing.T) {
 	u, err := db.User.Create().
 		SetEmail("todelete@example.com").
 		SetPhoneNum("+123456").
-		SetRole(valk.UserRole.Student).
+		SetRole(valk.UserRole_STUDENT).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -123,7 +123,7 @@ func TestDeleteSelectOmit(t *testing.T) {
 	_, err := db.User.Create().
 		SetEmail("selectdelete@example.com").
 		SetPhoneNum("+55555").
-		SetRole(valk.UserRole.Student).
+		SetRole(valk.UserRole_STUDENT).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)

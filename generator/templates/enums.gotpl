@@ -1,35 +1,24 @@
 {{- range $enum := .Schema.Enums }}
+// {{ $enum.Name }}Type represents the "{{ $enum.Name }}" enum in the schema.
+//
+// Values:
+{{- $maxVal := 0 }}{{ range $v := $enum.ValueMap }}{{ $constName := printf "%s_%s" $enum.Name (uppercase $v.Name) }}{{ if gt (len $constName) $maxVal }}{{ $maxVal = len $constName }}{{ end }}{{ end }}
+{{- range $v := $enum.ValueMap }}
+//   {{ printf "%-*s" $maxVal (printf "%s_%s" $enum.Name (uppercase $v.Name)) }} -> "{{ $v.DBName }}"
+{{- end }}
 type {{ $enum.Name }}Type string
 
 const (
 	{{- range $val := $enum.ValueMap }}
-	// {{ capitalize $val.Name }} maps to "{{ $val.DBName }}"
-	{{ lowercase $enum.Name }}Type{{ capitalize $val.Name }} {{ $enum.Name }}Type = "{{ $val.DBName }}"
+	// {{ $enum.Name }}_{{ uppercase $val.Name }} maps to "{{ $val.DBName }}" in the database.
+	{{ $enum.Name }}_{{ uppercase $val.Name }} {{ $enum.Name }}Type = "{{ $val.DBName }}"
 	{{- end }}
 )
 
-type {{ lowercase $enum.Name }}Namespace struct {
-	{{- range $val := $enum.ValueMap }}
-	// {{ capitalize $val.Name }} maps to "{{ $val.DBName }}"
-	{{ capitalize $val.Name }} {{ $enum.Name }}Type
-	{{- end }}
-}
-
-// {{ $enum.Name }} enum values:
-//
-{{- $maxVal := 0 }}{{ range $v := $enum.ValueMap }}{{ if gt (len $v.Name) $maxVal }}{{ $maxVal = len $v.Name }}{{ end }}{{ end }}
-{{- range $v := $enum.ValueMap }}
-//   {{ printf "%-*s" $maxVal $v.Name }} {{ $v.DBName }}
-{{- end }}
-var {{ $enum.Name }} = {{ lowercase $enum.Name }}Namespace{
-	{{- range $val := $enum.ValueMap }}
-	{{ capitalize $val.Name }}: {{ lowercase $enum.Name }}Type{{ capitalize $val.Name }},
-	{{- end }}
-}
-
+// IsValid reports whether e is a valid {{ $enum.Name }}Type enum value.
 func (e {{ $enum.Name }}Type) IsValid() bool {
 	switch e {
-	case {{ range $i, $val := $enum.ValueMap }}{{ if $i }}, {{ end }}{{ lowercase $enum.Name }}Type{{ capitalize $val.Name }}{{ end }}:
+	case {{ range $i, $val := $enum.ValueMap }}{{ if $i }}, {{ end }}{{ $enum.Name }}_{{ uppercase $val.Name }}{{ end }}:
 		return true
 	}
 	return false

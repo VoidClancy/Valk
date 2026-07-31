@@ -27,8 +27,8 @@ func TestCreateBasic(t *testing.T) {
 	if u.PhoneNum != "+123456789" {
 		t.Errorf("expected phoneNum '+123456789', got '%s'", u.PhoneNum)
 	}
-	if u.Role != valk.UserRole.Student {
-		t.Errorf("expected role '%s' (default), got '%s'", valk.UserRole.Student, u.Role)
+	if u.Role != valk.UserRole_STUDENT {
+		t.Errorf("expected role '%s' (default), got '%s'", valk.UserRole_STUDENT, u.Role)
 	}
 	if !strings.HasPrefix(u.Id, "c") || len(u.Id) < 10 {
 		t.Errorf("expected generated ID to be a CUID, got '%s'", u.Id)
@@ -105,8 +105,8 @@ func TestCreateWithOmit(t *testing.T) {
 	if u.Id == "" {
 		t.Errorf("expected non-empty ID")
 	}
-	if u.Role != valk.UserRole.Student {
-		t.Errorf("expected non-omitted role '%s', got '%s'", valk.UserRole.Student, u.Role)
+	if u.Role != valk.UserRole_STUDENT {
+		t.Errorf("expected non-omitted role '%s', got '%s'", valk.UserRole_STUDENT, u.Role)
 	}
 	if u.PhoneNum != "" {
 		t.Errorf("expected omitted phoneNum to be empty, got '%s'", u.PhoneNum)
@@ -121,15 +121,15 @@ func TestCreateWithCustomEnum(t *testing.T) {
 	u, err := db.User.Create().
 		SetEmail("admin@example.com").
 		SetPhoneNum("+000000000").
-		SetRole(valk.UserRole.Admin).
+		SetRole(valk.UserRole_ADMIN).
 		Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("failed to create admin: %v", err)
 	}
 
-	if u.Role != valk.UserRole.Admin {
-		t.Errorf("expected role '%s', got '%s'", valk.UserRole.Admin, u.Role)
+	if u.Role != valk.UserRole_ADMIN {
+		t.Errorf("expected role '%s', got '%s'", valk.UserRole_ADMIN, u.Role)
 	}
 }
 
