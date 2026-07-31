@@ -55,9 +55,10 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	db := openConn()
-	// db := openPGConn()
-	// defer dbReset(db)
+	// db := openConn()
+	db := openPGConn()
+	dbReset(db)
+	defer dbReset(db)
 	defer db.Close()
 	rawDB := db.Raw()
 	rawDB.SetMaxOpenConns(10)
@@ -69,9 +70,20 @@ func main() {
 	// runBlockBasedTransaction(db, ctx)
 	// runPaginationExamples(db, ctx)
 	// runExtensionExamples(db, ctx)
-	runCTP(db, ctx)
-	db.User.FindMany().Exec(ctx)
+	// runCTP(db, ctx)
+	//
 
+	usr, err := db.User.Create().SetEmail("xx@yy.com").SetPhoneNum("11").Exec(ctx)
+	if err != nil {
+		panic(err)
+	}
+	db.Post.Create().SetTitle("Post 1").SetAuthorId(usr.Id).SetTags([]string{"aa", "bb"}).Exec(ctx)
+	posts, err := db.Post.FindMany(post.Tags.HasEvery([]string{"aa", "bb"})).Exec(ctx)
+
+	if err != nil {
+		panic(err)
+	}
+	printJSON(posts)
 }
 
 // =============================================================================

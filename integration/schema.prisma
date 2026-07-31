@@ -11,20 +11,24 @@ enum UserRole {
 }
 
 model User {
-    id           String    @id @default(cuid())
-    email        String    @unique
-    phoneNum     String    @unique
-    password     String?
-    role         UserRole  @default(STUDENT)
-    roleOptional UserRole?
-    profile      Profile?
-    posts        Post[]
-    comments     Comment[]
-    loginCount   Int       @default(0)
-
-    referredById String?
-    referredBy   User?   @relation("UserReferrals", fields: [referredById], references: [id])
-    referrals    User[]  @relation("UserReferrals")
+    id                   String    @id @default(cuid())
+    email                String    @unique
+    phoneNum             String    @unique
+    password             String?
+    role                 UserRole  @default(STUDENT)
+    roleOptional         UserRole?
+    profile              Profile?
+    posts                Post[]
+    comments             Comment[]
+    loginCount           Int       @default(0)
+    referredById         String?
+    referredBy           User?     @relation("UserReferrals", fields: [referredById], references: [id])
+    referrals            User[]    @relation("UserReferrals")
+    createdAt            DateTime  @default(now())
+    updatedAt            DateTime  @default(now()) @updatedAt
+    updatedAtNoDefualt   DateTime  @default(now())
+    updatedAtnoDecorator DateTime  @default(now())
+    updatedAtOptional    DateTime?
 
     @@unique([email, phoneNum], name: "emailPhone")
 }
@@ -46,6 +50,7 @@ model Post {
     author     User             @relation(fields: [authorId], references: [id])
     comments   Comment[]
     categories CategoryToPost[]
+    tags       String[]         @default([])
 }
 
 model Comment {

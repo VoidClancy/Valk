@@ -961,16 +961,12 @@ func assignmentsToAllFieldsSoFarUpdate(assignments []FieldAssignment) (AllFields
 				input.JsonReq = &v
 			} else if v, ok := a.Val.(*json.RawMessage); ok {
 				input.JsonReq = v
-			} else if v, ok := a.Val.(json.RawMessage); ok {
-				input.JsonReq = &v
 			} else {
 				errs.Add("jsonReq", a.Val, "type", "field jsonReq must be of type json.RawMessage")
 			}
 		case "jsonOpt":
 			if v, ok := a.Val.(json.RawMessage); ok {
 				input.JsonOpt = &v
-			} else if v, ok := a.Val.(*json.RawMessage); ok {
-				input.JsonOpt = v
 			} else if v, ok := a.Val.(*json.RawMessage); ok {
 				input.JsonOpt = v
 			} else {
@@ -981,8 +977,6 @@ func assignmentsToAllFieldsSoFarUpdate(assignments []FieldAssignment) (AllFields
 				input.JsonVal = &v
 			} else if v, ok := a.Val.(*json.RawMessage); ok {
 				input.JsonVal = v
-			} else if v, ok := a.Val.(json.RawMessage); ok {
-				input.JsonVal = &v
 			} else {
 				errs.Add("jsonVal", a.Val, "type", "field jsonVal must be of type json.RawMessage")
 			}
@@ -1007,8 +1001,6 @@ func assignmentsToAllFieldsSoFarUpdate(assignments []FieldAssignment) (AllFields
 				input.HstoreField = &v
 			} else if v, ok := a.Val.(*map[string]*string); ok {
 				input.HstoreField = v
-			} else if v, ok := a.Val.(*map[string]*string); ok {
-				input.HstoreField = v
 			} else {
 				errs.Add("hstoreField", a.Val, "type", "field hstoreField must be of type *map[string]*string")
 			}
@@ -1031,6 +1023,10 @@ func assignmentsToAllFieldsSoFarUpdate(assignments []FieldAssignment) (AllFields
 				errs.Add("citextField", a.Val, "type", "field citextField must be of type string")
 			}
 		}
+	}
+	if input.UpdatedAt == nil {
+		now := time.Now().Truncate(time.Microsecond)
+		input.UpdatedAt = &now
 	}
 
 	if errs.HasErrors() {
@@ -2884,7 +2880,7 @@ func assignmentsToAllFieldsSoFarCreate(assignments []FieldAssignment) (AllFields
 		errs.Add("dateTimeReq", nil, "required", "field DateTimeReq is required")
 	}
 	if provided&providedAllFieldsSoFarUpdatedAt == 0 {
-		errs.Add("updatedAt", nil, "required", "field UpdatedAt is required")
+		input.UpdatedAt = time.Now().Truncate(time.Microsecond)
 	}
 	if provided&providedAllFieldsSoFarDateTimeTz == 0 {
 		errs.Add("dateTimeTz", nil, "required", "field DateTimeTz is required")
@@ -3058,7 +3054,11 @@ func (s *AllFieldsSoFarCreate) ToColsVals() (cols []string, vals []any) {
 		vals = append(vals, time.Now())
 	}
 	cols = append(cols, "updatedAt")
-	vals = append(vals, s.UpdatedAt)
+	if !s.UpdatedAt.IsZero() {
+		vals = append(vals, s.UpdatedAt)
+	} else {
+		vals = append(vals, time.Now().Truncate(time.Microsecond))
+	}
 	cols = append(cols, "dateTimeTz")
 	vals = append(vals, s.DateTimeTz)
 	cols = append(cols, "timestampVal")
@@ -3674,7 +3674,11 @@ func (d *AllFieldsSoFarDelegate) buildBulkInsertSQL(q *Queries, batch []*AllFiel
 					vals = append(vals, time.Now())
 				}
 			case "updatedAt":
-				vals = append(vals, input.UpdatedAt)
+				if !input.UpdatedAt.IsZero() {
+					vals = append(vals, input.UpdatedAt)
+				} else {
+					vals = append(vals, time.Now().Truncate(time.Microsecond))
+				}
 			case "dateTimeTz":
 				vals = append(vals, input.DateTimeTz)
 			case "timestampVal":
