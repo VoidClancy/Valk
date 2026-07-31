@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 
+	providers "github.com/voidclancy/valk/dbProviders"
 	"github.com/voidclancy/valk/schema"
 )
 
@@ -66,26 +67,45 @@ func fieldPredType(f *schema.ScalarField, parentPkg string) string {
 	return t
 }
 
-func hasFieldWhere(m *schema.Model, pred func(*schema.ScalarField) bool) bool {
-	return slices.ContainsFunc(m.ScalarFields, pred)
+func hasModelType(m *schema.Model, targetTypes ...string) bool {
+	for _, sf := range m.ScalarFields {
+		for _, t := range targetTypes {
+			switch t {
+			case "Array":
+				if sf.IsArray {
+					return true
+				}
+			case "Hstore":
+				if strings.Contains(sf.GoType, "map[string]*string") {
+					return true
+				}
+			case "DateTime", "Time":
+				if sf.Type == "DateTime" || strings.Contains(sf.GoType, "time.Time") {
+					return true
+				}
+			case "Json":
+				if (sf.Type == "Json" || strings.Contains(sf.GoType, "json.RawMessage")) && !sf.IsArray {
+					return true
+				}
+			default:
+				if sf.Type == t || (sf.NativeType != nil && sf.NativeType.Name == t) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
-func hasJsonField(m *schema.Model) bool {
-	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
-		return sf.Type == "Json" || strings.Contains(sf.GoType, "json.RawMessage")
-	})
+func hasType(sch schema.Schema, targetTypes ...string) bool {
+	for _, m := range sch.Models {
+		if hasModelType(m, targetTypes...) {
+			return true
+		}
+	}
+	return false
 }
-func hasJsonAnywhere(sch schema.Schema) bool {
-	return slices.ContainsFunc(sch.Models, hasJsonField)
-}
-func hasTimeField(m *schema.Model) bool {
-	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
-		return sf.Type == "DateTime" || strings.Contains(sf.GoType, "time.Time")
-	})
-}
-func hasTimeAnywhere(sch schema.Schema) bool {
-	return slices.ContainsFunc(sch.Models, hasTimeField)
-}
+
 func isKnownDefaultFunc(funcName string) bool {
 	val, ok := DEFAULT_FUNCS[funcName]
 	return ok && val != ""
@@ -94,45 +114,29 @@ func isKnownDefaultFunc(funcName string) bool {
 func defaultFuncCall(funcName string) string {
 	return DEFAULT_FUNCS[funcName]
 }
-func hasUuidField(m *schema.Model) bool {
-	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
-		return sf.NativeType != nil && sf.NativeType.Name == "Uuid"
-	})
+
+func isPostgresProvider(sch schema.Schema) bool {
+	p := sch.Datasource.Provider
+	return p == providers.Postgres || p == providers.Postgresql
 }
-func hasUuidAnywhere(sch schema.Schema) bool {
-	return slices.ContainsFunc(sch.Models, hasUuidField)
+
+func needsPQImport(sch schema.Schema) bool {
+	return isPostgresProvider(sch) && hasType(sch, "Array")
 }
-func hasFloatField(m *schema.Model) bool {
-	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
-		return sf.Type == "Float"
-	})
-}
-func hasFloatAnywhere(sch schema.Schema) bool {
-	return slices.ContainsFunc(sch.Models, hasFloatField)
-}
-func hasDecimalField(m *schema.Model) bool {
-	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
-		return sf.Type == "Decimal"
-	})
-}
-func hasDecimalAnywhere(sch schema.Schema) bool {
-	return slices.ContainsFunc(sch.Models, hasDecimalField)
-}
-func hasNetField(m *schema.Model) bool {
-	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
-		return sf.NativeType != nil && sf.NativeType.Name == "Inet"
-	})
-}
-func hasNetAnywhere(sch schema.Schema) bool {
-	return slices.ContainsFunc(sch.Models, hasNetField)
-}
-func hasHstoreField(m *schema.Model) bool {
-	return hasFieldWhere(m, func(sf *schema.ScalarField) bool {
-		return strings.TrimPrefix(sf.GoType, "*") == "map[string]*string"
-	})
-}
-func hasHstoreAnywhere(sch schema.Schema) bool {
-	return slices.ContainsFunc(sch.Models, hasHstoreField)
+func hasDefaultFunc(sch schema.Schema, names ...string) bool {
+	for _, m := range sch.Models {
+		for _, sf := range m.ScalarFields {
+			if sf.Default != nil && sf.Default.Kind == schema.DefaultFunc {
+				if slices.Contains(names, sf.Default.FuncName) {
+					return true
+				}
+			}
+			if sf.IsID && sf.GoType == "string" && sf.Default == nil && slices.Contains(names, "cuid") {
+				return true
+			}
+		}
+	}
+	return false
 }
 func hstoreExpr(goType string, expr string) string {
 	if strings.TrimPrefix(goType, "*") == "map[string]*string" {
