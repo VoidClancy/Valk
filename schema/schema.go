@@ -128,6 +128,7 @@ const (
 	DefaultFunc
 	DefaultDBGenerated
 	DefaultEnumValue
+	DefaultArray
 )
 
 func (k DefaultKind) String() string {
@@ -140,6 +141,8 @@ func (k DefaultKind) String() string {
 		return "DBGenerated"
 	case DefaultEnumValue:
 		return "EnumValue"
+	case DefaultArray:
+		return "Array"
 	default:
 		return "Unknown"
 	}
@@ -153,6 +156,7 @@ type DefaultValue struct {
 	FuncName     string
 	DBExpression string
 	EnumValue    string
+	ArrayValues  []string
 }
 
 type ScalarField struct {

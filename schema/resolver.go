@@ -36,6 +36,31 @@ var scalarTypeInfo = map[string]PSLTypeMapping{
 	TypeBytes:    {"[]byte", "BYTEA"},
 }
 
+var docCommentElementTypeMap = map[string]string{
+	"String":   "string",
+	"Int":      "int32",
+	"BigInt":   "int64",
+	"Float":    "float64",
+	"Decimal":  "string",
+	"Boolean":  "bool",
+	"DateTime": "time.Time",
+	"Json":     "json.RawMessage",
+}
+
+func extractDocCommentElementType(doc string) string {
+	prefix := "@elementType "
+	_, after, ok := strings.Cut(doc, prefix)
+	if !ok {
+		return ""
+	}
+	rest := after
+	end := strings.IndexAny(rest, " \t\n")
+	if end < 0 {
+		return rest
+	}
+	return rest[:end]
+}
+
 type Resolver struct {
 	ast        *astAST
 	errors     DiagnosticList
@@ -193,7 +218,17 @@ func (r *Resolver) buildScalarField(fd astFieldDecl, goType, sqlType string, enu
 	if fd.IsArray {
 		sf.GoType = "[]" + sf.GoType
 	}
-	if fd.Optional && !fd.IsArray {
+
+	if fd.DocComment != "" && sf.Type == "Json" {
+		if elemType := extractDocCommentElementType(fd.DocComment); elemType != "" {
+			if goType, ok := docCommentElementTypeMap[elemType]; ok {
+				sf.IsArray = true
+				sf.GoType = "[]" + goType
+			}
+		}
+	}
+
+	if fd.Optional && !sf.IsArray {
 		sf.GoType = "*" + sf.GoType
 	}
 
@@ -326,6 +361,20 @@ func (r *Resolver) resolveDefaultValue(a Attribute, enum *Enum) *DefaultValue {
 			Type:    "Literal",
 			Kind:    DefaultLiteral,
 			Literal: v.Scalar,
+		}
+
+	case ValArray:
+		var elems []string
+		for _, elem := range v.Array {
+			elems = append(elems, elem.Scalar)
+		}
+		literal := "[" + strings.Join(elems, ", ") + "]"
+		return &DefaultValue{
+			Value:       literal,
+			Type:        "Array",
+			Kind:        DefaultArray,
+			Literal:     literal,
+			ArrayValues: elems,
 		}
 	}
 	return nil
