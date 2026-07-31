@@ -1,5 +1,7 @@
 package schema
 
+import "strings"
+
 type Lexer struct {
 	input  string
 	pos    int
@@ -29,6 +31,13 @@ func (l *Lexer) peekNext() byte {
 		return 0
 	}
 	return l.input[l.pos+1]
+}
+
+func (l *Lexer) peekAhead(n int) byte {
+	if l.pos+n >= l.length {
+		return 0
+	}
+	return l.input[l.pos+n]
 }
 
 func (l *Lexer) advance() byte {
@@ -141,6 +150,18 @@ func (l *Lexer) NextToken() Token {
 			return Token{Type: OR, Value: "||", Line: line, Col: col}
 		}
 		return Token{Type: ILLEGAL, Value: string(ch), Line: line, Col: col}
+	case '/':
+		if l.peek() == '/' {
+			l.advance() // second /
+			l.advance() // third /
+			start := l.pos
+			for l.pos < l.length && l.peek() != '\n' {
+				l.advance()
+			}
+			val := strings.TrimSpace(string(l.input[start:l.pos]))
+			return Token{Type: DOC_COMMENT, Value: val, Line: line, Col: col}
+		}
+		return Token{Type: ILLEGAL, Value: string(ch), Line: line, Col: col}
 	case '@':
 		if l.peek() == '@' {
 			l.advance()
@@ -159,8 +180,7 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			continue
 		}
 
-		if ch == '/' && l.peekNext() == '/' {
-
+		if ch == '/' && l.peekNext() == '/' && l.peekAhead(2) != '/' {
 			l.advance() // first /
 			l.advance() // second /
 			for l.pos < l.length && l.peek() != '\n' {

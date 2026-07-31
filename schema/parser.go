@@ -49,6 +49,7 @@ type astFieldDecl struct {
 	IsArray    bool
 	Optional   bool
 	Attributes []Attribute
+	DocComment string
 	Line, Col  int
 }
 
@@ -342,8 +343,15 @@ func (p *Parser) parseModelDecl() astModelDecl {
 
 	var fields []astFieldDecl
 	var attrs []Attribute
+	var docComment string
 
 	for !p.eof() && p.current().Type != RBRACE && p.current().Type != EOF {
+		if p.current().Type == DOC_COMMENT {
+			docComment = p.current().Value
+			p.expect(DOC_COMMENT)
+			continue
+		}
+
 		if p.current().Type == ATAT {
 			attrs = append(attrs, p.parseModelAttribute())
 			continue
@@ -360,7 +368,10 @@ func (p *Parser) parseModelDecl() astModelDecl {
 				}
 				p.errorf("expected RBRACE, got %s", val)
 			}
-			fields = append(fields, p.parseFieldDecl())
+			fd := p.parseFieldDecl()
+			fd.DocComment = docComment
+			docComment = ""
+			fields = append(fields, fd)
 			continue
 		}
 
@@ -679,6 +690,11 @@ func (p *Parser) ParseAST() *astAST {
 				Pos:      Position{Line: tok.Line, Col: tok.Col},
 				Source:   "lexer",
 			})
+			p.advance()
+			continue
+		}
+
+		if tok.Type == DOC_COMMENT {
 			p.advance()
 			continue
 		}

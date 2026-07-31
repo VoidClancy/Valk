@@ -41,6 +41,8 @@ const (
 	OR        // ||
 	BANG      // !
 
+	DOC_COMMENT // /// doc comments
+
 	ILLEGAL // Unrecognized characters or unterminated literals
 )
 
@@ -113,6 +115,8 @@ func (t TokenType) String() string {
 		return "OR"
 	case BANG:
 		return "BANG"
+	case DOC_COMMENT:
+		return "DOC_COMMENT"
 	case ILLEGAL:
 		return "ILLEGAL"
 	default:
