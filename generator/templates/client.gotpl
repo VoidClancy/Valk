@@ -220,7 +220,7 @@ func (q *Queries) prepare(ctx context.Context, query string) (*sql.Stmt, error) 
 		var err error
 		stmt, err = prepDB.PrepareContext(ctx, query)
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 
 		q.mu.Lock()
@@ -248,12 +248,13 @@ func (q *Queries) query(ctx context.Context, query string, args ...any) (*sql.Ro
 		return nil, err
 	}
 	res, err := stmt.QueryContext(ctx, args...)
-	{{- if hasLog "error" }}
 	if err != nil {
+		{{- if hasLog "error" }}
 		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+		{{- end }}
+		return nil, TranslateDBError(err)
 	}
-	{{- end }}
-	return res, err
+	return res, nil
 }
 
 func (q *Queries) queryRow(ctx context.Context, query string, args ...any) *sql.Row {
@@ -272,12 +273,13 @@ func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Resu
 		return nil, err
 	}
 	res, err := stmt.ExecContext(ctx, args...)
-	{{- if hasLog "error" }}
 	if err != nil {
+		{{- if hasLog "error" }}
 		log.Printf("[%s] SQL Error: %v | Query: %s | Args: %v", strings.ToUpper(q.provider), err, query, args)
+		{{- end }}
+		return nil, TranslateDBError(err)
 	}
-	{{- end }}
-	return res, err
+	return res, nil
 }
 
 func (q *Queries) inTx() bool {

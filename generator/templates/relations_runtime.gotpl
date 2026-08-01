@@ -388,7 +388,7 @@ func loadRelation[P any, C any](
 
 	rows, err := q.query(ctx, query, vals...)
 	if err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
@@ -398,7 +398,7 @@ func loadRelation[P any, C any](
 	for rows.Next() {
 		var child C
 		if err := scan(rows, &child); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		if key, ok := childKey(&child); ok {
 			childMap[key] = append(childMap[key], &child)
@@ -406,7 +406,7 @@ func loadRelation[P any, C any](
 		allChildren = append(allChildren, &child)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 
 	for _, p := range parents {

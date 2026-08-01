@@ -218,16 +218,16 @@ func (d *{{ .Model.Name }}Delegate) runUpdate(ctx context.Context, preds []Predi
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "{{ .Model.Name }}"}
 	}
 
 	var res {{ .Model.Name }}
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
@@ -266,7 +266,7 @@ func (d *{{ .Model.Name }}Delegate) runUpdateFallback(ctx context.Context, preds
 		return nil, err
 	}
 	if affected == 0 {
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "{{ .Model.Name }}"}
 	}
 	return d.runFindUnique(ctx, preds, selects, omits)
 }
