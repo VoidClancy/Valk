@@ -1,7 +1,7 @@
 package main
 
 import (
-	"benchmark/valk"
+	"benchmark/phi"
 	"context"
 	"database/sql"
 	"fmt"
@@ -343,9 +343,9 @@ func createSchema(db DBTX) {
 	if activeDialect.Name == "postgres" {
 		resetPostgres(sqlDB)
 
-		valkDB, err := valk.Open(activeDialect.Driver, activeDialect.DSN)
+		valkDB, err := phi.Open(activeDialect.Driver, activeDialect.DSN)
 		if err != nil {
-			panic(fmt.Sprintf("failed to open valk for migrations: %v", err))
+			panic(fmt.Sprintf("failed to open phi for migrations: %v", err))
 		}
 		defer valkDB.Close()
 

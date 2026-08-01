@@ -1,4 +1,4 @@
-package valk
+package phi
 
 import (
 	"context"
@@ -817,7 +817,7 @@ func (b *DefaultsTestCreateBuilder) SetNow(v time.Time) *DefaultsTestCreateBuild
 
 func (b *DefaultsTestCreateBuilder) Assignments(assignments ...FieldAssignmentOf[DefaultsTest]) *DefaultsTestCreateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
@@ -1870,21 +1870,21 @@ func (b *DefaultsTestUpdateManyAndReturnBuilder) SetNow(v time.Time) *DefaultsTe
 
 func (b *DefaultsTestUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[DefaultsTest]) *DefaultsTestUpdateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *DefaultsTestUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[DefaultsTest]) *DefaultsTestUpdateManyBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *DefaultsTestUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[DefaultsTest]) *DefaultsTestUpdateManyAndReturnBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }

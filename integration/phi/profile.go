@@ -1,4 +1,4 @@
-package valk
+package phi
 
 import (
 	"context"
@@ -667,7 +667,7 @@ func (b *ProfileCreateBuilder) SetCreatedAt(v time.Time) *ProfileCreateBuilder {
 
 func (b *ProfileCreateBuilder) Assignments(assignments ...FieldAssignmentOf[Profile]) *ProfileCreateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
@@ -1528,21 +1528,21 @@ func (b *ProfileUpdateManyAndReturnBuilder) SetCreatedAt(v time.Time) *ProfileUp
 
 func (b *ProfileUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[Profile]) *ProfileUpdateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *ProfileUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[Profile]) *ProfileUpdateManyBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *ProfileUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[Profile]) *ProfileUpdateManyAndReturnBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }

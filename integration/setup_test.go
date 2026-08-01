@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
-	"integration/valk"
+	"integration/phi"
 	"os"
 	"strings"
 	"testing"
@@ -51,7 +51,7 @@ func getPostgresDSN() string {
 	return "postgres://testuser:testpassword@localhost:5432/valk_test?sslmode=disable"
 }
 
-func setupTestDB(t *testing.T) (*valk.DB, func()) {
+func setupTestDB(t *testing.T) (*phi.DB, func()) {
 	ctx := context.Background()
 
 	provider := getActiveProvider()
@@ -89,7 +89,7 @@ func setupTestDB(t *testing.T) (*valk.DB, func()) {
 		dsn = "file::memory:?cache=shared&_pragma=foreign_keys(1)"
 	}
 
-	db, err := valk.Open(provider, dsn)
+	db, err := phi.Open(provider, dsn)
 	if err != nil {
 		if t != nil {
 			t.Fatalf("failed to open database (provider: %s, dsn: %s): %v", provider, dsn, err)

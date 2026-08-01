@@ -2,9 +2,10 @@ package migration
 
 import (
 	"database/sql"
-	providers "github.com/voidclancy/valk/dbProviders"
-	"github.com/voidclancy/valk/schema"
 	"strings"
+
+	providers "github.com/voidclancy/phi/dbProviders"
+	"github.com/voidclancy/phi/schema"
 
 	"ariga.io/atlas/sql/migrate"
 )

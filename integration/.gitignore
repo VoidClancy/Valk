@@ -1,5 +1,5 @@
 *.db
 *.prisma.backup
 
-# valk/*
-# !valk/migrations/
+# phi/*
+# !phi/migrations/

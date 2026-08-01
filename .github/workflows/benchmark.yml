@@ -41,8 +41,8 @@ jobs:
           go-version-file: benchmark/go.mod
           cache-dependency-path: benchmark/go.sum
 
-      - name: Build Valkyrie CLI
-        run: go build -o bin/valk
+      - name: Build Phi CLI
+        run: go build -o bin/phi
 
       - name: Run Benchmark (${{ matrix.db }})
         run: |

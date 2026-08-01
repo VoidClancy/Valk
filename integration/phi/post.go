@@ -1,4 +1,4 @@
-package valk
+package phi
 
 import (
 	"context"
@@ -749,7 +749,7 @@ func (b *PostCreateBuilder) SetTags(v []string) *PostCreateBuilder {
 
 func (b *PostCreateBuilder) Assignments(assignments ...FieldAssignmentOf[Post]) *PostCreateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
@@ -1674,21 +1674,21 @@ func (b *PostUpdateManyAndReturnBuilder) SetTags(v []string) *PostUpdateManyAndR
 
 func (b *PostUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[Post]) *PostUpdateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *PostUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[Post]) *PostUpdateManyBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *PostUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[Post]) *PostUpdateManyAndReturnBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }

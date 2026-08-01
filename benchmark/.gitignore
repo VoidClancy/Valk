@@ -6,5 +6,5 @@ ent/*
 !ent/generate.go
 !ent/tools.go
 
-valk/*
-!valk/migrations/
+phi/*
+!phi/migrations/

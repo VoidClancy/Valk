@@ -1,4 +1,4 @@
-package valk
+package phi
 
 import (
 	"context"
@@ -801,7 +801,7 @@ func (b *CommentCreateBuilder) SetMeta(v json.RawMessage) *CommentCreateBuilder 
 
 func (b *CommentCreateBuilder) Assignments(assignments ...FieldAssignmentOf[Comment]) *CommentCreateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
@@ -1792,21 +1792,21 @@ func (b *CommentUpdateManyAndReturnBuilder) SetMeta(v json.RawMessage) *CommentU
 
 func (b *CommentUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[Comment]) *CommentUpdateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *CommentUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[Comment]) *CommentUpdateManyBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *CommentUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[Comment]) *CommentUpdateManyAndReturnBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }

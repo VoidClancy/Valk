@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/voidclancy/valk/schema"
+	"github.com/voidclancy/phi/schema"
 )
 
 var DEFAULT_FUNCS = map[string]string{

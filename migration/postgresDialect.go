@@ -3,8 +3,9 @@ package migration
 import (
 	"database/sql"
 	"fmt"
-	"github.com/voidclancy/valk/schema"
 	"strings"
+
+	"github.com/voidclancy/phi/schema"
 
 	"ariga.io/atlas/sql/migrate"
 	"ariga.io/atlas/sql/postgres"

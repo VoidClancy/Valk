@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	providers "github.com/voidclancy/valk/dbProviders"
+	providers "github.com/voidclancy/phi/dbProviders"
 )
 
 type PSLTypeMapping struct {

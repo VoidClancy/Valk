@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"integration/valk"
-	"integration/valk/categoryToPost"
-	"integration/valk/user"
+	"integration/phi"
+	"integration/phi/categoryToPost"
+	"integration/phi/user"
 	"testing"
 )
 
@@ -95,7 +95,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 
 		affected, err := client.User.CreateMany(
 			client.User.Create().SetEmail("custom@example.com").SetPhoneNum("+222").SetLoginCount(20),
-		).OnConflict(user.Email).Update(func(u *valk.UserUpsert) {
+		).OnConflict(user.Email).Update(func(u *phi.UserUpsert) {
 			u.PhoneNum.Update()
 			u.LoginCount.Increment(5)
 		}).Exec(ctx)
@@ -162,7 +162,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 			SetPhoneNum("+456").
 			SetLoginCount(10).
 			OnConflict(user.Email).
-			Update(func(u *valk.UserUpsert) {
+			Update(func(u *phi.UserUpsert) {
 				u.PhoneNum.Update()
 				u.LoginCount.Increment(20)
 			}).
@@ -209,7 +209,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 
 		affected, err := client.User.CreateMany().
 			OnConflict(user.Email).
-			Update(func(u *valk.UserUpsert) {
+			Update(func(u *phi.UserUpsert) {
 				u.LoginCount.Increment(1)
 			}).
 			Exec(ctx)
@@ -237,14 +237,14 @@ func TestUpsert_OnConflict(t *testing.T) {
 			t.Fatalf("failed to insert initial: %v", err)
 		}
 
-		newRole := valk.UserRole_TEACHER
+		newRole := phi.UserRole_TEACHER
 		res, err := client.User.Create().
 			SetEmail("multi@example.com").
 			SetPhoneNum("+200").
 			SetPassword("ignoredNewPass").
 			SetRoleOptional(newRole).
 			OnConflict(user.Email).
-			Update(func(u *valk.UserUpsert) {
+			Update(func(u *phi.UserUpsert) {
 				u.PhoneNum.Update()
 				u.LoginCount.Increment(5)
 				u.Password.Set(nil)
@@ -265,7 +265,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 		if res.Password != nil {
 			t.Errorf("expected password to be NULL (nil), got %v", res.Password)
 		}
-		if res.RoleOptional == nil || *res.RoleOptional != valk.UserRole_TEACHER {
+		if res.RoleOptional == nil || *res.RoleOptional != phi.UserRole_TEACHER {
 			t.Errorf("expected roleOptional to be TEACHER, got %v", res.RoleOptional)
 		}
 	})
@@ -312,7 +312,7 @@ func TestUpsert_OnConflict(t *testing.T) {
 			SetEmail("fk-violate@example.com").
 			SetPhoneNum("+222").
 			OnConflict(user.Email).
-			Update(func(u *valk.UserUpsert) {
+			Update(func(u *phi.UserUpsert) {
 				u.ReferredById.Set(&badFk)
 			}).
 			Exec(ctx)

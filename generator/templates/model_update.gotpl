@@ -37,21 +37,21 @@ func (b *{{ $.Model.Name }}UpdateManyAndReturnBuilder) Set{{ capitalize $field.N
 
 func (b *{{ $.Model.Name }}UpdateBuilder) Assignments(assignments ...FieldAssignmentOf[{{ .Model.Name }}]) *{{ $.Model.Name }}UpdateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *{{ $.Model.Name }}UpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[{{ .Model.Name }}]) *{{ $.Model.Name }}UpdateManyBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *{{ $.Model.Name }}UpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[{{ .Model.Name }}]) *{{ $.Model.Name }}UpdateManyAndReturnBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }

@@ -1,4 +1,4 @@
-package valk
+package phi
 
 import (
 	"context"
@@ -600,7 +600,7 @@ func (b *CategoryCreateBuilder) SetName(v string) *CategoryCreateBuilder {
 
 func (b *CategoryCreateBuilder) Assignments(assignments ...FieldAssignmentOf[Category]) *CategoryCreateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
@@ -1391,21 +1391,21 @@ func (b *CategoryUpdateManyAndReturnBuilder) SetName(v string) *CategoryUpdateMa
 
 func (b *CategoryUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[Category]) *CategoryUpdateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *CategoryUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[Category]) *CategoryUpdateManyBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *CategoryUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[Category]) *CategoryUpdateManyAndReturnBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }

@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"integration/valk"
-	"integration/valk/user"
+	"integration/phi"
+	"integration/phi/user"
 	"testing"
 )
 
@@ -13,15 +13,15 @@ func TestDeleteMany(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := db.User.CreateMany(
-		db.User.Create().SetEmail("delete1@example.com").SetPhoneNum("+111").SetRole(valk.UserRole_STUDENT),
-		db.User.Create().SetEmail("delete2@example.com").SetPhoneNum("+222").SetRole(valk.UserRole_STUDENT),
-		db.User.Create().SetEmail("keep1@example.com").SetPhoneNum("+333").SetRole(valk.UserRole_ADMIN),
+		db.User.Create().SetEmail("delete1@example.com").SetPhoneNum("+111").SetRole(phi.UserRole_STUDENT),
+		db.User.Create().SetEmail("delete2@example.com").SetPhoneNum("+222").SetRole(phi.UserRole_STUDENT),
+		db.User.Create().SetEmail("keep1@example.com").SetPhoneNum("+333").SetRole(phi.UserRole_ADMIN),
 	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed users: %v", err)
 	}
 
-	count, err := db.User.DeleteMany(user.Role.EQ(valk.UserRole_STUDENT)).Exec(ctx)
+	count, err := db.User.DeleteMany(user.Role.EQ(phi.UserRole_STUDENT)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to delete students: %v", err)
 	}
@@ -63,13 +63,13 @@ func TestDeleteMany_NoMatches(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := db.User.CreateMany(
-		db.User.Create().SetEmail("keep1@example.com").SetPhoneNum("+333").SetRole(valk.UserRole_ADMIN),
+		db.User.Create().SetEmail("keep1@example.com").SetPhoneNum("+333").SetRole(phi.UserRole_ADMIN),
 	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed users: %v", err)
 	}
 
-	count, err := db.User.DeleteMany(user.Role.EQ(valk.UserRole_STUDENT)).Exec(ctx)
+	count, err := db.User.DeleteMany(user.Role.EQ(phi.UserRole_STUDENT)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to delete students: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestDeleteBasic(t *testing.T) {
 	u, err := db.User.Create().
 		SetEmail("todelete@example.com").
 		SetPhoneNum("+123456").
-		SetRole(valk.UserRole_STUDENT).
+		SetRole(phi.UserRole_STUDENT).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -123,14 +123,14 @@ func TestDeleteSelectOmit(t *testing.T) {
 	_, err := db.User.Create().
 		SetEmail("selectdelete@example.com").
 		SetPhoneNum("+55555").
-		SetRole(valk.UserRole_STUDENT).
+		SetRole(phi.UserRole_STUDENT).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
 	deleted, err := db.User.Delete(user.Email.EQ("selectdelete@example.com")).
-		Select(valk.UserSelect{Email: true}).
+		Select(phi.UserSelect{Email: true}).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to delete: %v", err)
@@ -166,9 +166,9 @@ func TestDeleteWithRelations(t *testing.T) {
 	}
 
 	deleted, err := db.User.Delete(user.Id.EQ(u.Id)).
-		Select(valk.UserSelect{
+		Select(phi.UserSelect{
 			Email: true,
-			Profile: &valk.ProfileSelect{
+			Profile: &phi.ProfileSelect{
 				Bio: true,
 			},
 		}).
@@ -202,7 +202,7 @@ func TestDeleteHooks(t *testing.T) {
 
 	hookCalled := false
 	db.User.Use(user.Extension{
-		Delete: func(ctx context.Context, args *valk.UserDeleteArgs, next valk.UserDeleteQuery) (*valk.User, error) {
+		Delete: func(ctx context.Context, args *phi.UserDeleteArgs, next phi.UserDeleteQuery) (*phi.User, error) {
 			hookCalled = true
 			return next(ctx, args)
 		},
@@ -233,7 +233,7 @@ func TestDeleteHooks_SetWhereAndInspection(t *testing.T) {
 
 	var inspectedCol string
 	db.User.Use(user.Extension{
-		Delete: func(ctx context.Context, args *valk.UserDeleteArgs, next valk.UserDeleteQuery) (*valk.User, error) {
+		Delete: func(ctx context.Context, args *phi.UserDeleteArgs, next phi.UserDeleteQuery) (*phi.User, error) {
 			for _, w := range args.Where {
 				if w.Column() == user.Email.Column {
 					inspectedCol = w.Column()
@@ -274,7 +274,7 @@ func TestDeleteManyHooks(t *testing.T) {
 
 	hookCalled := false
 	db.User.Use(user.Extension{
-		DeleteMany: func(ctx context.Context, args *valk.UserDeleteManyArgs, next valk.UserDeleteManyQuery) (int64, error) {
+		DeleteMany: func(ctx context.Context, args *phi.UserDeleteManyArgs, next phi.UserDeleteManyQuery) (int64, error) {
 			hookCalled = true
 			args.SetWhere(user.Email.Like("%delmany%"))
 			return next(ctx, args)

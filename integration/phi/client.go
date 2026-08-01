@@ -1,4 +1,4 @@
-package valk
+package phi
 
 import (
 	"context"
@@ -792,8 +792,6 @@ func (a ArrayScanWrapper[T]) Scan(src any) error {
 	}
 }
 
-type rawDefault struct{}
-
 type DBTX interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	PrepareContext(context.Context, string) (*sql.Stmt, error)
@@ -1185,22 +1183,6 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 	return nil
 }
 
-func (q *Queries) bindVars(count int) string {
-	if count <= 0 {
-		return ""
-	}
-	var sb strings.Builder
-	sb.Grow(count * 3)
-	for i := 0; i < count; i++ {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		sb.WriteString(q.dialect.BindVar(i + 1))
-
-	}
-	return sb.String()
-}
-
 func (q *Queries) prepare(ctx context.Context, query string) (*sql.Stmt, error) {
 	q.mu.RLock()
 	stmt, ok := q.stmtCache[query]
@@ -1243,10 +1225,6 @@ func (q *Queries) query(ctx context.Context, query string, args ...any) (*sql.Ro
 		return nil, TranslateDBError(err)
 	}
 	return res, nil
-}
-
-func (q *Queries) queryRow(ctx context.Context, query string, args ...any) *sql.Row {
-	return q.db.QueryRowContext(ctx, query, args...)
 }
 
 func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
@@ -2198,9 +2176,7 @@ func CompilePredicateData(dialect Dialect, data []PredicateData, startBindIdx ..
 				placeHolders = append(placeHolders, dialect.BindVar(bindIdx))
 				bindIdx++
 			}
-			for _, val := range valSlice {
-				args = append(args, val)
-			}
+			args = append(args, valSlice...)
 			return fmt.Sprintf("%s IN (%s)", dialect.Quote(p.Column), strings.Join(placeHolders, ", "))
 		case "NOT IN":
 			valSlice := unpackSlice(p.Value)
@@ -2212,9 +2188,7 @@ func CompilePredicateData(dialect Dialect, data []PredicateData, startBindIdx ..
 				placeHolders = append(placeHolders, dialect.BindVar(bindIdx))
 				bindIdx++
 			}
-			for _, val := range valSlice {
-				args = append(args, val)
-			}
+			args = append(args, valSlice...)
 			return fmt.Sprintf("%s NOT IN (%s)", dialect.Quote(p.Column), strings.Join(placeHolders, ", "))
 		case "BETWEEN":
 			valSlice := unpackSlice(p.Value)
@@ -2247,9 +2221,7 @@ func CompilePredicateData(dialect Dialect, data []PredicateData, startBindIdx ..
 				placeHolders = append(placeHolders, dialect.BindVar(bindIdx))
 				bindIdx++
 			}
-			for _, val := range valSlice {
-				args = append(args, val)
-			}
+			args = append(args, valSlice...)
 			return dialect.FormatArrayHasEvery(p.Column, placeHolders)
 		case "ARRAY_HAS_SOME":
 			valSlice := unpackSlice(p.Value)
@@ -2261,9 +2233,7 @@ func CompilePredicateData(dialect Dialect, data []PredicateData, startBindIdx ..
 				placeHolders = append(placeHolders, dialect.BindVar(bindIdx))
 				bindIdx++
 			}
-			for _, val := range valSlice {
-				args = append(args, val)
-			}
+			args = append(args, valSlice...)
 			return dialect.FormatArrayHasSome(p.Column, placeHolders)
 		case "ARRAY_IS_EMPTY":
 			return dialect.FormatArrayIsEmpty(p.Column)

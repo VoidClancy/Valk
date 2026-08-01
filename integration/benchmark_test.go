@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"integration/valk"
+	"integration/phi"
 	"strconv"
 	"testing"
 	"time"
@@ -90,7 +90,7 @@ func TestCreationBenchmark(t *testing.T) {
 			t.Fatalf("Raw SQL write failed: %v", err)
 		}
 
-		var res valk.User
+		var res phi.User
 		err = db.Raw().QueryRowContext(ctx,
 			query(
 				`SELECT "id", "email", "phoneNum", "role", "referredById" FROM "User" WHERE "id" = ?`,
@@ -168,7 +168,7 @@ func BenchmarkRawSQLCreateWithScan(b *testing.B) {
 			b.Fatalf("Raw SQL write failed: %v", err)
 		}
 
-		var res valk.User
+		var res phi.User
 		err = db.Raw().QueryRowContext(ctx,
 			query(
 				`SELECT "id", "email", "phoneNum", "role", "referredById" FROM "User" WHERE "id" = ?`,
@@ -191,7 +191,7 @@ func BenchmarkRawSQLCreateReturning(b *testing.B) {
 		email := fmt.Sprintf("bench-returning-%d@example.com", i)
 		phone := fmt.Sprintf("+11111%d", i)
 
-		var res valk.User
+		var res phi.User
 		err := db.Raw().QueryRowContext(ctx,
 			`INSERT INTO "User" ("id", "email", "phoneNum", "role") `+
 				`VALUES ($1, $2, $3, $4) `+

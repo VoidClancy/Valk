@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"integration/valk"
-	"integration/valk/post"
-	"integration/valk/user"
+	"integration/phi"
+	"integration/phi/post"
+	"integration/phi/user"
 )
 
 func TestErrorHandling(t *testing.T) {
@@ -23,12 +23,12 @@ func TestErrorHandling(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected error when required field PhoneNum is missing, got nil")
 			}
-			if !valk.IsValidationError(err) {
-				t.Errorf("expected valk.IsValidationError(err) to be true, got false for: %v", err)
+			if !phi.IsValidationError(err) {
+				t.Errorf("expected phi.IsValidationError(err) to be true, got false for: %v", err)
 			}
-			var vErr valk.ValidationError
+			var vErr phi.ValidationError
 			if !errors.As(err, &vErr) {
-				t.Errorf("expected errors.As to match valk.ValidationError, got: %T", err)
+				t.Errorf("expected errors.As to match phi.ValidationError, got: %T", err)
 			} else if !vErr.HasErrors() {
 				t.Errorf("expected ValidationError to contain field errors")
 			}
@@ -43,8 +43,8 @@ func TestErrorHandling(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected validation error for string containing null byte, got nil")
 			}
-			if !valk.IsValidationError(err) {
-				t.Errorf("expected valk.IsValidationError(err) to be true, got false for: %v", err)
+			if !phi.IsValidationError(err) {
+				t.Errorf("expected phi.IsValidationError(err) to be true, got false for: %v", err)
 			}
 		})
 
@@ -69,16 +69,16 @@ func TestErrorHandling(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected unique constraint error on duplicate email insert, got nil")
 			}
-			if !valk.IsUniqueConstraint(err) {
-				t.Errorf("expected valk.IsUniqueConstraint(err) to be true, got false for: %v", err)
+			if !phi.IsUniqueConstraint(err) {
+				t.Errorf("expected phi.IsUniqueConstraint(err) to be true, got false for: %v", err)
 			}
-			if !valk.IsConstraintError(err) {
-				t.Errorf("expected valk.IsConstraintError(err) to be true, got false for: %v", err)
+			if !phi.IsConstraintError(err) {
+				t.Errorf("expected phi.IsConstraintError(err) to be true, got false for: %v", err)
 			}
 
-			var cErr *valk.ConstraintError
+			var cErr *phi.ConstraintError
 			if !errors.As(err, &cErr) {
-				t.Errorf("expected errors.As to match *valk.ConstraintError, got: %T", err)
+				t.Errorf("expected errors.As to match *phi.ConstraintError, got: %T", err)
 			}
 		})
 
@@ -91,11 +91,11 @@ func TestErrorHandling(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected foreign key constraint error when authorId does not exist, got nil")
 			}
-			if !valk.IsFKConstraint(err) {
-				t.Errorf("expected valk.IsFKConstraint(err) to be true, got false for: %v", err)
+			if !phi.IsFKConstraint(err) {
+				t.Errorf("expected phi.IsFKConstraint(err) to be true, got false for: %v", err)
 			}
-			if !valk.IsConstraintError(err) {
-				t.Errorf("expected valk.IsConstraintError(err) to be true, got false for: %v", err)
+			if !phi.IsConstraintError(err) {
+				t.Errorf("expected phi.IsConstraintError(err) to be true, got false for: %v", err)
 			}
 		})
 	})
@@ -147,12 +147,12 @@ func TestErrorHandling(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected NotFoundError on updating missing record, got nil")
 			}
-			if !valk.IsNotFound(err) {
-				t.Errorf("expected valk.IsNotFound(err) to be true, got false for: %v", err)
+			if !phi.IsNotFound(err) {
+				t.Errorf("expected phi.IsNotFound(err) to be true, got false for: %v", err)
 			}
-			var nfErr *valk.NotFoundError
+			var nfErr *phi.NotFoundError
 			if !errors.As(err, &nfErr) {
-				t.Errorf("expected errors.As to match *valk.NotFoundError, got: %T", err)
+				t.Errorf("expected errors.As to match *phi.NotFoundError, got: %T", err)
 			} else if nfErr.Model != "User" {
 				t.Errorf("expected NotFoundError.Model to be 'User', got: %s", nfErr.Model)
 			}
@@ -176,8 +176,8 @@ func TestErrorHandling(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected unique constraint error on update to existing email, got nil")
 			}
-			if !valk.IsUniqueConstraint(err) {
-				t.Errorf("expected valk.IsUniqueConstraint(err) to be true, got false for: %v", err)
+			if !phi.IsUniqueConstraint(err) {
+				t.Errorf("expected phi.IsUniqueConstraint(err) to be true, got false for: %v", err)
 			}
 		})
 
@@ -199,8 +199,8 @@ func TestErrorHandling(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected foreign key constraint error on updating authorId, got nil")
 			}
-			if !valk.IsFKConstraint(err) {
-				t.Errorf("expected valk.IsFKConstraint(err) to be true, got false for: %v", err)
+			if !phi.IsFKConstraint(err) {
+				t.Errorf("expected phi.IsFKConstraint(err) to be true, got false for: %v", err)
 			}
 		})
 	})
@@ -212,8 +212,8 @@ func TestErrorHandling(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected NotFoundError on deleting missing record, got nil")
 			}
-			if !valk.IsNotFound(err) {
-				t.Errorf("expected valk.IsNotFound(err) to be true, got false for: %v", err)
+			if !phi.IsNotFound(err) {
+				t.Errorf("expected phi.IsNotFound(err) to be true, got false for: %v", err)
 			}
 		})
 
@@ -233,18 +233,18 @@ func TestErrorHandling(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected foreign key constraint error when deleting parent user with posts, got nil")
 			}
-			if !valk.IsFKConstraint(err) {
-				t.Errorf("expected valk.IsFKConstraint(err) to be true, got false for: %v", err)
+			if !phi.IsFKConstraint(err) {
+				t.Errorf("expected phi.IsFKConstraint(err) to be true, got false for: %v", err)
 			}
-			if !valk.IsConstraintError(err) {
-				t.Errorf("expected valk.IsConstraintError(err) to be true, got false for: %v", err)
+			if !phi.IsConstraintError(err) {
+				t.Errorf("expected phi.IsConstraintError(err) to be true, got false for: %v", err)
 			}
 		})
 	})
 
 	t.Run("5. TRANSACTION - Error Propagation & Rollback", func(t *testing.T) {
 		t.Run("Transaction Rollback Preserves Domain Error", func(t *testing.T) {
-			err := db.Transaction(ctx, func(tx *valk.Tx) error {
+			err := db.Transaction(ctx, func(tx *phi.Tx) error {
 				_, err := tx.User.Create().SetEmail("tx1@example.com").SetPhoneNum("+4001").Exec(ctx)
 				if err != nil {
 					return err
@@ -257,8 +257,8 @@ func TestErrorHandling(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected error from transaction, got nil")
 			}
-			if !valk.IsUniqueConstraint(err) {
-				t.Errorf("expected valk.IsUniqueConstraint(err) to be true across transaction rollback, got false for: %v", err)
+			if !phi.IsUniqueConstraint(err) {
+				t.Errorf("expected phi.IsUniqueConstraint(err) to be true across transaction rollback, got false for: %v", err)
 			}
 
 			// Verify first user was rolled back
@@ -276,7 +276,7 @@ func TestErrorHandling(t *testing.T) {
 			time.Sleep(2 * time.Microsecond)
 			defer cancel()
 
-			err := db.Transaction(tCtx, func(tx *valk.Tx) error {
+			err := db.Transaction(tCtx, func(tx *phi.Tx) error {
 				_, err := tx.User.Create().SetEmail("timeout@example.com").SetPhoneNum("+4003").Exec(tCtx)
 				return err
 			})

@@ -66,4 +66,4 @@ require (
 
 replace integration => ../integration
 
-replace github.com/voidclancy/valk => ../
+replace github.com/voidclancy/phi => ../

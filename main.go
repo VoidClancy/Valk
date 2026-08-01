@@ -5,7 +5,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/voidclancy/valk/cli"
+	"github.com/voidclancy/phi/cli"
 
 	"github.com/joho/godotenv"
 )

@@ -3,6 +3,6 @@ run:
 
 issues:
   exclude-dirs:
-    - valk
+  - phi
   exclude-files:
-    - main.go
+  - main.go

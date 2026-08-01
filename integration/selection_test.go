@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"integration/valk"
+	"integration/phi"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -51,14 +51,14 @@ func TestRelationLoadChildHoldsFK(t *testing.T) {
 	u2, err := db.User.Create().
 		SetEmail("parent2@example.com").
 		SetPhoneNum("+222222222").
-		Select(valk.UserSelect{
+		Select(phi.UserSelect{
 			Id:    true,
 			Email: true,
-			Posts: &valk.PostSelect{
+			Posts: &phi.PostSelect{
 				Id:    true,
 				Title: true,
 			},
-			Profile: &valk.ProfileSelect{
+			Profile: &phi.ProfileSelect{
 				Id:  true,
 				Bio: true,
 			},
@@ -94,11 +94,11 @@ func TestRelationLoadParentHoldsFK(t *testing.T) {
 	p, err := db.Post.Create().
 		SetTitle("My Post").
 		SetAuthorId(u.Id).
-		Select(valk.PostSelect{
+		Select(phi.PostSelect{
 			Id:       true,
 			Title:    true,
 			AuthorId: true,
-			Author: &valk.UserSelect{
+			Author: &phi.UserSelect{
 				Id:    true,
 				Email: true,
 			},
@@ -141,11 +141,11 @@ func TestRelationLoadSelfRelation(t *testing.T) {
 		SetEmail("referred@example.com").
 		SetPhoneNum("+444444444").
 		SetReferredById(referrer.Id).
-		Select(valk.UserSelect{
+		Select(phi.UserSelect{
 			Id:           true,
 			Email:        true,
 			ReferredById: true,
-			ReferredBy: &valk.UserSelect{
+			ReferredBy: &phi.UserSelect{
 				Id:    true,
 				Email: true,
 			},
@@ -204,16 +204,16 @@ func TestRelationLoadDeepNesting(t *testing.T) {
 	p2, err := db.Post.Create().
 		SetTitle("Another Post").
 		SetAuthorId(u.Id).
-		Select(valk.PostSelect{
+		Select(phi.PostSelect{
 			Id:    true,
 			Title: true,
-			Author: &valk.UserSelect{
+			Author: &phi.UserSelect{
 				Id:    true,
 				Email: true,
-				Posts: &valk.PostSelect{
+				Posts: &phi.PostSelect{
 					Id:    true,
 					Title: true,
-					Comments: &valk.CommentSelect{
+					Comments: &phi.CommentSelect{
 						Id:      true,
 						Textify: true,
 					},
@@ -236,7 +236,7 @@ func TestRelationLoadDeepNesting(t *testing.T) {
 	if len(p2.Author.Posts) != 2 {
 		t.Fatalf("expected 2 posts on author, got %d", len(p2.Author.Posts))
 	}
-	var deepPost *valk.Post
+	var deepPost *phi.Post
 	for _, post := range p2.Author.Posts {
 		if post.Title == "Deep Post" {
 			deepPost = post

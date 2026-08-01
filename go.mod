@@ -1,4 +1,4 @@
-module github.com/voidclancy/valk
+module github.com/voidclancy/phi
 
 go 1.26.5
 

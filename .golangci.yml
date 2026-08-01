@@ -3,7 +3,7 @@ run:
 
 issues:
   exclude-dirs:
-    - integration/valk
-    - valk
+  - integration/phi
+  - phi
   exclude-files:
-    - integration/main.go
+  - integration/main.go

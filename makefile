@@ -27,17 +27,17 @@ bench-all:
 	cd benchmark && make bench/all && cd ..
 
 build: 
-	go build -o bin/valk 
+	go build -o bin/phi 
 
 build-prod:
-	go build -ldflags="-s -w" -o bin/valk
+	go build -ldflags="-s -w" -o bin/phi
 
 install: build
 	mkdir -p $(HOME)/go/bin
-	ln -sf $(shell pwd)/bin/valk $(HOME)/go/bin/valk
+	ln -sf $(shell pwd)/bin/phi $(HOME)/go/bin/phi
 
 run:
-	go build -o bin/valk && ./bin/valk
+	go build -o bin/phi && ./bin/phi
 
 test:
 	go test -race -v ./...
@@ -74,7 +74,7 @@ vulncheck:
 	cd integration && govulncheck ./...
 
 integration-gen: build
-	cd integration && ../bin/valk generate
+	cd integration && ../bin/phi generate
 
 integration-test: integration-gen
 	cd integration && go test -v ./...
@@ -93,17 +93,17 @@ db-reset:
  
 test-sqlite: bi test
 	node integration/prepareSchema.js sqlite
-	cd integration && ../bin/valk -g
-	rm -f integration/valk/migrations/*.sql
+	cd integration && ../bin/phi -g
+	rm -f integration/phi/migrations/*.sql
 	rm -f integration/dev.db
-	cd integration && DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/valk -m init
+	cd integration && DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/phi -m init
 	cd integration && go test -race -tags sqlite -v ./...
 
 test-pg: bi db-reset test
 	node integration/prepareSchema.js postgres
-	cd integration && ../bin/valk -g
-	rm -f integration/valk/migrations/*.sql
-	cd integration && DATABASE_URL="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" DATABASE_DIRECT_URL="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" ../bin/valk -m init
+	cd integration && ../bin/phi -g
+	rm -f integration/phi/migrations/*.sql
+	cd integration && DATABASE_URL="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" DATABASE_DIRECT_URL="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" ../bin/phi -m init
 	cd integration && go test -race -v ./...
 
 test-dbs: test-sqlite test-pg

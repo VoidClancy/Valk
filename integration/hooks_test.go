@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"integration/valk"
-	"integration/valk/user"
+	"integration/phi"
+	"integration/phi/user"
 	"strings"
 	"testing"
 )
@@ -25,7 +25,7 @@ func TestHooks(t *testing.T) {
 		var executionOrder []string
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*phi.User, error) {
 				executionOrder = append(executionOrder, "first_pre")
 				args.Data.Email = args.Data.Email + "-first"
 				ctx = context.WithValue(ctx, ctxKey("key1"), "val1")
@@ -38,7 +38,7 @@ func TestHooks(t *testing.T) {
 		})
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*phi.User, error) {
 				executionOrder = append(executionOrder, "second_pre")
 				args.Data.Email = args.Data.Email + "-second"
 
@@ -56,7 +56,7 @@ func TestHooks(t *testing.T) {
 		})
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*phi.User, error) {
 				executionOrder = append(executionOrder, "third_pre")
 				args.Data.Email = args.Data.Email + "-third"
 
@@ -101,9 +101,9 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*phi.User, error) {
 				if args.Data.Email == "short-circuit@example.com" {
-					return &valk.User{
+					return &phi.User{
 						Id:    "mocked-id",
 						Email: "short-circuit@example.com",
 					}, nil
@@ -139,7 +139,7 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*phi.User, error) {
 				return nil, errShortCircuit
 			},
 		})
@@ -159,7 +159,7 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*phi.User, error) {
 				res, err := next(ctx, args)
 				if err != nil {
 					return nil, errCustomUnique
@@ -256,7 +256,7 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
+			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*phi.User, error) {
 				for _, input := range args.Data {
 					if input.Email != "" {
 						input.Email = strings.ToLower(input.Email)
@@ -320,7 +320,7 @@ func TestHooks(t *testing.T) {
 
 		var hookCalled bool
 		db.User.Use(user.Extension{
-			Create: func(ctx context.Context, args *valk.UserCreateArgs, next valk.UserCreateQuery) (*valk.User, error) {
+			Create: func(ctx context.Context, args *phi.UserCreateArgs, next phi.UserCreateQuery) (*phi.User, error) {
 
 				hookCalled = true
 				if args.Data.Email != "" && args.Data.Email == "rollback@example.com" {
@@ -370,12 +370,12 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			FindUnique: func(ctx context.Context, args *user.FindUniqueArgs, next user.FindUniqueQuery) (*valk.User, error) {
+			FindUnique: func(ctx context.Context, args *user.FindUniqueArgs, next user.FindUniqueQuery) (*phi.User, error) {
 				// Short circuit if matching specific email
 				if len(args.Where) > 0 {
-					if p, ok := args.Where[0].(valk.UniquePredicate[valk.User]); ok {
+					if p, ok := args.Where[0].(phi.UniquePredicate[phi.User]); ok {
 						if cond, ok := p.Data.Value.(string); ok && cond == "intercept@example.com" {
-							return &valk.User{
+							return &phi.User{
 								Id:    "intercepted-unique-id",
 								Email: "intercept@example.com",
 							}, nil
@@ -400,8 +400,8 @@ func TestHooks(t *testing.T) {
 		defer cleanup()
 
 		db.User.Use(user.Extension{
-			FindFirst: func(ctx context.Context, args *user.FindFirstArgs, next user.FindFirstQuery) (*valk.User, error) {
-				return &valk.User{
+			FindFirst: func(ctx context.Context, args *user.FindFirstArgs, next user.FindFirstQuery) (*phi.User, error) {
+				return &phi.User{
 					Id:    "intercepted-first-id",
 					Email: "first@example.com",
 				}, nil
@@ -435,7 +435,7 @@ func TestHooks(t *testing.T) {
 		}
 
 		db.User.Use(user.Extension{
-			FindMany: func(ctx context.Context, args *user.FindManyArgs, next user.FindManyQuery) ([]*valk.User, error) {
+			FindMany: func(ctx context.Context, args *user.FindManyArgs, next user.FindManyQuery) ([]*phi.User, error) {
 				// Inspect predicates via w.Column() and w.Value()
 				for _, w := range args.Where {
 					_ = w.Column()

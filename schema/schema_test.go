@@ -290,7 +290,7 @@ func TestParserErrorHandlingAndRecovery(t *testing.T) {
 			errorSubstr:   "unterminated \"(\"",
 		},
 		{
-			name: "schema valk test",
+			name: "schema phi test",
 			input: `model Clancy {
     id String @id
     email String @unique

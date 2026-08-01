@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/voidclancy/valk/schema"
+	"github.com/voidclancy/phi/schema"
 
 	"ariga.io/atlas/sql/migrate"
 	"ariga.io/atlas/sql/sqlite"

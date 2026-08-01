@@ -51,7 +51,7 @@ func (b *{{ $.Model.Name }}CreateBuilder) Set{{ capitalize $field.Name }}(v {{ $
 
 func (b *{{ $.Model.Name }}CreateBuilder) Assignments(assignments ...FieldAssignmentOf[{{ .Model.Name }}]) *{{ $.Model.Name }}CreateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }

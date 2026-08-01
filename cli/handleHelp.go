@@ -7,7 +7,7 @@ import (
 
 func PrintHelp() {
 
-	fmt.Println("Usage: valk <command/flag> [arguments]")
+	fmt.Println("Usage: phi <command/flag> [arguments]")
 	fmt.Println("\nAvailable commands:")
 
 	for _, cmd := range Commands {

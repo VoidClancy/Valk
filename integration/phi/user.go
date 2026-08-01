@@ -1,4 +1,4 @@
-package valk
+package phi
 
 import (
 	"context"
@@ -1004,7 +1004,7 @@ func (b *UserCreateBuilder) SetUpdatedAtOptional(v time.Time) *UserCreateBuilder
 
 func (b *UserCreateBuilder) Assignments(assignments ...FieldAssignmentOf[User]) *UserCreateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
@@ -2190,21 +2190,21 @@ func (b *UserUpdateManyAndReturnBuilder) SetUpdatedAtOptional(v time.Time) *User
 
 func (b *UserUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[User]) *UserUpdateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *UserUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[User]) *UserUpdateManyBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *UserUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[User]) *UserUpdateManyAndReturnBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }

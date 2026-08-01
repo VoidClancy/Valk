@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"integration/valk"
-	"integration/valk/user"
+	"integration/phi"
+	"integration/phi/user"
 	"testing"
 )
 
@@ -15,7 +15,7 @@ func TestUpdate_SingleRow(t *testing.T) {
 	u1, err := db.User.Create().
 		SetEmail("update1@example.com").
 		SetPhoneNum("+10001").
-		SetRole(valk.UserRole_STUDENT).
+		SetRole(phi.UserRole_STUDENT).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -23,7 +23,7 @@ func TestUpdate_SingleRow(t *testing.T) {
 
 	updated, err := db.User.Update(user.Id.EQ(u1.Id)).
 		SetEmail("updated1@example.com").
-		SetRole(valk.UserRole_ADMIN).
+		SetRole(phi.UserRole_ADMIN).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to update user: %v", err)
@@ -32,7 +32,7 @@ func TestUpdate_SingleRow(t *testing.T) {
 	if updated.Email != "updated1@example.com" {
 		t.Errorf("expected email updated1@example.com, got %s", updated.Email)
 	}
-	if updated.Role != valk.UserRole_ADMIN {
+	if updated.Role != phi.UserRole_ADMIN {
 		t.Errorf("expected role Admin, got %s", updated.Role)
 	}
 
@@ -54,14 +54,14 @@ func TestUpdate_WithAdditionalPredicates(t *testing.T) {
 	u1, err := db.User.Create().
 		SetEmail("add_pred@example.com").
 		SetPhoneNum("+10009").
-		SetRole(valk.UserRole_STUDENT).
+		SetRole(phi.UserRole_STUDENT).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
 	// Update with UniquePredicate + Additional Predicate matching
-	updated, err := db.User.Update(user.Id.EQ(u1.Id), user.Role.EQ(valk.UserRole_STUDENT)).
+	updated, err := db.User.Update(user.Id.EQ(u1.Id), user.Role.EQ(phi.UserRole_STUDENT)).
 		SetEmail("updated_add_pred@example.com").
 		Exec(ctx)
 	if err != nil {
@@ -72,7 +72,7 @@ func TestUpdate_WithAdditionalPredicates(t *testing.T) {
 	}
 
 	// Update with UniquePredicate + Additional Predicate NOT matching (should fail with sql.ErrNoRows or return nil)
-	_, err = db.User.Update(user.Id.EQ(u1.Id), user.Role.EQ(valk.UserRole_ADMIN)).
+	_, err = db.User.Update(user.Id.EQ(u1.Id), user.Role.EQ(phi.UserRole_ADMIN)).
 		SetEmail("should_not_update@example.com").
 		Exec(ctx)
 	if err == nil {
@@ -88,7 +88,7 @@ func TestUpdate_WithNestedSelect(t *testing.T) {
 	u1, err := db.User.Create().
 		SetEmail("update_select@example.com").
 		SetPhoneNum("+10002").
-		SetRole(valk.UserRole_STUDENT).
+		SetRole(phi.UserRole_STUDENT).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -105,9 +105,9 @@ func TestUpdate_WithNestedSelect(t *testing.T) {
 
 	updated, err := db.User.Update(user.Id.EQ(u1.Id)).
 		SetEmail("new_email_select@example.com").
-		Select(valk.UserSelect{
+		Select(phi.UserSelect{
 			Email: true,
-			Posts: &valk.PostSelect{},
+			Posts: &phi.PostSelect{},
 		}).
 		Exec(ctx)
 	if err != nil {
@@ -131,15 +131,15 @@ func TestUpdateMany_Count(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := db.User.CreateMany(
-		db.User.Create().SetEmail("many1@example.com").SetPhoneNum("+20001").SetRole(valk.UserRole_STUDENT).SetLoginCount(1),
-		db.User.Create().SetEmail("many2@example.com").SetPhoneNum("+20002").SetRole(valk.UserRole_STUDENT).SetLoginCount(1),
-		db.User.Create().SetEmail("many3@example.com").SetPhoneNum("+20003").SetRole(valk.UserRole_ADMIN).SetLoginCount(1),
+		db.User.Create().SetEmail("many1@example.com").SetPhoneNum("+20001").SetRole(phi.UserRole_STUDENT).SetLoginCount(1),
+		db.User.Create().SetEmail("many2@example.com").SetPhoneNum("+20002").SetRole(phi.UserRole_STUDENT).SetLoginCount(1),
+		db.User.Create().SetEmail("many3@example.com").SetPhoneNum("+20003").SetRole(phi.UserRole_ADMIN).SetLoginCount(1),
 	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create users: %v", err)
 	}
 
-	count, err := db.User.UpdateMany(user.Role.EQ(valk.UserRole_STUDENT)).
+	count, err := db.User.UpdateMany(user.Role.EQ(phi.UserRole_STUDENT)).
 		SetLoginCount(50).
 		Exec(ctx)
 	if err != nil {
@@ -150,7 +150,7 @@ func TestUpdateMany_Count(t *testing.T) {
 		t.Errorf("expected 2 affected rows, got %d", count)
 	}
 
-	students, err := db.User.FindMany(user.Role.EQ(valk.UserRole_STUDENT)).Exec(ctx)
+	students, err := db.User.FindMany(user.Role.EQ(phi.UserRole_STUDENT)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to fetch students: %v", err)
 	}
@@ -167,14 +167,14 @@ func TestUpdateManyAndReturn_Basic(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := db.User.CreateMany(
-		db.User.Create().SetEmail("ret1@example.com").SetPhoneNum("+30001").SetRole(valk.UserRole_STUDENT).SetLoginCount(5),
-		db.User.Create().SetEmail("ret2@example.com").SetPhoneNum("+30002").SetRole(valk.UserRole_STUDENT).SetLoginCount(5),
+		db.User.Create().SetEmail("ret1@example.com").SetPhoneNum("+30001").SetRole(phi.UserRole_STUDENT).SetLoginCount(5),
+		db.User.Create().SetEmail("ret2@example.com").SetPhoneNum("+30002").SetRole(phi.UserRole_STUDENT).SetLoginCount(5),
 	).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to seed users: %v", err)
 	}
 
-	updatedUsers, err := db.User.UpdateManyAndReturn(user.Role.EQ(valk.UserRole_STUDENT)).
+	updatedUsers, err := db.User.UpdateManyAndReturn(user.Role.EQ(phi.UserRole_STUDENT)).
 		SetLoginCount(99).
 		Exec(ctx)
 	if err != nil {
@@ -199,7 +199,7 @@ func TestUpdateManyAndReturn_WithRelations(t *testing.T) {
 	u1, err := db.User.Create().
 		SetEmail("ret_rel1@example.com").
 		SetPhoneNum("+40001").
-		SetRole(valk.UserRole_STUDENT).
+		SetRole(phi.UserRole_STUDENT).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -216,9 +216,9 @@ func TestUpdateManyAndReturn_WithRelations(t *testing.T) {
 
 	updatedUsers, err := db.User.UpdateManyAndReturn(user.Id.EQ(u1.Id)).
 		SetLoginCount(777).
-		Select(valk.UserSelect{
+		Select(phi.UserSelect{
 			LoginCount: true,
-			Posts:      &valk.PostSelect{},
+			Posts:      &phi.PostSelect{},
 		}).
 		Exec(ctx)
 	if err != nil {
@@ -247,7 +247,7 @@ func TestUpdate_NoAssignments(t *testing.T) {
 	u, err := db.User.Create().
 		SetEmail("no_assign@example.com").
 		SetPhoneNum("+50001").
-		SetRole(valk.UserRole_STUDENT).
+		SetRole(phi.UserRole_STUDENT).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -264,9 +264,9 @@ func TestUpdate_NoAssignments(t *testing.T) {
 
 	// Update with 0 assignments should just return current record + relations
 	updated, err := db.User.Update(user.Id.EQ(u.Id)).
-		Select(valk.UserSelect{
+		Select(phi.UserSelect{
 			Email: true,
-			Posts: &valk.PostSelect{},
+			Posts: &phi.PostSelect{},
 		}).
 		Exec(ctx)
 	if err != nil {
@@ -302,7 +302,7 @@ func TestUpdate_InsideUserTransaction(t *testing.T) {
 	u, err := db.User.Create().
 		SetEmail("in_tx_base@example.com").
 		SetPhoneNum("+60001").
-		SetRole(valk.UserRole_STUDENT).
+		SetRole(phi.UserRole_STUDENT).
 		Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -317,12 +317,12 @@ func TestUpdate_InsideUserTransaction(t *testing.T) {
 		t.Fatalf("failed to create post: %v", err)
 	}
 
-	err = db.Transaction(ctx, func(tx *valk.Tx) error {
+	err = db.Transaction(ctx, func(tx *phi.Tx) error {
 		updated, err := tx.User.Update(user.Id.EQ(u.Id)).
 			SetEmail("in_tx_updated@example.com").
-			Select(valk.UserSelect{
+			Select(phi.UserSelect{
 				Email: true,
-				Posts: &valk.PostSelect{},
+				Posts: &phi.PostSelect{},
 			}).
 			Exec(ctx)
 		if err != nil {
@@ -347,7 +347,7 @@ func TestUpdateMany_EdgeCases(t *testing.T) {
 	ctx := context.Background()
 
 	// 0 assignments -> returns 0, nil
-	count, err := db.User.UpdateMany(user.Role.EQ(valk.UserRole_STUDENT)).Exec(ctx)
+	count, err := db.User.UpdateMany(user.Role.EQ(phi.UserRole_STUDENT)).Exec(ctx)
 	if err != nil {
 		t.Fatalf("updateMany with 0 assignments failed: %v", err)
 	}
