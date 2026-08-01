@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"integration/valk"
-	"integration/valk/comment"
-	"integration/valk/post"
-	"integration/valk/user"
+	"integration/phi"
+	"integration/phi/comment"
+	"integration/phi/post"
+	"integration/phi/user"
 	"strings"
 	"sync"
 	"testing"
@@ -24,7 +24,7 @@ func TestFindUniqueWithNoFieldsSet(t *testing.T) {
 		t.Fatalf("seed failed: %v", err)
 	}
 
-	res, err := db.User.FindUnique(valk.UniquePredicate[valk.User]{}).Exec(ctx)
+	res, err := db.User.FindUnique(phi.UniquePredicate[phi.User]{}).Exec(ctx)
 	if err == nil && res != nil {
 		t.Errorf("FindUnique with a zero-value where matched a row unexpectedly (%+v); it should require at least one unique field or return an error", res)
 	}
@@ -63,7 +63,7 @@ func TestSelectWithNoFieldsSet(t *testing.T) {
 		t.Fatalf("seed failed: %v", err)
 	}
 
-	res, err := db.User.FindUnique(user.Email.EQ("empty_select@example.com")).Select(valk.UserSelect{}).Exec(ctx)
+	res, err := db.User.FindUnique(user.Email.EQ("empty_select@example.com")).Select(phi.UserSelect{}).Exec(ctx)
 	if err != nil {
 		t.Fatalf("empty select produced an error instead of degrading gracefully: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestOmitAllFields(t *testing.T) {
 		t.Fatalf("seed failed: %v", err)
 	}
 
-	res, err := db.User.FindUnique(user.Email.EQ("omit_all@example.com")).Omit(valk.UserOmit{
+	res, err := db.User.FindUnique(user.Email.EQ("omit_all@example.com")).Omit(phi.UserOmit{
 		Id:       true,
 		Email:    true,
 		PhoneNum: true,
@@ -107,7 +107,7 @@ func TestOmitIdFieldStillAllowsFilterById(t *testing.T) {
 		t.Fatalf("seed failed: %v", err)
 	}
 
-	res, err := db.User.FindUnique(user.Id.EQ(u.Id)).Omit(valk.UserOmit{Id: true}).Exec(ctx)
+	res, err := db.User.FindUnique(user.Id.EQ(u.Id)).Omit(phi.UserOmit{Id: true}).Exec(ctx)
 	if err != nil {
 		t.Fatalf("query failed: %v", err)
 	}
@@ -129,9 +129,9 @@ func TestRelationLoadWithNoRelatedRows(t *testing.T) {
 		t.Fatalf("seed failed: %v", err)
 	}
 
-	res, err := db.User.FindUnique(user.Email.EQ("noposts@example.com")).Select(valk.UserSelect{
+	res, err := db.User.FindUnique(user.Email.EQ("noposts@example.com")).Select(phi.UserSelect{
 		Email: true,
-		Posts: &valk.PostSelect{Title: true},
+		Posts: &phi.PostSelect{Title: true},
 	}).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to find user with empty relation: %v", err)
@@ -158,9 +158,9 @@ func TestFindUniqueRelationLoad(t *testing.T) {
 		t.Fatalf("seed post failed: %v", err)
 	}
 
-	res, err := db.User.FindUnique(user.Email.EQ("unique_rel@example.com")).Select(valk.UserSelect{
+	res, err := db.User.FindUnique(user.Email.EQ("unique_rel@example.com")).Select(phi.UserSelect{
 		Email: true,
-		Posts: &valk.PostSelect{Title: true},
+		Posts: &phi.PostSelect{Title: true},
 	}).Exec(ctx)
 	if err != nil {
 		t.Fatalf("FindUnique with relation load failed: %v", err)
@@ -184,9 +184,9 @@ func TestFindFirstRelationLoad(t *testing.T) {
 		t.Fatalf("seed post failed: %v", err)
 	}
 
-	res, err := db.User.FindFirst(user.Email.EQ("first_rel@example.com")).Select(valk.UserSelect{
+	res, err := db.User.FindFirst(user.Email.EQ("first_rel@example.com")).Select(phi.UserSelect{
 		Email: true,
-		Posts: &valk.PostSelect{Title: true},
+		Posts: &phi.PostSelect{Title: true},
 	}).Exec(ctx)
 	if err != nil {
 		t.Fatalf("FindFirst with relation load failed: %v", err)
@@ -376,7 +376,7 @@ func TestOptionalEnumNullVsValueFilter(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	adminRole := valk.UserRole_ADMIN
+	adminRole := phi.UserRole_ADMIN
 	_, err := db.User.Create().SetEmail("role_set@example.com").SetPhoneNum("700").SetRoleOptional(adminRole).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
@@ -555,7 +555,7 @@ func TestJsonField(t *testing.T) {
 		t.Fatalf("failed to create post: %v", err)
 	}
 
-	metaVal := json.RawMessage(`{"tags":["valkyrie","orm"],"version":1}`)
+	metaVal := json.RawMessage(`{"tags":["phi","orm"],"version":1}`)
 	c, err := db.Comment.Create().SetTextify(1).SetDummy3("dummy3").SetDummy1(10).SetDummy2("dummy2").SetPostId(p.Id).SetAuthorId(u.Id).SetMeta(metaVal).Exec(ctx)
 	if err != nil {
 		t.Fatalf("failed to create comment with JSON: %v", err)
@@ -816,8 +816,8 @@ func TestFindUniqueExtended(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	adminRole := valk.UserRole_ADMIN
-	studentRole := valk.UserRole_STUDENT
+	adminRole := phi.UserRole_ADMIN
+	studentRole := phi.UserRole_STUDENT
 
 	_, err := db.User.Create().SetEmail("ext_admin@example.com").SetPhoneNum("1111").SetRoleOptional(adminRole).Exec(ctx)
 	if err != nil {

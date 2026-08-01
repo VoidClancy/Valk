@@ -2,7 +2,7 @@ module integration
 
 go 1.26.5
 
-replace github.com/voidclancy/valk => ../
+replace github.com/voidclancy/phi => ../
 
 require (
 	github.com/google/uuid v1.6.0

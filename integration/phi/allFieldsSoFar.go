@@ -1,4 +1,4 @@
-package valk
+package phi
 
 import (
 	"context"
@@ -2314,7 +2314,7 @@ func (b *AllFieldsSoFarCreateBuilder) SetCitextField(v string) *AllFieldsSoFarCr
 
 func (b *AllFieldsSoFarCreateBuilder) Assignments(assignments ...FieldAssignmentOf[AllFieldsSoFar]) *AllFieldsSoFarCreateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
@@ -4906,21 +4906,21 @@ func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) SetCitextField(v string) *All
 
 func (b *AllFieldsSoFarUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *AllFieldsSoFarUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateManyBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *AllFieldsSoFarUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[AllFieldsSoFar]) *AllFieldsSoFarUpdateManyAndReturnBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }

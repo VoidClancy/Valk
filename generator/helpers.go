@@ -4,8 +4,8 @@ import (
 	"slices"
 	"strings"
 
-	providers "github.com/voidclancy/valk/dbProviders"
-	"github.com/voidclancy/valk/schema"
+	providers "github.com/voidclancy/phi/dbProviders"
+	"github.com/voidclancy/phi/schema"
 )
 
 var DEFAULT_FUNCS = map[string]string{

@@ -1,4 +1,4 @@
-package valk
+package phi
 
 import (
 	"context"
@@ -600,7 +600,7 @@ func (b *CategoryToPostCreateBuilder) SetCategoryId(v int32) *CategoryToPostCrea
 
 func (b *CategoryToPostCreateBuilder) Assignments(assignments ...FieldAssignmentOf[CategoryToPost]) *CategoryToPostCreateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
@@ -1388,21 +1388,21 @@ func (b *CategoryToPostUpdateManyAndReturnBuilder) SetCategoryId(v int32) *Categ
 
 func (b *CategoryToPostUpdateBuilder) Assignments(assignments ...FieldAssignmentOf[CategoryToPost]) *CategoryToPostUpdateBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *CategoryToPostUpdateManyBuilder) Assignments(assignments ...FieldAssignmentOf[CategoryToPost]) *CategoryToPostUpdateManyBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }
 
 func (b *CategoryToPostUpdateManyAndReturnBuilder) Assignments(assignments ...FieldAssignmentOf[CategoryToPost]) *CategoryToPostUpdateManyAndReturnBuilder {
 	for _, a := range assignments {
-		b.assignments = append(b.assignments, FieldAssignment{Col: a.Col, Val: a.Val})
+		b.assignments = append(b.assignments, FieldAssignment(a))
 	}
 	return b
 }

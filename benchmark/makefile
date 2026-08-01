@@ -2,7 +2,7 @@ DATABASE_URL       ?= postgres://postgres:postgres@localhost:5432/postgres?sslmo
 DATABASE_DIRECT_URL ?= $(DATABASE_URL)
 SKIP_DB_RESET      ?= false
 
-.PHONY: run test build bench benchNS bench/raw bench/valkyrie bench/gorm bench/short bench/stress bench/prll bench/stress-gc bench/sqlite bench/postgres bench/all
+.PHONY: run test build bench benchNS bench/raw bench/phi bench/gorm bench/short bench/stress bench/prll bench/stress-gc bench/sqlite bench/postgres bench/all
 
 run:
 	go test -bench=. -benchmem -count=1
@@ -18,19 +18,19 @@ db-reset:
 
 bench/sqlite:
 	node prepareSchema.js sqlite
-	rm -rf valk/migrations/*.sql
+	rm -rf phi/migrations/*.sql
 	rm -f dev.db
-	DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/valk migrate init
-	../bin/valk generate
+	DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/phi migrate init
+	../bin/phi generate
 	go generate ./ent
 	BENCH_DB=sqlite go run ./cmd/benchsummary
 
 bench/pg:
 	node prepareSchema.js postgres
-	rm -rf valk/migrations/*.sql
+	rm -rf phi/migrations/*.sql
 	if [ "$(SKIP_DB_RESET)" != "true" ]; then $(MAKE) db-reset; fi
-	DATABASE_URL="$(DATABASE_URL)" DATABASE_DIRECT_URL="$(DATABASE_DIRECT_URL)" ../bin/valk migrate init
-	../bin/valk generate
+	DATABASE_URL="$(DATABASE_URL)" DATABASE_DIRECT_URL="$(DATABASE_DIRECT_URL)" ../bin/phi migrate init
+	../bin/phi generate
 	go generate ./ent
 	BENCH_DB=postgres go run ./cmd/benchsummary
 
@@ -46,8 +46,8 @@ benchNS:
 bench/raw:
 	go test -bench=BenchmarkRaw -benchmem -count=1
 
-bench/valkyrie:
-	go test -bench=BenchmarkValkyrie -benchmem -count=1
+bench/phi:
+	go test -bench=BenchmarkPhi -benchmem -count=1
 
 bench/gorm:
 	go test -bench=BenchmarkGORM -benchmem -count=1

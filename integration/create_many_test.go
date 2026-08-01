@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"integration/valk"
-	"integration/valk/user"
+	"integration/phi"
+	"integration/phi/user"
 	"strings"
 	"testing"
 )
@@ -54,7 +54,7 @@ func TestCreateMany_Hooks(t *testing.T) {
 		defer cleanup()
 
 		client.User.Use(user.Extension{
-			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
+			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*phi.User, error) {
 				for _, input := range args.Data {
 					if input.Email == "hooked@example.com" {
 						input.PhoneNum = "+188888888"
@@ -121,9 +121,9 @@ func TestCreateMany_Hooks(t *testing.T) {
 		defer cleanup()
 
 		var afterCalled bool
-		var gotRole valk.UserRoleType
+		var gotRole phi.UserRoleType
 		client.User.Use(user.Extension{
-			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
+			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*phi.User, error) {
 				res, err := next(ctx, args)
 				if err == nil {
 					afterCalled = true
@@ -158,7 +158,7 @@ func TestCreateMany_Hooks(t *testing.T) {
 		defer cleanup()
 
 		client.User.Use(user.Extension{
-			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*valk.User, error) {
+			CreateManyAndReturn: func(ctx context.Context, args *user.CreateManyAndReturnArgs, next user.CreateManyAndReturnQuery) ([]*phi.User, error) {
 				_, err := next(ctx, args)
 				if err != nil {
 					return nil, err
@@ -196,13 +196,13 @@ func TestCreateMany_Hooks(t *testing.T) {
 		client, cleanup := setupTestDB(t)
 		defer cleanup()
 
-		var gotUsers []valk.UserCreate
+		var gotUsers []phi.UserCreate
 		var gotCount int64
 		client.User.Use(user.Extension{
 			CreateMany: func(ctx context.Context, args *user.CreateManyArgs, next user.CreateManyQuery) (int64, error) {
 				count, err := next(ctx, args)
 				if err == nil {
-					gotUsers = make([]valk.UserCreate, len(args.Data))
+					gotUsers = make([]phi.UserCreate, len(args.Data))
 					for i, a := range args.Data {
 						gotUsers[i] = *a
 					}
@@ -317,10 +317,10 @@ func TestCreateMany(t *testing.T) {
 		posts, err := client.Post.CreateManyAndReturn(
 			client.Post.Create().SetTitle("Post One").SetAuthorId(author.Id),
 			client.Post.Create().SetTitle("Post Two").SetAuthorId(author.Id),
-		).Select(valk.PostSelect{
+		).Select(phi.PostSelect{
 			Id:    true,
 			Title: true,
-			Author: &valk.UserSelect{
+			Author: &phi.UserSelect{
 				Email: true,
 			},
 		}).Exec(ctx)
@@ -359,9 +359,9 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 	t.Run("CreateMany mixed defaults grouping fallback works", func(t *testing.T) {
 		count, err := client.User.CreateMany(
 
-			client.User.Create().SetEmail("admin@example.com").SetPhoneNum("+100").SetRole(valk.UserRole_ADMIN),
+			client.User.Create().SetEmail("admin@example.com").SetPhoneNum("+100").SetRole(phi.UserRole_ADMIN),
 			client.User.Create().SetEmail("student@example.com").SetPhoneNum("+200"),
-			client.User.Create().SetEmail("teacher@example.com").SetPhoneNum("+300").SetRole(valk.UserRole_TEACHER),
+			client.User.Create().SetEmail("teacher@example.com").SetPhoneNum("+300").SetRole(phi.UserRole_TEACHER),
 			client.User.Create().SetEmail("student2@example.com").SetPhoneNum("+400"),
 		).Exec(ctx)
 
@@ -376,7 +376,7 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to find admin: %v", err)
 		}
-		if admin.Role != valk.UserRole_ADMIN {
+		if admin.Role != phi.UserRole_ADMIN {
 			t.Errorf("expected admin role ADMIN, got %v", admin.Role)
 		}
 
@@ -384,7 +384,7 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to find student: %v", err)
 		}
-		if student.Role != valk.UserRole_STUDENT {
+		if student.Role != phi.UserRole_STUDENT {
 			t.Errorf("expected student role STUDENT, got %v", student.Role)
 		}
 
@@ -392,7 +392,7 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to find teacher: %v", err)
 		}
-		if teacher.Role != valk.UserRole_TEACHER {
+		if teacher.Role != phi.UserRole_TEACHER {
 			t.Errorf("expected teacher role TEACHER, got %v", teacher.Role)
 		}
 
@@ -400,16 +400,16 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to find student2: %v", err)
 		}
-		if student2.Role != valk.UserRole_STUDENT {
+		if student2.Role != phi.UserRole_STUDENT {
 			t.Errorf("expected student2 role STUDENT, got %v", student2.Role)
 		}
 	})
 
 	t.Run("CreateManyAndReturn mixed defaults grouping fallback works", func(t *testing.T) {
 		users, err := client.User.CreateManyAndReturn(
-			client.User.Create().SetEmail("admin-ret@example.com").SetPhoneNum("+100-ret").SetRole(valk.UserRole_ADMIN),
+			client.User.Create().SetEmail("admin-ret@example.com").SetPhoneNum("+100-ret").SetRole(phi.UserRole_ADMIN),
 			client.User.Create().SetEmail("student-ret@example.com").SetPhoneNum("+200-ret"),
-			client.User.Create().SetEmail("teacher-ret@example.com").SetPhoneNum("+300-ret").SetRole(valk.UserRole_TEACHER),
+			client.User.Create().SetEmail("teacher-ret@example.com").SetPhoneNum("+300-ret").SetRole(phi.UserRole_TEACHER),
 			client.User.Create().SetEmail("student2-ret@example.com").SetPhoneNum("+400-ret"),
 		).Exec(ctx)
 
@@ -423,19 +423,19 @@ func TestCreateMany_MixedDefaults(t *testing.T) {
 		for _, u := range users {
 			switch u.Email {
 			case "admin-ret@example.com":
-				if u.Role != valk.UserRole_ADMIN {
+				if u.Role != phi.UserRole_ADMIN {
 					t.Errorf("returned admin expected ADMIN, got %v", u.Role)
 				}
 			case "student-ret@example.com":
-				if u.Role != valk.UserRole_STUDENT {
+				if u.Role != phi.UserRole_STUDENT {
 					t.Errorf("returned student expected STUDENT, got %v", u.Role)
 				}
 			case "teacher-ret@example.com":
-				if u.Role != valk.UserRole_TEACHER {
+				if u.Role != phi.UserRole_TEACHER {
 					t.Errorf("returned teacher expected TEACHER, got %v", u.Role)
 				}
 			case "student2-ret@example.com":
-				if u.Role != valk.UserRole_STUDENT {
+				if u.Role != phi.UserRole_STUDENT {
 					t.Errorf("returned student2 expected STUDENT, got %v", u.Role)
 				}
 			}

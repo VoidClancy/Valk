@@ -2,11 +2,12 @@ package cli
 
 import (
 	"fmt"
-	"github.com/voidclancy/valk/generator"
-	"github.com/voidclancy/valk/schema"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/voidclancy/phi/generator"
+	"github.com/voidclancy/phi/schema"
 )
 
 func handleGenerate() {
@@ -44,7 +45,7 @@ func handleGenerate() {
 
 	pkgName := filepath.Base(config.Output.Client)
 	if pkgName == "." || pkgName == "" {
-		pkgName = "valk"
+		pkgName = "phi"
 	}
 
 	parentImportPath, err := generator.ResolveImportPath(config.Output.Client)

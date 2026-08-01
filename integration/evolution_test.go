@@ -54,7 +54,7 @@ model User {
 }
 `,
 		Imports: []string{
-			`user "integration/sandbox/valk/user"`,
+			`user "integration/sandbox/phi/user"`,
 		},
 		Code: `
 			// Verify user-1 is intact
@@ -95,7 +95,7 @@ model User {
 }
 `,
 		Imports: []string{
-			`user "integration/sandbox/valk/user"`,
+			`user "integration/sandbox/phi/user"`,
 		},
 		Code: `
 			// Verify old records received the default values for the new status column
@@ -147,7 +147,7 @@ model Post {
 }
 `,
 		Imports: []string{
-			`post "integration/sandbox/valk/post"`,
+			`post "integration/sandbox/phi/post"`,
 		},
 		Code: `
 			// Create a post for user-1
@@ -160,10 +160,10 @@ model Post {
 			}
 
 			// Retrieve post with author relationship
-			pLoaded, err := db.Post.FindUnique(post.Id.EQ("post-1")).Select(valk.PostSelect{
+			pLoaded, err := db.Post.FindUnique(post.Id.EQ("post-1")).Select(phi.PostSelect{
 				Id:    true,
 				Title: true,
-				Author: &valk.UserSelect{
+				Author: &phi.UserSelect{
 					Id:    true,
 					Email: true,
 				},
@@ -230,29 +230,29 @@ func TestSchemaEvolution(t *testing.T) {
 		dsn = "file:" + filepath.Join(sandboxDir, "evolution.db")
 	}
 
-	// Write static valk.json configuration
+	// Write static phi.json configuration
 	valkJson := `{
   "database": {
     "url_env": "DATABASE_URL"
   },
   "schema": "./schema.prisma",
   "output": {
-    "client": "./valk",
-    "migrations": "./valk/migrations"
+    "client": "./phi",
+    "migrations": "./phi/migrations"
   }
 }`
-	err = os.WriteFile(filepath.Join(sandboxDir, "valk.json"), []byte(valkJson), 0644)
+	err = os.WriteFile(filepath.Join(sandboxDir, "phi.json"), []byte(valkJson), 0644)
 	if err != nil {
-		t.Fatalf("failed to write valk.json: %v", err)
+		t.Fatalf("failed to write phi.json: %v", err)
 	}
 
-	valkBin, err := filepath.Abs("../bin/valk")
+	valkBin, err := filepath.Abs("../bin/phi")
 	if err != nil {
-		t.Fatalf("failed to get absolute path for valk: %v", err)
+		t.Fatalf("failed to get absolute path for phi: %v", err)
 	}
 
-	// Helper to execute valk binary
-	runValk := func(args ...string) {
+	// Helper to execute phi binary
+	runPhi := func(args ...string) {
 		cmd := exec.Command(valkBin, args...)
 		cmd.Dir = sandboxDir
 		cmd.Env = append(os.Environ(),
@@ -263,7 +263,7 @@ func TestSchemaEvolution(t *testing.T) {
 		cmd.Stdout = &outBuf
 		cmd.Stderr = &errBuf
 		if err := cmd.Run(); err != nil {
-			t.Fatalf("valk %v failed: %v\nstdout: %s\nstderr: %s", args, err, outBuf.String(), errBuf.String())
+			t.Fatalf("phi %v failed: %v\nstdout: %s\nstderr: %s", args, err, outBuf.String(), errBuf.String())
 		}
 	}
 
@@ -287,14 +287,14 @@ datasource db {
 		}
 
 		// Ensure migrations output folder exists
-		err = os.MkdirAll(filepath.Join(sandboxDir, "valk/migrations"), 0755)
+		err = os.MkdirAll(filepath.Join(sandboxDir, "phi/migrations"), 0755)
 		if err != nil {
 			t.Fatalf("[%s] failed to create migrations folder: %v", step.Name, err)
 		}
 
 		// B. Regenerate client and plan/apply migrations
-		runValk("generate")
-		runValk("migrate", step.Name)
+		runPhi("generate")
+		runPhi("migrate", step.Name)
 
 		// C. Generate and compile main.go execution script for this step
 		importsStr := strings.Join(step.Imports, "\n\t")
@@ -304,7 +304,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"integration/sandbox/valk"
+	"integration/sandbox/phi"
 	%s
 
 	_ "github.com/lib/pq"
@@ -322,7 +322,7 @@ func main() {
 func run() error {
 	provider := os.Getenv("PROVIDER")
 	dsn := os.Getenv("DATABASE_URL")
-	db, err := valk.Open(provider, dsn)
+	db, err := phi.Open(provider, dsn)
 	if err != nil {
 		return fmt.Errorf("failed to open client: %%w", err)
 	}

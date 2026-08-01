@@ -6,8 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"integration/valk"
-	"integration/valk/allFieldsSoFar"
+	"integration/phi"
+	"integration/phi/allFieldsSoFar"
 	"math"
 	"strconv"
 	"strings"
@@ -686,7 +686,7 @@ func TestNativeDefaults_Validation_RequiredFields(t *testing.T) {
 	base := baseAllFields(t)
 
 	t.Run("missing stringReq", func(t *testing.T) {
-		var filtered []valk.FieldAssignmentOf[valk.AllFieldsSoFar]
+		var filtered []phi.FieldAssignmentOf[phi.AllFieldsSoFar]
 		for _, a := range base {
 			if a.Col != "stringReq" {
 				filtered = append(filtered, a)
@@ -696,7 +696,7 @@ func TestNativeDefaults_Validation_RequiredFields(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for missing stringReq")
 		}
-		valErr, ok := err.(valk.ValidationError)
+		valErr, ok := err.(phi.ValidationError)
 		if !ok {
 			t.Fatalf("expected ValidationError, got %T", err)
 		}
@@ -723,7 +723,7 @@ func TestNativeDefaults_Validation_RequiredFields(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected validation errors")
 		}
-		valErr, ok := err.(valk.ValidationError)
+		valErr, ok := err.(phi.ValidationError)
 		if !ok {
 			t.Fatalf("expected ValidationError, got %T", err)
 		}
@@ -750,7 +750,7 @@ func TestNativeDefaults_NullByteSafety(t *testing.T) {
 
 	nullByteFields := []struct {
 		name  string
-		setFn func(v string) valk.FieldAssignmentOf[valk.AllFieldsSoFar]
+		setFn func(v string) phi.FieldAssignmentOf[phi.AllFieldsSoFar]
 	}{
 		{"stringReq", allFieldsSoFar.StringReq.Set},
 		{"stringVarchar", allFieldsSoFar.StringVarchar.Set},
@@ -806,7 +806,7 @@ func TestNativeDefaults_SelectOmit(t *testing.T) {
 
 	t.Run("select single field", func(t *testing.T) {
 		rec, err := db.AllFieldsSoFar.Create().Assignments(base...).
-			Select(valk.AllFieldsSoFarSelect{StringReq: true}).
+			Select(phi.AllFieldsSoFarSelect{StringReq: true}).
 			Exec(ctx)
 		if err != nil {
 			t.Fatalf("select create: %v", err)
@@ -821,7 +821,7 @@ func TestNativeDefaults_SelectOmit(t *testing.T) {
 
 	t.Run("omit single field", func(t *testing.T) {
 		rec, err := db.AllFieldsSoFar.Create().Assignments(base...).
-			Omit(valk.AllFieldsSoFarOmit{IntReq: true}).
+			Omit(phi.AllFieldsSoFarOmit{IntReq: true}).
 			Exec(ctx)
 		if err != nil {
 			t.Fatalf("omit create: %v", err)
@@ -893,7 +893,7 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 		defer cleanup()
 
 		db.AllFieldsSoFar.Use(allFieldsSoFar.Extension{
-			Create: func(ctx context.Context, args *allFieldsSoFar.CreateArgs, next allFieldsSoFar.CreateQuery) (*valk.AllFieldsSoFar, error) {
+			Create: func(ctx context.Context, args *allFieldsSoFar.CreateArgs, next allFieldsSoFar.CreateQuery) (*phi.AllFieldsSoFar, error) {
 				if args.Data.StringReq != "" && args.Data.StringReq == "mutate-me" {
 					s := "mutated"
 					args.Data.StringReq = s
@@ -921,7 +921,7 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 		defer cleanup()
 
 		db.AllFieldsSoFar.Use(allFieldsSoFar.Extension{
-			Create: func(ctx context.Context, args *valk.AllFieldsSoFarCreateArgs, next valk.AllFieldsSoFarCreateQuery) (*valk.AllFieldsSoFar, error) {
+			Create: func(ctx context.Context, args *phi.AllFieldsSoFarCreateArgs, next phi.AllFieldsSoFarCreateQuery) (*phi.AllFieldsSoFar, error) {
 				if args.Data.StringReq == "abort" {
 					return nil, fmt.Errorf("hook aborted: %s", args.Data.StringReq)
 				}
@@ -945,14 +945,14 @@ func TestNativeDefaults_Hooks(t *testing.T) {
 		defer cleanup()
 
 		var captured struct {
-			inputs []valk.AllFieldsSoFarCreate
+			inputs []phi.AllFieldsSoFarCreate
 			count  int64
 		}
 		db.AllFieldsSoFar.Use(allFieldsSoFar.Extension{
-			CreateMany: func(ctx context.Context, args *valk.AllFieldsSoFarCreateManyArgs, next valk.AllFieldsSoFarCreateManyQuery) (int64, error) {
+			CreateMany: func(ctx context.Context, args *phi.AllFieldsSoFarCreateManyArgs, next phi.AllFieldsSoFarCreateManyQuery) (int64, error) {
 				count, err := next(ctx, args)
 				if err == nil {
-					captured.inputs = make([]valk.AllFieldsSoFarCreate, len(args.Data))
+					captured.inputs = make([]phi.AllFieldsSoFarCreate, len(args.Data))
 					for i, a := range args.Data {
 						captured.inputs[i] = *a
 					}
@@ -1098,7 +1098,7 @@ func TestNativeDefaults_AggregatedValidationErrors(t *testing.T) {
 		t.Fatal("expected aggregated validation errors")
 	}
 
-	valErr, ok := err.(valk.ValidationError)
+	valErr, ok := err.(phi.ValidationError)
 	if !ok {
 		t.Fatalf("expected ValidationError, got %T: %v", err, err)
 	}
@@ -1355,7 +1355,7 @@ func TestNativeDefaults_NullByteInStringFields(t *testing.T) {
 
 	tests := []struct {
 		name string
-		set  func(string) valk.FieldAssignmentOf[valk.AllFieldsSoFar]
+		set  func(string) phi.FieldAssignmentOf[phi.AllFieldsSoFar]
 	}{
 		{"xmlVal", allFieldsSoFar.XmlVal.Set},
 		{"decimalPrecise", allFieldsSoFar.DecimalPrecise.Set},
@@ -1497,9 +1497,9 @@ func TestNativeDefaults_ConcurrentCreate(t *testing.T) {
 	<-done
 }
 
-func baseAllFields(t *testing.T) []valk.FieldAssignmentOf[valk.AllFieldsSoFar] {
+func baseAllFields(t *testing.T) []phi.FieldAssignmentOf[phi.AllFieldsSoFar] {
 	t.Helper()
-	return []valk.FieldAssignmentOf[valk.AllFieldsSoFar]{
+	return []phi.FieldAssignmentOf[phi.AllFieldsSoFar]{
 		allFieldsSoFar.StringReq.Set("test"),
 		allFieldsSoFar.StringVarchar.Set("varchar"),
 		allFieldsSoFar.StringChar.Set("0123456789"),

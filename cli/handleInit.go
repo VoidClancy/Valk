@@ -6,12 +6,12 @@ import (
 )
 
 func handleInit() {
-	err := os.WriteFile("valk.json", []byte(configFileContent), 0644)
+	err := os.WriteFile("phi.json", []byte(configFileContent), 0644)
 	if err != nil {
-		fmt.Printf("Error writing valk.json: %v\n", err)
+		fmt.Printf("Error writing phi.json: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("creating valk.json ....")
+	fmt.Println("creating phi.json ....")
 }
 
 var configFileContent string = `
@@ -24,8 +24,8 @@ var configFileContent string = `
   "schema": "./schema.prisma",
 
   "output": {
-    "client": "./valk",
-    "migrations": "./valk/migrations"
+    "client": "./phi",
+    "migrations": "./phi/migrations"
   }
 }
 	`

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	providers "github.com/voidclancy/valk/dbProviders"
+	providers "github.com/voidclancy/phi/dbProviders"
 )
 
 type Severity int

@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"integration/valk"
-	"integration/valk/categoryToPost"
-	"integration/valk/user"
+	"integration/phi"
+	"integration/phi/categoryToPost"
+	"integration/phi/user"
 	"testing"
 )
 
@@ -174,7 +174,7 @@ func TestCompositeKeys(t *testing.T) {
 		var seenVal any
 
 		db.User.Use(user.Extension{
-			FindUnique: func(ctx context.Context, args *user.FindUniqueArgs, next user.FindUniqueQuery) (*valk.User, error) {
+			FindUnique: func(ctx context.Context, args *user.FindUniqueArgs, next user.FindUniqueQuery) (*phi.User, error) {
 				if len(args.Where) > 0 {
 					seenCol = args.Where[0].Column()
 					seenVal = args.Where[0].Value()
@@ -234,7 +234,7 @@ func TestCompositeKeys(t *testing.T) {
 		}
 
 		db.User.Use(user.Extension{
-			FindUnique: func(ctx context.Context, args *user.FindUniqueArgs, next user.FindUniqueQuery) (*valk.User, error) {
+			FindUnique: func(ctx context.Context, args *user.FindUniqueArgs, next user.FindUniqueQuery) (*phi.User, error) {
 				for i, w := range args.Where {
 					if w.Column() == "emailPhone" {
 						args.Where[i] = user.EmailPhone.EQ("replacement@example.com", "composite-006a")
@@ -269,7 +269,7 @@ func TestCompositeKeys(t *testing.T) {
 		}
 
 		db.User.Use(user.Extension{
-			FindUnique: func(ctx context.Context, args *user.FindUniqueArgs, next user.FindUniqueQuery) (*valk.User, error) {
+			FindUnique: func(ctx context.Context, args *user.FindUniqueArgs, next user.FindUniqueQuery) (*phi.User, error) {
 				args.Where = append(args.Where, user.Password.EQ("secret123"))
 				return next(ctx, args)
 			},
@@ -459,7 +459,7 @@ func TestCompositeKeys(t *testing.T) {
 		var seen []string
 
 		db.User.Use(user.Extension{
-			FindFirst: func(ctx context.Context, args *user.FindFirstArgs, next user.FindFirstQuery) (*valk.User, error) {
+			FindFirst: func(ctx context.Context, args *user.FindFirstArgs, next user.FindFirstQuery) (*phi.User, error) {
 				for _, w := range args.Where {
 					seen = append(seen, w.Column())
 				}

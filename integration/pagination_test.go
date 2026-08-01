@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"integration/valk"
-	"integration/valk/category"
-	"integration/valk/categoryToPost"
-	"integration/valk/comment"
-	"integration/valk/post"
-	"integration/valk/user"
+	"integration/phi"
+	"integration/phi/category"
+	"integration/phi/categoryToPost"
+	"integration/phi/comment"
+	"integration/phi/post"
+	"integration/phi/user"
 )
 
 func TestPagination_OrderBy_AscAndDesc(t *testing.T) {
@@ -38,7 +38,7 @@ func TestPagination_OrderBy_AscAndDesc(t *testing.T) {
 
 	// Test 1: OrderBy Email ASC
 	ascUsers, err := db.User.FindMany(
-		valk.Or(
+		phi.Or(
 			user.Email.EQ("pag_a@example.com"),
 			user.Email.EQ("pag_b@example.com"),
 			user.Email.EQ("pag_c@example.com"),
@@ -56,7 +56,7 @@ func TestPagination_OrderBy_AscAndDesc(t *testing.T) {
 
 	// Test 2: OrderBy LoginCount DESC
 	descUsers, err := db.User.FindMany(
-		valk.Or(
+		phi.Or(
 			user.Email.EQ("pag_a@example.com"),
 			user.Email.EQ("pag_b@example.com"),
 			user.Email.EQ("pag_c@example.com"),
@@ -99,7 +99,7 @@ func TestPagination_Cursor(t *testing.T) {
 
 	// Fetch page using Cursor on u1
 	nextPage, err := db.User.FindMany(
-		valk.Or(
+		phi.Or(
 			user.Email.EQ("cur_1@example.com"),
 			user.Email.EQ("cur_2@example.com"),
 			user.Email.EQ("cur_3@example.com"),
@@ -143,7 +143,7 @@ func TestPagination_NegativeTake(t *testing.T) {
 
 	// Fetch 2 items BEFORE neg_3 using Take(-2) with Cursor(neg_3)
 	prevPage, err := db.User.FindMany(
-		valk.Or(
+		phi.Or(
 			user.Email.EQ("neg_1@example.com"),
 			user.Email.EQ("neg_2@example.com"),
 			user.Email.EQ("neg_3@example.com"),
@@ -269,7 +269,7 @@ func TestPagination_NestedRelation_CursorAndOrderBy(t *testing.T) {
 	t.Cleanup(func() { _, _ = db.Post.Delete(post.Id.EQ(p4.Id)).Exec(ctx) })
 
 	// Query user with Posts query builder using OrderBy, Cursor, and Take
-	res, err := db.User.FindUnique(user.Id.EQ(usr.Id)).Select(valk.UserSelect{
+	res, err := db.User.FindUnique(user.Id.EQ(usr.Id)).Select(phi.UserSelect{
 		Email: true,
 		Posts: post.Query().
 			OrderBy(post.Title.Asc()).
@@ -317,7 +317,7 @@ func TestPagination_DeepNestedRelation(t *testing.T) {
 	t.Cleanup(func() { _, _ = db.Comment.Delete(comment.Id.EQ(c2.Id)).Exec(ctx) })
 
 	// Query User -> Posts -> Comments with OrderBy and Take on both levels
-	u, err := db.User.FindUnique(user.Id.EQ(usr.Id)).Select(valk.UserSelect{
+	u, err := db.User.FindUnique(user.Id.EQ(usr.Id)).Select(phi.UserSelect{
 		Email: true,
 		Posts: post.Query().Take(1).Select(post.Select{
 			Title: true,

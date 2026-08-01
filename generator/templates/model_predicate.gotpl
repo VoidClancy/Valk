@@ -25,7 +25,7 @@ func Query() *QueryBuilder {
 func Record(assignments ...{{ .ParentPackageName }}.FieldAssignmentOf[{{ .ParentPackageName }}.{{ .Model.Name }}]) {{ .ParentPackageName }}.RecordInput {
 	raw := make([]{{ .ParentPackageName }}.FieldAssignment, len(assignments))
 	for i, a := range assignments {
-		raw[i] = {{ .ParentPackageName }}.FieldAssignment{Col: a.Col, Val: a.Val}
+		raw[i] = {{ .ParentPackageName }}.FieldAssignment(a)
 	}
 	return {{ .ParentPackageName }}.RecordInput{Assignments: raw}
 }

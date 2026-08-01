@@ -5,15 +5,15 @@ import (
 
 	"testing"
 
-	"integration/valk"
-	"integration/valk/post"
-	"integration/valk/user"
+	"integration/phi"
+	"integration/phi/post"
+	"integration/phi/user"
 
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func seedUsers(t *testing.T, ctx context.Context, db *valk.DB) ([]*valk.User, error) {
+func seedUsers(t *testing.T, ctx context.Context, db *phi.DB) ([]*phi.User, error) {
 	t.Helper()
 
 	u1, err := db.User.Create().
@@ -43,7 +43,7 @@ func seedUsers(t *testing.T, ctx context.Context, db *valk.DB) ([]*valk.User, er
 		return nil, err
 	}
 
-	return []*valk.User{u1, u2, u3}, nil
+	return []*phi.User{u1, u2, u3}, nil
 }
 func TestPredicateOperators(t *testing.T) {
 	db, cleanup := setupTestDB(t)
@@ -108,8 +108,8 @@ func TestPredicateOperators(t *testing.T) {
 
 	t.Run("Logical Composition And/Or/Not", func(t *testing.T) {
 		// (Email ends with @example.com AND loginCount = 50) OR (phoneNum = 2222222222)
-		comp := valk.Or(
-			valk.And(
+		comp := phi.Or(
+			phi.And(
 				user.Email.HasSuffix("@example.com"),
 				user.LoginCount.EQ(50),
 			),
@@ -124,7 +124,7 @@ func TestPredicateOperators(t *testing.T) {
 		}
 
 		// NOT (Email ends with @example.com)
-		notRes, err := db.User.FindMany(valk.Not(user.Email.HasSuffix("@example.com"))).Exec(ctx)
+		notRes, err := db.User.FindMany(phi.Not(user.Email.HasSuffix("@example.com"))).Exec(ctx)
 		if err != nil {
 			t.Fatalf("Logical Not failed: %v", err)
 		}

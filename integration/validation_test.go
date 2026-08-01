@@ -13,9 +13,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"integration/valk"
-	"integration/valk/allFieldsSoFar"
-	"integration/valk/user"
+	"integration/phi"
+	"integration/phi/allFieldsSoFar"
+	"integration/phi/user"
 )
 
 func TestCreate_DuplicateEmail_Rejected(t *testing.T) {
@@ -162,7 +162,7 @@ func TestCreate_InvalidEnumValue_BypassingTypeSystem(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	pffff := valk.UserRoleType("totallyNotARole")
+	pffff := phi.UserRoleType("totallyNotARole")
 
 	_, err := db.User.Create().
 		SetEmail("pffff-role@example.com").SetPhoneNum("+100000010").SetRole(pffff).
@@ -184,7 +184,7 @@ func TestCreate_DefaultEnumAppliedWhenNil(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create: %v", err)
 	}
-	if u.Role != valk.UserRole_STUDENT {
+	if u.Role != phi.UserRole_STUDENT {
 		t.Errorf("expected default role Student when Role is nil, got %q", u.Role)
 	}
 }
@@ -275,7 +275,7 @@ func TestCreate_Select_EmptyStruct_ReturnsEverything(t *testing.T) {
 
 	u, err := db.User.Create().
 		SetEmail("empty-select@example.com").SetPhoneNum("+300000004").
-		Select(valk.UserSelect{}).Exec(ctx)
+		Select(phi.UserSelect{}).Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("create failed: %v", err)
@@ -434,7 +434,7 @@ func TestCreate_FailurePartway_LeavesNoPartialRow(t *testing.T) {
 	}
 }
 
-func countAllUsers(t *testing.T, ctx context.Context, db *valk.DB) int {
+func countAllUsers(t *testing.T, ctx context.Context, db *phi.DB) int {
 	t.Helper()
 	var count int
 	if err := db.Raw().QueryRowContext(ctx, query("SELECT COUNT(*) FROM User", "SELECT COUNT(*) FROM \"User\"")).Scan(&count); err != nil {
@@ -450,7 +450,7 @@ func TestCreate_Hooks(t *testing.T) {
 
 	var afterCalled bool
 	db.User.Use(user.Extension{
-		Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+		Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*phi.User, error) {
 			if args.Data.Email == "hook@example.com" {
 				args.Data.PhoneNum = "+188888888"
 			}
@@ -486,7 +486,7 @@ func TestCreate_Hooks_PasswordHashing(t *testing.T) {
 	ctx := context.Background()
 
 	db.User.Use(user.Extension{
-		Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*valk.User, error) {
+		Create: func(ctx context.Context, args *user.CreateArgs, next user.CreateQuery) (*phi.User, error) {
 			if args.Data.Email == "hash@example.com" && args.Data.Password != nil {
 				h := sha256.Sum256([]byte(*args.Data.Password))
 				hashed := hex.EncodeToString(h[:])
@@ -517,9 +517,9 @@ func TestCreate_Hooks_PasswordHashing(t *testing.T) {
 	}
 }
 
-func baseAllFieldsValidation(t *testing.T) []valk.FieldAssignmentOf[valk.AllFieldsSoFar] {
+func baseAllFieldsValidation(t *testing.T) []phi.FieldAssignmentOf[phi.AllFieldsSoFar] {
 	t.Helper()
-	return []valk.FieldAssignmentOf[valk.AllFieldsSoFar]{
+	return []phi.FieldAssignmentOf[phi.AllFieldsSoFar]{
 		allFieldsSoFar.StringReq.Set("test"),
 		allFieldsSoFar.StringVarchar.Set("varchar"),
 		allFieldsSoFar.StringChar.Set("0123456789"),

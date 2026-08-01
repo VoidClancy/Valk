@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/voidclancy/valk/migration"
-	"github.com/voidclancy/valk/schema"
+	"github.com/voidclancy/phi/migration"
+	"github.com/voidclancy/phi/schema"
 
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
@@ -41,7 +41,7 @@ func handleMigrate(args []string) {
 
 	cfg := GetConfig()
 	if cfg == nil {
-		fmt.Println("Error: valk.json not found or invalid")
+		fmt.Println("Error: phi.json not found or invalid")
 		os.Exit(1)
 	}
 

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/voidclancy/valk/schema"
+	"github.com/voidclancy/phi/schema"
 )
 
 //go:embed templates/*.gotpl

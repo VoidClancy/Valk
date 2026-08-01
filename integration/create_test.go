@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"integration/valk"
+	"integration/phi"
 	"strings"
 	"testing"
 )
@@ -27,8 +27,8 @@ func TestCreateBasic(t *testing.T) {
 	if u.PhoneNum != "+123456789" {
 		t.Errorf("expected phoneNum '+123456789', got '%s'", u.PhoneNum)
 	}
-	if u.Role != valk.UserRole_STUDENT {
-		t.Errorf("expected role '%s' (default), got '%s'", valk.UserRole_STUDENT, u.Role)
+	if u.Role != phi.UserRole_STUDENT {
+		t.Errorf("expected role '%s' (default), got '%s'", phi.UserRole_STUDENT, u.Role)
 	}
 	if !strings.HasPrefix(u.Id, "c") || len(u.Id) < 10 {
 		t.Errorf("expected generated ID to be a CUID, got '%s'", u.Id)
@@ -56,10 +56,10 @@ func TestCreateWithSelect(t *testing.T) {
 	u, err := db.User.Create().
 		SetEmail("select@example.com").
 		SetPhoneNum("+999999999").
-		Select(valk.UserSelect{
+		Select(phi.UserSelect{
 			Id:    true,
 			Email: true,
-			Profile: &valk.ProfileSelect{
+			Profile: &phi.ProfileSelect{
 				Id:  true,
 				Bio: true,
 			},
@@ -91,7 +91,7 @@ func TestCreateWithOmit(t *testing.T) {
 	u, err := db.User.Create().
 		SetEmail("omit@example.com").
 		SetPhoneNum("+888888888").
-		Omit(valk.UserOmit{
+		Omit(phi.UserOmit{
 			PhoneNum: true,
 		}).Exec(ctx)
 
@@ -105,8 +105,8 @@ func TestCreateWithOmit(t *testing.T) {
 	if u.Id == "" {
 		t.Errorf("expected non-empty ID")
 	}
-	if u.Role != valk.UserRole_STUDENT {
-		t.Errorf("expected non-omitted role '%s', got '%s'", valk.UserRole_STUDENT, u.Role)
+	if u.Role != phi.UserRole_STUDENT {
+		t.Errorf("expected non-omitted role '%s', got '%s'", phi.UserRole_STUDENT, u.Role)
 	}
 	if u.PhoneNum != "" {
 		t.Errorf("expected omitted phoneNum to be empty, got '%s'", u.PhoneNum)
@@ -121,15 +121,15 @@ func TestCreateWithCustomEnum(t *testing.T) {
 	u, err := db.User.Create().
 		SetEmail("admin@example.com").
 		SetPhoneNum("+000000000").
-		SetRole(valk.UserRole_ADMIN).
+		SetRole(phi.UserRole_ADMIN).
 		Exec(ctx)
 
 	if err != nil {
 		t.Fatalf("failed to create admin: %v", err)
 	}
 
-	if u.Role != valk.UserRole_ADMIN {
-		t.Errorf("expected role '%s', got '%s'", valk.UserRole_ADMIN, u.Role)
+	if u.Role != phi.UserRole_ADMIN {
+		t.Errorf("expected role '%s', got '%s'", phi.UserRole_ADMIN, u.Role)
 	}
 }
 
@@ -146,9 +146,9 @@ func TestCreateValidation(t *testing.T) {
 		t.Fatal("expected error creating user with empty required email, got nil")
 	}
 
-	valErr, ok := err.(valk.ValidationError)
+	valErr, ok := err.(phi.ValidationError)
 	if !ok {
-		t.Fatalf("expected error to be valk.ValidationError, got type %T: %v", err, err)
+		t.Fatalf("expected error to be phi.ValidationError, got type %T: %v", err, err)
 	}
 
 	foundEmailErr := false
@@ -165,14 +165,14 @@ func TestCreateValidation(t *testing.T) {
 	_, err = db.User.Create().
 		SetEmail("invalid_role@example.com").
 		SetPhoneNum("+123456789").
-		SetRole(valk.UserRoleType("INVALID_ROLE")).
+		SetRole(phi.UserRoleType("INVALID_ROLE")).
 		Exec(ctx)
 	if err == nil {
 		t.Fatal("expected error creating user with invalid enum role, got nil")
 	}
-	valErr2, ok := err.(valk.ValidationError)
+	valErr2, ok := err.(phi.ValidationError)
 	if !ok {
-		t.Fatalf("expected valk.ValidationError, got %T: %v", err, err)
+		t.Fatalf("expected phi.ValidationError, got %T: %v", err, err)
 	}
 	foundRoleErr := false
 	for _, fErr := range valErr2.Errors {
@@ -191,9 +191,9 @@ func TestCreateValidation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	valErr3, ok := err.(valk.ValidationError)
+	valErr3, ok := err.(phi.ValidationError)
 	if !ok {
-		t.Fatalf("expected valk.ValidationError, got: %v", err)
+		t.Fatalf("expected phi.ValidationError, got: %v", err)
 	}
 	if len(valErr3.Errors) < 2 {
 		t.Errorf("expected at least 2 errors aggregated, got %d: %v", len(valErr3.Errors), valErr3.Errors)
@@ -207,9 +207,9 @@ func TestCreateValidation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid UTF-8, got nil")
 	}
-	valErr4, ok := err.(valk.ValidationError)
+	valErr4, ok := err.(phi.ValidationError)
 	if !ok {
-		t.Fatalf("expected valk.ValidationError, got: %v", err)
+		t.Fatalf("expected phi.ValidationError, got: %v", err)
 	}
 	foundSafetyErr := false
 	for _, fErr := range valErr4.Errors {
