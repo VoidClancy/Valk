@@ -13,6 +13,7 @@ import (
 	"database/sql/driver"
 	{{- end }}
 	"encoding/json"
+	"errors"
 	{{- if .EmbedPath }}
 	"embed"
 	{{- end }}
@@ -38,7 +39,7 @@ import (
 	{{- if hasType .Schema "Hstore" }}
 	"github.com/lib/pq/hstore"
 	{{- end }}
-	{{- if needsPQImport .Schema }}
+	{{- if or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql") }}
 	"github.com/lib/pq"
 	{{- end }}
 	"github.com/pressly/goose/v3"
@@ -54,7 +55,7 @@ var _ = time.Time{}
 {{- if hasType .Schema "Hstore" }}
 var _ = hstore.Hstore{}
 {{- end }}
-{{- if needsPQImport .Schema }}
+{{- if or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql") }}
 var _ = pq.Array
 {{- end }}
 {{- if hasType .Schema "Inet" }}

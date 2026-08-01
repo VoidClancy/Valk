@@ -264,30 +264,31 @@ func (d *{{ .Model.Name }}Delegate) queryOne(ctx context.Context, whereClause st
 	query := buildSelectSQL(d.client, "{{ .Model.EffectiveTableName }}", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 				return nil, nil
 			}
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
 
 	var res {{ .Model.Name }}
 	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
+
 	return &res, nil
 }
 
@@ -295,7 +296,7 @@ func (d *{{ .Model.Name }}Delegate) queryMany(ctx context.Context, whereClause s
 	query := buildSelectSQL(d.client, "{{ .Model.EffectiveTableName }}", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
@@ -303,12 +304,12 @@ func (d *{{ .Model.Name }}Delegate) queryMany(ctx context.Context, whereClause s
 	for rows.Next() {
 		var res {{ .Model.Name }}
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		results = append(results, &res)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	if take != nil && *take < 0 {
 		reverseSlice(results)

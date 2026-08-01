@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -1231,7 +1232,7 @@ func (d *CommentDelegate) runCreate(
 			err := rows.Err()
 			rows.Close()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			return nil, nil
 		}
@@ -1240,7 +1241,7 @@ func (d *CommentDelegate) runCreate(
 		scanErr := rows.Scan(res.ScanFields(returningCols)...)
 		rows.Close()
 		if scanErr != nil {
-			return nil, scanErr
+			return nil, TranslateDBError(scanErr)
 		}
 
 		return &res, nil
@@ -1274,7 +1275,7 @@ func (d *CommentDelegate) runCreateFallback(
 		if val == nil && len(pkCols) == 1 {
 			lastID, err := result.LastInsertId()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			val = lastID
 		}
@@ -1311,7 +1312,7 @@ func (d *CommentDelegate) runCreateFallback(
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
@@ -1320,7 +1321,7 @@ func (d *CommentDelegate) runCreateFallback(
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	return &res, nil
@@ -1426,13 +1427,13 @@ func scanCommentRows(rows *sql.Rows, returningCols []string) ([]*Comment, error)
 		var res Comment
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 			rows.Close()
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		records = append(records, &res)
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	rows.Close()
 	return records, nil
@@ -1972,16 +1973,16 @@ func (d *CommentDelegate) runUpdate(ctx context.Context, preds []PredicateOf[Com
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "Comment"}
 	}
 
 	var res Comment
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
@@ -2020,7 +2021,7 @@ func (d *CommentDelegate) runUpdateFallback(ctx context.Context, preds []Predica
 		return nil, err
 	}
 	if affected == 0 {
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "Comment"}
 	}
 	return d.runFindUnique(ctx, preds, selects, omits)
 }
@@ -2448,30 +2449,31 @@ func (d *CommentDelegate) queryOne(ctx context.Context, whereClause string, orde
 	query := buildSelectSQL(d.client, "Comment", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 				return nil, nil
 			}
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
 
 	var res Comment
 	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
+
 	return &res, nil
 }
 
@@ -2479,7 +2481,7 @@ func (d *CommentDelegate) queryMany(ctx context.Context, whereClause string, ord
 	query := buildSelectSQL(d.client, "Comment", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
@@ -2487,12 +2489,12 @@ func (d *CommentDelegate) queryMany(ctx context.Context, whereClause string, ord
 	for rows.Next() {
 		var res Comment
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		results = append(results, &res)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	if take != nil && *take < 0 {
 		reverseSlice(results)
@@ -2636,7 +2638,7 @@ func (d *CommentDelegate) runDelete(ctx context.Context, where []PredicateOf[Com
 				return err
 			}
 			if res == nil {
-				return sql.ErrNoRows
+				return &NotFoundError{Model: "Comment"}
 			}
 
 			// Build DELETE statement by PK
@@ -2696,14 +2698,14 @@ func (d *CommentDelegate) runDelete(ctx context.Context, where []PredicateOf[Com
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "Comment"}
 	}
 
 	var row Comment
 	if err := rows.Scan(row.ScanFields(returningCols)...); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	return &row, nil
 }
@@ -2788,18 +2790,18 @@ func (d *CommentDelegate) runCount(ctx context.Context, params QueryParams[Comme
 
 	rows, err := d.client.query(ctx, query, vals...)
 	if err != nil {
-		return 0, err
+		return 0, TranslateDBError(err)
 	}
 	defer rows.Close()
 
 	var count int64
 	if rows.Next() {
 		if err := rows.Scan(&count); err != nil {
-			return 0, err
+			return 0, TranslateDBError(err)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return 0, err
+		return 0, TranslateDBError(err)
 	}
 	return count, nil
 }

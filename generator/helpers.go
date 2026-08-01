@@ -4,7 +4,6 @@ import (
 	"slices"
 	"strings"
 
-	providers "github.com/voidclancy/phi/dbProviders"
 	"github.com/voidclancy/phi/schema"
 )
 
@@ -115,14 +114,6 @@ func defaultFuncCall(funcName string) string {
 	return DEFAULT_FUNCS[funcName]
 }
 
-func isPostgresProvider(sch schema.Schema) bool {
-	p := sch.Datasource.Provider
-	return p == providers.Postgres || p == providers.Postgresql
-}
-
-func needsPQImport(sch schema.Schema) bool {
-	return isPostgresProvider(sch) && hasType(sch, "Array")
-}
 func hasDefaultFunc(sch schema.Schema, names ...string) bool {
 	for _, m := range sch.Models {
 		for _, sf := range m.ScalarFields {
