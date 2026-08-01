@@ -1,0 +1,292 @@
+// Standard Sentinel Errors
+var (
+	// ErrNotFound is returned when a query expects a record but finds none.
+	ErrNotFound = errors.New("valk: record not found")
+
+	// ErrNoRowsAffected is returned when an update or delete operation affects zero rows when a target was expected.
+	ErrNoRowsAffected = errors.New("valk: no rows affected")
+
+	// ErrConstraint is the base error for database constraint violations.
+	ErrConstraint = errors.New("valk: constraint violation")
+
+	// ErrUniqueConstraint is returned when a unique index or primary key constraint is violated.
+	ErrUniqueConstraint = errors.New("valk: unique constraint violation")
+
+	// ErrFKConstraint is returned when a foreign key constraint is violated.
+	ErrFKConstraint = errors.New("valk: foreign key constraint violation")
+
+	// ErrNotNullConstraint is returned when a NOT NULL column constraint is violated.
+	ErrNotNullConstraint = errors.New("valk: not null constraint violation")
+
+	// ErrCheckConstraint is returned when a CHECK constraint is violated.
+	ErrCheckConstraint = errors.New("valk: check constraint violation")
+
+	// ErrDeadlock is returned when a database deadlock is detected.
+	ErrDeadlock = errors.New("valk: deadlock detected")
+
+	// ErrLockTimeout is returned when a database lock wait timeout is exceeded.
+	ErrLockTimeout = errors.New("valk: lock wait timeout exceeded")
+
+	// ErrSerialization is returned when a transaction fails due to serialization / concurrent update conflicts.
+	ErrSerialization = errors.New("valk: serialization failure")
+
+	// ErrTxDone is returned when attempting an operation on a transaction that has already been committed or rolled back.
+	ErrTxDone = errors.New("valk: transaction already committed or rolled back")
+
+	// ErrConnClosed is returned when the underlying database connection is closed.
+	ErrConnClosed = errors.New("valk: connection closed")
+)
+
+// Helper functions for inspecting error kinds (Ent-style)
+
+// IsNotFound returns true if the error indicates a record was not found.
+func IsNotFound(err error) bool {
+	return errors.Is(err, ErrNotFound)
+}
+
+// IsNoRowsAffected returns true if no rows were modified by an update or delete execution.
+func IsNoRowsAffected(err error) bool {
+	return errors.Is(err, ErrNoRowsAffected)
+}
+
+// IsConstraintError returns true if the error is any type of database constraint violation.
+func IsConstraintError(err error) bool {
+	return errors.Is(err, ErrConstraint) ||
+		errors.Is(err, ErrUniqueConstraint) ||
+		errors.Is(err, ErrFKConstraint) ||
+		errors.Is(err, ErrNotNullConstraint) ||
+		errors.Is(err, ErrCheckConstraint)
+}
+
+// IsUniqueConstraint returns true if the error is a unique constraint violation.
+func IsUniqueConstraint(err error) bool {
+	return errors.Is(err, ErrUniqueConstraint)
+}
+
+// IsFKConstraint returns true if the error is a foreign key constraint violation.
+func IsFKConstraint(err error) bool {
+	return errors.Is(err, ErrFKConstraint)
+}
+
+// IsNotNullConstraint returns true if the error is a NOT NULL constraint violation.
+func IsNotNullConstraint(err error) bool {
+	return errors.Is(err, ErrNotNullConstraint)
+}
+
+// IsCheckConstraint returns true if the error is a CHECK constraint violation.
+func IsCheckConstraint(err error) bool {
+	return errors.Is(err, ErrCheckConstraint)
+}
+
+// IsDeadlock returns true if the error is a database deadlock failure.
+func IsDeadlock(err error) bool {
+	return errors.Is(err, ErrDeadlock)
+}
+
+// IsLockTimeout returns true if the error is a lock timeout failure.
+func IsLockTimeout(err error) bool {
+	return errors.Is(err, ErrLockTimeout)
+}
+
+// IsSerialization returns true if the error is a transaction serialization failure.
+func IsSerialization(err error) bool {
+	return errors.Is(err, ErrSerialization)
+}
+
+// IsTxDone returns true if the error indicates the transaction was already completed.
+func IsTxDone(err error) bool {
+	return errors.Is(err, ErrTxDone)
+}
+
+// IsValidationError returns true if the error is a client-side validation failure.
+func IsValidationError(err error) bool {
+	var ve ValidationError
+	if errors.As(err, &ve) {
+		return true
+	}
+	var vePtr *ValidationError
+	return errors.As(err, &vePtr)
+}
+
+// Concrete Error Structs
+
+// NotFoundError represents a record not found error with model context.
+type NotFoundError struct {
+	Model string
+	Cause error
+}
+
+func (e *NotFoundError) Error() string {
+	if e.Model != "" {
+		return fmt.Sprintf("valk: %s record not found", e.Model)
+	}
+	return "valk: record not found"
+}
+
+func (e *NotFoundError) Unwrap() error {
+	if e.Cause != nil {
+		return e.Cause
+	}
+	return ErrNotFound
+}
+
+// ConstraintError represents a detailed database constraint error.
+type ConstraintError struct {
+	Kind       error  // e.g. ErrUniqueConstraint, ErrFKConstraint
+	Table      string // Table name where constraint occurred (if available)
+	Constraint string // Constraint name (if available)
+	Cause      error  // Underlying driver error
+}
+
+func (e *ConstraintError) Error() string {
+	if e.Constraint != "" {
+		return fmt.Sprintf("%v: constraint %q violated on table %q: %v", e.Kind, e.Constraint, e.Table, e.Cause)
+	}
+	if e.Table != "" {
+		return fmt.Sprintf("%v: constraint violated on table %q: %v", e.Kind, e.Table, e.Cause)
+	}
+	return fmt.Sprintf("%v: %v", e.Kind, e.Cause)
+}
+
+func (e *ConstraintError) Unwrap() error {
+	if e.Kind != nil {
+		return e.Kind
+	}
+	return ErrConstraint
+}
+
+// TranslateDBError normalizes driver-specific errors and standard library sql errors into Valkyrie domain errors.
+func TranslateDBError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Idempotency check: If err is ALREADY a normalized Valkyrie domain error, return as-is to avoid duplicate wrapping!
+	if errors.Is(err, ErrNotFound) ||
+		errors.Is(err, ErrConstraint) ||
+		errors.Is(err, ErrTxDone) ||
+		errors.Is(err, ErrConnClosed) ||
+		errors.Is(err, ErrDeadlock) ||
+		errors.Is(err, ErrLockTimeout) ||
+		errors.Is(err, ErrSerialization) {
+		return err
+	}
+
+	// STDLIB sql error mappings
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("%w: %w", ErrNotFound, err)
+	}
+	if errors.Is(err, sql.ErrTxDone) {
+		return fmt.Errorf("%w: %w", ErrTxDone, err)
+	}
+	if errors.Is(err, sql.ErrConnDone) {
+		return fmt.Errorf("%w: %w", ErrConnClosed, err)
+	}
+
+	{{- if or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql") }}
+	// Postgres Error Translation
+	if pqErr, ok := err.(*pq.Error); ok {
+		switch pqErr.Code {
+		case "23505":
+			return &ConstraintError{Kind: ErrUniqueConstraint, Table: pqErr.Table, Constraint: pqErr.Constraint, Cause: err}
+		case "23503":
+			return &ConstraintError{Kind: ErrFKConstraint, Table: pqErr.Table, Constraint: pqErr.Constraint, Cause: err}
+		case "23502":
+			return &ConstraintError{Kind: ErrNotNullConstraint, Table: pqErr.Table, Constraint: pqErr.Column, Cause: err}
+		case "23514":
+			return &ConstraintError{Kind: ErrCheckConstraint, Table: pqErr.Table, Constraint: pqErr.Constraint, Cause: err}
+		case "40001":
+			return fmt.Errorf("%w: %w", ErrSerialization, err)
+		case "40P01":
+			return fmt.Errorf("%w: %w", ErrDeadlock, err)
+		default:
+			if strings.HasPrefix(string(pqErr.Code), "23") {
+				return &ConstraintError{Kind: ErrConstraint, Table: pqErr.Table, Constraint: pqErr.Constraint, Cause: err}
+			}
+		}
+	}
+	type sqlStateCoder interface {
+		SQLState() string
+	}
+	if coder, ok := err.(sqlStateCoder); ok {
+		state := coder.SQLState()
+		switch state {
+		case "23505":
+			return &ConstraintError{Kind: ErrUniqueConstraint, Cause: err}
+		case "23503":
+			return &ConstraintError{Kind: ErrFKConstraint, Cause: err}
+		case "23502":
+			return &ConstraintError{Kind: ErrNotNullConstraint, Cause: err}
+		case "23514":
+			return &ConstraintError{Kind: ErrCheckConstraint, Cause: err}
+		case "40001":
+			return fmt.Errorf("%w: %w", ErrSerialization, err)
+		case "40P01":
+			return fmt.Errorf("%w: %w", ErrDeadlock, err)
+		}
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "duplicate key value") || strings.Contains(msg, "violates unique constraint") {
+		return &ConstraintError{Kind: ErrUniqueConstraint, Cause: err}
+	}
+	if strings.Contains(msg, "violates foreign key constraint") {
+		return &ConstraintError{Kind: ErrFKConstraint, Cause: err}
+	}
+	if strings.Contains(msg, "violates not-null constraint") {
+		return &ConstraintError{Kind: ErrNotNullConstraint, Cause: err}
+	}
+	if strings.Contains(msg, "violates check constraint") {
+		return &ConstraintError{Kind: ErrCheckConstraint, Cause: err}
+	}
+	{{- else if or (eq .Schema.Datasource.Provider "sqlite") (eq .Schema.Datasource.Provider "sqlite3") }}
+	// SQLite Error Translation
+	type codeCoder interface {
+		Code() int
+	}
+	if cErr, ok := err.(codeCoder); ok {
+		code := cErr.Code()
+		switch code {
+		case 2067, 1555:
+			return &ConstraintError{Kind: ErrUniqueConstraint, Cause: err}
+		case 787:
+			return &ConstraintError{Kind: ErrFKConstraint, Cause: err}
+		case 1299:
+			return &ConstraintError{Kind: ErrNotNullConstraint, Cause: err}
+		case 275:
+			return &ConstraintError{Kind: ErrCheckConstraint, Cause: err}
+		}
+	}
+	type sqliteExtendedCoder interface {
+		ExtendedCode() int
+	}
+	if sqExt, ok := err.(sqliteExtendedCoder); ok {
+		code := sqExt.ExtendedCode()
+		switch code {
+		case 2067, 1555:
+			return &ConstraintError{Kind: ErrUniqueConstraint, Cause: err}
+		case 787:
+			return &ConstraintError{Kind: ErrFKConstraint, Cause: err}
+		case 1299:
+			return &ConstraintError{Kind: ErrNotNullConstraint, Cause: err}
+		case 275:
+			return &ConstraintError{Kind: ErrCheckConstraint, Cause: err}
+		}
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "UNIQUE constraint failed") || strings.Contains(msg, "PRIMARY KEY constraint failed") {
+		return &ConstraintError{Kind: ErrUniqueConstraint, Cause: err}
+	}
+	if strings.Contains(msg, "FOREIGN KEY constraint failed") {
+		return &ConstraintError{Kind: ErrFKConstraint, Cause: err}
+	}
+	if strings.Contains(msg, "NOT NULL constraint failed") {
+		return &ConstraintError{Kind: ErrNotNullConstraint, Cause: err}
+	}
+	if strings.Contains(msg, "CHECK constraint failed") {
+		return &ConstraintError{Kind: ErrCheckConstraint, Cause: err}
+	}
+	{{- end }}
+	
+
+	return err
+}

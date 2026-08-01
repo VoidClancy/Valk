@@ -6,13 +6,14 @@ import (
 	{{- if hasModelType .Model "Json" }}
 	"encoding/json"
 	{{- end }}
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 	{{- if hasModelType .Model "DateTime" }}
 	"time"
 	{{- end }}
-	{{- if and (hasModelType .Model "Array") (isPostgresProvider .Schema) }}
+	{{- if and (hasModelType .Model "Array") (or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql")) }}
 	"github.com/lib/pq"
 	{{- end }}
 	{{- if ne .PackageName .ParentPackageName }}
@@ -20,7 +21,7 @@ import (
 	{{- end }}
 )
 
-{{- if and (hasModelType .Model "Array") (isPostgresProvider .Schema) }}
+{{- if and (hasModelType .Model "Array") (or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql")) }}
 var _ = pq.Array
 {{- end }}
 

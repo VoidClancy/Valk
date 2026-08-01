@@ -603,7 +603,7 @@ func (d *{{ .Model.Name }}Delegate) runCreate(
 			err := rows.Err()
 			rows.Close()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			return nil, nil
 		}
@@ -612,7 +612,7 @@ func (d *{{ .Model.Name }}Delegate) runCreate(
 		scanErr := rows.Scan(res.ScanFields(returningCols)...)
 		rows.Close()
 		if scanErr != nil {
-			return nil, scanErr
+			return nil, TranslateDBError(scanErr)
 		}
 
 		return &res, nil
@@ -646,7 +646,7 @@ func (d *{{ .Model.Name }}Delegate) runCreateFallback(
 		if val == nil && len(pkCols) == 1 {
 			lastID, err := result.LastInsertId()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			val = lastID
 		}
@@ -683,7 +683,7 @@ func (d *{{ .Model.Name }}Delegate) runCreateFallback(
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
@@ -692,7 +692,7 @@ func (d *{{ .Model.Name }}Delegate) runCreateFallback(
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	return &res, nil
@@ -836,13 +836,13 @@ func scan{{ .Model.Name }}Rows(rows *sql.Rows, returningCols []string) ([]*{{ .M
 		var res {{ .Model.Name }}
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 			rows.Close()
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		records = append(records, &res)
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	rows.Close()
 	return records, nil

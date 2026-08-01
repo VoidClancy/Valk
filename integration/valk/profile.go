@@ -3,6 +3,7 @@ package valk
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -1041,7 +1042,7 @@ func (d *ProfileDelegate) runCreate(
 			err := rows.Err()
 			rows.Close()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			return nil, nil
 		}
@@ -1050,7 +1051,7 @@ func (d *ProfileDelegate) runCreate(
 		scanErr := rows.Scan(res.ScanFields(returningCols)...)
 		rows.Close()
 		if scanErr != nil {
-			return nil, scanErr
+			return nil, TranslateDBError(scanErr)
 		}
 
 		return &res, nil
@@ -1084,7 +1085,7 @@ func (d *ProfileDelegate) runCreateFallback(
 		if val == nil && len(pkCols) == 1 {
 			lastID, err := result.LastInsertId()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			val = lastID
 		}
@@ -1121,7 +1122,7 @@ func (d *ProfileDelegate) runCreateFallback(
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
@@ -1130,7 +1131,7 @@ func (d *ProfileDelegate) runCreateFallback(
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	return &res, nil
@@ -1232,13 +1233,13 @@ func scanProfileRows(rows *sql.Rows, returningCols []string) ([]*Profile, error)
 		var res Profile
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 			rows.Close()
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		records = append(records, &res)
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	rows.Close()
 	return records, nil
@@ -1708,16 +1709,16 @@ func (d *ProfileDelegate) runUpdate(ctx context.Context, preds []PredicateOf[Pro
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "Profile"}
 	}
 
 	var res Profile
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
@@ -1756,7 +1757,7 @@ func (d *ProfileDelegate) runUpdateFallback(ctx context.Context, preds []Predica
 		return nil, err
 	}
 	if affected == 0 {
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "Profile"}
 	}
 	return d.runFindUnique(ctx, preds, selects, omits)
 }
@@ -2184,30 +2185,31 @@ func (d *ProfileDelegate) queryOne(ctx context.Context, whereClause string, orde
 	query := buildSelectSQL(d.client, "Profile", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 				return nil, nil
 			}
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
 
 	var res Profile
 	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
+
 	return &res, nil
 }
 
@@ -2215,7 +2217,7 @@ func (d *ProfileDelegate) queryMany(ctx context.Context, whereClause string, ord
 	query := buildSelectSQL(d.client, "Profile", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
@@ -2223,12 +2225,12 @@ func (d *ProfileDelegate) queryMany(ctx context.Context, whereClause string, ord
 	for rows.Next() {
 		var res Profile
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		results = append(results, &res)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	if take != nil && *take < 0 {
 		reverseSlice(results)
@@ -2372,7 +2374,7 @@ func (d *ProfileDelegate) runDelete(ctx context.Context, where []PredicateOf[Pro
 				return err
 			}
 			if res == nil {
-				return sql.ErrNoRows
+				return &NotFoundError{Model: "Profile"}
 			}
 
 			// Build DELETE statement by PK
@@ -2432,14 +2434,14 @@ func (d *ProfileDelegate) runDelete(ctx context.Context, where []PredicateOf[Pro
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "Profile"}
 	}
 
 	var row Profile
 	if err := rows.Scan(row.ScanFields(returningCols)...); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	return &row, nil
 }
@@ -2524,18 +2526,18 @@ func (d *ProfileDelegate) runCount(ctx context.Context, params QueryParams[Profi
 
 	rows, err := d.client.query(ctx, query, vals...)
 	if err != nil {
-		return 0, err
+		return 0, TranslateDBError(err)
 	}
 	defer rows.Close()
 
 	var count int64
 	if rows.Next() {
 		if err := rows.Scan(&count); err != nil {
-			return 0, err
+			return 0, TranslateDBError(err)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return 0, err
+		return 0, TranslateDBError(err)
 	}
 	return count, nil
 }

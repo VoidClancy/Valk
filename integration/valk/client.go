@@ -7,6 +7,7 @@ import (
 	"database/sql/driver"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -136,6 +137,403 @@ func (e UserRoleType) IsValid() bool {
 		return true
 	}
 	return false
+}
+
+// Standard Sentinel Errors
+var (
+	// ErrNotFound is returned when a query expects a record but finds none.
+	ErrNotFound = errors.New("valk: record not found")
+
+	// ErrNoRowsAffected is returned when an update or delete operation affects zero rows when a target was expected.
+	ErrNoRowsAffected = errors.New("valk: no rows affected")
+
+	// ErrConstraint is the base error for database constraint violations.
+	ErrConstraint = errors.New("valk: constraint violation")
+
+	// ErrUniqueConstraint is returned when a unique index or primary key constraint is violated.
+	ErrUniqueConstraint = errors.New("valk: unique constraint violation")
+
+	// ErrFKConstraint is returned when a foreign key constraint is violated.
+	ErrFKConstraint = errors.New("valk: foreign key constraint violation")
+
+	// ErrNotNullConstraint is returned when a NOT NULL column constraint is violated.
+	ErrNotNullConstraint = errors.New("valk: not null constraint violation")
+
+	// ErrCheckConstraint is returned when a CHECK constraint is violated.
+	ErrCheckConstraint = errors.New("valk: check constraint violation")
+
+	// ErrDeadlock is returned when a database deadlock is detected.
+	ErrDeadlock = errors.New("valk: deadlock detected")
+
+	// ErrLockTimeout is returned when a database lock wait timeout is exceeded.
+	ErrLockTimeout = errors.New("valk: lock wait timeout exceeded")
+
+	// ErrSerialization is returned when a transaction fails due to serialization / concurrent update conflicts.
+	ErrSerialization = errors.New("valk: serialization failure")
+
+	// ErrTxDone is returned when attempting an operation on a transaction that has already been committed or rolled back.
+	ErrTxDone = errors.New("valk: transaction already committed or rolled back")
+
+	// ErrConnClosed is returned when the underlying database connection is closed.
+	ErrConnClosed = errors.New("valk: connection closed")
+)
+
+// Helper functions for inspecting error kinds (Ent-style)
+
+// IsNotFound returns true if the error indicates a record was not found.
+func IsNotFound(err error) bool {
+	return errors.Is(err, ErrNotFound)
+}
+
+// IsNoRowsAffected returns true if no rows were modified by an update or delete execution.
+func IsNoRowsAffected(err error) bool {
+	return errors.Is(err, ErrNoRowsAffected)
+}
+
+// IsConstraintError returns true if the error is any type of database constraint violation.
+func IsConstraintError(err error) bool {
+	return errors.Is(err, ErrConstraint) ||
+		errors.Is(err, ErrUniqueConstraint) ||
+		errors.Is(err, ErrFKConstraint) ||
+		errors.Is(err, ErrNotNullConstraint) ||
+		errors.Is(err, ErrCheckConstraint)
+}
+
+// IsUniqueConstraint returns true if the error is a unique constraint violation.
+func IsUniqueConstraint(err error) bool {
+	return errors.Is(err, ErrUniqueConstraint)
+}
+
+// IsFKConstraint returns true if the error is a foreign key constraint violation.
+func IsFKConstraint(err error) bool {
+	return errors.Is(err, ErrFKConstraint)
+}
+
+// IsNotNullConstraint returns true if the error is a NOT NULL constraint violation.
+func IsNotNullConstraint(err error) bool {
+	return errors.Is(err, ErrNotNullConstraint)
+}
+
+// IsCheckConstraint returns true if the error is a CHECK constraint violation.
+func IsCheckConstraint(err error) bool {
+	return errors.Is(err, ErrCheckConstraint)
+}
+
+// IsDeadlock returns true if the error is a database deadlock failure.
+func IsDeadlock(err error) bool {
+	return errors.Is(err, ErrDeadlock)
+}
+
+// IsLockTimeout returns true if the error is a lock timeout failure.
+func IsLockTimeout(err error) bool {
+	return errors.Is(err, ErrLockTimeout)
+}
+
+// IsSerialization returns true if the error is a transaction serialization failure.
+func IsSerialization(err error) bool {
+	return errors.Is(err, ErrSerialization)
+}
+
+// IsTxDone returns true if the error indicates the transaction was already completed.
+func IsTxDone(err error) bool {
+	return errors.Is(err, ErrTxDone)
+}
+
+// IsValidationError returns true if the error is a client-side validation failure.
+func IsValidationError(err error) bool {
+	var ve ValidationError
+	if errors.As(err, &ve) {
+		return true
+	}
+	var vePtr *ValidationError
+	return errors.As(err, &vePtr)
+}
+
+// Concrete Error Structs
+
+// NotFoundError represents a record not found error with model context.
+type NotFoundError struct {
+	Model string
+	Cause error
+}
+
+func (e *NotFoundError) Error() string {
+	if e.Model != "" {
+		return fmt.Sprintf("valk: %s record not found", e.Model)
+	}
+	return "valk: record not found"
+}
+
+func (e *NotFoundError) Unwrap() error {
+	if e.Cause != nil {
+		return e.Cause
+	}
+	return ErrNotFound
+}
+
+// ConstraintError represents a detailed database constraint error.
+type ConstraintError struct {
+	Kind       error  // e.g. ErrUniqueConstraint, ErrFKConstraint
+	Table      string // Table name where constraint occurred (if available)
+	Constraint string // Constraint name (if available)
+	Cause      error  // Underlying driver error
+}
+
+func (e *ConstraintError) Error() string {
+	if e.Constraint != "" {
+		return fmt.Sprintf("%v: constraint %q violated on table %q: %v", e.Kind, e.Constraint, e.Table, e.Cause)
+	}
+	if e.Table != "" {
+		return fmt.Sprintf("%v: constraint violated on table %q: %v", e.Kind, e.Table, e.Cause)
+	}
+	return fmt.Sprintf("%v: %v", e.Kind, e.Cause)
+}
+
+func (e *ConstraintError) Unwrap() error {
+	if e.Kind != nil {
+		return e.Kind
+	}
+	return ErrConstraint
+}
+
+// TranslateDBError normalizes driver-specific errors and standard library sql errors into Valkyrie domain errors.
+func TranslateDBError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Idempotency check: If err is ALREADY a normalized Valkyrie domain error, return as-is to avoid duplicate wrapping!
+	if errors.Is(err, ErrNotFound) ||
+		errors.Is(err, ErrConstraint) ||
+		errors.Is(err, ErrTxDone) ||
+		errors.Is(err, ErrConnClosed) ||
+		errors.Is(err, ErrDeadlock) ||
+		errors.Is(err, ErrLockTimeout) ||
+		errors.Is(err, ErrSerialization) {
+		return err
+	}
+
+	// STDLIB sql error mappings
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("%w: %w", ErrNotFound, err)
+	}
+	if errors.Is(err, sql.ErrTxDone) {
+		return fmt.Errorf("%w: %w", ErrTxDone, err)
+	}
+	if errors.Is(err, sql.ErrConnDone) {
+		return fmt.Errorf("%w: %w", ErrConnClosed, err)
+	}
+	// Postgres Error Translation
+	if pqErr, ok := err.(*pq.Error); ok {
+		switch pqErr.Code {
+		case "23505":
+			return &ConstraintError{Kind: ErrUniqueConstraint, Table: pqErr.Table, Constraint: pqErr.Constraint, Cause: err}
+		case "23503":
+			return &ConstraintError{Kind: ErrFKConstraint, Table: pqErr.Table, Constraint: pqErr.Constraint, Cause: err}
+		case "23502":
+			return &ConstraintError{Kind: ErrNotNullConstraint, Table: pqErr.Table, Constraint: pqErr.Column, Cause: err}
+		case "23514":
+			return &ConstraintError{Kind: ErrCheckConstraint, Table: pqErr.Table, Constraint: pqErr.Constraint, Cause: err}
+		case "40001":
+			return fmt.Errorf("%w: %w", ErrSerialization, err)
+		case "40P01":
+			return fmt.Errorf("%w: %w", ErrDeadlock, err)
+		default:
+			if strings.HasPrefix(string(pqErr.Code), "23") {
+				return &ConstraintError{Kind: ErrConstraint, Table: pqErr.Table, Constraint: pqErr.Constraint, Cause: err}
+			}
+		}
+	}
+	type sqlStateCoder interface {
+		SQLState() string
+	}
+	if coder, ok := err.(sqlStateCoder); ok {
+		state := coder.SQLState()
+		switch state {
+		case "23505":
+			return &ConstraintError{Kind: ErrUniqueConstraint, Cause: err}
+		case "23503":
+			return &ConstraintError{Kind: ErrFKConstraint, Cause: err}
+		case "23502":
+			return &ConstraintError{Kind: ErrNotNullConstraint, Cause: err}
+		case "23514":
+			return &ConstraintError{Kind: ErrCheckConstraint, Cause: err}
+		case "40001":
+			return fmt.Errorf("%w: %w", ErrSerialization, err)
+		case "40P01":
+			return fmt.Errorf("%w: %w", ErrDeadlock, err)
+		}
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "duplicate key value") || strings.Contains(msg, "violates unique constraint") {
+		return &ConstraintError{Kind: ErrUniqueConstraint, Cause: err}
+	}
+	if strings.Contains(msg, "violates foreign key constraint") {
+		return &ConstraintError{Kind: ErrFKConstraint, Cause: err}
+	}
+	if strings.Contains(msg, "violates not-null constraint") {
+		return &ConstraintError{Kind: ErrNotNullConstraint, Cause: err}
+	}
+	if strings.Contains(msg, "violates check constraint") {
+		return &ConstraintError{Kind: ErrCheckConstraint, Cause: err}
+	}
+
+	return err
+}
+
+// FieldError represents a single validation failure on a specific field.
+type FieldError struct {
+	Field string
+	Value any
+	Rule  string
+	Msg   string
+}
+
+func (e FieldError) Error() string {
+	return fmt.Sprintf("field %s: %s (value: %v, rule: %s)", e.Field, e.Msg, e.Value, e.Rule)
+}
+
+// ValidationError collects multiple validation errors during an operation.
+type ValidationError struct {
+	Errors []FieldError
+}
+
+func (e ValidationError) Error() string {
+	var msgs []string
+	for _, err := range e.Errors {
+		msgs = append(msgs, err.Error())
+	}
+	return fmt.Sprintf("validation failed: %s", strings.Join(msgs, "; "))
+}
+
+func (e *ValidationError) Add(field string, value any, rule string, msg string) {
+	e.Errors = append(e.Errors, FieldError{
+		Field: field,
+		Value: value,
+		Rule:  rule,
+		Msg:   msg,
+	})
+}
+
+func (e *ValidationError) HasErrors() bool {
+	return len(e.Errors) > 0
+}
+
+func (errs *ValidationError) ValidateString(fieldName string, val string, isRequired bool, maxLen int, isBit bool, isInet bool) {
+	if isRequired && val == "" {
+		errs.Add(fieldName, val, "required", fmt.Sprintf("field %s is required", fieldName))
+	}
+	if strings.Contains(val, "\x00") {
+		errs.Add(fieldName, val, "safety", "string cannot contain null bytes")
+	}
+	if !utf8.ValidString(val) {
+		errs.Add(fieldName, val, "safety", "string must be valid UTF-8")
+	}
+	if maxLen > 0 && utf8.RuneCountInString(val) > maxLen {
+		errs.Add(fieldName, val, "length", fmt.Sprintf("string exceeds maximum length of %d characters", maxLen))
+	}
+	if isBit {
+		if strings.IndexFunc(val, func(r rune) bool { return r != '0' && r != '1' }) >= 0 {
+			errs.Add(fieldName, val, "format", "bit string must contain only '0' and '1'")
+		}
+	}
+	if isInet {
+		if net.ParseIP(val) == nil {
+			if _, _, err := net.ParseCIDR(val); err != nil {
+				errs.Add(fieldName, val, "format", fmt.Sprintf("field %s must be a valid IP address", fieldName))
+			}
+		}
+	}
+}
+
+func (errs *ValidationError) ValidateInt32(fieldName string, val int32, rule string) {
+	switch rule {
+	case "SmallInt":
+		if val < -32768 || val > 32767 {
+			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
+		}
+	case "TinyInt":
+		if val < -128 || val > 127 {
+			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
+		}
+	case "Oid":
+		if val < 0 {
+			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
+		}
+	}
+}
+
+func (errs *ValidationError) ValidateInt64(fieldName string, val int64, rule string) {
+	switch rule {
+	case "SmallInt":
+		if val < -32768 || val > 32767 {
+			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
+		}
+	case "TinyInt":
+		if val < -128 || val > 127 {
+			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
+		}
+	case "Oid":
+		if val < 0 {
+			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
+		}
+	}
+}
+
+func (errs *ValidationError) ValidateInt(fieldName string, val int, rule string) {
+	switch rule {
+	case "SmallInt":
+		if val < -32768 || val > 32767 {
+			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
+		}
+	case "TinyInt":
+		if val < -128 || val > 127 {
+			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
+		}
+	case "Oid":
+		if val < 0 {
+			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
+		}
+	}
+}
+
+var uuidRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+func (errs *ValidationError) ValidateUUID(fieldName string, val string) {
+	if !uuidRegex.MatchString(val) {
+		errs.Add(fieldName, val, "format", "field must be a valid UUID")
+	}
+}
+func (errs *ValidationError) ValidateFloat(fieldName string, val float64) {
+	if math.IsInf(val, 0) || math.IsNaN(val) {
+		errs.Add(fieldName, val, "range", "field must be a finite number")
+	}
+}
+
+var decimalRegex = regexp.MustCompile(`^[-+]?(\d+(\.\d*)?|\.\d+)$`)
+
+func (errs *ValidationError) ValidateDecimal(fieldName string, val string, scale int) {
+	if val == "" {
+		return
+	}
+	if !decimalRegex.MatchString(val) {
+		errs.Add(fieldName, val, "format", fmt.Sprintf("field %s must be a valid decimal number string", fieldName))
+		return
+	}
+	if scale > 0 {
+		dot := strings.IndexByte(val, '.')
+		if dot >= 0 && len(val)-dot-1 > scale {
+			errs.Add(fieldName, val, "format", fmt.Sprintf("field %s cannot have more than %d decimal places", fieldName, scale))
+		}
+	}
+}
+func (errs *ValidationError) ValidateJson(fieldName string, val json.RawMessage) {
+	if val == nil {
+		return
+	}
+	if !json.Valid(val) {
+		errs.Add(fieldName, val, "format", "field must be valid JSON")
+	}
 }
 
 type UniqueConstraintTarget interface {
@@ -403,44 +801,6 @@ type DBTX interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
-// FieldError represents a single validation failure on a specific field.
-type FieldError struct {
-	Field string
-	Value any
-	Rule  string
-	Msg   string
-}
-
-func (e FieldError) Error() string {
-	return fmt.Sprintf("field %s: %s (value: %v, rule: %s)", e.Field, e.Msg, e.Value, e.Rule)
-}
-
-// ValidationError collects multiple validation errors during an operation.
-type ValidationError struct {
-	Errors []FieldError
-}
-
-func (e ValidationError) Error() string {
-	var msgs []string
-	for _, err := range e.Errors {
-		msgs = append(msgs, err.Error())
-	}
-	return fmt.Sprintf("validation failed: %s", strings.Join(msgs, "; "))
-}
-
-func (e *ValidationError) Add(field string, value any, rule string, msg string) {
-	e.Errors = append(e.Errors, FieldError{
-		Field: field,
-		Value: value,
-		Rule:  rule,
-		Msg:   msg,
-	})
-}
-
-func (e *ValidationError) HasErrors() bool {
-	return len(e.Errors) > 0
-}
-
 type FieldAssignment struct {
 	Col string
 	Val any
@@ -491,123 +851,6 @@ func (s HstoreScan) Scan(src any) error {
 	}
 	*s.P = &m
 	return nil
-}
-
-func (errs *ValidationError) ValidateString(fieldName string, val string, isRequired bool, maxLen int, isBit bool, isInet bool) {
-	if isRequired && val == "" {
-		errs.Add(fieldName, val, "required", fmt.Sprintf("field %s is required", fieldName))
-	}
-	if strings.Contains(val, "\x00") {
-		errs.Add(fieldName, val, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(val) {
-		errs.Add(fieldName, val, "safety", "string must be valid UTF-8")
-	}
-	if maxLen > 0 && utf8.RuneCountInString(val) > maxLen {
-		errs.Add(fieldName, val, "length", fmt.Sprintf("string exceeds maximum length of %d characters", maxLen))
-	}
-	if isBit {
-		if strings.IndexFunc(val, func(r rune) bool { return r != '0' && r != '1' }) >= 0 {
-			errs.Add(fieldName, val, "format", "bit string must contain only '0' and '1'")
-		}
-	}
-	if isInet {
-		if net.ParseIP(val) == nil {
-			if _, _, err := net.ParseCIDR(val); err != nil {
-				errs.Add(fieldName, val, "format", fmt.Sprintf("field %s must be a valid IP address", fieldName))
-			}
-		}
-	}
-}
-
-func (errs *ValidationError) ValidateInt32(fieldName string, val int32, rule string) {
-	switch rule {
-	case "SmallInt":
-		if val < -32768 || val > 32767 {
-			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
-		}
-	case "TinyInt":
-		if val < -128 || val > 127 {
-			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
-		}
-	case "Oid":
-		if val < 0 {
-			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
-		}
-	}
-}
-
-func (errs *ValidationError) ValidateInt64(fieldName string, val int64, rule string) {
-	switch rule {
-	case "SmallInt":
-		if val < -32768 || val > 32767 {
-			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
-		}
-	case "TinyInt":
-		if val < -128 || val > 127 {
-			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
-		}
-	case "Oid":
-		if val < 0 {
-			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
-		}
-	}
-}
-
-func (errs *ValidationError) ValidateInt(fieldName string, val int, rule string) {
-	switch rule {
-	case "SmallInt":
-		if val < -32768 || val > 32767 {
-			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
-		}
-	case "TinyInt":
-		if val < -128 || val > 127 {
-			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
-		}
-	case "Oid":
-		if val < 0 {
-			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
-		}
-	}
-}
-
-var uuidRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
-
-func (errs *ValidationError) ValidateUUID(fieldName string, val string) {
-	if !uuidRegex.MatchString(val) {
-		errs.Add(fieldName, val, "format", "field must be a valid UUID")
-	}
-}
-func (errs *ValidationError) ValidateFloat(fieldName string, val float64) {
-	if math.IsInf(val, 0) || math.IsNaN(val) {
-		errs.Add(fieldName, val, "range", "field must be a finite number")
-	}
-}
-
-var decimalRegex = regexp.MustCompile(`^[-+]?(\d+(\.\d*)?|\.\d+)$`)
-
-func (errs *ValidationError) ValidateDecimal(fieldName string, val string, scale int) {
-	if val == "" {
-		return
-	}
-	if !decimalRegex.MatchString(val) {
-		errs.Add(fieldName, val, "format", fmt.Sprintf("field %s must be a valid decimal number string", fieldName))
-		return
-	}
-	if scale > 0 {
-		dot := strings.IndexByte(val, '.')
-		if dot >= 0 && len(val)-dot-1 > scale {
-			errs.Add(fieldName, val, "format", fmt.Sprintf("field %s cannot have more than %d decimal places", fieldName, scale))
-		}
-	}
-}
-func (errs *ValidationError) ValidateJson(fieldName string, val json.RawMessage) {
-	if val == nil {
-		return
-	}
-	if !json.Valid(val) {
-		errs.Add(fieldName, val, "format", "field must be valid JSON")
-	}
 }
 
 type OrderDirection string
@@ -971,7 +1214,7 @@ func (q *Queries) prepare(ctx context.Context, query string) (*sql.Stmt, error) 
 		var err error
 		stmt, err = prepDB.PrepareContext(ctx, query)
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 
 		q.mu.Lock()
@@ -996,7 +1239,10 @@ func (q *Queries) query(ctx context.Context, query string, args ...any) (*sql.Ro
 		return nil, err
 	}
 	res, err := stmt.QueryContext(ctx, args...)
-	return res, err
+	if err != nil {
+		return nil, TranslateDBError(err)
+	}
+	return res, nil
 }
 
 func (q *Queries) queryRow(ctx context.Context, query string, args ...any) *sql.Row {
@@ -1009,7 +1255,10 @@ func (q *Queries) exec(ctx context.Context, query string, args ...any) (sql.Resu
 		return nil, err
 	}
 	res, err := stmt.ExecContext(ctx, args...)
-	return res, err
+	if err != nil {
+		return nil, TranslateDBError(err)
+	}
+	return res, nil
 }
 
 func (q *Queries) inTx() bool {
@@ -2125,7 +2374,7 @@ type Tx struct {
 func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	sqlTx, err := db.sqlDB.BeginTx(ctx, opts)
 	if err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	q := &Queries{
 		db:        sqlTx,
@@ -2144,11 +2393,11 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 }
 
 func (tx *Tx) Commit() error {
-	return tx.tx.Commit()
+	return TranslateDBError(tx.tx.Commit())
 }
 
 func (tx *Tx) Rollback() error {
-	return tx.tx.Rollback()
+	return TranslateDBError(tx.tx.Rollback())
 }
 
 // Raw returns the underlying *sql.Tx transaction handle.
@@ -2876,7 +3125,7 @@ func loadRelation[P any, C any](
 
 	rows, err := q.query(ctx, query, vals...)
 	if err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
@@ -2886,7 +3135,7 @@ func loadRelation[P any, C any](
 	for rows.Next() {
 		var child C
 		if err := scan(rows, &child); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		if key, ok := childKey(&child); ok {
 			childMap[key] = append(childMap[key], &child)
@@ -2894,7 +3143,7 @@ func loadRelation[P any, C any](
 		allChildren = append(allChildren, &child)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 
 	for _, p := range parents {
