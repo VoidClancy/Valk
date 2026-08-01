@@ -224,7 +224,7 @@ func (a ArrayValWrapper[T]) Value() (driver.Value, error) {
 	if a.V == nil {
 		return nil, nil
 	}
-	{{- if isPostgresProvider .Schema }}
+	{{- if or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql") }}
 	return pq.Array(a.V).Value()
 	{{- else }}
 	b, err := json.Marshal(a.V)
@@ -248,7 +248,7 @@ func (a ArrayScanWrapper[T]) Scan(src any) error {
 		*a.P = nil
 		return nil
 	}
-	{{- if isPostgresProvider .Schema }}
+	{{- if or (eq .Schema.Datasource.Provider "postgres") (eq .Schema.Datasource.Provider "postgresql") }}
 	switch v := src.(type) {
 	case []byte:
 		if len(v) > 0 && v[0] == '{' {
@@ -285,43 +285,6 @@ type DBTX interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
-// FieldError represents a single validation failure on a specific field.
-type FieldError struct {
-	Field string
-	Value any
-	Rule  string
-	Msg   string
-}
-
-func (e FieldError) Error() string {
-	return fmt.Sprintf("field %s: %s (value: %v, rule: %s)", e.Field, e.Msg, e.Value, e.Rule)
-}
-
-// ValidationError collects multiple validation errors during an operation.
-type ValidationError struct {
-	Errors []FieldError
-}
-
-func (e ValidationError) Error() string {
-	var msgs []string
-	for _, err := range e.Errors {
-		msgs = append(msgs, err.Error())
-	}
-	return fmt.Sprintf("validation failed: %s", strings.Join(msgs, "; "))
-}
-
-func (e *ValidationError) Add(field string, value any, rule string, msg string) {
-	e.Errors = append(e.Errors, FieldError{
-		Field: field,
-		Value: value,
-		Rule:  rule,
-		Msg:   msg,
-	})
-}
-
-func (e *ValidationError) HasErrors() bool {
-	return len(e.Errors) > 0
-}
 
 type FieldAssignment struct {
 	Col string
@@ -377,132 +340,7 @@ func (s HstoreScan) Scan(src any) error {
 }
 {{- end }}
 
-func (errs *ValidationError) ValidateString(fieldName string, val string, isRequired bool, maxLen int, isBit bool, isInet bool) {
-	if isRequired && val == "" {
-		errs.Add(fieldName, val, "required", fmt.Sprintf("field %s is required", fieldName))
-	}
-	if strings.Contains(val, "\x00") {
-		errs.Add(fieldName, val, "safety", "string cannot contain null bytes")
-	}
-	if !utf8.ValidString(val) {
-		errs.Add(fieldName, val, "safety", "string must be valid UTF-8")
-	}
-	if maxLen > 0 && utf8.RuneCountInString(val) > maxLen {
-		errs.Add(fieldName, val, "length", fmt.Sprintf("string exceeds maximum length of %d characters", maxLen))
-	}
-	if isBit {
-		if strings.IndexFunc(val, func(r rune) bool { return r != '0' && r != '1' }) >= 0 {
-			errs.Add(fieldName, val, "format", "bit string must contain only '0' and '1'")
-		}
-	}
-	{{- if hasType .Schema "Inet" }}
-	if isInet {
-		if net.ParseIP(val) == nil {
-			if _, _, err := net.ParseCIDR(val); err != nil {
-				errs.Add(fieldName, val, "format", fmt.Sprintf("field %s must be a valid IP address", fieldName))
-			}
-		}
-	}
-	{{- end }}
-}
 
-func (errs *ValidationError) ValidateInt32(fieldName string, val int32, rule string) {
-	switch rule {
-	case "SmallInt":
-		if val < -32768 || val > 32767 {
-			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
-		}
-	case "TinyInt":
-		if val < -128 || val > 127 {
-			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
-		}
-	case "Oid":
-		if val < 0 {
-			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
-		}
-	}
-}
-
-func (errs *ValidationError) ValidateInt64(fieldName string, val int64, rule string) {
-	switch rule {
-	case "SmallInt":
-		if val < -32768 || val > 32767 {
-			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
-		}
-	case "TinyInt":
-		if val < -128 || val > 127 {
-			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
-		}
-	case "Oid":
-		if val < 0 {
-			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
-		}
-	}
-}
-
-func (errs *ValidationError) ValidateInt(fieldName string, val int, rule string) {
-	switch rule {
-	case "SmallInt":
-		if val < -32768 || val > 32767 {
-			errs.Add(fieldName, val, "range", "value is out of range for SmallInt (-32768 to 32767)")
-		}
-	case "TinyInt":
-		if val < -128 || val > 127 {
-			errs.Add(fieldName, val, "range", "value is out of range for TinyInt (-128 to 127)")
-		}
-	case "Oid":
-		if val < 0 {
-			errs.Add(fieldName, val, "range", "value is out of range for Oid (must be non-negative)")
-		}
-	}
-}
-
-{{- if hasType .Schema "Uuid" }}
-var uuidRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
-
-func (errs *ValidationError) ValidateUUID(fieldName string, val string) {
-	if !uuidRegex.MatchString(val) {
-		errs.Add(fieldName, val, "format", "field must be a valid UUID")
-	}
-}
-{{- end }}
-
-{{- if hasType .Schema "Float" }}
-func (errs *ValidationError) ValidateFloat(fieldName string, val float64) {
-	if math.IsInf(val, 0) || math.IsNaN(val) {
-		errs.Add(fieldName, val, "range", "field must be a finite number")
-	}
-}
-{{- end }}
-{{- if hasType .Schema "Decimal" }}
-var decimalRegex = regexp.MustCompile(`^[-+]?(\d+(\.\d*)?|\.\d+)$`)
-
-func (errs *ValidationError) ValidateDecimal(fieldName string, val string, scale int) {
-	if val == "" {
-		return
-	}
-	if !decimalRegex.MatchString(val) {
-		errs.Add(fieldName, val, "format", fmt.Sprintf("field %s must be a valid decimal number string", fieldName))
-		return
-	}
-	if scale > 0 {
-		dot := strings.IndexByte(val, '.')
-		if dot >= 0 && len(val)-dot-1 > scale {
-			errs.Add(fieldName, val, "format", fmt.Sprintf("field %s cannot have more than %d decimal places", fieldName, scale))
-		}
-	}
-}
-{{- end }}
-{{- if hasType .Schema "Json" }}
-func (errs *ValidationError) ValidateJson(fieldName string, val json.RawMessage) {
-	if val == nil {
-		return
-	}
-	if !json.Valid(val) {
-		errs.Add(fieldName, val, "format", "field must be valid JSON")
-	}
-}
-{{- end }}
 
 type OrderDirection string
 
