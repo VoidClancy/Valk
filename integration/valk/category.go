@@ -3,6 +3,7 @@ package valk
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -945,7 +946,7 @@ func (d *CategoryDelegate) runCreate(
 			err := rows.Err()
 			rows.Close()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			return nil, nil
 		}
@@ -954,7 +955,7 @@ func (d *CategoryDelegate) runCreate(
 		scanErr := rows.Scan(res.ScanFields(returningCols)...)
 		rows.Close()
 		if scanErr != nil {
-			return nil, scanErr
+			return nil, TranslateDBError(scanErr)
 		}
 
 		return &res, nil
@@ -988,7 +989,7 @@ func (d *CategoryDelegate) runCreateFallback(
 		if val == nil && len(pkCols) == 1 {
 			lastID, err := result.LastInsertId()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			val = lastID
 		}
@@ -1025,7 +1026,7 @@ func (d *CategoryDelegate) runCreateFallback(
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
@@ -1034,7 +1035,7 @@ func (d *CategoryDelegate) runCreateFallback(
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	return &res, nil
@@ -1124,13 +1125,13 @@ func scanCategoryRows(rows *sql.Rows, returningCols []string) ([]*Category, erro
 		var res Category
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 			rows.Close()
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		records = append(records, &res)
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	rows.Close()
 	return records, nil
@@ -1571,16 +1572,16 @@ func (d *CategoryDelegate) runUpdate(ctx context.Context, preds []PredicateOf[Ca
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "Category"}
 	}
 
 	var res Category
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
@@ -1619,7 +1620,7 @@ func (d *CategoryDelegate) runUpdateFallback(ctx context.Context, preds []Predic
 		return nil, err
 	}
 	if affected == 0 {
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "Category"}
 	}
 	return d.runFindUnique(ctx, preds, selects, omits)
 }
@@ -2047,30 +2048,31 @@ func (d *CategoryDelegate) queryOne(ctx context.Context, whereClause string, ord
 	query := buildSelectSQL(d.client, "Category", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 				return nil, nil
 			}
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
 
 	var res Category
 	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
+
 	return &res, nil
 }
 
@@ -2078,7 +2080,7 @@ func (d *CategoryDelegate) queryMany(ctx context.Context, whereClause string, or
 	query := buildSelectSQL(d.client, "Category", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
@@ -2086,12 +2088,12 @@ func (d *CategoryDelegate) queryMany(ctx context.Context, whereClause string, or
 	for rows.Next() {
 		var res Category
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		results = append(results, &res)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	if take != nil && *take < 0 {
 		reverseSlice(results)
@@ -2235,7 +2237,7 @@ func (d *CategoryDelegate) runDelete(ctx context.Context, where []PredicateOf[Ca
 				return err
 			}
 			if res == nil {
-				return sql.ErrNoRows
+				return &NotFoundError{Model: "Category"}
 			}
 
 			// Build DELETE statement by PK
@@ -2295,14 +2297,14 @@ func (d *CategoryDelegate) runDelete(ctx context.Context, where []PredicateOf[Ca
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "Category"}
 	}
 
 	var row Category
 	if err := rows.Scan(row.ScanFields(returningCols)...); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	return &row, nil
 }
@@ -2387,18 +2389,18 @@ func (d *CategoryDelegate) runCount(ctx context.Context, params QueryParams[Cate
 
 	rows, err := d.client.query(ctx, query, vals...)
 	if err != nil {
-		return 0, err
+		return 0, TranslateDBError(err)
 	}
 	defer rows.Close()
 
 	var count int64
 	if rows.Next() {
 		if err := rows.Scan(&count); err != nil {
-			return 0, err
+			return 0, TranslateDBError(err)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return 0, err
+		return 0, TranslateDBError(err)
 	}
 	return count, nil
 }

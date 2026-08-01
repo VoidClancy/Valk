@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -3377,7 +3378,7 @@ func (d *AllFieldsSoFarDelegate) runCreate(
 			err := rows.Err()
 			rows.Close()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			return nil, nil
 		}
@@ -3386,7 +3387,7 @@ func (d *AllFieldsSoFarDelegate) runCreate(
 		scanErr := rows.Scan(res.ScanFields(returningCols)...)
 		rows.Close()
 		if scanErr != nil {
-			return nil, scanErr
+			return nil, TranslateDBError(scanErr)
 		}
 
 		return &res, nil
@@ -3420,7 +3421,7 @@ func (d *AllFieldsSoFarDelegate) runCreateFallback(
 		if val == nil && len(pkCols) == 1 {
 			lastID, err := result.LastInsertId()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			val = lastID
 		}
@@ -3457,7 +3458,7 @@ func (d *AllFieldsSoFarDelegate) runCreateFallback(
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
@@ -3466,7 +3467,7 @@ func (d *AllFieldsSoFarDelegate) runCreateFallback(
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	return &res, nil
@@ -3760,13 +3761,13 @@ func scanAllFieldsSoFarRows(rows *sql.Rows, returningCols []string) ([]*AllField
 		var res AllFieldsSoFar
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 			rows.Close()
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		records = append(records, &res)
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	rows.Close()
 	return records, nil
@@ -5087,16 +5088,16 @@ func (d *AllFieldsSoFarDelegate) runUpdate(ctx context.Context, preds []Predicat
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "AllFieldsSoFar"}
 	}
 
 	var res AllFieldsSoFar
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
@@ -5135,7 +5136,7 @@ func (d *AllFieldsSoFarDelegate) runUpdateFallback(ctx context.Context, preds []
 		return nil, err
 	}
 	if affected == 0 {
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "AllFieldsSoFar"}
 	}
 	return d.runFindUnique(ctx, preds, selects, omits)
 }
@@ -5563,30 +5564,31 @@ func (d *AllFieldsSoFarDelegate) queryOne(ctx context.Context, whereClause strin
 	query := buildSelectSQL(d.client, "AllFieldsSoFar", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 				return nil, nil
 			}
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
 
 	var res AllFieldsSoFar
 	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
+
 	return &res, nil
 }
 
@@ -5594,7 +5596,7 @@ func (d *AllFieldsSoFarDelegate) queryMany(ctx context.Context, whereClause stri
 	query := buildSelectSQL(d.client, "AllFieldsSoFar", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
@@ -5602,12 +5604,12 @@ func (d *AllFieldsSoFarDelegate) queryMany(ctx context.Context, whereClause stri
 	for rows.Next() {
 		var res AllFieldsSoFar
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		results = append(results, &res)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	if take != nil && *take < 0 {
 		reverseSlice(results)
@@ -5751,7 +5753,7 @@ func (d *AllFieldsSoFarDelegate) runDelete(ctx context.Context, where []Predicat
 				return err
 			}
 			if res == nil {
-				return sql.ErrNoRows
+				return &NotFoundError{Model: "AllFieldsSoFar"}
 			}
 
 			// Build DELETE statement by PK
@@ -5811,14 +5813,14 @@ func (d *AllFieldsSoFarDelegate) runDelete(ctx context.Context, where []Predicat
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "AllFieldsSoFar"}
 	}
 
 	var row AllFieldsSoFar
 	if err := rows.Scan(row.ScanFields(returningCols)...); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	return &row, nil
 }
@@ -5903,18 +5905,18 @@ func (d *AllFieldsSoFarDelegate) runCount(ctx context.Context, params QueryParam
 
 	rows, err := d.client.query(ctx, query, vals...)
 	if err != nil {
-		return 0, err
+		return 0, TranslateDBError(err)
 	}
 	defer rows.Close()
 
 	var count int64
 	if rows.Next() {
 		if err := rows.Scan(&count); err != nil {
-			return 0, err
+			return 0, TranslateDBError(err)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return 0, err
+		return 0, TranslateDBError(err)
 	}
 	return count, nil
 }

@@ -3,6 +3,7 @@ package valk
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -1269,7 +1270,7 @@ func (d *DefaultsTestDelegate) runCreate(
 			err := rows.Err()
 			rows.Close()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			return nil, nil
 		}
@@ -1278,7 +1279,7 @@ func (d *DefaultsTestDelegate) runCreate(
 		scanErr := rows.Scan(res.ScanFields(returningCols)...)
 		rows.Close()
 		if scanErr != nil {
-			return nil, scanErr
+			return nil, TranslateDBError(scanErr)
 		}
 
 		return &res, nil
@@ -1312,7 +1313,7 @@ func (d *DefaultsTestDelegate) runCreateFallback(
 		if val == nil && len(pkCols) == 1 {
 			lastID, err := result.LastInsertId()
 			if err != nil {
-				return nil, err
+				return nil, TranslateDBError(err)
 			}
 			val = lastID
 		}
@@ -1349,7 +1350,7 @@ func (d *DefaultsTestDelegate) runCreateFallback(
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
@@ -1358,7 +1359,7 @@ func (d *DefaultsTestDelegate) runCreateFallback(
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	return &res, nil
@@ -1494,13 +1495,13 @@ func scanDefaultsTestRows(rows *sql.Rows, returningCols []string) ([]*DefaultsTe
 		var res DefaultsTest
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
 			rows.Close()
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		records = append(records, &res)
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	rows.Close()
 	return records, nil
@@ -2050,16 +2051,16 @@ func (d *DefaultsTestDelegate) runUpdate(ctx context.Context, preds []PredicateO
 		err := rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "DefaultsTest"}
 	}
 
 	var res DefaultsTest
 	scanErr := rows.Scan(res.ScanFields(returningCols)...)
 	rows.Close()
 	if scanErr != nil {
-		return nil, scanErr
+		return nil, TranslateDBError(scanErr)
 	}
 
 	if selects != nil && selects.hasAnyRelation() {
@@ -2098,7 +2099,7 @@ func (d *DefaultsTestDelegate) runUpdateFallback(ctx context.Context, preds []Pr
 		return nil, err
 	}
 	if affected == 0 {
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "DefaultsTest"}
 	}
 	return d.runFindUnique(ctx, preds, selects, omits)
 }
@@ -2526,30 +2527,31 @@ func (d *DefaultsTestDelegate) queryOne(ctx context.Context, whereClause string,
 	query := buildSelectSQL(d.client, "DefaultsTest", returningCols, whereClause, orderByClause, &limitOne, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 				return nil, nil
 			}
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		return nil, nil
 	}
 
 	var res DefaultsTest
 	if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) || IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
+
 	return &res, nil
 }
 
@@ -2557,7 +2559,7 @@ func (d *DefaultsTestDelegate) queryMany(ctx context.Context, whereClause string
 	query := buildSelectSQL(d.client, "DefaultsTest", returningCols, whereClause, orderByClause, take, skip)
 	rows, err := d.client.query(ctx, query, whereVals...)
 	if err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	defer rows.Close()
 
@@ -2565,12 +2567,12 @@ func (d *DefaultsTestDelegate) queryMany(ctx context.Context, whereClause string
 	for rows.Next() {
 		var res DefaultsTest
 		if err := rows.Scan(res.ScanFields(returningCols)...); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
 		results = append(results, &res)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	if take != nil && *take < 0 {
 		reverseSlice(results)
@@ -2714,7 +2716,7 @@ func (d *DefaultsTestDelegate) runDelete(ctx context.Context, where []PredicateO
 				return err
 			}
 			if res == nil {
-				return sql.ErrNoRows
+				return &NotFoundError{Model: "DefaultsTest"}
 			}
 
 			// Build DELETE statement by PK
@@ -2774,14 +2776,14 @@ func (d *DefaultsTestDelegate) runDelete(ctx context.Context, where []PredicateO
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			return nil, err
+			return nil, TranslateDBError(err)
 		}
-		return nil, sql.ErrNoRows
+		return nil, &NotFoundError{Model: "DefaultsTest"}
 	}
 
 	var row DefaultsTest
 	if err := rows.Scan(row.ScanFields(returningCols)...); err != nil {
-		return nil, err
+		return nil, TranslateDBError(err)
 	}
 	return &row, nil
 }
@@ -2866,18 +2868,18 @@ func (d *DefaultsTestDelegate) runCount(ctx context.Context, params QueryParams[
 
 	rows, err := d.client.query(ctx, query, vals...)
 	if err != nil {
-		return 0, err
+		return 0, TranslateDBError(err)
 	}
 	defer rows.Close()
 
 	var count int64
 	if rows.Next() {
 		if err := rows.Scan(&count); err != nil {
-			return 0, err
+			return 0, TranslateDBError(err)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return 0, err
+		return 0, TranslateDBError(err)
 	}
 	return count, nil
 }
