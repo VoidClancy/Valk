@@ -565,6 +565,20 @@ func (s *CategoryToPostSelect) hasAnyRelation() bool {
 	return s.Post != nil || s.Category != nil
 }
 
+type CategoryToPostUpsertBuilder struct {
+	*CreateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]
+}
+
+func (b *CategoryToPostUpsertBuilder) Select(s CategoryToPostSelect) *CategoryToPostUpsertBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *CategoryToPostUpsertBuilder) Omit(o CategoryToPostOmit) *CategoryToPostUpsertBuilder {
+	b.omits = &o
+	return b
+}
+
 type CategoryToPostCreateBuilder struct {
 	*CreateBuilder[CategoryToPost, CategoryToPostSelect, CategoryToPostOmit]
 }
@@ -579,9 +593,10 @@ func (b *CategoryToPostCreateBuilder) Omit(o CategoryToPostOmit) *CategoryToPost
 	return b
 }
 
-func (b *CategoryToPostCreateBuilder) OnConflict(target UniqueConstraintTarget) *CategoryToPostConflictBuilder[CategoryToPostCreateBuilder] {
-	return &CategoryToPostConflictBuilder[CategoryToPostCreateBuilder]{
-		builder:        b,
+func (b *CategoryToPostCreateBuilder) OnConflict(target UniqueConstraintTarget) *CategoryToPostConflictBuilder[CategoryToPostUpsertBuilder] {
+	upsertBuilder := &CategoryToPostUpsertBuilder{CreateBuilder: b.CreateBuilder}
+	return &CategoryToPostConflictBuilder[CategoryToPostUpsertBuilder]{
+		builder:        upsertBuilder,
 		conflictTarget: target,
 		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
 			b.conflictAction = &action

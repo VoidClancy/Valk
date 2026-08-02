@@ -564,6 +564,20 @@ func (s *CategorySelect) hasAnyRelation() bool {
 	return s.Posts != nil
 }
 
+type CategoryUpsertBuilder struct {
+	*CreateBuilder[Category, CategorySelect, CategoryOmit]
+}
+
+func (b *CategoryUpsertBuilder) Select(s CategorySelect) *CategoryUpsertBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *CategoryUpsertBuilder) Omit(o CategoryOmit) *CategoryUpsertBuilder {
+	b.omits = &o
+	return b
+}
+
 type CategoryCreateBuilder struct {
 	*CreateBuilder[Category, CategorySelect, CategoryOmit]
 }
@@ -578,9 +592,10 @@ func (b *CategoryCreateBuilder) Omit(o CategoryOmit) *CategoryCreateBuilder {
 	return b
 }
 
-func (b *CategoryCreateBuilder) OnConflict(target UniqueConstraintTarget) *CategoryConflictBuilder[CategoryCreateBuilder] {
-	return &CategoryConflictBuilder[CategoryCreateBuilder]{
-		builder:        b,
+func (b *CategoryCreateBuilder) OnConflict(target UniqueConstraintTarget) *CategoryConflictBuilder[CategoryUpsertBuilder] {
+	upsertBuilder := &CategoryUpsertBuilder{CreateBuilder: b.CreateBuilder}
+	return &CategoryConflictBuilder[CategoryUpsertBuilder]{
+		builder:        upsertBuilder,
 		conflictTarget: target,
 		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
 			b.conflictAction = &action

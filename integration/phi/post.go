@@ -697,6 +697,20 @@ func (s *PostSelect) hasAnyRelation() bool {
 	return s.Author != nil || s.Comments != nil || s.Categories != nil
 }
 
+type PostUpsertBuilder struct {
+	*CreateBuilder[Post, PostSelect, PostOmit]
+}
+
+func (b *PostUpsertBuilder) Select(s PostSelect) *PostUpsertBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *PostUpsertBuilder) Omit(o PostOmit) *PostUpsertBuilder {
+	b.omits = &o
+	return b
+}
+
 type PostCreateBuilder struct {
 	*CreateBuilder[Post, PostSelect, PostOmit]
 }
@@ -711,9 +725,10 @@ func (b *PostCreateBuilder) Omit(o PostOmit) *PostCreateBuilder {
 	return b
 }
 
-func (b *PostCreateBuilder) OnConflict(target UniqueConstraintTarget) *PostConflictBuilder[PostCreateBuilder] {
-	return &PostConflictBuilder[PostCreateBuilder]{
-		builder:        b,
+func (b *PostCreateBuilder) OnConflict(target UniqueConstraintTarget) *PostConflictBuilder[PostUpsertBuilder] {
+	upsertBuilder := &PostUpsertBuilder{CreateBuilder: b.CreateBuilder}
+	return &PostConflictBuilder[PostUpsertBuilder]{
+		builder:        upsertBuilder,
 		conflictTarget: target,
 		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
 			b.conflictAction = &action

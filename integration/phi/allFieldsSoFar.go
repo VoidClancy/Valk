@@ -2071,6 +2071,20 @@ func (s *AllFieldsSoFarSelect) hasAnyRelation() bool {
 	return false
 }
 
+type AllFieldsSoFarUpsertBuilder struct {
+	*CreateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]
+}
+
+func (b *AllFieldsSoFarUpsertBuilder) Select(s AllFieldsSoFarSelect) *AllFieldsSoFarUpsertBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *AllFieldsSoFarUpsertBuilder) Omit(o AllFieldsSoFarOmit) *AllFieldsSoFarUpsertBuilder {
+	b.omits = &o
+	return b
+}
+
 type AllFieldsSoFarCreateBuilder struct {
 	*CreateBuilder[AllFieldsSoFar, AllFieldsSoFarSelect, AllFieldsSoFarOmit]
 }
@@ -2085,9 +2099,10 @@ func (b *AllFieldsSoFarCreateBuilder) Omit(o AllFieldsSoFarOmit) *AllFieldsSoFar
 	return b
 }
 
-func (b *AllFieldsSoFarCreateBuilder) OnConflict(target UniqueConstraintTarget) *AllFieldsSoFarConflictBuilder[AllFieldsSoFarCreateBuilder] {
-	return &AllFieldsSoFarConflictBuilder[AllFieldsSoFarCreateBuilder]{
-		builder:        b,
+func (b *AllFieldsSoFarCreateBuilder) OnConflict(target UniqueConstraintTarget) *AllFieldsSoFarConflictBuilder[AllFieldsSoFarUpsertBuilder] {
+	upsertBuilder := &AllFieldsSoFarUpsertBuilder{CreateBuilder: b.CreateBuilder}
+	return &AllFieldsSoFarConflictBuilder[AllFieldsSoFarUpsertBuilder]{
+		builder:        upsertBuilder,
 		conflictTarget: target,
 		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
 			b.conflictAction = &action
