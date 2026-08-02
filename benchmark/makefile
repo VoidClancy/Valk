@@ -14,7 +14,7 @@ bench:
 	go run ./cmd/benchsummary
 
 db-reset:
-	docker compose -f ../docker-compose.yml exec -T db psql -U postgres -d postgres -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" 2>/dev/null || docker exec valkyrie-db psql -U postgres -d postgres -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+	docker compose -f ../docker-compose.yml exec -T db psql -U postgres -d postgres -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 
 bench/sqlite:
 	node prepareSchema.js sqlite

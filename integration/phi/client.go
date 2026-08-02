@@ -142,40 +142,40 @@ func (e UserRoleType) IsValid() bool {
 // Standard Sentinel Errors
 var (
 	// ErrNotFound is returned when a query expects a record but finds none.
-	ErrNotFound = errors.New("valk: record not found")
+	ErrNotFound = errors.New("phi: record not found")
 
 	// ErrNoRowsAffected is returned when an update or delete operation affects zero rows when a target was expected.
-	ErrNoRowsAffected = errors.New("valk: no rows affected")
+	ErrNoRowsAffected = errors.New("phi: no rows affected")
 
 	// ErrConstraint is the base error for database constraint violations.
-	ErrConstraint = errors.New("valk: constraint violation")
+	ErrConstraint = errors.New("phi: constraint violation")
 
 	// ErrUniqueConstraint is returned when a unique index or primary key constraint is violated.
-	ErrUniqueConstraint = errors.New("valk: unique constraint violation")
+	ErrUniqueConstraint = errors.New("phi: unique constraint violation")
 
 	// ErrFKConstraint is returned when a foreign key constraint is violated.
-	ErrFKConstraint = errors.New("valk: foreign key constraint violation")
+	ErrFKConstraint = errors.New("phi: foreign key constraint violation")
 
 	// ErrNotNullConstraint is returned when a NOT NULL column constraint is violated.
-	ErrNotNullConstraint = errors.New("valk: not null constraint violation")
+	ErrNotNullConstraint = errors.New("phi: not null constraint violation")
 
 	// ErrCheckConstraint is returned when a CHECK constraint is violated.
-	ErrCheckConstraint = errors.New("valk: check constraint violation")
+	ErrCheckConstraint = errors.New("phi: check constraint violation")
 
 	// ErrDeadlock is returned when a database deadlock is detected.
-	ErrDeadlock = errors.New("valk: deadlock detected")
+	ErrDeadlock = errors.New("phi: deadlock detected")
 
 	// ErrLockTimeout is returned when a database lock wait timeout is exceeded.
-	ErrLockTimeout = errors.New("valk: lock wait timeout exceeded")
+	ErrLockTimeout = errors.New("phi: lock wait timeout exceeded")
 
 	// ErrSerialization is returned when a transaction fails due to serialization / concurrent update conflicts.
-	ErrSerialization = errors.New("valk: serialization failure")
+	ErrSerialization = errors.New("phi: serialization failure")
 
 	// ErrTxDone is returned when attempting an operation on a transaction that has already been committed or rolled back.
-	ErrTxDone = errors.New("valk: transaction already committed or rolled back")
+	ErrTxDone = errors.New("phi: transaction already committed or rolled back")
 
 	// ErrConnClosed is returned when the underlying database connection is closed.
-	ErrConnClosed = errors.New("valk: connection closed")
+	ErrConnClosed = errors.New("phi: connection closed")
 )
 
 // Helper functions for inspecting error kinds (Ent-style)
@@ -259,9 +259,9 @@ type NotFoundError struct {
 
 func (e *NotFoundError) Error() string {
 	if e.Model != "" {
-		return fmt.Sprintf("valk: %s record not found", e.Model)
+		return fmt.Sprintf("phi: %s record not found", e.Model)
 	}
-	return "valk: record not found"
+	return "phi: record not found"
 }
 
 func (e *NotFoundError) Unwrap() error {
@@ -296,13 +296,13 @@ func (e *ConstraintError) Unwrap() error {
 	return ErrConstraint
 }
 
-// TranslateDBError normalizes driver-specific errors and standard library sql errors into Valkyrie domain errors.
+// TranslateDBError normalizes driver-specific errors and standard library sql errors into Phi domain errors.
 func TranslateDBError(err error) error {
 	if err == nil {
 		return nil
 	}
 
-	// Idempotency check: If err is ALREADY a normalized Valkyrie domain error, return as-is to avoid duplicate wrapping!
+	// Idempotency check: If err is ALREADY a normalized Phi domain error, return as-is to avoid duplicate wrapping!
 	if errors.Is(err, ErrNotFound) ||
 		errors.Is(err, ErrConstraint) ||
 		errors.Is(err, ErrTxDone) ||

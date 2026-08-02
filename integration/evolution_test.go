@@ -231,7 +231,7 @@ func TestSchemaEvolution(t *testing.T) {
 	}
 
 	// Write static phi.json configuration
-	valkJson := `{
+	phiJson := `{
   "database": {
     "url_env": "DATABASE_URL"
   },
@@ -241,19 +241,19 @@ func TestSchemaEvolution(t *testing.T) {
     "migrations": "./phi/migrations"
   }
 }`
-	err = os.WriteFile(filepath.Join(sandboxDir, "phi.json"), []byte(valkJson), 0644)
+	err = os.WriteFile(filepath.Join(sandboxDir, "phi.json"), []byte(phiJson), 0644)
 	if err != nil {
 		t.Fatalf("failed to write phi.json: %v", err)
 	}
 
-	valkBin, err := filepath.Abs("../bin/phi")
+	phiBin, err := filepath.Abs("../bin/phi")
 	if err != nil {
 		t.Fatalf("failed to get absolute path for phi: %v", err)
 	}
 
 	// Helper to execute phi binary
 	runPhi := func(args ...string) {
-		cmd := exec.Command(valkBin, args...)
+		cmd := exec.Command(phiBin, args...)
 		cmd.Dir = sandboxDir
 		cmd.Env = append(os.Environ(),
 			"DATABASE_URL="+dsn,
