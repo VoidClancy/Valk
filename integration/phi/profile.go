@@ -623,6 +623,20 @@ func (s *ProfileSelect) hasAnyRelation() bool {
 	return s.User != nil
 }
 
+type ProfileUpsertBuilder struct {
+	*CreateBuilder[Profile, ProfileSelect, ProfileOmit]
+}
+
+func (b *ProfileUpsertBuilder) Select(s ProfileSelect) *ProfileUpsertBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *ProfileUpsertBuilder) Omit(o ProfileOmit) *ProfileUpsertBuilder {
+	b.omits = &o
+	return b
+}
+
 type ProfileCreateBuilder struct {
 	*CreateBuilder[Profile, ProfileSelect, ProfileOmit]
 }
@@ -637,9 +651,10 @@ func (b *ProfileCreateBuilder) Omit(o ProfileOmit) *ProfileCreateBuilder {
 	return b
 }
 
-func (b *ProfileCreateBuilder) OnConflict(target UniqueConstraintTarget) *ProfileConflictBuilder[ProfileCreateBuilder] {
-	return &ProfileConflictBuilder[ProfileCreateBuilder]{
-		builder:        b,
+func (b *ProfileCreateBuilder) OnConflict(target UniqueConstraintTarget) *ProfileConflictBuilder[ProfileUpsertBuilder] {
+	upsertBuilder := &ProfileUpsertBuilder{CreateBuilder: b.CreateBuilder}
+	return &ProfileConflictBuilder[ProfileUpsertBuilder]{
+		builder:        upsertBuilder,
 		conflictTarget: target,
 		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
 			b.conflictAction = &action

@@ -924,6 +924,20 @@ func (s *UserSelect) hasAnyRelation() bool {
 	return s.Profile != nil || s.Posts != nil || s.Comments != nil || s.ReferredBy != nil || s.Referrals != nil
 }
 
+type UserUpsertBuilder struct {
+	*CreateBuilder[User, UserSelect, UserOmit]
+}
+
+func (b *UserUpsertBuilder) Select(s UserSelect) *UserUpsertBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *UserUpsertBuilder) Omit(o UserOmit) *UserUpsertBuilder {
+	b.omits = &o
+	return b
+}
+
 type UserCreateBuilder struct {
 	*CreateBuilder[User, UserSelect, UserOmit]
 }
@@ -938,9 +952,10 @@ func (b *UserCreateBuilder) Omit(o UserOmit) *UserCreateBuilder {
 	return b
 }
 
-func (b *UserCreateBuilder) OnConflict(target UniqueConstraintTarget) *UserConflictBuilder[UserCreateBuilder] {
-	return &UserConflictBuilder[UserCreateBuilder]{
-		builder:        b,
+func (b *UserCreateBuilder) OnConflict(target UniqueConstraintTarget) *UserConflictBuilder[UserUpsertBuilder] {
+	upsertBuilder := &UserUpsertBuilder{CreateBuilder: b.CreateBuilder}
+	return &UserConflictBuilder[UserUpsertBuilder]{
+		builder:        upsertBuilder,
 		conflictTarget: target,
 		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
 			b.conflictAction = &action

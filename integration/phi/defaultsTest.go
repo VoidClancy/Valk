@@ -753,6 +753,20 @@ func (s *DefaultsTestSelect) hasAnyRelation() bool {
 	return false
 }
 
+type DefaultsTestUpsertBuilder struct {
+	*CreateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]
+}
+
+func (b *DefaultsTestUpsertBuilder) Select(s DefaultsTestSelect) *DefaultsTestUpsertBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *DefaultsTestUpsertBuilder) Omit(o DefaultsTestOmit) *DefaultsTestUpsertBuilder {
+	b.omits = &o
+	return b
+}
+
 type DefaultsTestCreateBuilder struct {
 	*CreateBuilder[DefaultsTest, DefaultsTestSelect, DefaultsTestOmit]
 }
@@ -767,9 +781,10 @@ func (b *DefaultsTestCreateBuilder) Omit(o DefaultsTestOmit) *DefaultsTestCreate
 	return b
 }
 
-func (b *DefaultsTestCreateBuilder) OnConflict(target UniqueConstraintTarget) *DefaultsTestConflictBuilder[DefaultsTestCreateBuilder] {
-	return &DefaultsTestConflictBuilder[DefaultsTestCreateBuilder]{
-		builder:        b,
+func (b *DefaultsTestCreateBuilder) OnConflict(target UniqueConstraintTarget) *DefaultsTestConflictBuilder[DefaultsTestUpsertBuilder] {
+	upsertBuilder := &DefaultsTestUpsertBuilder{CreateBuilder: b.CreateBuilder}
+	return &DefaultsTestConflictBuilder[DefaultsTestUpsertBuilder]{
+		builder:        upsertBuilder,
 		conflictTarget: target,
 		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
 			b.conflictAction = &action
