@@ -51,13 +51,69 @@ jobs:
             make bench/pg
           else
             make bench/sqlite
-          fi | tee ../bench-${{ matrix.db }}.txt
+          fi
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/bench?sslmode=disable
           DATABASE_DIRECT_URL: postgres://postgres:postgres@localhost:5432/bench?sslmode=disable
           SKIP_DB_RESET: true
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Benchmark Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: bench-${{ matrix.db }}-${{ github.sha }}
-          path: bench-${{ matrix.db }}.txt
+          path: benchmark/benchmarks.json
+
+  save-benchmarks:
+    name: Save Benchmark JSON
+    needs: benchmark
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download SQLite Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bench-sqlite-${{ github.sha }}
+          path: ./artifacts/sqlite
+
+      - name: Download Postgres Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bench-postgres-${{ github.sha }}
+          path: ./artifacts/postgres
+
+      - name: Merge and Commit benchmarks.json
+        run: |
+          python3 -c "
+          import json, os, glob, datetime
+          target = 'benchmark/benchmarks.json'
+          report = json.load(open(target)) if os.path.exists(target) else {'updatedAt': '', 'domains': {}}
+          if 'domains' not in report:
+              report['domains'] = {}
+          for p in glob.glob('./artifacts/**/benchmarks.json', recursive=True):
+              if os.path.exists(p):
+                  data = json.load(open(p))
+                  for d_key, d_val in data.get('domains', {}).items():
+                      if d_key not in report['domains']:
+                          report['domains'][d_key] = d_val
+                      else:
+                          for db_key, db_val in d_val.get('databases', {}).items():
+                              if 'databases' not in report['domains'][d_key]:
+                                  report['domains'][d_key]['databases'] = {}
+                              report['domains'][d_key]['databases'][db_key] = db_val
+          report['updatedAt'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          with open(target, 'w') as f:
+              json.dump(report, f, indent=2)
+          "
+          if [ -n "$(git status --porcelain benchmark/benchmarks.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add benchmark/benchmarks.json
+            git commit -m "chore(benchmark): update benchmark/benchmarks.json [skip ci]"
+            git push
+          else
+            echo "No benchmark results changed."
+          fi

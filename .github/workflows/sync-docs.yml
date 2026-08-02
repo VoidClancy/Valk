@@ -1,0 +1,41 @@
+name: Sync Documentation to Phi Website
+
+on:
+  push:
+    branches: ["main", "master"]
+    paths:
+      - "docs/**"
+  workflow_dispatch:
+
+jobs:
+  sync-docs:
+    name: Sync Docs to phi-website
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Valkyrie Docs
+        uses: actions/checkout@v4
+
+      - name: Checkout phi-website
+        uses: actions/checkout@v4
+        with:
+          repository: 'VoidClancy/phi-website'
+          token: ${{ secrets.DOCS_SYNC_TOKEN || secrets.GITHUB_TOKEN }}
+          path: 'phi-website'
+
+      - name: Copy docs to phi-website content/docs
+        run: |
+          mkdir -p phi-website/content/docs
+          cp -r docs/* phi-website/content/docs/
+
+      - name: Commit and Push Changes to phi-website
+        run: |
+          cd phi-website
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add content/docs/
+            git commit -m "docs: sync documentation from Valkyrie"
+            git push
+          else
+            echo "No documentation changes to sync."
+          fi
