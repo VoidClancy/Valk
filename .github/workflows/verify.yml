@@ -106,7 +106,8 @@ jobs:
           if [ -z "$PG_URL" ]; then
             PG_URL="postgres://testuser:testpassword@localhost:5432/phi_test?sslmode=disable"
           else
-            PG_URL="${PG_URL/phi_test/phi_test}"
+            PG_URL="${PG_URL/valkyrie_test/phi_test}"
+            PG_URL="${PG_URL/valk_test/phi_test}"
           fi
           cp integration/schema.prisma integration/schema.prisma.bak
           node integration/prepareSchema.js postgres
