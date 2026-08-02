@@ -30,6 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	parsedOperations := make(map[string]map[string]MetricResult)
 	scanner := bufio.NewScanner(stdout)
 	var lastOp string
 	for scanner.Scan() {
@@ -43,10 +44,24 @@ func main() {
 			orm := m[2]
 			ns, _ := strconv.ParseInt(m[3], 10, 64)
 			ms := float64(ns) / 1_000_000
-			ops := 1_000_000_000 / ns
+			ops := int64(0)
+			if ns > 0 {
+				ops = 1_000_000_000 / ns
+			}
 			bPerOp, _ := strconv.ParseInt(m[4], 10, 64)
 			allocs, _ := strconv.ParseInt(m[5], 10, 64)
 			fmt.Printf("%-15s  %8.3f ms/op  %8d ops/s  %7d B/op  %4d allocs/op\n", orm, ms, ops, bPerOp, allocs)
+
+			if parsedOperations[op] == nil {
+				parsedOperations[op] = make(map[string]MetricResult)
+			}
+			parsedOperations[op][orm] = MetricResult{
+				NsPerOp:     ns,
+				MsPerOp:     ms,
+				OpsPerSec:   ops,
+				BytesPerOp:  bPerOp,
+				AllocsPerOp: allocs,
+			}
 		} else if strings.HasPrefix(line, "ok ") || strings.HasPrefix(line, "FAIL") || strings.HasPrefix(line, "? ") {
 			fmt.Println(line)
 		}
@@ -55,4 +70,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 	}
 	cmd.Wait()
+
+	saveBenchmarkJSON(parsedOperations)
 }
