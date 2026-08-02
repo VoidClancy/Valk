@@ -9,6 +9,20 @@ func (s *{{ .Model.Name }}Select) hasAnyRelation() bool {
 	{{- end }}
 }
 
+type {{ .Model.Name }}UpsertBuilder struct {
+	*CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]
+}
+
+func (b *{{ .Model.Name }}UpsertBuilder) Select(s {{ .Model.Name }}Select) *{{ .Model.Name }}UpsertBuilder {
+	b.selects = &s
+	return b
+}
+
+func (b *{{ .Model.Name }}UpsertBuilder) Omit(o {{ .Model.Name }}Omit) *{{ .Model.Name }}UpsertBuilder {
+	b.omits = &o
+	return b
+}
+
 type {{ .Model.Name }}CreateBuilder struct {
 	*CreateBuilder[{{ .Model.Name }}, {{ .Model.Name }}Select, {{ .Model.Name }}Omit]
 }
@@ -23,9 +37,10 @@ func (b *{{ .Model.Name }}CreateBuilder) Omit(o {{ .Model.Name }}Omit) *{{ .Mode
 	return b
 }
 
-func (b *{{ .Model.Name }}CreateBuilder) OnConflict(target UniqueConstraintTarget) *{{ .Model.Name }}ConflictBuilder[{{ .Model.Name }}CreateBuilder] {
-	return &{{ .Model.Name }}ConflictBuilder[{{ .Model.Name }}CreateBuilder]{
-		builder:        b,
+func (b *{{ .Model.Name }}CreateBuilder) OnConflict(target UniqueConstraintTarget) *{{ .Model.Name }}ConflictBuilder[{{ .Model.Name }}UpsertBuilder] {
+	upsertBuilder := &{{ .Model.Name }}UpsertBuilder{CreateBuilder: b.CreateBuilder}
+	return &{{ .Model.Name }}ConflictBuilder[{{ .Model.Name }}UpsertBuilder]{
+		builder:        upsertBuilder,
 		conflictTarget: target,
 		setAction: func(action ConflictAction, target UniqueConstraintTarget) {
 			b.conflictAction = &action
