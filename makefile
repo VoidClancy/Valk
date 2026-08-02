@@ -89,8 +89,8 @@ db-clean:
 	docker compose down -v
 	
 db-reset:
-	docker compose exec db psql -U postgres -d postgres -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
- 
+	docker compose exec -T db psql -U postgres -d postgres -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+
 test-sqlite: bi test
 	node integration/prepareSchema.js sqlite
 	cd integration && ../bin/phi -g
@@ -99,7 +99,7 @@ test-sqlite: bi test
 	cd integration && DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/phi -m init
 	cd integration && go test -race -tags sqlite -v ./...
 
-test-pg: bi db-reset test
+test-pg: bi db-up db-reset test
 	node integration/prepareSchema.js postgres
 	cd integration && ../bin/phi -g
 	rm -f integration/phi/migrations/*.sql

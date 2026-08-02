@@ -48,7 +48,7 @@ func getPostgresDSN() string {
 	}
 
 	// Try CI default DSN
-	return "postgres://testuser:testpassword@localhost:5432/valk_test?sslmode=disable"
+	return "postgres://testuser:testpassword@localhost:5432/phi_test?sslmode=disable"
 }
 
 func setupTestDB(t *testing.T) (*phi.DB, func()) {

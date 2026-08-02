@@ -68,6 +68,8 @@ jobs:
     needs: benchmark
     if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -87,27 +89,7 @@ jobs:
 
       - name: Merge and Commit benchmarks.json
         run: |
-          python3 -c "
-          import json, os, glob, datetime
-          target = 'benchmark/benchmarks.json'
-          report = json.load(open(target)) if os.path.exists(target) else {'updatedAt': '', 'domains': {}}
-          if 'domains' not in report:
-              report['domains'] = {}
-          for p in glob.glob('./artifacts/**/benchmarks.json', recursive=True):
-              if os.path.exists(p):
-                  data = json.load(open(p))
-                  for d_key, d_val in data.get('domains', {}).items():
-                      if d_key not in report['domains']:
-                          report['domains'][d_key] = d_val
-                      else:
-                          for db_key, db_val in d_val.get('databases', {}).items():
-                              if 'databases' not in report['domains'][d_key]:
-                                  report['domains'][d_key]['databases'] = {}
-                              report['domains'][d_key]['databases'][db_key] = db_val
-          report['updatedAt'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-          with open(target, 'w') as f:
-              json.dump(report, f, indent=2)
-          "
+          node benchmark/mergeBenchmarks.js
           if [ -n "$(git status --porcelain benchmark/benchmarks.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"

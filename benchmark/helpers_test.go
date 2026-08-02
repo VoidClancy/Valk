@@ -140,7 +140,7 @@ func getPostgresDSN() string {
 			return localDSN
 		}
 	}
-	return "postgres://testuser:testpassword@localhost:5432/valk_test?sslmode=disable"
+	return "postgres://testuser:testpassword@localhost:5432/phi_test?sslmode=disable"
 }
 
 func initQueries(d DialectConfig) {
@@ -343,13 +343,13 @@ func createSchema(db DBTX) {
 	if activeDialect.Name == "postgres" {
 		resetPostgres(sqlDB)
 
-		valkDB, err := phi.Open(activeDialect.Driver, activeDialect.DSN)
+		phiDB, err := phi.Open(activeDialect.Driver, activeDialect.DSN)
 		if err != nil {
 			panic(fmt.Sprintf("failed to open phi for migrations: %v", err))
 		}
-		defer valkDB.Close()
+		defer phiDB.Close()
 
-		if err := valkDB.RunMigrations(context.Background()); err != nil {
+		if err := phiDB.RunMigrations(context.Background()); err != nil {
 			panic(fmt.Sprintf("run migrations: %v", err))
 		}
 	} else {
