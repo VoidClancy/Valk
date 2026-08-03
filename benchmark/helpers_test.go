@@ -106,12 +106,16 @@ func initDialect() {
 			SchemaQuery:         postgresSchema,
 		}
 	default: // sqlite
+		sqliteDSN := os.Getenv("BENCH_SQLITE_DSN")
+		if sqliteDSN == "" {
+			sqliteDSN = "file:benchmark?mode=memory&cache=shared&_fk=1"
+		}
 		activeDialect = DialectConfig{
 			Name: "sqlite",
 			// All ORMs create the same FK constraints in their DDL on SQLite.
 			// _fk=1 enforces them, making SQLite consistent with Postgres.
 			Driver:              "sqlite3", // Using github.com/mattn/go-sqlite3 Cgo driver
-			DSN:                 "file:benchmark?mode=memory&cache=shared&_fk=1",
+			DSN:                 sqliteDSN,
 			QuoteChar:           '"',
 			PlaceholderFmt:      "",
 			SupportsReturning:   true,

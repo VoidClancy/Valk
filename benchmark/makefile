@@ -1,6 +1,8 @@
 DATABASE_URL       ?= postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
 DATABASE_DIRECT_URL ?= $(DATABASE_URL)
 SKIP_DB_RESET      ?= false
+BENCHTIME          ?= 1s
+BENCH_COUNT        ?= 3
 
 .PHONY: run test build bench benchNS bench/raw bench/phi bench/gorm bench/short bench/stress bench/prll bench/stress-gc bench/sqlite bench/postgres bench/all
 
@@ -23,7 +25,7 @@ bench/sqlite:
 	DATABASE_URL="file:./dev.db" DATABASE_DIRECT_URL="file:./dev.db" ../bin/phi migrate init
 	../bin/phi generate
 	go generate ./ent
-	BENCH_DB=sqlite go run ./cmd/benchsummary
+	BENCH_DB=sqlite go run ./cmd/benchsummary -benchtime=$(BENCHTIME) -count=$(BENCH_COUNT)
 
 bench/pg:
 	node prepareSchema.js postgres
@@ -32,7 +34,7 @@ bench/pg:
 	DATABASE_URL="$(DATABASE_URL)" DATABASE_DIRECT_URL="$(DATABASE_DIRECT_URL)" ../bin/phi migrate init
 	../bin/phi generate
 	go generate ./ent
-	BENCH_DB=postgres go run ./cmd/benchsummary
+	BENCH_DB=postgres go run ./cmd/benchsummary -benchtime=$(BENCHTIME) -count=$(BENCH_COUNT)
 
 bench/all:
 	@echo "=== Running SQLite Benchmarks ==="
@@ -67,10 +69,10 @@ STRESS_TIMEOUT   ?= 1h
 PRLL_BENCHTIME   ?= 10s
 
 bench/stress:
-	go run ./cmd/benchsummary -count=$(STRESS_COUNT) -benchtime=$(STRESS_BENCHTIME) -timeout=$(STRESS_TIMEOUT)
+	go run ./cmd/benchsummary -aggregate=best -count=$(STRESS_COUNT) -benchtime=$(STRESS_BENCHTIME) -timeout=$(STRESS_TIMEOUT)
 
 bench/prll:
-	go run ./cmd/benchsummary -count=1 -benchtime=$(PRLL_BENCHTIME) -cpu=$(PRLL_CPUS)
+	go run ./cmd/benchsummary -aggregate=best -count=1 -benchtime=$(PRLL_BENCHTIME) -cpu=$(PRLL_CPUS)
 
 bench/stress-gc:
-	GOGC=1 go run ./cmd/benchsummary -count=$(STRESS_COUNT) -benchtime=10s -timeout=$(STRESS_TIMEOUT)
+	GOGC=1 go run ./cmd/benchsummary -aggregate=best -count=$(STRESS_COUNT) -benchtime=10s -timeout=$(STRESS_TIMEOUT)

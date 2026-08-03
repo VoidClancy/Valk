@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 )
 
+// Mirrors the shuffle technique used by github.com/efectn/go-orm-benchmarks.
 func orms(b *testing.B, fns map[string]func(*testing.B)) {
 	order := []string{"Raw", "Phi", "Bun", "Ent", "GORM"}
+	rand.Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
 	for _, name := range order {
 		if fn, ok := fns[name]; ok {
 			b.Run(name, fn)

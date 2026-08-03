@@ -16,6 +16,9 @@ func initPhiDB(b *testing.B, ctx context.Context) *phi.DB {
 		b.Fatal(err)
 	}
 
+	db.Raw().SetMaxOpenConns(80)
+	db.Raw().SetMaxIdleConns(80)
+
 	if activeDialect.Name == "postgres" {
 		resetPostgres(db.Raw())
 

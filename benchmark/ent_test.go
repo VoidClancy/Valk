@@ -8,27 +8,27 @@ import (
 	"fmt"
 	"testing"
 
+	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func openEnt(b *testing.B) *ent.Client {
 	b.Helper()
-	var driverName string
-	var dsn string
-	if activeDialect.Name == "postgres" {
-		driverName = "postgres"
-		dsn = activeDialect.DSN
-	} else {
-		driverName = "sqlite3"
-		// FK enforcement is now in the base DSN (helpers_test.go), shared by all ORMs.
-		dsn = activeDialect.DSN
-	}
 
-	client, err := ent.Open(driverName, dsn)
+	rawDB, err := sql.Open(activeDialect.Driver, activeDialect.DSN)
 	if err != nil {
 		b.Fatal(err)
 	}
+	rawDB.SetMaxOpenConns(80)
+	rawDB.SetMaxIdleConns(80)
+
+	entDialect := activeDialect.Name
+	if entDialect == "sqlite" {
+		entDialect = "sqlite3"
+	}
+	drv := entsql.OpenDB(entDialect, rawDB)
+	client := ent.NewClient(ent.Driver(drv))
 
 	// Reset PG schema
 	if activeDialect.Name == "postgres" {
