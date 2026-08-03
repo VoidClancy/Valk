@@ -122,6 +122,11 @@ func openGORM(b *testing.B) *gorm.DB {
 	if err := db.AutoMigrate(&UserGORM{}, &ProfileGORM{}, &PostGORM{}, &CommentGORM{}, &CategoryGORM{}, &CategoryToPostGORM{}); err != nil {
 		b.Fatal(err)
 	}
+
+	if sqlDB, err := db.DB(); err == nil {
+		sqlDB.SetMaxOpenConns(80)
+		sqlDB.SetMaxIdleConns(80)
+	}
 	return db
 }
 

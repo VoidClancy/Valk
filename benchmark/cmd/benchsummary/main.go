@@ -5,16 +5,21 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
-var benchLine = regexp.MustCompile(`^Benchmark(\w+)/(\w+)-\d+\s+\d+\s+(\d+)\s+ns/op\s+(\d+)\s+B/op\s+(\d+)\s+allocs/op`)
-
 func main() {
-	args := []string{"test", "-bench=.", "-benchmem", "-count=1", "-timeout=30m"}
-	args = append(args, os.Args[1:]...)
+	defaultArgs := []string{"test", "-bench=.", "-benchmem", "-count=1", "-timeout=30m"}
+	extraArgs := os.Args[1:]
+	args := append(defaultArgs, extraArgs...)
+
+	args, aggregate := extractAggregateFlag(args)
+
+	started := time.Now()
+	machine := collectMachineInfo()
+	cfg := collectBenchmarkConfig(args, aggregate)
 
 	cmd := exec.Command("go", args...)
 	cmd.Dir = "."
@@ -30,7 +35,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	parsedOperations := make(map[string]map[string]MetricResult)
+	benchSamples := make(map[string]map[string][]benchSample)
 	scanner := bufio.NewScanner(stdout)
 	var lastOp string
 	for scanner.Scan() {
@@ -42,26 +47,27 @@ func main() {
 				lastOp = op
 			}
 			orm := m[2]
-			ns, _ := strconv.ParseInt(m[3], 10, 64)
+			procs, _ := strconv.Atoi(m[3])
+			value, _ := strconv.ParseFloat(m[5], 64)
+			ns := toNanos(value, m[6])
 			ms := float64(ns) / 1_000_000
 			ops := int64(0)
 			if ns > 0 {
 				ops = 1_000_000_000 / ns
 			}
-			bPerOp, _ := strconv.ParseInt(m[4], 10, 64)
-			allocs, _ := strconv.ParseInt(m[5], 10, 64)
+			bPerOp, _ := strconv.ParseInt(m[7], 10, 64)
+			allocs, _ := strconv.ParseInt(m[8], 10, 64)
 			fmt.Printf("%-15s  %8.3f ms/op  %8d ops/s  %7d B/op  %4d allocs/op\n", orm, ms, ops, bPerOp, allocs)
 
-			if parsedOperations[op] == nil {
-				parsedOperations[op] = make(map[string]MetricResult)
+			if benchSamples[op] == nil {
+				benchSamples[op] = make(map[string][]benchSample)
 			}
-			parsedOperations[op][orm] = MetricResult{
-				NsPerOp:     ns,
-				MsPerOp:     ms,
-				OpsPerSec:   ops,
-				BytesPerOp:  bPerOp,
-				AllocsPerOp: allocs,
-			}
+			benchSamples[op][orm] = append(benchSamples[op][orm], benchSample{
+				ns:          ns,
+				bytesPerOp:  bPerOp,
+				allocsPerOp: allocs,
+				procs:       procs,
+			})
 		} else if strings.HasPrefix(line, "ok ") || strings.HasPrefix(line, "FAIL") || strings.HasPrefix(line, "? ") {
 			fmt.Println(line)
 		}
@@ -71,5 +77,8 @@ func main() {
 	}
 	cmd.Wait()
 
-	saveBenchmarkJSON(parsedOperations)
+	parsedOperations := aggregateSamples(benchSamples, aggregate)
+
+	fmt.Printf("\nTotal run time: %s\n", time.Since(started).Round(time.Millisecond))
+	saveBenchmarkJSON(parsedOperations, machine, cfg)
 }
