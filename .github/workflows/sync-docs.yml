@@ -1,4 +1,4 @@
-name: Sync Documentation to Phi Website
+name: Sync Docs
 
 on:
   push:
