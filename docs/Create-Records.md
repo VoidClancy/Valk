@@ -56,10 +56,10 @@ created, err := db.User.Create().
 
 ### Supported Builder Methods
 
-| Method | Description |
-| --- | --- |
-| [`Select`](/docs/Select) | Select specific fields and relations. Mutually exclusive with `Omit`. |
-| [`Omit`](/docs/Omit) | Omit specific scalar fields. Mutually exclusive with `Select`. |
+| Method                                          | Description                                                                                                           |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| [`Select`](/docs/Select)                        | Select specific fields and relations. Mutually exclusive with `Omit`.                                                 |
+| [`Omit`](/docs/Omit)                            | Omit specific scalar fields. Mutually exclusive with `Select`.                                                        |
 | [`OnConflict`](/docs/Upsert-Records#onconflict) | Configure behavior when a unique constraint is violated. Supports `.Ignore()`, `.UpdateNewValues()`, and `.Update()`. |
 
 ---
@@ -105,10 +105,10 @@ createdCount, err := db.User.CreateMany(usersToCreate...).Exec(ctx)
 
 ### Supported Builder Methods
 
-| Method | Description |
-| --- | --- |
+| Method                                          | Description                                                                                                           |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | [`OnConflict`](/docs/Upsert-Records#onconflict) | Configure behavior when a unique constraint is violated. Supports `.Ignore()`, `.UpdateNewValues()`, and `.Update()`. |
-| [`SkipDuplicates`](/docs/SkipDuplicates) | Shorthand for `.OnConflict().Ignore()`. |
+| [`SkipDuplicates`](/docs/SkipDuplicates)        | Shorthand for `.OnConflict().Ignore()`.                                                                               |
 
 ---
 
@@ -151,9 +151,9 @@ createdUsers, err := db.User.CreateManyAndReturn(usersToCreate...).Exec(ctx)
 
 ### Supported Builder Methods
 
-| Method | Description |
-| --- | --- |
-| [`Select`](/docs/Select) | Select specific fields and relations. Mutually exclusive with `Omit`. |
-| [`Omit`](/docs/Omit) | Omit specific scalar fields. Mutually exclusive with `Select`. |
+| Method                                          | Description                                                                                                           |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| [`Select`](/docs/Select)                        | Select specific fields and relations. Mutually exclusive with `Omit`.                                                 |
+| [`Omit`](/docs/Omit)                            | Omit specific scalar fields. Mutually exclusive with `Select`.                                                        |
 | [`OnConflict`](/docs/Upsert-Records#onconflict) | Configure behavior when a unique constraint is violated. Supports `.Ignore()`, `.UpdateNewValues()`, and `.Update()`. |
-| [`SkipDuplicates`](/docs/SkipDuplicates) | Shorthand for `.OnConflict().Ignore()`. |
+| [`SkipDuplicates`](/docs/SkipDuplicates)        | Shorthand for `.OnConflict().Ignore()`.                                                                               |
