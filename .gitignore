@@ -1,6 +1,4 @@
 .env
-*.md
-!docs/*.md
 bin
 *.db
 .vscode
