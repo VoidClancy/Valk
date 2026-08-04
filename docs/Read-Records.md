@@ -1,8 +1,9 @@
 ---
 title: Read Records
-description: Learn how to query records using FindUnique, FindFirst, and FindMany.
+description: Query records using FindUnique, FindFirst, and FindMany.
 category: CRUD
 tags: [read, query, findUnique, findFirst, findMany]
+categoryOrder: 2
 order: 2
 ---
 
@@ -16,9 +17,11 @@ Phi provides three methods for reading records:
 
 All three methods support the same predicate system and share the same selection API.
 
+> **Note:** Every predicate passed to a query method is combined with `AND` in the compiled SQL. To build more complex boolean logic, bundle conditions together with [`And`](/docs/Query-Filters#and), [`Or`](/docs/Query-Filters#or), or [`Not`](/docs/Query-Filters#not).
+
 ## FindUnique
 
-Retrieves a single record by a required unique predicate. Additional predicates may be provided to further constrain the query, but the first argument **must** be a unique predicate.
+Retrieves a single record by a required unique predicate. The additional predicates passed after the first argument are ANDed into the query:
 
 ### Examples
 
@@ -53,10 +56,10 @@ user, err := db.User.
 
 ### Supported Builder Methods
 
-| Method | Description |
-| --- | --- |
+| Method                   | Description                           |
+| ------------------------ | ------------------------------------- |
 | [`Select`](/docs/Select) | Select specific fields and relations. |
-| [`Omit`](/docs/Omit) | Omit specific scalar fields. |
+| [`Omit`](/docs/Omit)     | Omit specific scalar fields.          |
 
 ---
 
@@ -97,14 +100,14 @@ user, err := db.User.
 
 ### Supported Builder Methods
 
-| Method | Description |
-| --- | --- |
-| [`Select`](/docs/Select) | Select specific fields and relations. |
-| [`Omit`](/docs/Omit) | Omit specific scalar fields. |
-| [`Skip`](/docs/Skip) | Skip a number of matching records. Mirrors SQL's `OFFSET`. |
-| [`Take`](/docs/Take) | Limit the number of returned records. Mirrors SQL's `LIMIT`. |
-| [`OrderBy`](/docs/OrderBy) | Specify the ordering of results. Mirrors SQL's `ORDER BY`. |
-| [`Cursor`](/docs/Cursor) | Continue querying from a specific cursor. |
+| Method                     | Description                                                  |
+| -------------------------- | ------------------------------------------------------------ |
+| [`Select`](/docs/Select)   | Select specific fields and relations.                        |
+| [`Omit`](/docs/Omit)       | Omit specific scalar fields.                                 |
+| [`Skip`](/docs/Skip)       | Skip a number of matching records. Mirrors SQL's `OFFSET`.   |
+| [`Take`](/docs/Take)       | Limit the number of returned records. Mirrors SQL's `LIMIT`. |
+| [`OrderBy`](/docs/OrderBy) | Specify the ordering of results. Mirrors SQL's `ORDER BY`.   |
+| [`Cursor`](/docs/Cursor)   | Continue querying from a specific cursor.                    |
 
 ---
 
@@ -145,11 +148,11 @@ users, err := db.User.
 
 ### Supported Builder Methods
 
-| Method | Description |
-| --- | --- |
-| [`Select`](/docs/Select) | Select specific fields and relations. |
-| [`Omit`](/docs/Omit) | Omit specific scalar fields. |
-| [`Skip`](/docs/Skip) | Skip a number of matching records. Mirrors SQL's `OFFSET`. |
-| [`Take`](/docs/Take) | Limit the number of returned records. Mirrors SQL's `LIMIT`. |
-| [`OrderBy`](/docs/OrderBy) | Specify the ordering of results. Mirrors SQL's `ORDER BY`. |
-| [`Cursor`](/docs/Cursor) | Continue querying from a specific cursor. |
+| Method                     | Description                                                  |
+| -------------------------- | ------------------------------------------------------------ |
+| [`Select`](/docs/Select)   | Select specific fields and relations.                        |
+| [`Omit`](/docs/Omit)       | Omit specific scalar fields.                                 |
+| [`Skip`](/docs/Skip)       | Skip a number of matching records. Mirrors SQL's `OFFSET`.   |
+| [`Take`](/docs/Take)       | Limit the number of returned records. Mirrors SQL's `LIMIT`. |
+| [`OrderBy`](/docs/OrderBy) | Specify the ordering of results. Mirrors SQL's `ORDER BY`.   |
+| [`Cursor`](/docs/Cursor)   | Continue querying from a specific cursor.                    |

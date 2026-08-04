@@ -254,7 +254,7 @@ func TestOdyssey_AttributeChaos(t *testing.T) {
 	})
 
 	t.Run("nested function call as attribute arg", func(t *testing.T) {
-		// dbgenerated("gen_random_uuid()") — function call inside a string
+		// dbgenerated("gen_random_uuid()") - function call inside a string
 		// but also: @default(dbgenerated("nextval('seq')"))
 		input := `
 		model Seq {
@@ -288,7 +288,7 @@ func TestOdyssey_AttributeChaos(t *testing.T) {
 // -----------------------------------------------------------------------------
 
 func TestOdyssey_TypeChaos(t *testing.T) {
-	t.Run("optional array — the cursed combo", func(t *testing.T) {
+	t.Run("optional array - the cursed combo", func(t *testing.T) {
 		// String[]? is actually invalid in Prisma, but let's see if the parser panics
 		input := `
 		model Cursed {
@@ -443,7 +443,7 @@ func TestOdyssey_ModelStructureChaos(t *testing.T) {
 	})
 
 	t.Run("model named with keyword-adjacent names", func(t *testing.T) {
-		// "models", "modeler", "datasources" — not keywords but close
+		// "models", "modeler", "datasources" - not keywords but close
 		input := `
 		model ModelData {
 			id Int @id
@@ -530,7 +530,7 @@ func TestOdyssey_ModelStructureChaos(t *testing.T) {
 		}
 		`
 		s, _ := ParseSchema(input)
-		// Either it parses as a view or records an error — it must NOT panic
+		// Either it parses as a view or records an error - it must NOT panic
 		_ = s
 	})
 }
@@ -654,7 +654,7 @@ func TestOdyssey_ErrorRecovery(t *testing.T) {
 		}
 	})
 
-	t.Run("truncated schema — file cut off mid-model", func(t *testing.T) {
+	t.Run("truncated schema - file cut off mid-model", func(t *testing.T) {
 		input := `
 		model Complete {
 			id Int @id
@@ -664,7 +664,7 @@ func TestOdyssey_ErrorRecovery(t *testing.T) {
 			id   Int    @id
 			name String
 		`
-		// No closing brace — simulates a file truncated on disk
+		// No closing brace - simulates a file truncated on disk
 		s, _ := ParseSchema(input)
 		// Complete should be parseable
 		found := false
@@ -676,7 +676,7 @@ func TestOdyssey_ErrorRecovery(t *testing.T) {
 		if !found {
 			t.Errorf("truncated schema lost Complete model; models=%+v", s.Models)
 		}
-		// Must not panic or infinite loop — if we're here, we're good
+		// Must not panic or infinite loop - if we're here, we're good
 	})
 
 	t.Run("duplicate model names", func(t *testing.T) {
@@ -691,7 +691,7 @@ func TestOdyssey_ErrorRecovery(t *testing.T) {
 		}
 		`
 		s, _ := ParseSchema(input)
-		// Parser may error or accept both — it must NOT panic
+		// Parser may error or accept both - it must NOT panic
 		// We just want deterministic behavior
 		_ = s.Models
 		_ = s.Errors
@@ -708,7 +708,7 @@ func TestOdyssey_ErrorRecovery(t *testing.T) {
 		_ = s
 	})
 
-	t.Run("brace mismatch — extra closing brace at top level", func(t *testing.T) {
+	t.Run("brace mismatch - extra closing brace at top level", func(t *testing.T) {
 		input := `
 		model User {
 			id Int @id
@@ -1026,7 +1026,7 @@ func TestOdyssey_WhitespaceAndComments(t *testing.T) {
 		}
 	})
 
-	t.Run("no newlines — entire schema on one line", func(t *testing.T) {
+	t.Run("no newlines - entire schema on one line", func(t *testing.T) {
 		input := `model Inline { id Int @id name String @unique }`
 		s, _ := ParseSchema(input)
 		if len(s.Models) != 1 {

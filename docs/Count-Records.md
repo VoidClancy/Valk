@@ -3,7 +3,8 @@ title: Count Records
 description: Count the number of records matching a set of predicates.
 category: CRUD
 tags: [count, count records]
-order: 5
+categoryOrder: 2
+order: 6
 ---
 
 # Count Records
@@ -32,9 +33,9 @@ usersCount, err := db.User.
 
 ### Supported Builder Methods
 
-| Method | Description |
-| --- | --- |
-| [`Take`](/docs/Take) | Limit the number of records included in the count. Mirrors SQL's `LIMIT`. |
+| Method               | Description                                                                |
+| -------------------- | -------------------------------------------------------------------------- |
+| [`Take`](/docs/Take) | Limit the number of records included in the count. Mirrors SQL's `LIMIT`.  |
 | [`Skip`](/docs/Skip) | Skip a number of matching records before counting. Mirrors SQL's `OFFSET`. |
 
 > **Note:** `Take` and `Skip` affect the result of the count. For example, if 100 records match a predicate and you call `Take(10)`, the returned count will be `10`, not `100`.
