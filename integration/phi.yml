@@ -1,0 +1,15 @@
+client_name: phi
+embed_migrations: true
+
+database:
+  url_env: DATABASE_URL
+  direct_url_env: DATABASE_DIRECT_URL
+
+schema: ./schema.prisma
+
+output:
+  client: ./phi
+  migrations: ./phi/migrations
+
+log:
+  - none

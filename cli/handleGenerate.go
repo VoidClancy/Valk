@@ -34,16 +34,21 @@ func handleGenerate() {
 		return
 	}
 
-	relDir, err := filepath.Rel(config.Output.Client, config.Output.Migrations)
 	var embedRelDir string
-	if err == nil && !strings.HasPrefix(relDir, "..") && !filepath.IsAbs(relDir) {
-		embedRelDir = filepath.ToSlash(filepath.Join(relDir, "*.sql"))
-	} else {
-		fmt.Printf("[WARNING]: Migrations directory %q is not a subdirectory of client output directory %q. Go's //go:embed does not support parent directory paths ('..'). Embedded migrations will be disabled.\n",
-			config.Output.Migrations, config.Output.Client)
+	if config.EmbedMigrations == nil || *config.EmbedMigrations {
+		relDir, err := filepath.Rel(config.Output.Client, config.Output.Migrations)
+		if err == nil && !strings.HasPrefix(relDir, "..") && !filepath.IsAbs(relDir) {
+			embedRelDir = filepath.ToSlash(filepath.Join(relDir, "*.sql"))
+		} else {
+			fmt.Printf("[WARNING]: Migrations directory %q is not a subdirectory of client output directory %q. Go's //go:embed does not support parent directory paths ('..'). Embedded migrations will be disabled.\n",
+				config.Output.Migrations, config.Output.Client)
+		}
 	}
 
-	pkgName := filepath.Base(config.Output.Client)
+	pkgName := config.ClientName
+	if pkgName == "" {
+		pkgName = filepath.Base(config.Output.Client)
+	}
 	if pkgName == "." || pkgName == "" {
 		pkgName = "phi"
 	}
