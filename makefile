@@ -1,4 +1,15 @@
-.PHONY:  build build-prod run test coverage cover-html install db-up db-down db-clean bi fmt fmt-check tidy tidy-check vulncheck vet integration-gen integration-test bench bench-sqlite bench-pg bench-all race lint test-sqlite test-pg test-dbs ci-local
+.PHONY:  build build-prod run test coverage cover-html install db-up db-down db-clean bi fmt fmt-check tidy tidy-check vulncheck vet integration-gen integration-test bench bench-sqlite bench-pg bench-all race lint test-sqlite test-pg test-dbs ci-local index-pkg
+
+index-pkg:
+	@TAG=$$(git describe --tags --abbrev=0 2>/dev/null); \
+	if [ -z "$$TAG" ]; then \
+		echo "No git tag found. Please push a tag first (e.g. git tag v0.1.0 && git push origin v0.1.0)"; \
+		exit 1; \
+	fi; \
+	echo "Indexing $$TAG on pkg.go.dev via proxy.golang.org..."; \
+	curl -s https://proxy.golang.org/github.com/voidclancy/phi/@v/$$TAG.info; \
+	echo ""; \
+	echo "Package $$TAG submitted to pkg.go.dev"
 
 bi: build install
 

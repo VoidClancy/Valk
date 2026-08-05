@@ -1,15 +1,60 @@
 # Phi
 
-Phi is a **compile-time ORM for Go** that mirrors the Prisma developer experience. It parses your `schema.prisma` file and generates a type-safe client with zero reflection at runtime.
+Phi is a compile-time ORM for Go that mirrors the Prisma developer experience. It parses your `schema.prisma` file and generates a strongly-typed Go database client with zero runtime reflection.
 
-## Features
+[Documentation Website](https://phi-orm.vercel.app) | [pkg.go.dev](https://pkg.go.dev/github.com/voidclancy/phi)
 
-- **Compile-time type safety** - queries, predicates, and results are generated from your schema, so mistakes fail at build time, not runtime.
-- **Zero runtime overhead** - no reflection, no sidecars. Everything compiles down to standard `database/sql`.
-- **Prisma-style schema** - keep writing `schema.prisma` and get types, builders, and migrations generated from it.
-- **Multi-provider** - PostgreSQL, SQLite (for now).
-- **Schema migrations** - generate and apply migrations straight from the CLI, with optional embedded migrations.
+## Key Features
+
+* **Compile-time Type Safety**: Queries, predicates, and selections fail at build time if invalid.
+* **Zero Reflection**: Compiles down to standard `database/sql` calls for maximum query execution speed.
+* **Prisma Schema DX**: Use your existing `schema.prisma` models, enums, native attributes, and relations.
+* **Declarative Migrations**: Integrated forward-only migration engine powered by Atlas DDL diffing.
+* **Extension Hooks**: Intercept and mutate CRUD operations via middleware closures.
+* **Multi-Provider**: Native support for PostgreSQL and SQLite.
+
+## Installation
+
+Install the Phi CLI tool:
+
+```bash
+go install github.com/voidclancy/phi@latest
+```
+
+## Quick Start
+
+1. Initialize your configuration file:
+
+```bash
+phi init
+```
+
+2. Generate your type-safe Go client:
+
+```bash
+phi generate
+```
+
+3. Query your database:
+
+```go
+client, err := phi.NewClient(phi.WithDSN(os.Getenv("DATABASE_URL")))
+if err != nil {
+    log.Fatal(err)
+}
+defer client.Close()
+
+u, err := client.User.FindUnique(
+    user.Email.EQ("user@example.com"),
+).Exec(ctx)
+```
 
 ## Documentation
 
+Full guides, API references, CLI commands, and hooks documentation are available on the documentation website:
+
 [https://phi-orm.vercel.app](https://phi-orm.vercel.app)
+
+## License
+
+[Apache 2.0 License](LICENSE)
