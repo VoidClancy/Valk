@@ -1,0 +1,50 @@
+version: 2
+project_name: phi
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    binary: phi
+    main: ./main.go
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+nfpms:
+  - id: phi-packages
+    package_name: phi
+    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    vendor: VoidClancy
+    homepage: https://phi-orm.vercel.app
+    maintainer: Clancy <a7mdmo2mn@gmail.com>
+    description: "Phi - A compile-time ORM for Go mirroring the Prisma developer experience."
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/local/bin
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
