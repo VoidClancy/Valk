@@ -3,8 +3,6 @@ title: Upsert Records
 description: Configure conflict handling for create operations.
 category: CRUD
 tags: [upsert, onConflict, conflictAction, create, createManyAndReturn]
-categoryOrder: 2
-order: 5
 ---
 
 # Upsert Records

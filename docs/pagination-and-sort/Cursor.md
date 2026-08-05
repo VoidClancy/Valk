@@ -3,8 +3,6 @@ title: Cursor
 description: Fetch pages of results relative to a known record, identified by a unique predicate.
 category: Pagination & Sort
 tags: [cursor, pagination, keyset]
-categoryOrder: 5
-order: 4
 ---
 
 # Cursor

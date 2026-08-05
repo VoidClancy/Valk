@@ -3,8 +3,6 @@ title: Count Records
 description: Count the number of records matching a set of predicates.
 category: CRUD
 tags: [count, count records]
-categoryOrder: 2
-order: 6
 ---
 
 # Count Records

@@ -3,8 +3,6 @@ title: Take
 description: Limit the number of records returned by a query. Mirrors SQL's LIMIT.
 category: Pagination & Sort
 tags: [take, limit, pagination]
-categoryOrder: 5
-order: 1
 ---
 
 # Take

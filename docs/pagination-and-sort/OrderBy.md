@@ -3,8 +3,6 @@ title: Order By
 description: Sort query results using Asc or Desc on any scalar field. Mirrors SQL's ORDER BY.
 category: Pagination & Sort
 tags: [order, sort, asc, desc]
-categoryOrder: 5
-order: 3
 ---
 
 # Order By

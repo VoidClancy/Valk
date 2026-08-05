@@ -3,8 +3,6 @@ title: Page Title
 description: A short summary of this guide (used in search results and meta description).
 category: Documentation
 tags: [read, query, findUnique, findFirst, findMany, select, orm]
-categoryOrder: 200 # used for sorting the category among others
-order: 2 # used for sorting the guide inside it's category
 ---
 
 # Page Title

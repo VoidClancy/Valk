@@ -1,10 +1,8 @@
 ---
 title: Quickstart
 description: Install the Phi CLI, create a project, define a schema, migrate, and generate the type-safe Go ORM client.
-category: quickstart
+category: Overview
 tags: [quickstart, install, setup]
-categoryOrder: 1
-
 ---
 
 # Phi Documentation
@@ -59,19 +57,19 @@ Example `phi.yml`:
 
 ```yaml
 database:
-  url_env: DATABASE_URL              # Environment variable for the client connection.
-  direct_url_env: DATABASE_DIRECT_URL # Environment variable used for migrations.
+    url_env: DATABASE_URL # Environment variable for the client connection.
+    direct_url_env: DATABASE_DIRECT_URL # Environment variable used for migrations.
 
-schema: ./schema.prisma              # Path to your Prisma schema.
+schema: ./schema.prisma # Path to your Prisma schema.
 
-client_name: phi                     # Name of the generated Go package.
+client_name: phi # Name of the generated Go package.
 
 output:
-  client: ./phi
-  migrations: ./phi/migrations       # Keep this inside the client directory if you plan to embed migrations.
+    client: ./phi
+    migrations: ./phi/migrations # Keep this inside the client directory if you plan to embed migrations.
 
 log:
-  - none                             # Available: none, all, query, warn, error
+    - none # Available: none, all, query, warn, error
 ```
 
 ---
@@ -115,9 +113,9 @@ phi -m <migration_name>
 
 This command will:
 
-* Create the database if it doesn't exist.
-* Generate a migration.
-* Apply the migration.
+- Create the database if it doesn't exist.
+- Generate a migration.
+- Apply the migration.
 
 ---
 

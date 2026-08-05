@@ -3,8 +3,6 @@ title: Skip
 description: Skip a number of matching records before returning results. Mirrors SQL's OFFSET.
 category: Pagination & Sort
 tags: [skip, offset, pagination]
-categoryOrder: 5
-order: 2
 ---
 
 # Skip

@@ -3,8 +3,6 @@ title: Read Records
 description: Query records using FindUnique, FindFirst, and FindMany.
 category: CRUD
 tags: [read, query, findUnique, findFirst, findMany]
-categoryOrder: 2
-order: 2
 ---
 
 # Read Records

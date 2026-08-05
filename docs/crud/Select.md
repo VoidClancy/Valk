@@ -13,8 +13,6 @@ tags:
         omit fields,
         omit relations,
     ]
-categoryOrder: 3
-order: 1
 ---
 
 # Select

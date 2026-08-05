@@ -3,8 +3,6 @@ title: Update Records
 description: Update one or more records using type-safe update builders.
 category: CRUD
 tags: [update, updateMany, updateManyAndReturn]
-categoryOrder: 2
-order: 3
 ---
 
 # Update Records

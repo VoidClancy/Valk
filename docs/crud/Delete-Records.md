@@ -2,9 +2,7 @@
 title: Delete Records
 description: Delete one or more records using type-safe delete builders.
 category: CRUD
-tags: [delete, deleteMany]
-categoryOrder: 2
-order: 4
+tags: [delete, deleteMany, relations, cascade, foreign-key]
 ---
 
 # Delete Records
@@ -15,6 +13,30 @@ Phi provides two methods for deleting records:
 - `DeleteMany`
 
 > **Note:** `Delete` always returns the deleted record, regardless of the underlying database. On databases that support `DELETE ... RETURNING`, Phi performs the deletion in a single query. On databases that don't, Phi transparently executes the operation inside a transaction by fetching the record before deleting it, ensuring consistent behavior across all supported SQL dialects.
+
+---
+
+## Relation Deletion Behavior (`onDelete`)
+
+Deletion behavior for foreign key relations is controlled by your `schema.prisma` `@relation(onDelete: ...)` rules:
+
+```prisma
+model Post {
+  id       String @id @default(cuid())
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+```
+
+Phi translates `@relation(onDelete: ...)` rules into database foreign key constraints in DDL:
+
+| Prisma `onDelete` Action | SQL Foreign Key DDL Action | Database Behavior on Deleting Parent Record                                            |
+| :----------------------- | :------------------------- | :------------------------------------------------------------------------------------- |
+| `Cascade`                | `ON DELETE CASCADE`        | Child records referencing the parent are automatically deleted by the database engine. |
+| `Restrict`               | `ON DELETE RESTRICT`       | Prevents deletion of the parent record if dependent child records exist.               |
+| `NoAction`               | `ON DELETE NO ACTION`      | Prevents deletion unless constraints are satisfied within the transaction.             |
+| `SetNull`                | `ON DELETE SET NULL`       | Sets foreign key columns on referencing child records to `NULL`.                       |
+| `SetDefault`             | `ON DELETE SET DEFAULT`    | Resets foreign key columns on child records to their schema default values.            |
 
 ---
 
@@ -71,7 +93,7 @@ user, err := db.User.Delete(
 ### Supported Builder Methods
 
 | Method                   | Description                                       |
-| ------------------------ | ------------------------------------------------- |
+| :----------------------- | :------------------------------------------------ |
 | [`Select`](/docs/Select) | Return only the selected fields and relations.    |
 | [`Omit`](/docs/Omit)     | Return all scalar fields except the omitted ones. |
 
