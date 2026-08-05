@@ -1293,11 +1293,17 @@ type PredicateData struct {
 	Children  []PredicateData
 }
 
+type ChildPredicate struct {
+	Column string
+	Value  any
+}
+
 type PredicateOf[M any] interface {
 	ToPredicateData() PredicateData
 	Validate() error
 	Column() string
 	Value() any
+	Children() []ChildPredicate
 	phantom(M)
 }
 
@@ -1319,6 +1325,17 @@ func (p Predicate[M]) Column() string {
 
 func (p Predicate[M]) Value() any {
 	return p.Data.Value
+}
+
+func (p Predicate[M]) Children() []ChildPredicate {
+	if !p.Data.IsLogical || len(p.Data.Children) == 0 {
+		return nil
+	}
+	res := make([]ChildPredicate, len(p.Data.Children))
+	for i, c := range p.Data.Children {
+		res[i] = ChildPredicate{Column: c.Column, Value: c.Value}
+	}
+	return res
 }
 
 func (p Predicate[M]) phantom(M) {}
@@ -1344,6 +1361,17 @@ func (p UniquePredicate[M]) Column() string {
 
 func (p UniquePredicate[M]) Value() any {
 	return p.Data.Value
+}
+
+func (p UniquePredicate[M]) Children() []ChildPredicate {
+	if !p.Data.IsLogical || len(p.Data.Children) == 0 {
+		return nil
+	}
+	res := make([]ChildPredicate, len(p.Data.Children))
+	for i, c := range p.Data.Children {
+		res[i] = ChildPredicate{Column: c.Column, Value: c.Value}
+	}
+	return res
 }
 
 func (p UniquePredicate[M]) phantom(M) {}

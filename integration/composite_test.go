@@ -213,6 +213,47 @@ func TestCompositeKeys(t *testing.T) {
 		}
 	})
 
+	t.Run("hook_inspects_composite_Children", func(t *testing.T) {
+		db, cleanup := setupTestDB(t)
+		defer cleanup()
+
+		var children []phi.ChildPredicate
+
+		db.User.Use(user.Extension{
+			FindUnique: func(ctx context.Context, args *user.FindUniqueArgs, next user.FindUniqueQuery) (*phi.User, error) {
+				if len(args.Where) > 0 {
+					children = args.Where[0].Children()
+				}
+				return next(ctx, args)
+			},
+		})
+
+		_, err := db.User.Create().
+			SetEmail("hook-children@example.com").
+			SetPhoneNum("composite-005b").
+			Exec(ctx)
+		if err != nil {
+			t.Fatalf("create failed: %v", err)
+		}
+
+		_, err = db.User.FindUnique(
+			user.EmailPhone.EQ("hook-children@example.com", "composite-005b"),
+		).Exec(ctx)
+		if err != nil {
+			t.Fatalf("find unique failed: %v", err)
+		}
+
+		if len(children) != 2 {
+			t.Fatalf("expected 2 children, got %d", len(children))
+		}
+		if children[0].Column != "email" || children[0].Value != "hook-children@example.com" {
+			t.Errorf("unexpected child 0: %+v", children[0])
+		}
+		if children[1].Column != "phoneNum" || children[1].Value != "composite-005b" {
+			t.Errorf("unexpected child 1: %+v", children[1])
+		}
+	})
+
 	t.Run("hook_replaces_composite_predicate", func(t *testing.T) {
 		db, cleanup := setupTestDB(t)
 		defer cleanup()
