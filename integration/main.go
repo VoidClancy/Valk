@@ -72,7 +72,6 @@ func main() {
 	// runExtensionExamples(db, ctx)
 	// runCTP(db, ctx)
 	//
-
 	usr, err := db.User.Create().SetEmail("xx@yy.com").SetPhoneNum("11").Exec(ctx)
 	if err != nil {
 		panic(err)
@@ -84,6 +83,22 @@ func main() {
 		panic(err)
 	}
 	printJSON(posts)
+
+	db.User.Use(user.Extension{
+		FindUnique: func(ctx context.Context, args *phi.UserFindUniqueArgs, next phi.UserFindUniqueQuery) (*phi.User, error) {
+			for _, w := range args.Where {
+				switch w.Column() {
+				case user.Email.Column:
+					// Scalar unique predicate
+				case user.EmailPhone.Column:
+					for _, child := range w.Children() {
+						fmt.Printf("Composite field: %s = %v\n", child.Column, child.Value)
+					}
+				}
+			}
+			return next(ctx, args)
+		},
+	})
 }
 
 // =============================================================================
