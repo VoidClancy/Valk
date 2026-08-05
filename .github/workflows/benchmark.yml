@@ -110,3 +110,14 @@ jobs:
           else
             echo "No benchmark results changed."
           fi
+
+      - name: Trigger Website Benchmark Revalidation
+        run: |
+          SECRET="${{ secrets.REVALIDATE_SECRET }}"
+          if [ -z "$SECRET" ]; then
+            SECRET="someSecret"
+          fi
+          echo "Triggering Vercel cache revalidation..."
+          curl -s "https://phi-orm.vercel.app/api/revalidate-benchmarks?secret=$SECRET"
+          echo ""
+          echo "Website benchmark cache revalidated!"

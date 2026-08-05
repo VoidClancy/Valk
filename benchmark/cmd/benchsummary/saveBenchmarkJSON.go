@@ -374,7 +374,11 @@ func collectDatabaseInfo() DatabaseInfo {
 		info.Driver = "postgres"
 		info.Storage = "server"
 		host, port := "localhost", "5432"
-		if dsn := os.Getenv("PG_DATABASE_URL"); dsn != "" {
+		dsn := os.Getenv("PG_DATABASE_URL")
+		if dsn == "" {
+			dsn = os.Getenv("DATABASE_URL")
+		}
+		if dsn != "" {
 			if u, err := url.Parse(dsn); err == nil && u.Hostname() != "" {
 				host = u.Hostname()
 				if p := u.Port(); p != "" {
