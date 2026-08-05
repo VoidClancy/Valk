@@ -27,6 +27,7 @@ jobs:
 
       - name: Copy docs to phi-website content/docs
         run: |
+          rm -rf phi-website/content/docs
           mkdir -p phi-website/content/docs
           cp -r docs/* phi-website/content/docs/
 

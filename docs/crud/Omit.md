@@ -3,8 +3,6 @@ title: Omit
 description: Omit specific scalar fields from a query result.
 category: Select & Omit
 tags: [omit, omit fields, scalar selection]
-categoryOrder: 3
-order: 2
 ---
 
 # Omit

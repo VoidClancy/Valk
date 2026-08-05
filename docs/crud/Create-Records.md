@@ -3,8 +3,6 @@ title: Create Records
 description: Create one or more records.
 category: CRUD
 tags: [create, createMany, createManyAndReturn, onConflict, conflictAction]
-categoryOrder: 2
-order: 1
 ---
 
 # Create Records

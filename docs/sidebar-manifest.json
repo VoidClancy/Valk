@@ -1,0 +1,38 @@
+{
+    "categories": [
+        {
+            "name": "Overview",
+            "files": ["Introduction", "Quickstart", "Schema", "Client-Lifecycle", "Limitations"]
+        },
+        {
+            "name": "CLI",
+            "files": ["Init-Command", "Client-Generation", "Migrations"]
+        },
+        {
+            "name": "CRUD",
+            "files": [
+                "Create-Records",
+                "Read-Records",
+                "Update-Records",
+                "Delete-Records",
+                "Upsert-Records",
+                "Count-Records",
+                "Select",
+                "Omit",
+                "Query-Filters"
+            ]
+        },
+        {
+            "name": "Hooks",
+            "files": ["Create-Hooks", "Read-Hooks", "Update-Hooks", "Delete-Hooks"]
+        },
+        {
+            "name": "Pagination & Sort",
+            "files": ["Take", "Skip", "OrderBy", "Cursor"]
+        },
+        {
+            "name": "Operations & Types",
+            "files": ["Enums", "Composite-Keys", "Transactions", "Raw-SQL", "Errors"]
+        }
+    ]
+}

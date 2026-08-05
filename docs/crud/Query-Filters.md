@@ -3,8 +3,6 @@ title: Query Filters
 description: The predicate system for filtering records with EQ, NEQ, GT, LT, In, Contains, Like, and logical operators.
 category: Query Filters
 tags: [query, filters, eq, neq, gt, lt, in, contains, like, and, or, not, predicates]
-categoryOrder: 4
-order: 1
 ---
 
 # Query Filters
