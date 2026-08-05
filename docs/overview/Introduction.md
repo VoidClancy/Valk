@@ -37,3 +37,14 @@ Write one unified Go codebase that works seamlessly across **PostgreSQL** and **
 * **Extension Hooks**: Middleware hooks for intercepting, mutating, or caching queries (`Create`, `Read`, `Update`, `Delete`).
 * **Transactions**: Closure-based transactions with panic recovery and automatic rollback.
 * **Forward-Only Migrations**: Goose-compatible migration generator powered by the Atlas DDL engine.
+
+---
+
+## Acknowledgements
+
+Phi stands on the shoulders of incredible open-source projects across the Go and database ecosystems:
+
+* **[prisma-client-go](https://github.com/steebchen/prisma-client-go)**: The primary inspiration for bringing Prisma's developer experience, schema syntax, and query ergonomics to Go.
+* **[Atlas](https://atlasgo.io)**: Powers Phi's declarative migration engine under the hood for DDL schema calculation and database diffing.
+* **[Goose](https://github.com/pressly/goose)**: The standard format used for generating versioned, forward-only `.sql` migration files.
+* **[Ent](https://entgo.io)**: Inspiration for ergonomic, zero-allocation Go query client designs and domain error inspection patterns.
