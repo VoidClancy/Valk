@@ -24,7 +24,7 @@ func init() {
 			Aliases:     []string{"-i"},
 			Description: "Creates the config file in the root directory",
 			Callback: func(args []string) {
-				handleInit()
+				handleInit(args)
 			},
 		},
 		{
