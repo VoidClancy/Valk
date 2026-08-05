@@ -38,13 +38,16 @@ phi generate
 3. Query your database:
 
 ```go
-client, err := phi.NewClient(phi.WithDSN(os.Getenv("DATABASE_URL")))
-if err != nil {
-    log.Fatal(err)
-}
-defer client.Close()
+db, err := phi.Open("sqlite3",
+		"file:memdb1?mode=memory&cache=shared&_pragma=foreign_keys(1)&_time_format=sqlite")
 
-u, err := client.User.FindUnique(
+	if err != nil {
+		log.Fatalf("failed to open db: %v", err)
+	}
+
+    defer db.Close()
+
+u, err := db.User.FindUnique(
     user.Email.EQ("user@example.com"),
 ).Exec(ctx)
 ```

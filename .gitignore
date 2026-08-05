@@ -2,7 +2,6 @@
 bin
 *.db
 .vscode
-docker-compose.yml
 api-example.gotpl
 *.bak
 schema.prisma.backup
