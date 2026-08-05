@@ -33,7 +33,7 @@ nfpms:
     homepage: https://phi-orm.vercel.app
     maintainer: Clancy <a7mdmo2mn@gmail.com>
     description: "Phi - A compile-time ORM for Go mirroring the Prisma developer experience."
-    license: MIT
+    license: Apache-2.0
     formats:
       - deb
       - rpm
