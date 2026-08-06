@@ -5,9 +5,58 @@ category: Overview
 tags: [quickstart, install, setup]
 ---
 
-# Phi Documentation
-
 ## Quickstart
+
+## Use the quickstart repository
+
+Clone the quickstart repository:
+
+```bash
+git clone https://github.com/VoidClancy/phi-demo.git && cd phi-demo
+
+```
+
+Finally, run the simple main program:
+
+```bash
+go run .
+```
+
+You should see something like this:
+
+```bash
+2026/08/06 14:43:14 Running migrations...
+2026/08/06 14:43:14 Migrations completed successfully.
+2026/08/06 14:43:14 [SQLITE3] SQL Query: INSERT INTO "User" ("id", "username", "email", "bio", "password", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id", "username", "email", "bio", "password", "loginCount", "createdAt", "updatedAt" | Args: [c19fd6e27af66509b94cbf40776c Welcome-To-Phi user@example.com Welcome to Phi! secret 2026-08-06 14:43:14.678755682 +0300 EEST m=+0.002017008 2026-08-06 14:43:14.678628 +0300 EEST]
+Created User:
+{
+  "id": "c19fd6e27af66509b94cbf40776c",
+  "username": "Welcome-To-Phi",
+  "email": "user@example.com",
+  "bio": "Welcome to Phi!",
+  "password": "secret",
+  "loginCount": 0,
+  "createdAt": "2026-08-06T14:43:14.678755682+03:00",
+  "updatedAt": "2026-08-06T14:43:14.678628+03:00"
+}
+2026/08/06 14:43:14 [SQLITE3] SQL Query: SELECT "id", "username", "email", "bio" FROM "User" WHERE "id" = ? AND "email" = ? LIMIT 1 | Args: [c19fd6e27af66509b94cbf40776c user@example.com]
+Retrieved User:
+{
+  "id": "c19fd6e27af66509b94cbf40776c",
+  "username": "Welcome-To-Phi",
+  "email": "user@example.com",
+  "bio": "Welcome to Phi!",
+  "password": "",
+  "loginCount": 0,
+  "createdAt": "0001-01-01T00:00:00Z",
+  "updatedAt": "0001-01-01T00:00:00Z"
+}
+
+ Retrived User's Bio is: Welcome to Phi!
+
+```
+
+## Manual Setup
 
 ### Install the Phi CLI
 
