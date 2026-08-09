@@ -316,7 +316,7 @@ func benchGORMUpsert(b *testing.B) {
 	}
 }
 
-func benchGORMReadDeepRelation(b *testing.B) {
+func benchGORMFindUniqueSelfRef2L(b *testing.B) {
 	ctx := context.Background()
 	db := openGORM(b)
 	sqlDB, err := db.DB()

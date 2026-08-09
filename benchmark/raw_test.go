@@ -236,7 +236,7 @@ func benchRawUpsert(b *testing.B) {
 	}
 }
 
-func benchRawReadDeepRelation(b *testing.B) {
+func benchRawFindUniqueSelfRef2L(b *testing.B) {
 	ctx := context.Background()
 	db := openDB(b)
 	defer db.Close()

@@ -218,7 +218,7 @@ func benchPhiUpsert(b *testing.B) {
 	}
 }
 
-func benchPhiReadDeepRelation(b *testing.B) {
+func benchPhiFindUniqueSelfRef2L(b *testing.B) {
 	ctx := context.Background()
 	db := initPhiDB(b, ctx)
 	defer db.Close()

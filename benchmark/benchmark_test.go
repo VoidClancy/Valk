@@ -94,14 +94,14 @@ func BenchmarkUpsert(b *testing.B) {
 	})
 }
 
-func BenchmarkReadDeepRelation(b *testing.B) {
-	fmt.Println("\n── ReadDeepRelation ────────────────────────────")
+func BenchmarkFindUniqueSelfRef2L(b *testing.B) {
+	fmt.Println("\n── FindUniqueSelfRef2L ────────────────────────────")
 	orms(b, map[string]func(*testing.B){
-		"Raw":  benchRawReadDeepRelation,
-		"Phi":  benchPhiReadDeepRelation,
-		"Ent":  benchEntReadDeepRelation,
-		"GORM": benchGORMReadDeepRelation,
-		"Bun":  benchBunReadDeepRelation,
+		"Raw":  benchRawFindUniqueSelfRef2L,
+		"Phi":  benchPhiFindUniqueSelfRef2L,
+		"Ent":  benchEntFindUniqueSelfRef2L,
+		"GORM": benchGORMFindUniqueSelfRef2L,
+		"Bun":  benchBunFindUniqueSelfRef2L,
 	})
 }
 

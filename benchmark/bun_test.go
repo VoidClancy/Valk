@@ -220,7 +220,7 @@ func benchBunUpsert(b *testing.B) {
 	}
 }
 
-func benchBunReadDeepRelation(b *testing.B) {
+func benchBunFindUniqueSelfRef2L(b *testing.B) {
 	ctx := context.Background()
 	db := openBun(b)
 	defer db.Close()
