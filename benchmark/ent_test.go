@@ -210,7 +210,7 @@ func benchEntUpsert(b *testing.B) {
 	}
 }
 
-func benchEntReadDeepRelation(b *testing.B) {
+func benchEntFindUniqueSelfRef2L(b *testing.B) {
 	ctx := context.Background()
 	client := openEnt(b)
 	defer client.Close()
