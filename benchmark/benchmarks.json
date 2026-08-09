@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-05T14:49:05.883Z",
+  "updatedAt": "2026-08-09T22:59:25.762Z",
   "domains": {
     "orm": {
       "name": "ORM Performance",
@@ -17,8 +17,8 @@
             "os": "linux",
             "arch": "amd64",
             "goVersion": "go version go1.26.5 linux/amd64",
-            "cpu": "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
-            "cores": 8
+            "cpu": "AMD EPYC 7763 64-Core Processor",
+            "cores": 4
           },
           "benchmark": {
             "benchTime": "1s",
@@ -28,290 +28,322 @@
           "operations": {
             "Create": {
               "Bun": {
-                "msPerOp": 0.438895,
-                "opsPerSec": 2278,
-                "bytesPerOp": 5917,
+                "msPerOp": 0.258698,
+                "opsPerSec": 3865,
+                "bytesPerOp": 5922,
                 "allocsPerOp": 31
               },
               "Ent": {
-                "msPerOp": 0.471766,
-                "opsPerSec": 2119,
-                "bytesPerOp": 3616,
+                "msPerOp": 0.397474,
+                "opsPerSec": 2515,
+                "bytesPerOp": 3615,
                 "allocsPerOp": 86
               },
               "GORM": {
-                "msPerOp": 0.526962,
-                "opsPerSec": 1897,
-                "bytesPerOp": 7574,
+                "msPerOp": 0.595316,
+                "opsPerSec": 1679,
+                "bytesPerOp": 7576,
                 "allocsPerOp": 87
               },
               "Phi": {
-                "msPerOp": 0.398721,
-                "opsPerSec": 2508,
-                "bytesPerOp": 2496,
+                "msPerOp": 0.234844,
+                "opsPerSec": 4258,
+                "bytesPerOp": 2495,
                 "allocsPerOp": 49
               },
               "Raw": {
-                "msPerOp": 0.465031,
-                "opsPerSec": 2150,
+                "msPerOp": 0.389277,
+                "opsPerSec": 2568,
                 "bytesPerOp": 1054,
                 "allocsPerOp": 28
               }
             },
             "CreateMany": {
               "Bun": {
-                "msPerOp": 0.632922,
-                "opsPerSec": 1579,
-                "bytesPerOp": 9725,
+                "msPerOp": 0.497895,
+                "opsPerSec": 2008,
+                "bytesPerOp": 9741,
                 "allocsPerOp": 109
               },
               "Ent": {
-                "msPerOp": 0.665156,
-                "opsPerSec": 1503,
-                "bytesPerOp": 31099,
+                "msPerOp": 0.628989,
+                "opsPerSec": 1589,
+                "bytesPerOp": 31098,
                 "allocsPerOp": 543
               },
               "GORM": {
-                "msPerOp": 0.660277,
-                "opsPerSec": 1514,
-                "bytesPerOp": 29806,
+                "msPerOp": 0.770814,
+                "opsPerSec": 1297,
+                "bytesPerOp": 29780,
                 "allocsPerOp": 238
               },
               "Phi": {
-                "msPerOp": 0.519025,
-                "opsPerSec": 1926,
-                "bytesPerOp": 16744,
+                "msPerOp": 0.440539,
+                "opsPerSec": 2269,
+                "bytesPerOp": 16757,
                 "allocsPerOp": 308
               },
               "Raw": {
-                "msPerOp": 0.647776,
-                "opsPerSec": 1543,
-                "bytesPerOp": 10186,
+                "msPerOp": 0.626851,
+                "opsPerSec": 1595,
+                "bytesPerOp": 10204,
                 "allocsPerOp": 157
               }
             },
             "CreateManyAndReturn": {
               "Bun": {
-                "msPerOp": 0.646216,
-                "opsPerSec": 1547,
-                "bytesPerOp": 11531,
+                "msPerOp": 0.504702,
+                "opsPerSec": 1981,
+                "bytesPerOp": 11525,
                 "allocsPerOp": 191
               },
               "Ent": {
-                "msPerOp": 0.658913,
-                "opsPerSec": 1517,
-                "bytesPerOp": 30373,
+                "msPerOp": 0.621541,
+                "opsPerSec": 1608,
+                "bytesPerOp": 30462,
                 "allocsPerOp": 543
               },
               "GORM": {
-                "msPerOp": 0.678992,
-                "opsPerSec": 1472,
-                "bytesPerOp": 29802,
+                "msPerOp": 0.767356,
+                "opsPerSec": 1303,
+                "bytesPerOp": 29780,
                 "allocsPerOp": 238
               },
               "Phi": {
-                "msPerOp": 0.548517,
-                "opsPerSec": 1823,
-                "bytesPerOp": 22347,
+                "msPerOp": 0.457535,
+                "opsPerSec": 2185,
+                "bytesPerOp": 22538,
                 "allocsPerOp": 419
               },
               "Raw": {
-                "msPerOp": 0.70748,
-                "opsPerSec": 1413,
-                "bytesPerOp": 9418,
-                "allocsPerOp": 296
+                "msPerOp": 0.644466,
+                "opsPerSec": 1551,
+                "bytesPerOp": 9550,
+                "allocsPerOp": 297
               }
             },
             "CreateManyAndReturnWithDeepSelect": {
               "Bun": {
-                "msPerOp": 1.458973,
-                "opsPerSec": 685,
-                "bytesPerOp": 97756,
-                "allocsPerOp": 925
+                "msPerOp": 1.266321,
+                "opsPerSec": 789,
+                "bytesPerOp": 97778,
+                "allocsPerOp": 926
               },
               "Ent": {
-                "msPerOp": 1.449406,
-                "opsPerSec": 689,
-                "bytesPerOp": 57512,
-                "allocsPerOp": 1184
+                "msPerOp": 1.719287,
+                "opsPerSec": 581,
+                "bytesPerOp": 57477,
+                "allocsPerOp": 1182
               },
               "GORM": {
-                "msPerOp": 3.547717,
-                "opsPerSec": 281,
-                "bytesPerOp": 71073,
-                "allocsPerOp": 724
+                "msPerOp": 3.423345,
+                "opsPerSec": 292,
+                "bytesPerOp": 70924,
+                "allocsPerOp": 723
               },
               "Phi": {
-                "msPerOp": 4.588964,
-                "opsPerSec": 217,
-                "bytesPerOp": 36056,
+                "msPerOp": 4.382766,
+                "opsPerSec": 228,
+                "bytesPerOp": 36062,
                 "allocsPerOp": 696
               },
               "Raw": {
-                "msPerOp": 1.48293,
-                "opsPerSec": 674,
-                "bytesPerOp": 28553,
+                "msPerOp": 1.496717,
+                "opsPerSec": 668,
+                "bytesPerOp": 28551,
                 "allocsPerOp": 425
               }
             },
             "CreateWithDeepSelect": {
               "Bun": {
-                "msPerOp": 0.74464,
-                "opsPerSec": 1342,
-                "bytesPerOp": 18140,
+                "msPerOp": 0.598029,
+                "opsPerSec": 1672,
+                "bytesPerOp": 18137,
                 "allocsPerOp": 110
               },
               "Ent": {
-                "msPerOp": 0.908358,
-                "opsPerSec": 1100,
-                "bytesPerOp": 12977,
+                "msPerOp": 0.976121,
+                "opsPerSec": 1024,
+                "bytesPerOp": 12974,
                 "allocsPerOp": 282
               },
               "GORM": {
-                "msPerOp": 0.699044,
-                "opsPerSec": 1430,
-                "bytesPerOp": 18396,
+                "msPerOp": 0.872272,
+                "opsPerSec": 1146,
+                "bytesPerOp": 18368,
                 "allocsPerOp": 211
               },
               "Phi": {
-                "msPerOp": 0.677479,
-                "opsPerSec": 1476,
-                "bytesPerOp": 6957,
+                "msPerOp": 0.808031,
+                "opsPerSec": 1237,
+                "bytesPerOp": 6984,
                 "allocsPerOp": 146
               },
               "Raw": {
-                "msPerOp": 0.709429,
-                "opsPerSec": 1409,
-                "bytesPerOp": 2986,
+                "msPerOp": 0.827558,
+                "opsPerSec": 1208,
+                "bytesPerOp": 2987,
                 "allocsPerOp": 71
               }
             },
             "Delete": {
               "Bun": {
-                "msPerOp": 4.215602,
-                "opsPerSec": 237,
-                "bytesPerOp": 6432,
+                "msPerOp": 3.722654,
+                "opsPerSec": 268,
+                "bytesPerOp": 6406,
                 "allocsPerOp": 40
               },
               "Ent": {
-                "msPerOp": 4.551286,
-                "opsPerSec": 219,
-                "bytesPerOp": 2272,
+                "msPerOp": 4.095003,
+                "opsPerSec": 244,
+                "bytesPerOp": 2275,
                 "allocsPerOp": 52
               },
               "GORM": {
-                "msPerOp": 4.447542,
-                "opsPerSec": 224,
-                "bytesPerOp": 8249,
+                "msPerOp": 4.161362,
+                "opsPerSec": 240,
+                "bytesPerOp": 8235,
                 "allocsPerOp": 107
               },
               "Phi": {
-                "msPerOp": 4.302243,
-                "opsPerSec": 232,
-                "bytesPerOp": 2141,
+                "msPerOp": 3.635054,
+                "opsPerSec": 275,
+                "bytesPerOp": 2140,
                 "allocsPerOp": 43
               },
               "Raw": {
-                "msPerOp": 4.420986,
-                "opsPerSec": 226,
-                "bytesPerOp": 560,
+                "msPerOp": 3.830283,
+                "opsPerSec": 261,
+                "bytesPerOp": 561,
                 "allocsPerOp": 18
               }
             },
             "FindFirst": {
               "Bun": {
-                "msPerOp": 0.13352,
-                "opsPerSec": 7489,
-                "bytesPerOp": 6340,
+                "msPerOp": 0.25311,
+                "opsPerSec": 3950,
+                "bytesPerOp": 6337,
                 "allocsPerOp": 39
               },
               "Ent": {
-                "msPerOp": 0.211254,
-                "opsPerSec": 4733,
-                "bytesPerOp": 5924,
+                "msPerOp": 0.433098,
+                "opsPerSec": 2308,
+                "bytesPerOp": 5922,
                 "allocsPerOp": 138
               },
               "GORM": {
-                "msPerOp": 0.114582,
-                "opsPerSec": 8727,
-                "bytesPerOp": 5962,
+                "msPerOp": 0.222678,
+                "opsPerSec": 4490,
+                "bytesPerOp": 5954,
                 "allocsPerOp": 88
               },
               "Phi": {
-                "msPerOp": 0.09651,
-                "opsPerSec": 10361,
+                "msPerOp": 0.194189,
+                "opsPerSec": 5149,
                 "bytesPerOp": 1718,
                 "allocsPerOp": 40
               },
               "Raw": {
-                "msPerOp": 0.201708,
-                "opsPerSec": 4957,
+                "msPerOp": 0.413201,
+                "opsPerSec": 2420,
                 "bytesPerOp": 1739,
                 "allocsPerOp": 41
               }
             },
             "FindMany": {
               "Bun": {
-                "msPerOp": 0.591651,
-                "opsPerSec": 1690,
-                "bytesPerOp": 11224,
+                "msPerOp": 1.491691,
+                "opsPerSec": 670,
+                "bytesPerOp": 11223,
                 "allocsPerOp": 123
               },
               "Ent": {
-                "msPerOp": 0.136768,
-                "opsPerSec": 7311,
-                "bytesPerOp": 11207,
+                "msPerOp": 0.263148,
+                "opsPerSec": 3800,
+                "bytesPerOp": 11212,
                 "allocsPerOp": 275
               },
               "GORM": {
-                "msPerOp": 0.183421,
-                "opsPerSec": 5451,
-                "bytesPerOp": 13806,
+                "msPerOp": 0.290224,
+                "opsPerSec": 3445,
+                "bytesPerOp": 13796,
                 "allocsPerOp": 220
               },
               "Phi": {
-                "msPerOp": 0.112676,
-                "opsPerSec": 8875,
-                "bytesPerOp": 5792,
-                "allocsPerOp": 122
+                "msPerOp": 0.276119,
+                "opsPerSec": 3621,
+                "bytesPerOp": 6027,
+                "allocsPerOp": 126
               },
               "Raw": {
-                "msPerOp": 0.649987,
-                "opsPerSec": 1538,
-                "bytesPerOp": 4249,
+                "msPerOp": 1.696563,
+                "opsPerSec": 589,
+                "bytesPerOp": 4250,
                 "allocsPerOp": 121
               }
             },
             "FindUnique": {
               "Bun": {
-                "msPerOp": 0.128666,
-                "opsPerSec": 7772,
-                "bytesPerOp": 6340,
+                "msPerOp": 0.248711,
+                "opsPerSec": 4020,
+                "bytesPerOp": 6338,
                 "allocsPerOp": 39
               },
               "Ent": {
-                "msPerOp": 0.215355,
-                "opsPerSec": 4643,
-                "bytesPerOp": 5924,
+                "msPerOp": 0.430463,
+                "opsPerSec": 2323,
+                "bytesPerOp": 5921,
                 "allocsPerOp": 138
               },
               "GORM": {
-                "msPerOp": 0.1144,
-                "opsPerSec": 8741,
-                "bytesPerOp": 5962,
+                "msPerOp": 0.223638,
+                "opsPerSec": 4471,
+                "bytesPerOp": 5954,
                 "allocsPerOp": 88
               },
               "Phi": {
-                "msPerOp": 0.097757,
-                "opsPerSec": 10229,
+                "msPerOp": 0.193837,
+                "opsPerSec": 5158,
                 "bytesPerOp": 1678,
                 "allocsPerOp": 37
               },
               "Raw": {
-                "msPerOp": 0.193647,
-                "opsPerSec": 5164,
-                "bytesPerOp": 1740,
+                "msPerOp": 0.399832,
+                "opsPerSec": 2501,
+                "bytesPerOp": 1739,
                 "allocsPerOp": 41
+              }
+            },
+            "FindUniqueSelfRef2L": {
+              "Bun": {
+                "msPerOp": 0.386689,
+                "opsPerSec": 2586,
+                "bytesPerOp": 18805,
+                "allocsPerOp": 144
+              },
+              "Ent": {
+                "msPerOp": 1.273682,
+                "opsPerSec": 785,
+                "bytesPerOp": 17349,
+                "allocsPerOp": 424
+              },
+              "GORM": {
+                "msPerOp": 0.68429,
+                "opsPerSec": 1461,
+                "bytesPerOp": 28055,
+                "allocsPerOp": 331
+              },
+              "Phi": {
+                "msPerOp": 0.593544,
+                "opsPerSec": 1684,
+                "bytesPerOp": 5542,
+                "allocsPerOp": 146
+              },
+              "Raw": {
+                "msPerOp": 0.552772,
+                "opsPerSec": 1809,
+                "bytesPerOp": 4832,
+                "allocsPerOp": 79
               }
             },
             "ReadDeepRelation": {
@@ -348,64 +380,64 @@
             },
             "Upsert": {
               "Bun": {
-                "msPerOp": 0.484883,
-                "opsPerSec": 2062,
-                "bytesPerOp": 6111,
+                "msPerOp": 0.28886,
+                "opsPerSec": 3461,
+                "bytesPerOp": 6110,
                 "allocsPerOp": 33
               },
               "Ent": {
-                "msPerOp": 0.546216,
-                "opsPerSec": 1830,
-                "bytesPerOp": 6558,
+                "msPerOp": 0.475564,
+                "opsPerSec": 2102,
+                "bytesPerOp": 6557,
                 "allocsPerOp": 163
               },
               "GORM": {
-                "msPerOp": 0.565774,
-                "opsPerSec": 1767,
-                "bytesPerOp": 9991,
+                "msPerOp": 0.629932,
+                "opsPerSec": 1587,
+                "bytesPerOp": 9987,
                 "allocsPerOp": 104
               },
               "Phi": {
-                "msPerOp": 0.432635,
-                "opsPerSec": 2311,
-                "bytesPerOp": 3732,
+                "msPerOp": 0.263076,
+                "opsPerSec": 3801,
+                "bytesPerOp": 3734,
                 "allocsPerOp": 84
               },
               "Raw": {
-                "msPerOp": 0.504096,
-                "opsPerSec": 1983,
-                "bytesPerOp": 1209,
+                "msPerOp": 0.436108,
+                "opsPerSec": 2293,
+                "bytesPerOp": 1210,
                 "allocsPerOp": 31
               }
             },
             "UpsertWithDeepSelect": {
               "Bun": {
-                "msPerOp": 0.946185,
-                "opsPerSec": 1056,
-                "bytesPerOp": 24412,
+                "msPerOp": 0.691071,
+                "opsPerSec": 1447,
+                "bytesPerOp": 24406,
                 "allocsPerOp": 164
               },
               "Ent": {
-                "msPerOp": 1.065549,
-                "opsPerSec": 938,
-                "bytesPerOp": 19039,
+                "msPerOp": 1.377995,
+                "opsPerSec": 725,
+                "bytesPerOp": 19030,
                 "allocsPerOp": 467
               },
               "GORM": {
-                "msPerOp": 0.883339,
-                "opsPerSec": 1132,
-                "bytesPerOp": 32240,
+                "msPerOp": 1.141787,
+                "opsPerSec": 875,
+                "bytesPerOp": 32193,
                 "allocsPerOp": 353
               },
               "Phi": {
-                "msPerOp": 0.716835,
-                "opsPerSec": 1395,
-                "bytesPerOp": 8573,
-                "allocsPerOp": 184
+                "msPerOp": 0.83972,
+                "opsPerSec": 1190,
+                "bytesPerOp": 8578,
+                "allocsPerOp": 183
               },
               "Raw": {
-                "msPerOp": 1.090145,
-                "opsPerSec": 917,
+                "msPerOp": 1.027169,
+                "opsPerSec": 973,
                 "bytesPerOp": 5947,
                 "allocsPerOp": 103
               }
@@ -435,290 +467,322 @@
           "operations": {
             "Create": {
               "Bun": {
-                "msPerOp": 0.039746,
-                "opsPerSec": 25159,
+                "msPerOp": 0.039453,
+                "opsPerSec": 25346,
                 "bytesPerOp": 5859,
                 "allocsPerOp": 38
               },
               "Ent": {
-                "msPerOp": 0.017237,
-                "opsPerSec": 58014,
+                "msPerOp": 0.018044,
+                "opsPerSec": 55420,
                 "bytesPerOp": 3310,
                 "allocsPerOp": 73
               },
               "GORM": {
-                "msPerOp": 0.043897,
-                "opsPerSec": 22780,
-                "bytesPerOp": 8109,
+                "msPerOp": 0.043421,
+                "opsPerSec": 23030,
+                "bytesPerOp": 8108,
                 "allocsPerOp": 101
               },
               "Phi": {
-                "msPerOp": 0.018872,
-                "opsPerSec": 52988,
+                "msPerOp": 0.01908,
+                "opsPerSec": 52410,
                 "bytesPerOp": 2864,
                 "allocsPerOp": 72
               },
               "Raw": {
-                "msPerOp": 0.014164,
-                "opsPerSec": 70601,
+                "msPerOp": 0.014906,
+                "opsPerSec": 67087,
                 "bytesPerOp": 752,
                 "allocsPerOp": 21
               }
             },
             "CreateMany": {
               "Bun": {
-                "msPerOp": 0.109036,
-                "opsPerSec": 9171,
+                "msPerOp": 0.110691,
+                "opsPerSec": 9034,
                 "bytesPerOp": 8206,
                 "allocsPerOp": 115
               },
               "Ent": {
-                "msPerOp": 0.119802,
-                "opsPerSec": 8347,
+                "msPerOp": 0.117931,
+                "opsPerSec": 8479,
                 "bytesPerOp": 31378,
                 "allocsPerOp": 477
               },
               "GORM": {
-                "msPerOp": 0.134005,
-                "opsPerSec": 7462,
-                "bytesPerOp": 24424,
+                "msPerOp": 0.134946,
+                "opsPerSec": 7410,
+                "bytesPerOp": 24425,
                 "allocsPerOp": 278
               },
               "Phi": {
-                "msPerOp": 0.066121,
-                "opsPerSec": 15123,
+                "msPerOp": 0.066252,
+                "opsPerSec": 15093,
                 "bytesPerOp": 15820,
                 "allocsPerOp": 298
               },
               "Raw": {
-                "msPerOp": 0.07833,
-                "opsPerSec": 12766,
+                "msPerOp": 0.074813,
+                "opsPerSec": 13366,
                 "bytesPerOp": 7745,
                 "allocsPerOp": 138
               }
             },
             "CreateManyAndReturn": {
               "Bun": {
-                "msPerOp": 0.126429,
-                "opsPerSec": 7909,
-                "bytesPerOp": 9973,
+                "msPerOp": 0.123895,
+                "opsPerSec": 8071,
+                "bytesPerOp": 9970,
                 "allocsPerOp": 205
               },
               "Ent": {
-                "msPerOp": 0.116206,
-                "opsPerSec": 8605,
-                "bytesPerOp": 31376,
+                "msPerOp": 0.114494,
+                "opsPerSec": 8734,
+                "bytesPerOp": 31377,
                 "allocsPerOp": 477
               },
               "GORM": {
-                "msPerOp": 0.139109,
-                "opsPerSec": 7188,
+                "msPerOp": 0.132201,
+                "opsPerSec": 7564,
                 "bytesPerOp": 24424,
                 "allocsPerOp": 278
               },
               "Phi": {
-                "msPerOp": 0.100125,
-                "opsPerSec": 9987,
+                "msPerOp": 0.101273,
+                "opsPerSec": 9874,
                 "bytesPerOp": 22268,
                 "allocsPerOp": 435
               },
               "Raw": {
-                "msPerOp": 0.110106,
-                "opsPerSec": 9082,
+                "msPerOp": 0.108405,
+                "opsPerSec": 9224,
                 "bytesPerOp": 10487,
                 "allocsPerOp": 288
               }
             },
             "CreateManyAndReturnWithDeepSelect": {
               "Bun": {
-                "msPerOp": 0.316833,
-                "opsPerSec": 3156,
-                "bytesPerOp": 92891,
+                "msPerOp": 0.312946,
+                "opsPerSec": 3195,
+                "bytesPerOp": 92889,
                 "allocsPerOp": 981
               },
               "Ent": {
-                "msPerOp": 0.245993,
-                "opsPerSec": 4065,
+                "msPerOp": 0.251882,
+                "opsPerSec": 3970,
                 "bytesPerOp": 58453,
                 "allocsPerOp": 1122
               },
               "GORM": {
-                "msPerOp": 0.320558,
-                "opsPerSec": 3119,
-                "bytesPerOp": 62742,
-                "allocsPerOp": 813
+                "msPerOp": 0.325471,
+                "opsPerSec": 3072,
+                "bytesPerOp": 62739,
+                "allocsPerOp": 812
               },
               "Phi": {
-                "msPerOp": 0.213914,
-                "opsPerSec": 4674,
-                "bytesPerOp": 35796,
+                "msPerOp": 0.212589,
+                "opsPerSec": 4703,
+                "bytesPerOp": 35795,
                 "allocsPerOp": 721
               },
               "Raw": {
-                "msPerOp": 0.193866,
-                "opsPerSec": 5158,
+                "msPerOp": 0.192741,
+                "opsPerSec": 5188,
                 "bytesPerOp": 24649,
                 "allocsPerOp": 465
               }
             },
             "CreateWithDeepSelect": {
               "Bun": {
-                "msPerOp": 0.084246,
-                "opsPerSec": 11869,
+                "msPerOp": 0.081986,
+                "opsPerSec": 12197,
                 "bytesPerOp": 16511,
                 "allocsPerOp": 143
               },
               "Ent": {
-                "msPerOp": 0.074046,
-                "opsPerSec": 13505,
-                "bytesPerOp": 12226,
+                "msPerOp": 0.072961,
+                "opsPerSec": 13705,
+                "bytesPerOp": 12227,
                 "allocsPerOp": 274
               },
               "GORM": {
-                "msPerOp": 0.109186,
-                "opsPerSec": 9158,
-                "bytesPerOp": 18527,
+                "msPerOp": 0.10614,
+                "opsPerSec": 9421,
+                "bytesPerOp": 18525,
                 "allocsPerOp": 234
               },
               "Phi": {
-                "msPerOp": 0.060485,
-                "opsPerSec": 16533,
+                "msPerOp": 0.057821,
+                "opsPerSec": 17294,
                 "bytesPerOp": 7076,
                 "allocsPerOp": 159
               },
               "Raw": {
-                "msPerOp": 0.032753,
-                "opsPerSec": 30531,
-                "bytesPerOp": 2367,
+                "msPerOp": 0.031615,
+                "opsPerSec": 31630,
+                "bytesPerOp": 2366,
                 "allocsPerOp": 73
               }
             },
             "Delete": {
               "Bun": {
-                "msPerOp": 1.876924,
-                "opsPerSec": 532,
-                "bytesPerOp": 6242,
+                "msPerOp": 1.955816,
+                "opsPerSec": 511,
+                "bytesPerOp": 6245,
                 "allocsPerOp": 54
               },
               "Ent": {
-                "msPerOp": 3.846906,
-                "opsPerSec": 259,
-                "bytesPerOp": 1989,
+                "msPerOp": 3.892887,
+                "opsPerSec": 256,
+                "bytesPerOp": 1987,
                 "allocsPerOp": 44
               },
               "GORM": {
-                "msPerOp": 1.908668,
-                "opsPerSec": 523,
-                "bytesPerOp": 8144,
+                "msPerOp": 2.037229,
+                "opsPerSec": 490,
+                "bytesPerOp": 8158,
                 "allocsPerOp": 125
               },
               "Phi": {
-                "msPerOp": 1.837288,
-                "opsPerSec": 544,
-                "bytesPerOp": 2434,
+                "msPerOp": 1.902279,
+                "opsPerSec": 525,
+                "bytesPerOp": 2435,
                 "allocsPerOp": 64
               },
               "Raw": {
-                "msPerOp": 1.823226,
-                "opsPerSec": 548,
+                "msPerOp": 1.839976,
+                "opsPerSec": 543,
                 "bytesPerOp": 277,
                 "allocsPerOp": 11
               }
             },
             "FindFirst": {
               "Bun": {
-                "msPerOp": 0.016755,
-                "opsPerSec": 59683,
-                "bytesPerOp": 6254,
+                "msPerOp": 0.016508,
+                "opsPerSec": 60576,
+                "bytesPerOp": 6253,
                 "allocsPerOp": 53
               },
               "Ent": {
-                "msPerOp": 0.023243,
-                "opsPerSec": 43023,
+                "msPerOp": 0.022266,
+                "opsPerSec": 44911,
                 "bytesPerOp": 5602,
                 "allocsPerOp": 145
               },
               "GORM": {
-                "msPerOp": 0.024183,
-                "opsPerSec": 41351,
+                "msPerOp": 0.023962,
+                "opsPerSec": 41732,
                 "bytesPerOp": 5577,
                 "allocsPerOp": 96
               },
               "Phi": {
-                "msPerOp": 0.008303,
-                "opsPerSec": 120438,
+                "msPerOp": 0.008118,
+                "opsPerSec": 123183,
                 "bytesPerOp": 2020,
                 "allocsPerOp": 61
               },
               "Raw": {
-                "msPerOp": 0.011867,
-                "opsPerSec": 84267,
+                "msPerOp": 0.011698,
+                "opsPerSec": 85484,
                 "bytesPerOp": 1412,
                 "allocsPerOp": 49
               }
             },
             "FindMany": {
               "Bun": {
-                "msPerOp": 0.055551,
-                "opsPerSec": 18001,
+                "msPerOp": 0.053586,
+                "opsPerSec": 18661,
                 "bytesPerOp": 11054,
                 "allocsPerOp": 137
               },
               "Ent": {
-                "msPerOp": 0.045255,
-                "opsPerSec": 22097,
-                "bytesPerOp": 11133,
+                "msPerOp": 0.045743,
+                "opsPerSec": 21861,
+                "bytesPerOp": 11134,
                 "allocsPerOp": 289
               },
               "GORM": {
-                "msPerOp": 0.069182,
-                "opsPerSec": 14454,
+                "msPerOp": 0.069777,
+                "opsPerSec": 14331,
                 "bytesPerOp": 13230,
                 "allocsPerOp": 223
               },
               "Phi": {
-                "msPerOp": 0.032046,
-                "opsPerSec": 31205,
+                "msPerOp": 0.030977,
+                "opsPerSec": 32282,
                 "bytesPerOp": 5903,
                 "allocsPerOp": 142
               },
               "Raw": {
-                "msPerOp": 0.043511,
-                "opsPerSec": 22982,
+                "msPerOp": 0.042544,
+                "opsPerSec": 23505,
                 "bytesPerOp": 3847,
                 "allocsPerOp": 128
               }
             },
             "FindUnique": {
               "Bun": {
-                "msPerOp": 0.016772,
-                "opsPerSec": 59623,
+                "msPerOp": 0.016323,
+                "opsPerSec": 61263,
                 "bytesPerOp": 6253,
                 "allocsPerOp": 53
               },
               "Ent": {
-                "msPerOp": 0.022532,
-                "opsPerSec": 44381,
+                "msPerOp": 0.023022,
+                "opsPerSec": 43436,
                 "bytesPerOp": 5602,
                 "allocsPerOp": 145
               },
               "GORM": {
-                "msPerOp": 0.024958,
-                "opsPerSec": 40067,
+                "msPerOp": 0.023586,
+                "opsPerSec": 42398,
                 "bytesPerOp": 5577,
                 "allocsPerOp": 96
               },
               "Phi": {
-                "msPerOp": 0.007732,
-                "opsPerSec": 129332,
+                "msPerOp": 0.007726,
+                "opsPerSec": 129433,
                 "bytesPerOp": 1980,
                 "allocsPerOp": 58
               },
               "Raw": {
-                "msPerOp": 0.01175,
-                "opsPerSec": 85106,
+                "msPerOp": 0.011503,
+                "opsPerSec": 86933,
                 "bytesPerOp": 1412,
                 "allocsPerOp": 49
+              }
+            },
+            "FindUniqueSelfRef2L": {
+              "Bun": {
+                "msPerOp": 0.052616,
+                "opsPerSec": 19005,
+                "bytesPerOp": 16127,
+                "allocsPerOp": 188
+              },
+              "Ent": {
+                "msPerOp": 0.069898,
+                "opsPerSec": 14306,
+                "bytesPerOp": 16390,
+                "allocsPerOp": 445
+              },
+              "GORM": {
+                "msPerOp": 0.092696,
+                "opsPerSec": 10787,
+                "bytesPerOp": 27087,
+                "allocsPerOp": 359
+              },
+              "Phi": {
+                "msPerOp": 0.021852,
+                "opsPerSec": 45762,
+                "bytesPerOp": 5514,
+                "allocsPerOp": 172
+              },
+              "Raw": {
+                "msPerOp": 0.034204,
+                "opsPerSec": 29236,
+                "bytesPerOp": 3744,
+                "allocsPerOp": 118
               }
             },
             "ReadDeepRelation": {
@@ -755,64 +819,64 @@
             },
             "Upsert": {
               "Bun": {
-                "msPerOp": 0.043752,
-                "opsPerSec": 22856,
+                "msPerOp": 0.043597,
+                "opsPerSec": 22937,
                 "bytesPerOp": 6049,
                 "allocsPerOp": 38
               },
               "Ent": {
-                "msPerOp": 0.104363,
-                "opsPerSec": 9581,
+                "msPerOp": 0.10281,
+                "opsPerSec": 9726,
                 "bytesPerOp": 6473,
                 "allocsPerOp": 153
               },
               "GORM": {
-                "msPerOp": 0.054423,
-                "opsPerSec": 18374,
+                "msPerOp": 0.054533,
+                "opsPerSec": 18337,
                 "bytesPerOp": 10530,
                 "allocsPerOp": 119
               },
               "Phi": {
-                "msPerOp": 0.020339,
-                "opsPerSec": 49166,
+                "msPerOp": 0.019813,
+                "opsPerSec": 50471,
                 "bytesPerOp": 4129,
                 "allocsPerOp": 106
               },
               "Raw": {
-                "msPerOp": 0.016592,
-                "opsPerSec": 60270,
+                "msPerOp": 0.016627,
+                "opsPerSec": 60143,
                 "bytesPerOp": 910,
                 "allocsPerOp": 23
               }
             },
             "UpsertWithDeepSelect": {
               "Bun": {
-                "msPerOp": 0.117889,
-                "opsPerSec": 8482,
-                "bytesPerOp": 21705,
+                "msPerOp": 0.116264,
+                "opsPerSec": 8601,
+                "bytesPerOp": 21704,
                 "allocsPerOp": 212
               },
               "Ent": {
-                "msPerOp": 0.253254,
-                "opsPerSec": 3948,
+                "msPerOp": 0.251928,
+                "opsPerSec": 3969,
                 "bytesPerOp": 18362,
                 "allocsPerOp": 471
               },
               "GORM": {
-                "msPerOp": 0.192545,
-                "opsPerSec": 5193,
-                "bytesPerOp": 32073,
+                "msPerOp": 0.19279,
+                "opsPerSec": 5186,
+                "bytesPerOp": 32072,
                 "allocsPerOp": 388
               },
               "Phi": {
-                "msPerOp": 0.066877,
-                "opsPerSec": 14952,
-                "bytesPerOp": 8698,
+                "msPerOp": 0.068475,
+                "opsPerSec": 14603,
+                "bytesPerOp": 8700,
                 "allocsPerOp": 196
               },
               "Raw": {
-                "msPerOp": 0.073901,
-                "opsPerSec": 13531,
+                "msPerOp": 0.074136,
+                "opsPerSec": 13488,
                 "bytesPerOp": 4574,
                 "allocsPerOp": 136
               }
