@@ -1205,9 +1205,6 @@ func (d *CategoryDelegate) runCreateManyAndReturn(
 			if err != nil {
 				return err
 			}
-			if hasRelations {
-				return txQ.Category.loadRelations(ctx, res, selects)
-			}
 			return nil
 		})
 		return res, err
@@ -1310,6 +1307,12 @@ func (d *CategoryDelegate) runCreateManyAndReturnFallback(
 			return nil, err
 		}
 		recordsOut = append(recordsOut, scanned...)
+	}
+
+	if selects != nil && selects.hasAnyRelation() {
+		if err := d.loadRelations(ctx, recordsOut, selects); err != nil {
+			return nil, err
+		}
 	}
 
 	return recordsOut, nil
